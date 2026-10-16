@@ -872,7 +872,7 @@
       if ((e.align === 'center' || e.align === 'right') && (e.type === 'heading' || e.type === 'para')) extra += ' text-align: ' + e.align + ';';
       // display sizes live in the scoped stylesheet, not theme presets
       if (DISPLAY_FS[e.fs] && (e.type === 'heading' || e.type === 'para')) {
-        extra += ' font-size: ' + DISPLAY_FS[e.fs] + '; line-height: 1.05;';
+        extra += ' font-size: ' + DISPLAY_FS[e.fs] + '; line-height: ' + (e.tf && e.tf.lh ? e.tf.lh : 1.05) + ';';
       }
       if (e.tf) {
         // captured look of pasted HTML: emitted after the theme's presets so
@@ -884,8 +884,10 @@
           // container units scale the paste's text down on phones with the
           // section; the floor keeps small text readable (big text scales,
           // tiny text holds its size)
+          // a design's own sizes carry their own floor (fsMin): a heading
+          // stays a heading on a phone
           var dpx = Math.round(e.tf.fs2 * 12);
-          tfd.push('font-size: max(' + e.tf.fs2 + 'cqw, ' + Math.min(dpx, 15) + 'px) !important');
+          tfd.push('font-size: max(' + e.tf.fs2 + 'cqw, ' + (e.tf.fsMin || Math.min(dpx, 15)) + 'px) !important');
         } else if (e.tf.fs) {
           tfd.push('font-size: ' + e.tf.fs + 'px !important');
         }
@@ -2331,13 +2333,13 @@
     reflowPush(sec, e, oldH);
     resolveAndApply(sec);
   }
-  function reflowPush(sec, e, oldH) {
+  function reflowPush(sec, e, oldH, only) {
     var delta = e.h - oldH;
     if (!delta) return false;
     var oldBottom = e.y + oldH;
     var pushed = [];
     sec.els.forEach(function (o) {
-      if (o === e) return;
+      if (o === e || (only && only.indexOf(o) === -1)) return;
       // elements in the text's vertical path: below its old bottom edge
       // AND horizontally overlapping its (current) footprint
       if (o.y >= oldBottom - 8 && o.x < e.x + e.w && o.x + o.w > e.x) {
@@ -2357,7 +2359,7 @@
     while (grew) {
       grew = false;
       sec.els.forEach(function (o) {
-        if (o === e || pushed.indexOf(o) !== -1) return;
+        if (o === e || pushed.indexOf(o) !== -1 || (only && only.indexOf(o) === -1)) return;
         if (o.y < oldBottom - 8 - SNAP) return;
         if (pushed.some(function (p) { return aligned(o, p); })) {
           pushed.push(o);
@@ -2401,6 +2403,170 @@
     }
     measureTextHeights(sec);
     resolveAndApply(sec);
+  }
+
+  // A design ARRIVES drawn to gogh's own sizes (the takes' text roles), but
+  // a theme's fonts still run a little wider or narrower than the drawing.
+  // On arrival only (an insert, a roll; never once a person has touched it)
+  // every text piece is measured and the design closes or opens around it:
+  // the words inside each card, the card to fit them (a row of cards keeps
+  // one height, a button on a card's floor stays on it), the section's own
+  // pieces, then the section's floor keeps the air it was drawn with.
+  // the heights as DRAWN, taken before the first render (which already
+  // writes each piece's measured height into the model, without moving
+  // anything below it)
+  function drawnHeights(sec) {
+    return sec.els.map(function (e) { return { e: e, y: e.y, h: e.h, kids: e.kids ? e.kids.map(function (k) { return { k: k, y: k.y, h: k.h }; }) : null }; });
+  }
+  function settleFresh(sec, drawn) {
+    if (!sec || !sec.nodes || sec.chrome || !sec.els.length) return;
+    if (drawn) {
+      // put the drawn heights back, so every change below is one push
+      // (positions too: the render's own grow-push already moved what sat below)
+      drawn.forEach(function (d) { if (sec.els.indexOf(d.e) !== -1) { d.e.y = d.y; d.e.h = d.h; if (d.kids) d.kids.forEach(function (dk) { dk.k.y = dk.y; dk.k.h = dk.h; }); } });
+    }
+    var s = measureScaleOf(sec);
+    if (!(s > 0.2)) return;
+    var bottomOf = function (list) { var b = 0; list.forEach(function (e) { b = Math.max(b, e.y + e.h); }); return b; };
+    var padB = Math.max(0, (sec.minH || 0) - bottomOf(sec.els));
+    // words drawn centred beside a tall picture stay centred on it
+    var midOf = function (list) { var t = Infinity, b2 = -Infinity; list.forEach(function (e) { t = Math.min(t, e.y); b2 = Math.max(b2, e.y + e.h); }); return (t + b2) / 2; };
+    var besides = [];
+    sec.els.forEach(function (im) {
+      if (!(im.type === 'image' || (im.type === 'widget' && (im.rails || im.wall || im.slides))) || im.h < 160) return;
+      var col = sec.els.filter(function (e) {
+        return e !== im && e.type !== 'box' && (e.x + e.w <= im.x || e.x >= im.x + im.w) && e.y >= im.y - 8 && e.y + e.h <= im.y + im.h + 8;
+      });
+      if (col.length < 2 || !col.some(isText) || Math.abs(midOf(col) - (im.y + im.h / 2)) > 16) return;
+      var side = col[0].x < im.x;
+      if (col.some(function (e) { return (e.x < im.x) !== side; })) return;
+      besides.push({ im: im, col: col });
+    });
+    var cards = [];
+    sec.els.forEach(function (host, ci) {
+      if (!host.kids || !host.kids.length || !sec.nodes[ci]) return;
+      var card = sec.nodes[ci], before = bottomOf(host.kids);
+      var lastK = host.kids.slice().sort(function (a, b) { return (b.y + b.h) - (a.y + a.h); })[0];
+      var info = { host: host, oldH: host.h, pad: host.h - before, floorBtn: lastK && lastK.type === 'button' ? lastK : null };
+      host.kids.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (k) {
+        if (!isText(k)) return;
+        var kn = card.querySelector('.gogh-k-' + (host.kids.indexOf(k) + 1));
+        if (!kn || getComputedStyle(kn).display === 'none') return;
+        var tn = kn.matches('p,h1,h2,h3,h4,h5,h6,ul,ol') ? kn : (kn.querySelector('p,h1,h2,h3,h4,h5,h6,ul,ol') || kn);
+        var h = Math.round(tn.getBoundingClientRect().height / s);
+        if (!(h > 0) || Math.abs(h - k.h) <= 2) return;
+        var oldB = k.y + k.h, d = h - k.h;
+        k.h = h;
+        host.kids.forEach(function (o) { if (o !== k && o.y >= oldB - 8 && o.x < k.x + k.w && o.x + o.w > k.x) o.y = Math.max(0, o.y + d); });
+      });
+      info.need = bottomOf(host.kids.filter(function (k) { return k !== info.floorBtn; }));
+      info.btnGap = info.floorBtn ? Math.max(16, info.oldH - info.pad - info.floorBtn.h - bottomOf(host.kids.filter(function (k) { return k !== info.floorBtn; })) ) : 0;
+      cards.push(info);
+    });
+    // rows: cards whose middles line up share one height
+    var rows = [];
+    cards.forEach(function (c) {
+      var mid = c.host.y + c.oldH / 2, r = null;
+      rows.forEach(function (g) { if (Math.abs(g.mid - mid) <= 12) r = g; });
+      if (r) r.cards.push(c); else rows.push({ mid: mid, cards: [c] });
+    });
+    var moved = [];
+    rows.forEach(function (row) {
+      var base = Math.min.apply(null, row.cards.map(function (c) { return c.oldH; }));
+      var H = Math.max.apply(null, row.cards.map(function (c) {
+        return c.need + (c.floorBtn ? c.btnGap + c.floorBtn.h : 0) + c.pad - (c.oldH - base);
+      }));
+      row.cards.forEach(function (c) {
+        var extra = c.oldH - base;
+        var h = row.cards.length > 1 ? H + extra : c.need + (c.floorBtn ? c.btnGap + c.floorBtn.h : 0) + c.pad;
+        // a picture flush with a card's floor keeps the card's height
+        if (c.host.kids.some(function (k) { return k.type === 'image' && k.y + k.h >= c.oldH - 2; })) h = c.oldH;
+        h = Math.round(h);
+        if (c.floorBtn) c.floorBtn.y = h - c.pad - c.floorBtn.h;
+        if (Math.abs(h - c.oldH) > 2) { c.host.h = h; moved.push(c); }
+      });
+    });
+    // what sits under a card that changed height follows it, once
+    var shifted = [];
+    moved.sort(function (a, b) { return a.host.y - b.host.y; }).forEach(function (c) {
+      var d = c.host.h - c.oldH, oldB = c.host.y + c.oldH;
+      sec.els.forEach(function (o) {
+        if (o === c.host || shifted.indexOf(o) !== -1 || moved.some(function (m) { return m.host === o; })) return;
+        if (o.y >= oldB - 8 && o.x < c.host.x + c.host.w && o.x + o.w > c.host.x) { o.y = Math.max(0, o.y + d); shifted.push(o); }
+      });
+    });
+    if (moved.length) resolveAndApply(sec);
+    // a plain box holding pieces (not a card, not a scrim) fits them, keeping its floor
+    var holders = [];
+    sec.els.forEach(function (b) {
+      if (b.type !== 'box' || (b.kids && b.kids.length) || /gradient\(|url\(/.test(String(b.boxBg || ''))) return;
+      var inner = sec.els.filter(function (e) { return e !== b && e.x >= b.x - 2 && e.x + e.w <= b.x + b.w + 2 && e.y >= b.y - 2 && e.y + e.h <= b.y + b.h + 2; });
+      if (inner.length) holders.push({ b: b, inner: inner, pad: b.y + b.h - bottomOf(inner) });
+    });
+    var scopeOf = function (e) { var h2 = holders.filter(function (H) { return H.inner.indexOf(e) !== -1; })[0]; return h2 ? h2.inner : null; };
+    // shop rails, questions and tabs draw their real height once they render
+    sec.els.forEach(function (e, i) {
+      if (e.type !== 'widget' || !(e.rails || e.faq || e.tabs || e.wall || e.slides) || !sec.nodes[i]) return;
+      var inner = sec.nodes[i].firstElementChild;
+      if (!inner) return;
+      var h = Math.round(inner.getBoundingClientRect().height / s);
+      if (!(h > 40) || Math.abs(h - e.h) <= 12) return;
+      var oldH = e.h;
+      e.h = h;
+      reflowPush(sec, e, oldH, scopeOf(e));
+    });
+    // the section's own words, read as INK: a heading's box is drawn as tall
+    // as its row, so its box can't say that it wrapped to one line, not two
+    sec.els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
+      var i = sec.els.indexOf(e), node = sec.nodes[i];
+      if (!isText(e) || !node || getComputedStyle(node).display === 'none') return;
+      var tn = node.matches('p,h1,h2,h3,h4,h5,h6,ul,ol') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6,ul,ol') || node);
+      var rng = document.createRange();
+      rng.selectNodeContents(tn);
+      var r = rng.getBoundingClientRect();
+      var lh = parseFloat(getComputedStyle(tn).lineHeight) || 0;
+      var tops = [];
+      [].forEach.call(rng.getClientRects(), function (cr) { if (cr.height > 0 && !tops.some(function (t) { return Math.abs(t - cr.top) < lh / 2; })) tops.push(cr.top); });
+      var lines = lh > 0 ? Math.max(1, tops.length) : 0;
+      var h = Math.round((lines ? lines * lh : r.height) / s);
+      if (!(h > 0) || Math.abs(h - e.h) <= 2) return;
+      var oldH = e.h;
+      e.h = h;
+      reflowPush(sec, e, oldH, scopeOf(e));
+    });
+    holders.forEach(function (H) {
+      var nh = Math.round(bottomOf(H.inner) + H.pad - H.b.y);
+      if (Math.abs(nh - H.b.h) <= 4) return;
+      var oh = H.b.h;
+      H.b.h = nh;
+      reflowPush(sec, H.b, oh, sec.els.filter(function (o) { return H.inner.indexOf(o) === -1; }));
+    });
+    besides.forEach(function (b3) {
+      var d = Math.round(b3.im.y + b3.im.h / 2 - midOf(b3.col));
+      if (Math.abs(d) > 2) b3.col.forEach(function (e) { e.y = Math.max(0, e.y + d); });
+    });
+    resolveAndApply(sec);
+    // the model ends where the editor's own measure would put it (a drop
+    // re-measures by box; ink and box differ by a unit or two)
+    measureTextHeights(sec);
+    // the air under the design as drawn, on the 8 grid (24 rounding stacked
+    // up to a deeper floor than the top)
+    // (a picture section keeps its height: its words sit in its middle)
+    if (sec.minH && !(sec.bgImage || sec.fill || sec.bgVideo)) sec.minH = Math.max(MIN_H / 2, Math.ceil((bottomOf(sec.els) + Math.min(padB, 104)) / BASE) * BASE);
+    resolveAndApply(sec);
+  }
+  // fonts land late: settle again a few times while nobody has touched it
+  function settleFreshLater(sec) {
+    var snap = history[hIdx];
+    [250, 700, 1500].forEach(function (ms) {
+      setTimeout(function () {
+        if (!editing || drag || resize || textEditing || S.indexOf(sec) === -1 || history[hIdx] !== snap) return;
+        settleFresh(sec);
+        var now = serialize();
+        if (now !== snap) { history[hIdx] = now; snap = now; }
+        if (sel && sel.sec === sec) placeHandles(sec, sel.i);
+      }, ms);
+    });
   }
 
   // A swapped-in font can re-render a heading over the next several hundred ms
@@ -8743,7 +8909,24 @@
         var host = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
         var txt = cssToRgba(getComputedStyle(host).color);
         if (!txt) return;
-        var bgL = groundFor(e);
+        // what sits right BEHIND the words decides, not the section: white
+        // words on a photo card's dark scrim were judged against the white
+        // page and painted dark (James: "sentinel issues with our backgrounds")
+        var under = null;
+        for (var j = i - 1; j >= 0 && !under; j--) {
+          var o = sec.els[j];
+          if (isText(o) || o.type === 'button' || o.type === 'line' || o.type === 'icon') continue;
+          var ox = Math.min(o.x + o.w, e.x + e.w) - Math.max(o.x, e.x), oy = Math.min(o.y + o.h, e.y + e.h) - Math.max(o.y, e.y);
+          if (ox <= 0 || oy <= 0 || ox * oy < e.w * e.h * 0.6) continue;
+          if (o.type === 'box' && !o.boxBg && !(o.kids && o.kids.length)) continue;
+          under = o;
+        }
+        // a photo, a video or a gradient scrim: the design chose its words' colour
+        if (under && (under.type !== 'box' || /gradient\(|url\(/.test(String(under.boxBg || '')))) return;
+        // a tint paints OVER what is beneath it (6% ink on a theme with no
+        // 'base' colour is a whisper of grey, not black)
+        var underC = under && under.boxBg ? cssToRgba(under.boxBg) : null;
+        var bgL = underC ? sentinelLum(underC.rgb) * underC.a + groundFor(e) * (1 - underC.a) : groundFor(e);
         // a 60%-ink eyebrow really paints as its composite over the ground
         var curC = sentinelContrast(sentinelOver(txt, bgL), bgL);
         if (curC >= CONTRAST_FLOOR) {
@@ -9640,14 +9823,14 @@
     // real site, not lorem; eyebrows are paras wearing tf, ink sections are
     // theme-contrast backgrounds so every style variation re-dresses them
     { starter: true, intent: 'introduce', name: 'Hero', minH: 648, els: [
-      { type: 'box', x: 640, y: 144, w: 500, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
-      { type: 'image', x: 600, y: 120, w: 500, h: 432, cool: true },
-      { type: 'para', x: 72, y: 120, w: 340, h: 24, text: 'Design studio \u00b7 Brighton',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 168, w: 470, h: 192, text: 'We make brands people remember', fs: '__max' },
-      { type: 'para', x: 72, y: 384, w: 410, h: 72, text: 'Strategy, identity and websites for founders who care how things feel. Everything on this page is draggable \u2014 start here and make it yours.' },
-      { type: 'button', x: 72, y: 504, w: 180, h: 48, text: 'See the work' },
-      { type: 'button', x: 272, y: 504, w: 180, h: 48, text: 'Start a project', ghost: true },
+      { type: 'box', x: 640, y: 120, w: 500, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
+      { type: 'image', x: 600, y: 96, w: 500, h: 432, cool: true },
+      { type: 'para', x: 72, y: 152, w: 340, h: 16, text: 'Design studio \u00b7 Brighton',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 184, w: 470, h: 106, text: 'We make brands people remember', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+      { type: 'para', x: 72, y: 314, w: 410, h: 78, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Strategy, identity and websites for founders who care how things feel. Everything on this page is draggable \u2014 start here and make it yours.' },
+      { type: 'button', x: 72, y: 424, w: 180, h: 48, text: 'See the work' },
+      { type: 'button', x: 272, y: 424, w: 180, h: 48, text: 'Start a project', ghost: true },
     ] },
     { starter: true, intent: 'introduce', name: 'Cover', minH: 648,
       // the canonical hero: full-bleed picture, theme tint, centred words,
@@ -9658,92 +9841,92 @@
       fx: { bg: 'parallax' },
       bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg',
       els: [
-      { type: 'para', x: 400, y: 144, w: 400, h: 24, align: 'center', text: 'Est. 2019 \u00b7 Brighton',
-        tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-      { type: 'heading', x: 150, y: 216, w: 900, h: 144, text: 'Make it feel like you', fs: '__max', align: 'center', color: 'base' },
-      { type: 'para', x: 320, y: 408, w: 560, h: 48, align: 'center', text: 'One clear promise over one strong picture \u2014 the front door most sites need.', color: 'base' },
-      { type: 'button', x: 505, y: 504, w: 190, h: 48, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { type: 'para', x: 400, y: 200, w: 400, h: 16, align: 'center', text: 'Est. 2019 \u00b7 Brighton',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+      { type: 'heading', x: 150, y: 232, w: 900, h: 54, text: 'Make it feel like you', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 }, align: 'center', color: 'base' },
+      { type: 'para', x: 320, y: 310, w: 560, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, align: 'center', text: 'One clear promise over one strong picture \u2014 the front door most sites need.', color: 'base' },
+      { type: 'button', x: 505, y: 394, w: 190, h: 48, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
     ] },
-    { starter: true, intent: 'introduce', name: 'Big statement', minH: 504, els: [
-      { type: 'para', x: 400, y: 96, w: 400, h: 24, align: 'center', text: 'What we believe',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 60, y: 144, w: 1080, h: 240, text: 'Good design is good business', fs: '__disp-l', align: 'center' },
-      { type: 'button', x: 516, y: 432, w: 168, h: 48, text: 'Our thinking', ghost: true },
+    { starter: true, intent: 'introduce', name: 'Big statement', minH: 816, els: [
+      { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'What we believe',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 60, y: 128, w: 1080, h: 492, text: 'Good design is good business', fs: '__disp-l', align: 'center' },
+      { type: 'button', x: 516, y: 660, w: 168, h: 48, text: 'Our thinking', ghost: true },
     ] },
-    { starter: true, intent: 'introduce', name: 'Story', minH: 576, els: [
+    { starter: true, intent: 'introduce', name: 'Story', minH: 648, els: [
       { type: 'image', x: 72, y: 96, w: 470, h: 456, cool: true },
-      { type: 'para', x: 620, y: 120, w: 300, h: 24, text: 'Our story',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 620, y: 168, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large' },
-      { type: 'para', x: 620, y: 312, w: 460, h: 72, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
-      { type: 'para', x: 620, y: 408, w: 460, h: 72, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
-      { type: 'button', x: 620, y: 504, w: 220, h: 48, text: 'The whole story', ghost: true },
+      { type: 'para', x: 620, y: 162, w: 300, h: 16, text: 'Our story',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 620, y: 194, w: 480, h: 82, text: 'It started in a spare room', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'para', x: 620, y: 300, w: 460, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
+      { type: 'para', x: 620, y: 362, w: 460, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
+      { type: 'button', x: 620, y: 440, w: 220, h: 48, text: 'The whole story', ghost: true },
     ] },
-    { starter: true, intent: 'introduce', name: 'Numbers', minH: 432, els: [
-      { type: 'para', x: 72, y: 72, w: 300, h: 24, text: 'By the numbers',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 144, w: 330, h: 120, text: '184', fs: '__disp-m' },
-      { type: 'para', x: 76, y: 288, w: 290, h: 24, text: 'Projects shipped since 2019' },
-      { type: 'heading', x: 435, y: 144, w: 330, h: 120, text: '12', fs: '__disp-m' },
-      { type: 'para', x: 439, y: 288, w: 290, h: 24, text: 'Design awards on two shelves' },
-      { type: 'heading', x: 798, y: 144, w: 330, h: 120, text: '98%', fs: '__disp-m' },
-      { type: 'para', x: 802, y: 288, w: 290, h: 24, text: 'Clients who came back for more' },
+    { starter: true, intent: 'introduce', name: 'Numbers', minH: 408, els: [
+      { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'By the numbers',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 128, w: 330, h: 114, text: '184', fs: '__disp-m' },
+      { type: 'para', x: 76, y: 266, w: 290, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Projects shipped since 2019' },
+      { type: 'heading', x: 435, y: 128, w: 330, h: 114, text: '12', fs: '__disp-m' },
+      { type: 'para', x: 439, y: 266, w: 290, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Design awards on two shelves' },
+      { type: 'heading', x: 798, y: 128, w: 330, h: 114, text: '98%', fs: '__disp-m' },
+      { type: 'para', x: 802, y: 266, w: 290, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Clients who came back for more' },
     ] },
-    { starter: true, intent: 'introduce', name: 'Article', minH: 648, els: [
-      { type: 'para', x: 280, y: 48, w: 300, h: 24, text: 'From the journal',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 280, y: 96, w: 640, h: 48, text: 'Notes on doing less, better', fs: 'x-large' },
-      { type: 'para', x: 280, y: 192, w: 640, h: 48, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
-      { type: 'para', x: 280, y: 288, w: 640, h: 48, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
-      { type: 'para', x: 280, y: 384, w: 640, h: 48, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
-      { type: 'button', x: 280, y: 480, w: 200, h: 48, text: 'Keep reading', ghost: true },
+    { starter: true, intent: 'introduce', name: 'Article', minH: 552, els: [
+      { type: 'para', x: 280, y: 96, w: 300, h: 16, text: 'From the journal',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 280, y: 128, w: 640, h: 42, text: 'Notes on doing less, better', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'para', x: 280, y: 194, w: 640, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+      { type: 'para', x: 280, y: 256, w: 640, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+      { type: 'para', x: 280, y: 318, w: 640, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+      { type: 'button', x: 280, y: 396, w: 200, h: 48, text: 'Keep reading', ghost: true },
     ] },
     // ---- Sell, with rails (design note: Gogh Shop): freeform story pieces
     // around ONE rails element — the products are Woo's, the layout is ours.
     // Only shown when WooCommerce is present (gated) ----
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Featured product', minH: 576, els: [
-      { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 144, w: 470, h: 144, text: 'The one everyone asks about', fs: '__max' },
-      { type: 'para', x: 72, y: 336, w: 420, h: 72, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
-      { type: 'button', x: 72, y: 432, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
-      { type: 'widget', rails: true, x: 640, y: 72, w: 460, h: 432, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Featured product', minH: 624, els: [
+      { type: 'para', x: 72, y: 166, w: 340, h: 16, text: 'This week', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 198, w: 470, h: 106, text: 'The one everyone asks about', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+      { type: 'para', x: 72, y: 328, w: 420, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+      { type: 'button', x: 72, y: 412, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 640, y: 96, w: 460, h: 432, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
     ] },
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Bestsellers', minH: 720, els: [
-      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Bestsellers', fs: 'x-large' },
-      { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
-      { type: 'button', x: 900, y: 216, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
-      { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 360, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Bestsellers', minH: 768, els: [
+      { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Most loved', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Bestsellers', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'para', x: 72, y: 194, w: 520, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
+      { type: 'button', x: 900, y: 194, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 294, w: 1106, h: 360, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
     ] },
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Editorial split', minH: 648, els: [
-      { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 144, w: 460, h: 144, text: 'Made slowly, sent this week', fs: '__max' },
-      { type: 'para', x: 72, y: 336, w: 420, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
-      { type: 'button', x: 72, y: 480, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
-      { type: 'widget', rails: true, x: 600, y: 72, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Editorial split', minH: 720, els: [
+      { type: 'para', x: 72, y: 200, w: 340, h: 16, text: 'From the workshop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 232, w: 460, h: 106, text: 'Made slowly, sent this week', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+      { type: 'para', x: 72, y: 362, w: 420, h: 78, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
+      { type: 'button', x: 72, y: 472, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 600, y: 96, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
     ] },
     // ---- Share: your posts on a page (James: 'do you think we need a blog
     // section?'). Each is the live posts grid, so it shows the site's real
     // posts and keeps itself up to date; __posts__ is the blog page's address,
     // and the button goes when the site has none ----
-    { starter: true, intent: 'share', name: 'Latest posts', minH: 648, keywords: 'blog news posts journal articles writing', els: [
-      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Latest posts', fs: 'x-large' },
-      { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'New writing as it goes up, newest first. It fills itself.' },
-      { type: 'button', x: 900, y: 216, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
-      { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 312, posts: { count: 3, look: 'cards', aspect: 'landscape', show: { date: true, excerpt: false } } },
+    { starter: true, intent: 'share', name: 'Latest posts', minH: 696, keywords: 'blog news posts journal articles writing', els: [
+      { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'From the journal', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Latest posts', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'para', x: 72, y: 194, w: 520, h: 26, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'New writing as it goes up, newest first. It fills itself.' },
+      { type: 'button', x: 900, y: 194, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 268, w: 1106, h: 312, posts: { count: 3, look: 'cards', aspect: 'landscape', show: { date: true, excerpt: false } } },
     ] },
-    { starter: true, intent: 'share', name: 'Featured post', minH: 792, keywords: 'blog news posts journal newest latest cover', els: [
-      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Just published', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'From the journal', fs: 'x-large' },
-      { type: 'button', x: 900, y: 144, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
-      { type: 'widget', rails: true, x: 47, y: 216, w: 1106, h: 528, posts: { count: 4, look: 'cover', aspect: 'landscape', show: { date: true, excerpt: true } } },
+    { starter: true, intent: 'share', name: 'Featured post', minH: 864, keywords: 'blog news posts journal newest latest cover', els: [
+      { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Just published', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'From the journal', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'button', x: 900, y: 168, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 226, w: 1106, h: 528, posts: { count: 4, look: 'cover', aspect: 'landscape', show: { date: true, excerpt: true } } },
     ] },
-    { starter: true, intent: 'share', name: 'Titles and dates', minH: 648, keywords: 'blog news posts journal archive list index writing', els: [
-      { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'The archive', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 144, w: 400, h: 96, text: 'Everything, newest first', fs: 'x-large' },
-      { type: 'para', x: 72, y: 264, w: 380, h: 72, text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
-      { type: 'button', x: 72, y: 384, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+    { starter: true, intent: 'share', name: 'Titles and dates', minH: 672, keywords: 'blog news posts journal archive list index writing', els: [
+      { type: 'para', x: 72, y: 202, w: 340, h: 16, text: 'The archive', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 234, w: 400, h: 82, text: 'Everything, newest first', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'para', x: 72, y: 340, w: 380, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
+      { type: 'button', x: 72, y: 424, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
       { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 480, posts: { count: 6, look: 'list', aspect: 'landscape', show: { date: true, excerpt: false } } },
     ] },
     // ---- Menu panels (the mega menu): a page that drops from a menu item.
@@ -9786,168 +9969,168 @@
     ] },
     // Shop the look: a photo full of your things, the things beside it —
     // hand-picked, so the rails show exactly what is in the picture
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Shop the look', minH: 648, els: [
-      { type: 'image', x: 60, y: 48, w: 620, h: 528, cool: true },
-      { type: 'para', x: 740, y: 72, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 740, y: 120, w: 400, h: 96, text: 'Everything in this picture', fs: 'x-large' },
-      { type: 'para', x: 740, y: 240, w: 380, h: 48, text: 'Every piece here is ours. Tap one to see it up close.' },
-      { type: 'widget', rails: true, x: 740, y: 312, w: 400, h: 288, shop: { count: 3, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: true } } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Shop the look', minH: 744, els: [
+      { type: 'image', x: 60, y: 96, w: 620, h: 528, cool: true },
+      { type: 'para', x: 740, y: 120, w: 340, h: 16, text: 'Shop the look', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 740, y: 152, w: 400, h: 82, text: 'Everything in this picture', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'para', x: 740, y: 258, w: 380, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Every piece here is ours. Tap one to see it up close.' },
+      { type: 'widget', rails: true, x: 740, y: 358, w: 400, h: 288, shop: { count: 3, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: true } } },
     ] },
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'New in', minH: 648, els: [
-      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'New in', fs: 'x-large' },
-      { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'The latest things on the shelf, newest first. Nothing to maintain.' },
-      { type: 'button', x: 900, y: 216, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
-      { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 288, shop: { count: 4, order: 'date', layout: 'grid', aspect: 'landscape', spacing: 's' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'New in', minH: 696, els: [
+      { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Just arrived', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'New in', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'para', x: 72, y: 194, w: 520, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'The latest things on the shelf, newest first. Nothing to maintain.' },
+      { type: 'button', x: 900, y: 194, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 294, w: 1106, h: 288, shop: { count: 4, order: 'date', layout: 'grid', aspect: 'landscape', spacing: 's' } },
     ] },
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Sale', minH: 720, els: [
-      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'On sale', fs: 'x-large' },
-      { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'Only what is reduced, while it lasts. Prices as marked.' },
-      { type: 'button', x: 860, y: 216, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', ghost: true },
-      { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 360, shop: { count: 3, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Sale', minH: 744, els: [
+      { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Right now', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'On sale', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'para', x: 72, y: 194, w: 520, h: 26, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Only what is reduced, while it lasts. Prices as marked.' },
+      { type: 'button', x: 860, y: 194, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 268, w: 1106, h: 360, shop: { count: 3, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
     ] },
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Categories', minH: 648, els: [
-      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Find your thing', fs: 'x-large' },
-      { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'Every door leads somewhere good.' },
-      { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 288, shop: { kind: 'categories', count: 3, spacing: 'm' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Categories', minH: 672, els: [
+      { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Shop by', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Find your thing', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'para', x: 72, y: 194, w: 520, h: 26, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Every door leads somewhere good.' },
+      { type: 'widget', rails: true, x: 47, y: 268, w: 1106, h: 288, shop: { kind: 'categories', count: 3, spacing: 'm' } },
     ] },
-    { starter: true, intent: 'sell', name: 'Feature cards', minH: 576, els: [
-      { type: 'heading', x: 100, y: 48, w: 1000, h: 48, text: 'What we do', fs: 'x-large', align: 'center' },
-      { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18,
+    { starter: true, intent: 'sell', name: 'Feature cards', minH: 480, els: [
+      { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'What we do', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+      { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Brand identity', fs: 'large' },
-          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
+          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
         ] },
-      { type: 'box', x: 440, y: 168, w: 320, h: 336, radius: 18,
+      { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Websites', fs: 'large' },
-          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
+          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
         ] },
-      { type: 'box', x: 780, y: 168, w: 320, h: 336, radius: 18,
+      { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Art direction', fs: 'large' },
-          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
+          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
         ] },
     ] },
-    { starter: true, intent: 'sell', name: 'Pricing', minH: 648, els: [
+    { starter: true, intent: 'sell', name: 'Pricing', minH: 696, els: [
       // three prices is the common shape (James), so it is the BASE face —
       // the middle card wears the ink and the Most-popular star; the old
       // two-card layout lives on in the drawer as The pair
-      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Simple pricing',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Three ways to work with us', fs: 'x-large', align: 'center' },
-      { type: 'box', x: 72, y: 240, w: 340, h: 360, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-        { type: 'heading', x: 28, y: 30, w: 284, h: 40, text: 'The Sprint', fs: 'large' },
-        { type: 'para', x: 28, y: 82, w: 284, h: 66, text: 'One focused week. A sharp brief in, a finished thing out.' },
-        { type: 'heading', x: 28, y: 168, w: 284, h: 56, text: '\u00a33,500', fs: 'x-large' },
-        { type: 'button', x: 28, y: 252, w: 284, h: 52, text: 'Book a sprint', ghost: true },
+      { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Three ways to work with us', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+      { type: 'box', x: 72, y: 226, w: 340, h: 316, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'heading', x: 28, y: 32, w: 284, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 28, y: 72, w: 284, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'One focused week. A sharp brief in, a finished thing out.' },
+        { type: 'heading', x: 28, y: 158, w: 284, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
+        { type: 'button', x: 28, y: 232, w: 284, h: 52, text: 'Book a sprint', ghost: true },
       ] },
-      { type: 'box', x: 430, y: 192, w: 340, h: 432, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
-        { type: 'heading', x: 28, y: 86, w: 284, h: 40, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 28, y: 138, w: 284, h: 66, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-        { type: 'heading', x: 28, y: 222, w: 284, h: 56, text: '\u00a34,000/mo', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'button', x: 28, y: 306, w: 284, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { type: 'box', x: 430, y: 190, w: 340, h: 388, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
+        { type: 'heading', x: 28, y: 68, w: 284, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 28, y: 108, w: 284, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+        { type: 'heading', x: 28, y: 194, w: 284, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'button', x: 28, y: 266, w: 284, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
-      { type: 'box', x: 788, y: 240, w: 340, h: 360, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-        { type: 'heading', x: 28, y: 30, w: 284, h: 40, text: 'Ongoing care', fs: 'large' },
-        { type: 'para', x: 28, y: 82, w: 284, h: 66, text: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
-        { type: 'heading', x: 28, y: 168, w: 284, h: 56, text: '\u00a3600/mo', fs: 'x-large' },
-        { type: 'button', x: 28, y: 252, w: 284, h: 52, text: 'Stay with us', ghost: true },
+      { type: 'box', x: 788, y: 226, w: 340, h: 316, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'heading', x: 28, y: 32, w: 284, h: 28, text: 'Ongoing care', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 28, y: 72, w: 284, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
+        { type: 'heading', x: 28, y: 158, w: 284, h: 34, text: '\u00a3600/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
+        { type: 'button', x: 28, y: 232, w: 284, h: 52, text: 'Stay with us', ghost: true },
       ] },
     ] },
-    { starter: true, intent: 'sell', name: 'Quote', minH: 504, els: [
-      { type: 'heading', x: 76, y: 48, w: 180, h: 144, text: '\u201c', fs: '__disp-l' },
-      { type: 'para', x: 200, y: 168, w: 800, h: 144, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25 } },
-      { type: 'para', x: 204, y: 360, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+    { starter: true, intent: 'sell', name: 'Quote', minH: 432, els: [
+      { type: 'heading', x: 76, y: 96, w: 180, h: 98, tf: { lh: 0.62 }, text: '\u201c', fs: '__disp-l' },
+      { type: 'para', x: 200, y: 216, w: 800, h: 58, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', tf: { fs2: 1.667, fsMin: 19, lh: 1.45 } },
+      { type: 'para', x: 204, y: 298, w: 500, h: 16, text: 'Hanna Lindqvist \u00b7 Hanna & Co',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
     ] },
-    { starter: true, intent: 'sell', name: 'Testimonials', minH: 576, els: [
-      { type: 'heading', x: 100, y: 48, w: 1000, h: 48, text: 'Kind words', fs: 'x-large', align: 'center' },
-      { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18,
+    { starter: true, intent: 'sell', name: 'Testimonials', minH: 480, els: [
+      { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'Kind words', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+      { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '“They understood us in the first meeting. The site feels like walking into our shop.”', tf: { lh: 1.45 } },
-          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Hanna · Hanna & Co',
-            tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '“They understood us in the first meeting. The site feels like walking into our shop.”', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Hanna · Hanna & Co',
+            tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         ] },
-      { type: 'box', x: 440, y: 168, w: 320, h: 336, radius: 18,
+      { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', tf: { lh: 1.45 } },
-          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Dev · Marlow Bikes',
-            tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Dev · Marlow Bikes',
+            tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         ] },
-      { type: 'box', x: 780, y: 168, w: 320, h: 336, radius: 18,
+      { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', tf: { lh: 1.45 } },
-          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Ruth · The Corner Bakery',
-            tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Ruth · The Corner Bakery',
+            tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         ] },
     ] },
     { starter: true, intent: 'sell', name: 'Call to action', minH: 360,
       bg: 'var(--wp--preset--color--contrast, #16181c)',
       els: [
-      { type: 'para', x: 96, y: 72, w: 300, h: 24, text: 'Next step',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-      { type: 'heading', x: 96, y: 120, w: 640, h: 120, text: 'Let\u2019s make yours', fs: '__max', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-      { type: 'para', x: 98, y: 288, w: 440, h: 24, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-      { type: 'button', x: 884, y: 192, w: 220, h: 48, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { type: 'para', x: 96, y: 96, w: 300, h: 16, text: 'Next step',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+      { type: 'heading', x: 96, y: 128, w: 640, h: 54, text: 'Let\u2019s make yours', tf: { fs2: 4.167, fsMin: 34, lh: 1.06, col: 'var(--wp--preset--color--base, #fff)' } },
+      { type: 'para', x: 98, y: 206, w: 440, h: 52, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { fs2: 1.375, fsMin: 17, lh: 1.55, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+      { type: 'button', x: 884, y: 216, w: 220, h: 48, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
     ] },
-    { starter: true, intent: 'sell', name: 'Get in touch', label: 'Contact form', minH: 720, els: [
-      { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Say hello',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 300, y: 120, w: 600, h: 96, text: 'Let\u2019s talk', fs: '__max', align: 'center' },
-      { type: 'para', x: 340, y: 240, w: 520, h: 48, align: 'center', text: 'A question, an idea, or just to say hi \u2014 we read everything, usually the same day.' },
+    { starter: true, intent: 'sell', name: 'Get in touch', label: 'Contact form', minH: 744, els: [
+      { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Say hello',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 300, y: 128, w: 600, h: 54, text: 'Let\u2019s talk', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 }, align: 'center' },
+      { type: 'para', x: 340, y: 206, w: 520, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, align: 'center', text: 'A question, an idea, or just to say hi \u2014 we read everything, usually the same day.' },
       // a REAL gogh form: messages land in the site's own Messages book
-      { type: 'widget', x: 240, y: 336, w: 720, h: 336,
+      { type: 'widget', x: 240, y: 306, w: 720, h: 336,
         wsrc: '<!-- wp:gogh/form /-->',
         whtml: '<div class="gogh-form"><div class="gogh-form-row"><input type="text" placeholder="Your name" disabled /><input type="email" placeholder="Your email" disabled /></div><textarea rows="5" placeholder="Your message\u2026" disabled></textarea><div class="gogh-form-foot"><span class="gogh-form-fbtn">Send</span><span class="gogh-form-note">Goes straight to this site \u2014 nowhere else.</span></div></div>' },
     ] },
     { starter: true, intent: 'introduce', name: 'Profile card', minH: 648, els: [
       // full-bleed photo + one frosted card floating centre — the glass
       // recipe: radius 24, glass mood, tiny badge, meta row, one button
-      { type: 'box', x: 400, y: 120, w: 400, h: 360, radius: 24, mood: 'glass', kids: [
-        { type: 'para', x: 32, y: 36, w: 336, h: 22, align: 'center', text: 'DESIGN \u00b7 DIRECTION',
-          tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
-        { type: 'heading', x: 32, y: 70, w: 336, h: 48, align: 'center', text: 'Vincent van Gogh', fs: 'large' },
-        { type: 'para', x: 32, y: 130, w: 336, h: 48, align: 'center', text: 'Painter of light. 900 works, one sunflower obsession.' },
-        { type: 'para', x: 32, y: 196, w: 336, h: 22, align: 'center', text: 'Arles \u00b7 Saint-R\u00e9my \u00b7 Auvers',
-          tf: { fs: 13, col: 'color-mix(in srgb, currentColor 65%, transparent)' } },
-        { type: 'button', x: 116, y: 248, w: 168, h: 48, text: 'Say hello' },
+      { type: 'box', x: 400, y: 176, w: 400, h: 296, radius: 24, mood: 'glass', kids: [
+        { type: 'para', x: 32, y: 32, w: 336, h: 16, align: 'center', text: 'DESIGN \u00b7 DIRECTION',
+          tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+        { type: 'heading', x: 32, y: 64, w: 336, h: 28, align: 'center', text: 'Vincent van Gogh', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 32, y: 104, w: 336, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, align: 'center', text: 'Painter of light. 900 works, one sunflower obsession.' },
+        { type: 'para', x: 32, y: 174, w: 336, h: 18, align: 'center', text: 'Arles \u00b7 Saint-R\u00e9my \u00b7 Auvers',
+          tf: { fs2: 1, fsMin: 13, lh: 1.5, col: 'color-mix(in srgb, currentColor 65%, transparent)' } },
+        { type: 'button', x: 116, y: 216, w: 168, h: 48, text: 'Say hello' },
       ] },
     ], bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)' },
     { starter: true, intent: 'sell', name: 'Job card', minH: 648, els: [
-      { type: 'box', x: 380, y: 120, w: 440, h: 408, radius: 24, mood: 'glass', kids: [
-        { type: 'heading', x: 32, y: 84, w: 376, h: 44, text: 'Senior designer', fs: 'large' },
-        { type: 'para', x: 32, y: 140, w: 376, h: 66, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
-        { type: 'para', x: 32, y: 220, w: 376, h: 22, text: '\u00a370\u201385k \u00b7 Remote-first \u00b7 Full time',
-          tf: { fs: 13, fw: 600 } },
-        { type: 'button', x: 32, y: 268, w: 180, h: 52, text: 'Apply now' },
+      { type: 'box', x: 380, y: 192, w: 440, h: 268, radius: 24, mood: 'glass', kids: [
+        { type: 'heading', x: 32, y: 32, w: 376, h: 28, text: 'Senior designer', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 32, y: 72, w: 376, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
+        { type: 'para', x: 32, y: 142, w: 376, h: 18, text: '\u00a370\u201385k \u00b7 Remote-first \u00b7 Full time',
+          tf: { fs2: 1, fsMin: 13, lh: 1.5, fw: 600 } },
+        { type: 'button', x: 32, y: 184, w: 180, h: 52, text: 'Apply now' },
       ] },
     ], bgImage: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', bgA: 25, bg: 'var(--wp--preset--color--contrast)' },
     { starter: true, intent: 'showcase', name: 'Place card', minH: 648, els: [
-      { type: 'box', x: 400, y: 144, w: 400, h: 336, radius: 24, mood: 'glass', kids: [
-        { type: 'para', x: 32, y: 34, w: 336, h: 22, align: 'center', text: 'THE YELLOW HOUSE',
-          tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
-        { type: 'heading', x: 32, y: 66, w: 336, h: 44, align: 'center', text: 'Come see it in person', fs: 'large' },
-        { type: 'para', x: 32, y: 124, w: 336, h: 48, align: 'center', text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
-        { type: 'para', x: 32, y: 188, w: 336, h: 22, align: 'center', text: '\ud83d\udccd Place Lamartine, Arles',
-          tf: { fs: 13 } },
-        { type: 'button', x: 116, y: 228, w: 168, h: 48, text: 'Plan a visit' },
+      { type: 'box', x: 400, y: 176, w: 400, h: 296, radius: 24, mood: 'glass', kids: [
+        { type: 'para', x: 32, y: 32, w: 336, h: 16, align: 'center', text: 'THE YELLOW HOUSE',
+          tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+        { type: 'heading', x: 32, y: 64, w: 336, h: 28, align: 'center', text: 'Come see it in person', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 32, y: 104, w: 336, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, align: 'center', text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
+        { type: 'para', x: 32, y: 174, w: 336, h: 18, align: 'center', text: '\ud83d\udccd Place Lamartine, Arles',
+          tf: { fs2: 1, fsMin: 13, lh: 1.5 } },
+        { type: 'button', x: 116, y: 216, w: 168, h: 48, text: 'Plan a visit' },
       ] },
     ], bgImage: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)' },
-    { starter: true, intent: 'showcase', name: 'Photo wall', minH: 648, els: [
-      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'In pictures',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'The wall', fs: 'x-large', align: 'center' },
+    { starter: true, intent: 'showcase', name: 'Photo wall', minH: 744, els: [
+      { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'In pictures',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'The wall', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
       // CSS columns do the masonry — tall and short photos pack themselves
-      { type: 'widget', x: 120, y: 192, w: 960, h: 408, wopt: { light: 1, cols: 3 }, wall: [
+      { type: 'widget', x: 120, y: 226, w: 960, h: 408, wopt: { light: 1, cols: 3 }, wall: [
         { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: '' },
         { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
         { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
@@ -9956,103 +10139,103 @@
         { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
       ] },
     ] },
-    { starter: true, intent: 'showcase', name: 'Carousel', minH: 504, els: [
-      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'A closer look',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Slide through the work', fs: 'x-large', align: 'center' },
+    { starter: true, intent: 'showcase', name: 'Carousel', minH: 624, els: [
+      { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'A closer look',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Slide through the work', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
       // real core image blocks in a scroll-snap group — zero JS, works
       // with the plugin off, and Chrome's CSS carousel dots light up free
-      { type: 'widget', x: 120, y: 192, w: 960, h: 288, copt: { light: 1 }, slides: [
+      { type: 'widget', x: 120, y: 226, w: 960, h: 288, copt: { light: 1 }, slides: [
         { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
         { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
         { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
         { img: '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', cap: 'Almond Blossom' },
       ] },
     ] },
-    { starter: true, intent: 'sell', name: 'FAQ', gated: 'hasAccordion', minH: 576, els: [
-      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Questions, answered',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Before you ask', fs: 'x-large', align: 'center' },
+    { starter: true, intent: 'sell', name: 'FAQ', gated: 'hasAccordion', minH: 648, els: [
+      { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Questions, answered',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Before you ask', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
       // a REAL core/accordion rides inside a widget — regenerated from
       // e.faq, which is what the selection panel edits
-      { type: 'widget', x: 240, y: 192, w: 720, h: 312, faq: [
+      { type: 'widget', x: 240, y: 226, w: 720, h: 312, faq: [
         { q: 'How long does a project take?', a: 'Six to ten weeks for most sites. The Sprint is one week, by design.' },
         { q: 'Do you work with small budgets?', a: 'Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.' },
         { q: 'Who will we actually work with?', a: 'The people on the team page \u2014 no handoffs to a bench you never met.' },
       ] },
     ] },
-    { starter: true, intent: 'sell', name: 'Tabs', gated: 'hasTabs', minH: 504, els: [
-      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Ways to work with us',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Pick your pace', fs: 'x-large', align: 'center' },
+    { starter: true, intent: 'sell', name: 'Tabs', gated: 'hasTabs', minH: 624, els: [
+      { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Ways to work with us',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Pick your pace', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
       // a REAL core/tabs block (WP 7.1) — regenerated from e.tabs, gated
       // on the block existing
-      { type: 'widget', x: 240, y: 192, w: 720, h: 288, tabs: [
+      { type: 'widget', x: 240, y: 226, w: 720, h: 288, tabs: [
         { t: 'The Sprint', body: 'One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.' },
         { t: 'The Partnership', body: 'A standing team beside yours \u2014 design, build and everything between, month by month.' },
         { t: 'Ongoing care', body: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
       ] },
     ] },
-    { starter: true, intent: 'showcase', name: 'Gallery', minH: 720, els: [
-      { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'Selected work',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'A few favourites', fs: 'x-large' },
-      { type: 'image', x: 72, y: 216, w: 330, h: 432, cool: true },
-      { type: 'image', x: 435, y: 264, w: 330, h: 384 },
-      { type: 'image', x: 798, y: 192, w: 330, h: 312, cool: true },
-      { type: 'button', x: 798, y: 552, w: 210, h: 48, text: 'See the archive', ghost: true },
+    { starter: true, intent: 'showcase', name: 'Gallery', minH: 768, els: [
+      { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Selected work',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 128, w: 520, h: 42, text: 'A few favourites', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'image', x: 72, y: 226, w: 330, h: 432, cool: true },
+      { type: 'image', x: 435, y: 226, w: 330, h: 384 },
+      { type: 'image', x: 798, y: 240, w: 330, h: 312, cool: true },
+      { type: 'button', x: 798, y: 600, w: 210, h: 48, text: 'See the archive', ghost: true },
     ] },
-    { starter: true, intent: 'showcase', name: 'Photo cards', minH: 720, els: [
-      { type: 'image', x: 100, y: 48, w: 470, h: 624, cool: true },
-      { type: 'box', x: 100, y: 336, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-      { type: 'heading', x: 136, y: 384, w: 340, h: 24, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
-      { type: 'para', x: 136, y: 432, w: 398, h: 72, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
-      { type: 'button', x: 136, y: 600, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-      { type: 'image', x: 630, y: 48, w: 470, h: 624, cool: true },
-      { type: 'box', x: 630, y: 336, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-      { type: 'heading', x: 666, y: 384, w: 340, h: 24, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
-      { type: 'para', x: 666, y: 432, w: 398, h: 72, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
-      { type: 'button', x: 666, y: 600, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+    { starter: true, intent: 'showcase', name: 'Photo cards', minH: 816, els: [
+      { type: 'image', x: 100, y: 96, w: 470, h: 624, cool: true },
+      { type: 'box', x: 100, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+      { type: 'heading', x: 136, y: 506, w: 340, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
+      { type: 'para', x: 136, y: 546, w: 398, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
+      { type: 'button', x: 136, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      { type: 'image', x: 630, y: 96, w: 470, h: 624, cool: true },
+      { type: 'box', x: 630, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+      { type: 'heading', x: 666, y: 506, w: 340, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
+      { type: 'para', x: 666, y: 546, w: 398, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
+      { type: 'button', x: 666, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
     ] },
-    { starter: true, intent: 'showcase', name: 'Portfolio', minH: 576, els: [
-      { type: 'box', x: 40, y: 120, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
-      { type: 'image', x: 72, y: 72, w: 560, h: 432, cool: true },
-      { type: 'para', x: 700, y: 120, w: 300, h: 24, text: 'Case study',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 700, y: 168, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large' },
-      { type: 'para', x: 700, y: 312, w: 400, h: 72, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
-      { type: 'button', x: 700, y: 480, w: 210, h: 48, text: 'Read the study', ghost: true },
+    { starter: true, intent: 'showcase', name: 'Portfolio', minH: 672, els: [
+      { type: 'box', x: 40, y: 144, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
+      { type: 'image', x: 72, y: 96, w: 560, h: 432, cool: true },
+      { type: 'para', x: 700, y: 164, w: 300, h: 16, text: 'Case study',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 700, y: 196, w: 420, h: 82, text: 'A bakery worth queueing for', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'para', x: 700, y: 302, w: 400, h: 78, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
+      { type: 'button', x: 700, y: 412, w: 210, h: 48, text: 'Read the study', ghost: true },
     ] },
-    { starter: true, intent: 'showcase', name: 'Menu', minH: 576, els: [
-      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Served all day',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 300, y: 96, w: 600, h: 48, text: 'Small plates', fs: 'x-large', align: 'center' },
-      { type: 'heading', x: 280, y: 216, w: 520, h: 24, text: 'Sourdough, cultured butter', fs: 'medium' },
-      { type: 'para', x: 850, y: 216, w: 70, h: 24, text: '\u00a36', align: 'right', fs: 'medium' },
-      { type: 'heading', x: 280, y: 288, w: 520, h: 24, text: 'Burrata, blood orange, mint', fs: 'medium' },
-      { type: 'para', x: 850, y: 288, w: 70, h: 24, text: '\u00a311', align: 'right', fs: 'medium' },
-      { type: 'heading', x: 280, y: 360, w: 520, h: 24, text: 'Wood-roast leeks, romesco', fs: 'medium' },
-      { type: 'para', x: 850, y: 360, w: 70, h: 24, text: '\u00a39', align: 'right', fs: 'medium' },
-      { type: 'heading', x: 280, y: 432, w: 520, h: 24, text: 'Anchovy toast, soft egg', fs: 'medium' },
-      { type: 'para', x: 850, y: 432, w: 70, h: 24, text: '\u00a38', align: 'right', fs: 'medium' },
-      { type: 'para', x: 280, y: 528, w: 640, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+    { starter: true, intent: 'showcase', name: 'Menu', minH: 480, els: [
+      { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Served all day',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 300, y: 128, w: 600, h: 42, text: 'Small plates', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+      { type: 'heading', x: 280, y: 194, w: 520, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+      { type: 'para', x: 850, y: 194, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+      { type: 'heading', x: 280, y: 234, w: 520, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+      { type: 'para', x: 850, y: 234, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+      { type: 'heading', x: 280, y: 274, w: 520, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+      { type: 'para', x: 850, y: 274, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+      { type: 'heading', x: 280, y: 314, w: 520, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+      { type: 'para', x: 850, y: 314, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+      { type: 'para', x: 280, y: 354, w: 640, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
     ] },
-    { starter: true, intent: 'showcase', name: 'Team', minH: 648, els: [
-      { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'The studio',
-        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 96, w: 600, h: 48, text: 'Eleven people, no egos', fs: 'x-large' },
-      { type: 'image', x: 72, y: 216, w: 330, h: 288, cool: true },
-      { type: 'heading', x: 74, y: 528, w: 320, h: 24, text: 'June Ashby', fs: 'medium' },
-      { type: 'para', x: 74, y: 576, w: 320, h: 24, text: 'Creative director',
-        tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'image', x: 435, y: 216, w: 330, h: 288 },
-      { type: 'heading', x: 437, y: 528, w: 320, h: 24, text: 'Marco Reyes', fs: 'medium' },
-      { type: 'para', x: 437, y: 576, w: 320, h: 24, text: 'Lead engineer',
-        tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'image', x: 798, y: 216, w: 330, h: 288, cool: true },
-      { type: 'heading', x: 800, y: 528, w: 320, h: 24, text: 'Priya Chandra', fs: 'medium' },
-      { type: 'para', x: 800, y: 576, w: 320, h: 24, text: 'Strategy',
-        tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+    { starter: true, intent: 'showcase', name: 'Team', minH: 696, els: [
+      { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+      { type: 'image', x: 72, y: 226, w: 330, h: 288, cool: true },
+      { type: 'heading', x: 74, y: 538, w: 320, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+      { type: 'para', x: 74, y: 582, w: 320, h: 16, text: 'Creative director',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'image', x: 435, y: 226, w: 330, h: 288 },
+      { type: 'heading', x: 437, y: 538, w: 320, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+      { type: 'para', x: 437, y: 582, w: 320, h: 16, text: 'Lead engineer',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'image', x: 798, y: 226, w: 330, h: 288, cool: true },
+      { type: 'heading', x: 800, y: 538, w: 320, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+      { type: 'para', x: 800, y: 582, w: 320, h: 16, text: 'Strategy',
+        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
     ] },
   ];
 
@@ -10255,802 +10438,802 @@
   var DICE_FORM_WHTML = '<div class="gogh-form"><div class="gogh-form-row"><input type="text" placeholder="Your name" disabled /><input type="email" placeholder="Your email" disabled /></div><textarea rows="5" placeholder="Your message…" disabled></textarea><div class="gogh-form-foot"><span class="gogh-form-fbtn">Send</span><span class="gogh-form-note">Goes straight to this site — nowhere else.</span></div></div>';
   var VARIANTS = {
     'Columns of links': [
-      { name: 'Columns of links', take: 'Four across', minH: 360, els: [
-        { type: 'para', x: 60, y: 48, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 60, y: 96, w: 240, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-        { type: 'para', x: 340, y: 48, w: 240, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 340, y: 96, w: 240, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'para', x: 620, y: 48, w: 240, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 620, y: 96, w: 240, h: 168, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
-        { type: 'para', x: 900, y: 48, w: 240, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 900, y: 96, w: 240, h: 120, text: 'We answer every message ourselves, usually the same day.' },
+      { name: 'Columns of links', take: 'Four across', minH: 336, els: [
+        { type: 'para', x: 60, y: 96, w: 240, h: 16, text: 'Explore', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 60, y: 128, w: 240, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 340, y: 96, w: 240, h: 16, text: 'Shop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 340, y: 128, w: 240, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'para', x: 620, y: 96, w: 240, h: 16, text: 'Help', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 620, y: 128, w: 240, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+        { type: 'para', x: 900, y: 96, w: 240, h: 16, text: 'Say hello', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 900, y: 128, w: 240, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'We answer every message ourselves, usually the same day.' },
       ] },
-      { name: 'Columns of links', take: 'Two and a note', minH: 360, els: [
-        { type: 'para', x: 80, y: 48, w: 300, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 80, y: 96, w: 300, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-        { type: 'para', x: 440, y: 48, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 440, y: 96, w: 300, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'heading', x: 820, y: 48, w: 320, h: 48, text: 'Made here, sent this week', fs: 'medium' },
-        { type: 'para', x: 820, y: 144, w: 320, h: 72, text: 'Small batches from one workshop. If you only try one thing, try the lavender.' },
+      { name: 'Columns of links', take: 'Two and a note', minH: 312, els: [
+        { type: 'para', x: 80, y: 96, w: 300, h: 16, text: 'Explore', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 80, y: 114, w: 300, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 440, y: 96, w: 300, h: 16, text: 'Shop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 440, y: 114, w: 300, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'heading', x: 820, y: 96, w: 320, h: 28, text: 'Made here, sent this week', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 820, y: 136, w: 320, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Small batches from one workshop. If you only try one thing, try the lavender.' },
       ] },
-      { name: 'Columns of links', take: 'Links and a picture', minH: 360, els: [
-        { type: 'para', x: 80, y: 48, w: 260, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 80, y: 96, w: 260, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-        { type: 'para', x: 400, y: 48, w: 260, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 400, y: 96, w: 260, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'image', x: 740, y: 48, w: 400, h: 264, cool: true },
+      { name: 'Columns of links', take: 'Links and a picture', minH: 336, els: [
+        { type: 'para', x: 80, y: 64, w: 260, h: 16, text: 'Explore', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 80, y: 96, w: 260, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 400, y: 64, w: 260, h: 16, text: 'Shop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 400, y: 96, w: 260, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'image', x: 740, y: -6, w: 400, h: 264, cool: true },
       ] },
     ],
     'Featured and links': [
-      { name: 'Featured and links', take: 'Picture right', minH: 432, els: [
-        { type: 'para', x: 60, y: 48, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 60, y: 96, w: 240, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-        { type: 'para', x: 340, y: 48, w: 240, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 340, y: 96, w: 240, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'image', x: 700, y: 48, w: 440, h: 288, cool: true },
+      { name: 'Featured and links', take: 'Picture right', minH: 480, els: [
+        { type: 'para', x: 60, y: 180, w: 240, h: 16, text: 'Explore', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 60, y: 212, w: 240, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 340, y: 180, w: 240, h: 16, text: 'Shop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 340, y: 212, w: 240, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'image', x: 700, y: 96, w: 440, h: 288, cool: true },
       ] },
-      { name: 'Featured and links', take: 'The band', minH: 432, els: [
-        { type: 'image', x: 60, y: 48, w: 1080, h: 192, cool: true },
-        { type: 'para', x: 60, y: 288, w: 260, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 60, y: 312, w: 260, h: 96, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-        { type: 'para', x: 420, y: 288, w: 260, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 420, y: 312, w: 260, h: 96, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'para', x: 780, y: 288, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 780, y: 312, w: 260, h: 96, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+      { name: 'Featured and links', take: 'The band', minH: 528, els: [
+        { type: 'image', x: 60, y: 96, w: 1080, h: 192, cool: true },
+        { type: 'para', x: 60, y: 304, w: 260, h: 16, text: 'Explore', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 60, y: 336, w: 260, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 420, y: 304, w: 260, h: 16, text: 'Shop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 420, y: 336, w: 260, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'para', x: 780, y: 304, w: 260, h: 16, text: 'Help', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 780, y: 336, w: 260, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
       ] },
-      { name: 'Featured and links', take: 'Two pictures', minH: 432, els: [
-        { type: 'image', x: 60, y: 48, w: 320, h: 240, cool: true },
-        { type: 'heading', x: 60, y: 288, w: 320, h: 24, text: 'New this month', fs: 'medium' },
-        { type: 'image', x: 420, y: 48, w: 320, h: 240, cool: false },
-        { type: 'heading', x: 420, y: 288, w: 320, h: 24, text: 'Gifts under twenty', fs: 'medium' },
-        { type: 'para', x: 800, y: 48, w: 340, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 800, y: 96, w: 340, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      { name: 'Featured and links', take: 'Two pictures', minH: 504, els: [
+        { type: 'image', x: 60, y: 96, w: 320, h: 240, cool: true },
+        { type: 'heading', x: 60, y: 360, w: 320, h: 28, text: 'New this month', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'image', x: 420, y: 96, w: 320, h: 240, cool: false },
+        { type: 'heading', x: 420, y: 360, w: 320, h: 28, text: 'Gifts under twenty', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 800, y: 96, w: 340, h: 16, text: 'Explore', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 800, y: 128, w: 340, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
       ] },
     ],
     'Picture doors': [
-      { name: 'Picture doors', take: 'Two wide', minH: 360, els: [
-        { type: 'image', x: 60, y: 48, w: 520, h: 240, cool: true },
-        { type: 'heading', x: 60, y: 288, w: 520, h: 24, text: 'Spring collection', fs: 'medium' },
-        { type: 'image', x: 620, y: 48, w: 520, h: 240, cool: false },
-        { type: 'heading', x: 620, y: 288, w: 520, h: 24, text: 'Gifts', fs: 'medium' },
+      { name: 'Picture doors', take: 'Two wide', minH: 504, els: [
+        { type: 'image', x: 60, y: 96, w: 520, h: 240, cool: true },
+        { type: 'heading', x: 60, y: 360, w: 520, h: 28, text: 'Spring collection', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'image', x: 620, y: 96, w: 520, h: 240, cool: false },
+        { type: 'heading', x: 620, y: 360, w: 520, h: 28, text: 'Gifts', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
       ] },
-      { name: 'Picture doors', take: 'Four small', minH: 360, els: [
-        { type: 'image', x: 60, y: 48, w: 250, h: 192, cool: true },
-        { type: 'heading', x: 60, y: 240, w: 250, h: 24, text: 'Spring', fs: 'small' },
-        { type: 'image', x: 337, y: 48, w: 250, h: 192, cool: false },
-        { type: 'heading', x: 337, y: 240, w: 250, h: 24, text: 'Gifts', fs: 'small' },
-        { type: 'image', x: 614, y: 48, w: 250, h: 192, cool: true },
-        { type: 'heading', x: 614, y: 240, w: 250, h: 24, text: 'Home', fs: 'small' },
-        { type: 'image', x: 891, y: 48, w: 250, h: 192, cool: false },
-        { type: 'heading', x: 891, y: 240, w: 250, h: 24, text: 'Our story', fs: 'small' },
+      { name: 'Picture doors', take: 'Four small', minH: 432, els: [
+        { type: 'image', x: 60, y: 96, w: 250, h: 192, cool: true },
+        { type: 'heading', x: 60, y: 312, w: 250, h: 24, text: 'Spring', tf: { fs2: 1.5, fsMin: 18, lh: 1.3 } },
+        { type: 'image', x: 337, y: 96, w: 250, h: 192, cool: false },
+        { type: 'heading', x: 337, y: 312, w: 250, h: 24, text: 'Gifts', tf: { fs2: 1.5, fsMin: 18, lh: 1.3 } },
+        { type: 'image', x: 614, y: 96, w: 250, h: 192, cool: true },
+        { type: 'heading', x: 614, y: 312, w: 250, h: 24, text: 'Home', tf: { fs2: 1.5, fsMin: 18, lh: 1.3 } },
+        { type: 'image', x: 891, y: 96, w: 250, h: 192, cool: false },
+        { type: 'heading', x: 891, y: 312, w: 250, h: 24, text: 'Our story', tf: { fs2: 1.5, fsMin: 18, lh: 1.3 } },
       ] },
-      { name: 'Picture doors', take: 'Doors and links', minH: 360, els: [
-        { type: 'image', x: 60, y: 48, w: 340, h: 216, cool: true },
-        { type: 'heading', x: 60, y: 288, w: 340, h: 24, text: 'Spring collection', fs: 'medium' },
-        { type: 'image', x: 430, y: 48, w: 340, h: 216, cool: false },
-        { type: 'heading', x: 430, y: 288, w: 340, h: 24, text: 'Gifts', fs: 'medium' },
-        { type: 'para', x: 820, y: 48, w: 320, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 820, y: 96, w: 320, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      { name: 'Picture doors', take: 'Doors and links', minH: 480, els: [
+        { type: 'image', x: 60, y: 96, w: 340, h: 216, cool: true },
+        { type: 'heading', x: 60, y: 336, w: 340, h: 28, text: 'Spring collection', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'image', x: 430, y: 96, w: 340, h: 216, cool: false },
+        { type: 'heading', x: 430, y: 336, w: 340, h: 28, text: 'Gifts', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 820, y: 96, w: 320, h: 16, text: 'Explore', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 820, y: 128, w: 320, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
       ] },
     ],
     'Categories in the menu': [
-      { name: 'Categories in the menu', take: 'Three and a note', minH: 432, els: [
-        { type: 'heading', x: 60, y: 48, w: 400, h: 48, text: 'Shop by category', fs: 'medium' },
-        { type: 'para', x: 60, y: 120, w: 320, h: 72, text: 'Everything we make, sorted the way you think about it.' },
-        { type: 'widget', rails: true, x: 420, y: 48, w: 720, h: 288, shop: { kind: 'categories', count: 3, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
+      { name: 'Categories in the menu', take: 'Three and a note', minH: 480, els: [
+        { type: 'heading', x: 60, y: 96, w: 400, h: 28, text: 'Shop by category', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 60, y: 136, w: 320, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Everything we make, sorted the way you think about it.' },
+        { type: 'widget', rails: true, x: 420, y: 96, w: 720, h: 288, shop: { kind: 'categories', count: 3, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
       ] },
-      { name: 'Categories in the menu', take: 'Six doors', minH: 432, els: [
-        { type: 'para', x: 60, y: 48, w: 400, h: 24, text: 'Shop by category', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'widget', rails: true, x: 60, y: 96, w: 1080, h: 288, shop: { kind: 'categories', count: 6, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
+      { name: 'Categories in the menu', take: 'Six doors', minH: 528, els: [
+        { type: 'para', x: 60, y: 96, w: 400, h: 16, text: 'Shop by category', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'widget', rails: true, x: 60, y: 128, w: 1080, h: 288, shop: { kind: 'categories', count: 6, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
       ] },
-      { name: 'Categories in the menu', take: 'Doors and links', minH: 432, els: [
-        { type: 'widget', rails: true, x: 60, y: 48, w: 700, h: 288, shop: { kind: 'categories', count: 4, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
-        { type: 'para', x: 820, y: 48, w: 320, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 820, y: 96, w: 320, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+      { name: 'Categories in the menu', take: 'Doors and links', minH: 480, els: [
+        { type: 'widget', rails: true, x: 60, y: 96, w: 700, h: 288, shop: { kind: 'categories', count: 4, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
+        { type: 'para', x: 820, y: 180, w: 320, h: 16, text: 'Shop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 820, y: 212, w: 320, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
       ] },
     ],
     'Featured product in the menu': [
-      { name: 'Featured product in the menu', take: 'Product right', minH: 432, els: [
-        { type: 'para', x: 60, y: 48, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 60, y: 96, w: 300, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'para', x: 400, y: 48, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 400, y: 96, w: 260, h: 168, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
-        { type: 'widget', rails: true, x: 740, y: 48, w: 400, h: 288, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's', show: { price: true, rating: false, button: true } } },
+      { name: 'Featured product in the menu', take: 'Product right', minH: 480, els: [
+        { type: 'para', x: 60, y: 180, w: 300, h: 16, text: 'Shop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 60, y: 212, w: 300, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'para', x: 400, y: 180, w: 260, h: 16, text: 'Help', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 400, y: 212, w: 260, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+        { type: 'widget', rails: true, x: 740, y: 96, w: 400, h: 288, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's', show: { price: true, rating: false, button: true } } },
       ] },
-      { name: 'Featured product in the menu', take: 'Two bestsellers', minH: 432, els: [
-        { type: 'para', x: 60, y: 48, w: 300, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'widget', rails: true, x: 60, y: 96, w: 620, h: 264, shop: { count: 2, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
-        { type: 'para', x: 760, y: 48, w: 380, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 760, y: 96, w: 380, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+      { name: 'Featured product in the menu', take: 'Two bestsellers', minH: 504, els: [
+        { type: 'para', x: 60, y: 96, w: 300, h: 16, text: 'Most loved', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'widget', rails: true, x: 60, y: 128, w: 620, h: 264, shop: { count: 2, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+        { type: 'para', x: 760, y: 96, w: 380, h: 16, text: 'Shop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 760, y: 128, w: 380, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
       ] },
-      { name: 'Featured product in the menu', take: 'The list', minH: 432, els: [
-        { type: 'heading', x: 60, y: 48, w: 400, h: 48, text: 'Three to try first', fs: 'medium' },
-        { type: 'widget', rails: true, x: 60, y: 120, w: 560, h: 264, shop: { count: 3, order: 'popularity', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
-        { type: 'para', x: 700, y: 48, w: 440, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'para', x: 700, y: 96, w: 440, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      { name: 'Featured product in the menu', take: 'The list', minH: 528, els: [
+        { type: 'heading', x: 60, y: 96, w: 400, h: 28, text: 'Three to try first', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'widget', rails: true, x: 60, y: 156, w: 560, h: 264, shop: { count: 3, order: 'popularity', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+        { type: 'para', x: 700, y: 96, w: 440, h: 16, text: 'Explore', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 700, y: 128, w: 440, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
       ] },
     ],
     'Shop the look': [
-      { name: 'Shop the look', take: 'The photo right', minH: 648, els: [
-        { type: 'image', x: 520, y: 48, w: 620, h: 528, cool: true },
-        { type: 'para', x: 60, y: 96, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 60, y: 120, w: 400, h: 96, text: 'Everything in this picture', fs: 'x-large' },
-        { type: 'para', x: 60, y: 240, w: 380, h: 48, text: 'Every piece here is ours. Tap one to see it up close.' },
-        { type: 'widget', rails: true, x: 60, y: 312, w: 400, h: 288, shop: { count: 3, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: true } } },
+      { name: 'Shop the look', take: 'The photo right', minH: 768, els: [
+        { type: 'image', x: 520, y: 96, w: 620, h: 528, cool: true },
+        { type: 'para', x: 60, y: 144, w: 340, h: 16, text: 'Shop the look', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 60, y: 176, w: 400, h: 82, text: 'Everything in this picture', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 60, y: 282, w: 380, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Every piece here is ours. Tap one to see it up close.' },
+        { type: 'widget', rails: true, x: 60, y: 382, w: 400, h: 288, shop: { count: 3, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: true } } },
       ] },
-      { name: 'Shop the look', take: 'The band', minH: 792, els: [
-        { type: 'image', x: 60, y: 48, w: 1080, h: 432, cool: true },
-        { type: 'para', x: 60, y: 504, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 60, y: 552, w: 480, h: 48, text: 'Everything in this picture', fs: 'large' },
-        { type: 'para', x: 60, y: 624, w: 440, h: 48, text: 'Every piece here is ours. Tap one to see it up close.' },
-        { type: 'widget', rails: true, x: 600, y: 504, w: 540, h: 264, shop: { count: 3, order: 'date', layout: 'grid', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+      { name: 'Shop the look', take: 'The band', minH: 912, els: [
+        { type: 'image', x: 60, y: 96, w: 1080, h: 432, cool: true },
+        { type: 'para', x: 60, y: 636, w: 340, h: 16, text: 'Shop the look', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 60, y: 668, w: 480, h: 28, text: 'Everything in this picture', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 60, y: 708, w: 440, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Every piece here is ours. Tap one to see it up close.' },
+        { type: 'widget', rails: true, x: 600, y: 552, w: 540, h: 264, shop: { count: 3, order: 'date', layout: 'grid', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
       ] },
-      { name: 'Shop the look', take: 'The margin', minH: 648, els: [
-        { type: 'image', x: 60, y: 48, w: 760, h: 528, cool: true },
-        { type: 'heading', x: 860, y: 48, w: 280, h: 48, text: 'In this picture', fs: 'medium' },
-        { type: 'widget', rails: true, x: 860, y: 144, w: 280, h: 432, shop: { count: 4, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+      { name: 'Shop the look', take: 'The margin', minH: 720, els: [
+        { type: 'image', x: 60, y: 96, w: 760, h: 528, cool: true },
+        { type: 'heading', x: 860, y: 96, w: 280, h: 28, text: 'In this picture', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'widget', rails: true, x: 860, y: 156, w: 280, h: 432, shop: { count: 4, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
       ] },
     ],
     'Editorial split': [
-      { name: 'Editorial split', take: 'Words right', minH: 648, els: [
-        { type: 'widget', rails: true, x: 60, y: 72, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
-        { type: 'para', x: 680, y: 120, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 680, y: 144, w: 440, h: 144, text: 'Made slowly, sent this week', fs: '__max' },
-        { type: 'para', x: 680, y: 336, w: 400, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
-        { type: 'button', x: 680, y: 480, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { name: 'Editorial split', take: 'Words right', minH: 720, els: [
+        { type: 'widget', rails: true, x: 60, y: 96, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+        { type: 'para', x: 680, y: 200, w: 340, h: 16, text: 'From the workshop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 680, y: 232, w: 440, h: 106, text: 'Made slowly, sent this week', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'para', x: 680, y: 362, w: 400, h: 78, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
+        { type: 'button', x: 680, y: 472, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
       ] },
-      { name: 'Editorial split', take: 'The stack', minH: 792, els: [
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 96, align: 'center', text: 'Made slowly, sent this week', fs: 'x-large' },
-        { type: 'para', x: 300, y: 240, w: 600, h: 72, align: 'center', text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
-        { type: 'widget', rails: true, x: 200, y: 336, w: 800, h: 408, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'square', spacing: 'l' } },
+      { name: 'Editorial split', take: 'The stack', minH: 816, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'From the workshop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 128, w: 800, h: 42, align: 'center', text: 'Made slowly, sent this week', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 300, y: 194, w: 600, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, align: 'center', text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
+        { type: 'widget', rails: true, x: 200, y: 294, w: 800, h: 408, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'square', spacing: 'l' } },
       ] },
-      { name: 'Editorial split', take: 'Ink', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 120, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
-        { type: 'heading', x: 72, y: 144, w: 460, h: 144, text: 'Made slowly, sent this week', fs: '__max', color: 'base' },
-        { type: 'para', x: 72, y: 336, w: 420, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.', color: 'base' },
-        { type: 'button', x: 72, y: 480, w: 200, h: 48, text: 'See everything', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        { type: 'widget', rails: true, x: 600, y: 72, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+      { name: 'Editorial split', take: 'Ink', minH: 720, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 200, w: 340, h: 16, text: 'From the workshop', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
+        { type: 'heading', x: 72, y: 232, w: 460, h: 106, text: 'Made slowly, sent this week', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 }, color: 'base' },
+        { type: 'para', x: 72, y: 362, w: 420, h: 78, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.', color: 'base' },
+        { type: 'button', x: 72, y: 472, w: 200, h: 48, text: 'See everything', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'widget', rails: true, x: 600, y: 96, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
       ] },
     ],
     'Latest posts': [
-      { name: 'Latest posts', take: 'Headline centred', minH: 720, els: [
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 72, align: 'center', text: 'Latest posts', fs: 'x-large' },
-        { type: 'para', x: 300, y: 216, w: 600, h: 48, align: 'center', text: 'New writing as it goes up, newest first. It fills itself.' },
-        { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 312, posts: { count: 3, look: 'cards', aspect: 'landscape', show: { date: true, excerpt: false } } },
-        { type: 'button', x: 500, y: 624, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { name: 'Latest posts', take: 'Headline centred', minH: 768, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'From the journal', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 128, w: 800, h: 42, align: 'center', text: 'Latest posts', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 300, y: 194, w: 600, h: 26, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, align: 'center', text: 'New writing as it goes up, newest first. It fills itself.' },
+        { type: 'widget', rails: true, x: 47, y: 268, w: 1106, h: 312, posts: { count: 3, look: 'cards', aspect: 'landscape', show: { date: true, excerpt: false } } },
+        { type: 'button', x: 500, y: 604, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
       ] },
-      { name: 'Latest posts', take: 'Four across', minH: 648, els: [
-        { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Latest posts', fs: 'x-large' },
-        { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'New writing as it goes up, newest first. It fills itself.' },
-        { type: 'button', x: 900, y: 216, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
-        { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 312, posts: { count: 4, look: '', aspect: 'square', show: { date: true, excerpt: false } } },
+      { name: 'Latest posts', take: 'Four across', minH: 696, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'From the journal', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Latest posts', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 72, y: 194, w: 520, h: 26, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'New writing as it goes up, newest first. It fills itself.' },
+        { type: 'button', x: 900, y: 194, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+        { type: 'widget', rails: true, x: 47, y: 268, w: 1106, h: 312, posts: { count: 4, look: '', aspect: 'square', show: { date: true, excerpt: false } } },
       ] },
-      { name: 'Latest posts', take: 'Beside the words', minH: 648, els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 144, w: 400, h: 96, text: 'Latest posts', fs: 'x-large' },
-        { type: 'para', x: 72, y: 264, w: 380, h: 72, text: 'New writing as it goes up, newest first. It fills itself.' },
-        { type: 'button', x: 72, y: 384, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { name: 'Latest posts', take: 'Beside the words', minH: 672, els: [
+        { type: 'para', x: 72, y: 222, w: 340, h: 16, text: 'From the journal', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 254, w: 400, h: 42, text: 'Latest posts', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 72, y: 320, w: 380, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'New writing as it goes up, newest first. It fills itself.' },
+        { type: 'button', x: 72, y: 404, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
         { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 480, posts: { count: 2, look: 'cards', aspect: 'portrait', show: { date: true, excerpt: false } } },
       ] },
     ],
     'Featured post': [
-      { name: 'Featured post', take: 'Headline centred', minH: 864, els: [
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Just published', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 72, align: 'center', text: 'From the journal', fs: 'x-large' },
-        { type: 'widget', rails: true, x: 47, y: 216, w: 1106, h: 528, posts: { count: 4, look: 'cover', aspect: 'landscape', show: { date: true, excerpt: true } } },
-        { type: 'button', x: 500, y: 768, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { name: 'Featured post', take: 'Headline centred', minH: 936, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Just published', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 128, w: 800, h: 42, align: 'center', text: 'From the journal', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'widget', rails: true, x: 47, y: 226, w: 1106, h: 528, posts: { count: 4, look: 'cover', aspect: 'landscape', show: { date: true, excerpt: true } } },
+        { type: 'button', x: 500, y: 778, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
       ] },
-      { name: 'Featured post', take: 'The newest alone', minH: 720, els: [
-        { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Just published', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'From the journal', fs: 'x-large' },
-        { type: 'button', x: 900, y: 144, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
-        { type: 'widget', rails: true, x: 47, y: 216, w: 1106, h: 456, posts: { count: 1, look: 'cover', aspect: 'landscape', show: { date: true, excerpt: true } } },
+      { name: 'Featured post', take: 'The newest alone', minH: 792, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Just published', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'From the journal', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'button', x: 900, y: 168, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+        { type: 'widget', rails: true, x: 47, y: 226, w: 1106, h: 456, posts: { count: 1, look: 'cover', aspect: 'landscape', show: { date: true, excerpt: true } } },
       ] },
-      { name: 'Featured post', take: 'Beside the words', minH: 648, els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Just published', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 144, w: 400, h: 96, text: 'From the journal', fs: 'x-large' },
-        { type: 'button', x: 72, y: 288, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { name: 'Featured post', take: 'Beside the words', minH: 672, els: [
+        { type: 'para', x: 72, y: 256, w: 340, h: 16, text: 'Just published', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 288, w: 400, h: 42, text: 'From the journal', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'button', x: 72, y: 370, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
         { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 480, posts: { count: 1, look: 'cards', aspect: 'landscape', show: { date: true, excerpt: true } } },
       ] },
     ],
     'Titles and dates': [
-      { name: 'Titles and dates', take: 'The ledger', minH: 720, els: [
-        { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'The archive', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Everything, newest first', fs: 'x-large' },
-        { type: 'para', x: 72, y: 216, w: 600, h: 48, text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
-        { type: 'button', x: 900, y: 216, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
-        { type: 'widget', rails: true, x: 72, y: 288, w: 1056, h: 384, posts: { count: 8, look: 'ledger', aspect: 'landscape', show: { date: true, excerpt: false } } },
+      { name: 'Titles and dates', take: 'The ledger', minH: 792, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'The archive', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Everything, newest first', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 72, y: 194, w: 600, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
+        { type: 'button', x: 900, y: 194, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+        { type: 'widget', rails: true, x: 72, y: 294, w: 1056, h: 384, posts: { count: 8, look: 'ledger', aspect: 'landscape', show: { date: true, excerpt: false } } },
       ] },
-      { name: 'Titles and dates', take: 'Centred list', minH: 720, els: [
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'The archive', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 72, align: 'center', text: 'Everything, newest first', fs: 'x-large' },
-        { type: 'para', x: 300, y: 216, w: 600, h: 48, align: 'center', text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
-        { type: 'widget', rails: true, x: 200, y: 288, w: 800, h: 336, posts: { count: 5, look: 'list', aspect: 'landscape', show: { date: true, excerpt: false } } },
-        { type: 'button', x: 500, y: 648, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { name: 'Titles and dates', take: 'Centred list', minH: 816, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'The archive', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 128, w: 800, h: 42, align: 'center', text: 'Everything, newest first', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 300, y: 194, w: 600, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, align: 'center', text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
+        { type: 'widget', rails: true, x: 200, y: 294, w: 800, h: 336, posts: { count: 5, look: 'list', aspect: 'landscape', show: { date: true, excerpt: false } } },
+        { type: 'button', x: 500, y: 654, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
       ] },
-      { name: 'Titles and dates', take: 'With a line each', minH: 720, els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'The archive', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 144, w: 400, h: 96, text: 'Everything, newest first', fs: 'x-large' },
-        { type: 'para', x: 72, y: 264, w: 380, h: 72, text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
-        { type: 'button', x: 72, y: 384, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { name: 'Titles and dates', take: 'With a line each', minH: 744, els: [
+        { type: 'para', x: 72, y: 238, w: 340, h: 16, text: 'The archive', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 270, w: 400, h: 82, text: 'Everything, newest first', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 72, y: 376, w: 380, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
+        { type: 'button', x: 72, y: 460, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
         { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 552, posts: { count: 4, look: 'list', aspect: 'landscape', show: { date: true, excerpt: true } } },
       ] },
     ],
     'New in': [
       { name: 'New in', take: 'Headline centred', minH: 720, els: [
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 96, align: 'center', text: 'New in', fs: '__max' },
-        { type: 'widget', rails: true, x: 47, y: 264, w: 1106, h: 288, shop: { count: 4, order: 'date', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
-        { type: 'button', x: 500, y: 600, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Just arrived', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 128, w: 800, h: 54, align: 'center', text: 'New in', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'widget', rails: true, x: 47, y: 238, w: 1106, h: 288, shop: { count: 4, order: 'date', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
+        { type: 'button', x: 500, y: 574, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
       ] },
-      { name: 'New in', take: 'Three tall', minH: 792, els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'New in', fs: 'x-large' },
+      { name: 'New in', take: 'Three tall', minH: 816, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Just arrived', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'New in', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
         { type: 'button', x: 900, y: 144, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
-        { type: 'widget', rails: true, x: 47, y: 240, w: 1106, h: 480, shop: { count: 3, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'l' } },
+        { type: 'widget', rails: true, x: 47, y: 226, w: 1106, h: 480, shop: { count: 3, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'l' } },
       ] },
-      { name: 'New in', take: 'The ledger', minH: 720, els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 400, h: 144, text: 'New in', fs: '__max' },
-        { type: 'para', x: 72, y: 288, w: 380, h: 72, text: 'The latest things on the shelf, newest first. Nothing to maintain.' },
-        { type: 'button', x: 72, y: 408, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { name: 'New in', take: 'The ledger', minH: 744, els: [
+        { type: 'para', x: 72, y: 252, w: 340, h: 16, text: 'Just arrived', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 284, w: 400, h: 54, text: 'New in', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'para', x: 72, y: 362, w: 380, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'The latest things on the shelf, newest first. Nothing to maintain.' },
+        { type: 'button', x: 72, y: 446, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
         { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 552, shop: { count: 4, order: 'date', layout: 'list', aspect: 'square', spacing: 's' } },
       ] },
     ],
     'Sale': [
-      { name: 'Sale', take: 'Four up', minH: 648, els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'On sale', fs: 'x-large' },
+      { name: 'Sale', take: 'Four up', minH: 696, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Right now', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'On sale', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
         { type: 'button', x: 860, y: 144, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', ghost: true },
-        { type: 'widget', rails: true, x: 47, y: 240, w: 1106, h: 360, shop: { count: 4, order: 'sale', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
+        { type: 'widget', rails: true, x: 47, y: 226, w: 1106, h: 360, shop: { count: 4, order: 'sale', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
       ] },
-      { name: 'Sale', take: 'Ink band', minH: 720, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'On sale', fs: 'x-large', color: 'base' },
-        { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'Only what is reduced, while it lasts. Prices as marked.', color: 'base' },
-        { type: 'button', x: 860, y: 216, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 360, shop: { count: 3, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
+      { name: 'Sale', take: 'Ink band', minH: 744, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Right now', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'On sale', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, color: 'base' },
+        { type: 'para', x: 72, y: 194, w: 520, h: 26, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Only what is reduced, while it lasts. Prices as marked.', color: 'base' },
+        { type: 'button', x: 860, y: 194, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'widget', rails: true, x: 47, y: 268, w: 1106, h: 360, shop: { count: 3, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
       ] },
-      { name: 'Sale', take: 'The spotlight', minH: 576, els: [
-        { type: 'widget', rails: true, x: 72, y: 72, w: 500, h: 456, shop: { count: 1, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
-        { type: 'para', x: 660, y: 120, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 660, y: 168, w: 460, h: 144, text: 'One thing, properly reduced', fs: '__max' },
-        { type: 'para', x: 660, y: 360, w: 420, h: 72, text: 'Only what is reduced, while it lasts. Prices as marked.' },
-        { type: 'button', x: 660, y: 456, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', ghost: true },
+      { name: 'Sale', take: 'The spotlight', minH: 648, els: [
+        { type: 'widget', rails: true, x: 72, y: 96, w: 500, h: 456, shop: { count: 1, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
+        { type: 'para', x: 660, y: 178, w: 340, h: 16, text: 'Right now', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 660, y: 210, w: 460, h: 106, text: 'One thing, properly reduced', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'para', x: 660, y: 340, w: 420, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Only what is reduced, while it lasts. Prices as marked.' },
+        { type: 'button', x: 660, y: 424, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', ghost: true },
       ] },
     ],
     'Categories': [
-      { name: 'Categories', take: 'Four across', minH: 576, els: [
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 96, align: 'center', text: 'Find your thing', fs: 'x-large' },
-        { type: 'widget', rails: true, x: 47, y: 264, w: 1106, h: 288, shop: { kind: 'categories', count: 4, spacing: 's' } },
+      { name: 'Categories', take: 'Four across', minH: 624, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Shop by', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 128, w: 800, h: 42, align: 'center', text: 'Find your thing', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'widget', rails: true, x: 47, y: 226, w: 1106, h: 288, shop: { kind: 'categories', count: 4, spacing: 's' } },
       ] },
-      { name: 'Categories', take: 'Two big', minH: 720, els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 400, h: 144, text: 'Find your thing', fs: '__max' },
-        { type: 'para', x: 72, y: 288, w: 380, h: 72, text: 'Every door leads somewhere good.' },
+      { name: 'Categories', take: 'Two big', minH: 744, els: [
+        { type: 'para', x: 72, y: 304, w: 340, h: 16, text: 'Shop by', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 336, w: 400, h: 54, text: 'Find your thing', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'para', x: 72, y: 414, w: 380, h: 26, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Every door leads somewhere good.' },
         { type: 'widget', rails: true, x: 520, y: 96, w: 630, h: 552, shop: { kind: 'categories', count: 2, spacing: 'm' } },
       ] },
       { name: 'Categories', take: 'Ink', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Find your thing', fs: 'x-large', color: 'base' },
-        { type: 'widget', rails: true, x: 47, y: 264, w: 1106, h: 312, shop: { kind: 'categories', count: 3, spacing: 'm' } },
+        { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Shop by', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Find your thing', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, color: 'base' },
+        { type: 'widget', rails: true, x: 47, y: 226, w: 1106, h: 312, shop: { kind: 'categories', count: 3, spacing: 'm' } },
       ] },
     ],
     'Featured product': [
-      { name: 'Featured product', take: 'The billboard', minH: 648, els: [
-        { type: 'para', x: 680, y: 144, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 680, y: 192, w: 440, h: 144, text: 'The one everyone asks about', fs: '__max' },
-        { type: 'para', x: 680, y: 384, w: 400, h: 72, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
-        { type: 'button', x: 680, y: 480, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
-        { type: 'widget', rails: true, x: 72, y: 72, w: 540, h: 528, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+      { name: 'Featured product', take: 'The billboard', minH: 720, els: [
+        { type: 'para', x: 680, y: 214, w: 340, h: 16, text: 'This week', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 680, y: 246, w: 440, h: 106, text: 'The one everyone asks about', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'para', x: 680, y: 376, w: 400, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+        { type: 'button', x: 680, y: 460, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 72, y: 96, w: 540, h: 528, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
       ] },
-      { name: 'Featured product', take: 'The centre', minH: 792, els: [
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 96, align: 'center', text: 'The one everyone asks about', fs: 'x-large' },
-        { type: 'para', x: 330, y: 240, w: 540, h: 48, align: 'center', text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
-        { type: 'widget', rails: true, x: 380, y: 312, w: 440, h: 432, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
-        { type: 'button', x: 500, y: 768, w: 200, h: 48, align: 'center', text: 'See everything', href: '/shop/', ghost: true },
+      { name: 'Featured product', take: 'The centre', minH: 912, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'This week', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 128, w: 800, h: 42, align: 'center', text: 'The one everyone asks about', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 330, y: 194, w: 540, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, align: 'center', text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+        { type: 'widget', rails: true, x: 380, y: 294, w: 440, h: 432, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
+        { type: 'button', x: 500, y: 750, w: 200, h: 48, align: 'center', text: 'See everything', href: '/shop/', ghost: true },
       ] },
-      { name: 'Featured product', take: 'The strip', minH: 432, els: [
-        { type: 'widget', rails: true, x: 72, y: 48, w: 380, h: 312, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's' } },
-        { type: 'para', x: 520, y: 96, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 520, y: 144, w: 580, h: 96, text: 'The one everyone asks about', fs: 'x-large' },
-        { type: 'para', x: 520, y: 264, w: 520, h: 48, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
-        { type: 'button', x: 520, y: 336, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { name: 'Featured product', take: 'The strip', minH: 504, els: [
+        { type: 'widget', rails: true, x: 72, y: 96, w: 380, h: 312, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's' } },
+        { type: 'para', x: 520, y: 138, w: 340, h: 16, text: 'This week', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 520, y: 170, w: 580, h: 42, text: 'The one everyone asks about', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 520, y: 236, w: 520, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+        { type: 'button', x: 520, y: 320, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
       ] },
     ],
     'Bestsellers': [
-      { name: 'Bestsellers', take: 'Headline centred', minH: 792, els: [
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 96, align: 'center', text: 'Bestsellers', fs: '__max' },
-        { type: 'para', x: 330, y: 240, w: 540, h: 48, align: 'center', text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
-        { type: 'widget', rails: true, x: 47, y: 312, w: 1106, h: 336, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'portrait', spacing: 'l' } },
-        { type: 'button', x: 500, y: 696, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { name: 'Bestsellers', take: 'Headline centred', minH: 840, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Most loved', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 128, w: 800, h: 54, align: 'center', text: 'Bestsellers', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'para', x: 330, y: 206, w: 540, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, align: 'center', text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
+        { type: 'widget', rails: true, x: 47, y: 306, w: 1106, h: 336, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'portrait', spacing: 'l' } },
+        { type: 'button', x: 500, y: 690, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
       ] },
-      { name: 'Bestsellers', take: 'The ledger', minH: 720, els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 400, h: 144, text: 'Bestsellers', fs: '__max' },
-        { type: 'para', x: 72, y: 288, w: 380, h: 72, text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
-        { type: 'button', x: 72, y: 408, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { name: 'Bestsellers', take: 'The ledger', minH: 744, els: [
+        { type: 'para', x: 72, y: 252, w: 340, h: 16, text: 'Most loved', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 284, w: 400, h: 54, text: 'Bestsellers', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'para', x: 72, y: 362, w: 380, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
+        { type: 'button', x: 72, y: 446, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
         { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 552, shop: { count: 4, order: 'popularity', layout: 'list', aspect: 'square', spacing: 's' } },
       ] },
-      { name: 'Bestsellers', take: 'Four up', minH: 648, els: [
-        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Bestsellers', fs: 'x-large' },
+      { name: 'Bestsellers', take: 'Four up', minH: 696, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 16, text: 'Most loved', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Bestsellers', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
         { type: 'button', x: 900, y: 144, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
-        { type: 'widget', rails: true, x: 47, y: 240, w: 1106, h: 360, shop: { count: 4, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
+        { type: 'widget', rails: true, x: 47, y: 226, w: 1106, h: 360, shop: { count: 4, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
       ] },
     ],
     'Cover': [
       { name: 'Cover', take: 'The anchor', minH: 720,
         bg: 'var(--wp--preset--color--contrast, #16181c)', bgA: 55, bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg',
         els: [
-        { type: 'para', x: 76, y: 384, w: 400, h: 24, text: 'Est. 2019 · Brighton', tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-        { type: 'heading', x: 72, y: 432, w: 760, h: 144, text: 'Make it feel like you', fs: '__max', color: 'base' },
-        { type: 'para', x: 76, y: 600, w: 500, h: 48, text: 'One clear promise over one strong picture — the front door most sites need.', color: 'base' },
-        { type: 'button', x: 900, y: 576, w: 190, h: 48, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'para', x: 76, y: 240, w: 400, h: 16, text: 'Est. 2019 · Brighton', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+        { type: 'heading', x: 72, y: 272, w: 760, h: 54, text: 'Make it feel like you', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 }, color: 'base' },
+        { type: 'para', x: 76, y: 350, w: 500, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'One clear promise over one strong picture — the front door most sites need.', color: 'base' },
+        { type: 'button', x: 900, y: 432, w: 190, h: 48, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
       { name: 'Cover', take: 'The panel', minH: 648,
         bg: 'var(--wp--preset--color--contrast, #16181c)', bgA: 25, bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', fx: { bg: 'parallax' },
         els: [
-        { type: 'box', x: 620, y: 120, w: 470, h: 432, radius: 24, mood: 'glass', kids: [
-          { type: 'para', x: 36, y: 40, w: 398, h: 22, text: 'Est. 2019 · Brighton', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
-          { type: 'heading', x: 36, y: 84, w: 398, h: 120, text: 'Make it feel like you', fs: 'x-large' },
-          { type: 'para', x: 36, y: 228, w: 398, h: 72, text: 'One clear promise over one strong picture — the front door most sites need.' },
-          { type: 'button', x: 36, y: 322, w: 190, h: 54, text: 'Come on in' },
+        { type: 'box', x: 620, y: 184, w: 470, h: 286, radius: 24, mood: 'glass', kids: [
+          { type: 'para', x: 36, y: 32, w: 398, h: 16, text: 'Est. 2019 · Brighton', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+          { type: 'heading', x: 36, y: 64, w: 398, h: 34, text: 'Make it feel like you', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
+          { type: 'para', x: 36, y: 122, w: 398, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'One clear promise over one strong picture — the front door most sites need.' },
+          { type: 'button', x: 36, y: 200, w: 190, h: 54, text: 'Come on in' },
         ] },
       ] },
-      { name: 'Cover', take: 'The statement', minH: 648,
+      { name: 'Cover', take: 'The statement', minH: 720,
         bg: 'var(--wp--preset--color--contrast, #16181c)',
         els: [
-        { type: 'para', x: 400, y: 120, w: 400, h: 24, align: 'center', text: 'Est. 2019 · Brighton', tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-        { type: 'heading', x: 100, y: 168, w: 1000, h: 216, text: 'Make it feel like you', fs: '__disp-l', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 350, y: 432, w: 500, h: 48, align: 'center', text: 'One clear promise over one strong picture — the front door most sites need.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'button', x: 505, y: 504, w: 190, h: 48, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Est. 2019 · Brighton', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+        { type: 'heading', x: 100, y: 128, w: 1000, h: 328, text: 'Make it feel like you', fs: '__disp-l', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 350, y: 480, w: 500, h: 52, align: 'center', text: 'One clear promise over one strong picture — the front door most sites need.', tf: { fs2: 1.375, fsMin: 17, lh: 1.55, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'button', x: 505, y: 564, w: 190, h: 48, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
     ],
     'Get in touch': [
       { name: 'Get in touch', take: 'Side by side', minH: 648, els: [
-        { type: 'para', x: 72, y: 96, w: 300, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 144, w: 420, h: 144, text: 'Let’s talk', fs: '__max' },
-        { type: 'para', x: 72, y: 312, w: 400, h: 72, text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
-        { type: 'para', x: 72, y: 408, w: 400, h: 24, text: 'hello@yourstudio.com · Brighton', tf: { fs: 13, fw: 600, col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Say hello', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 420, h: 54, text: 'Let’s talk', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'para', x: 72, y: 206, w: 400, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
+        { type: 'para', x: 72, y: 282, w: 400, h: 18, text: 'hello@yourstudio.com · Brighton', tf: { fs2: 1, fsMin: 13, lh: 1.5, fw: 600, col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'widget', x: 540, y: 96, w: 560, h: 456, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
       ] },
-      { name: 'Get in touch', take: 'The note', minH: 792, els: [
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 300, y: 96, w: 600, h: 72, text: 'Let’s talk', fs: 'x-large', align: 'center' },
-        { type: 'para', x: 340, y: 216, w: 520, h: 48, align: 'center', text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
-        { type: 'box', x: 270, y: 288, w: 660, h: 432, radius: 22, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
-        { type: 'widget', x: 310, y: 336, w: 580, h: 360, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
+      { name: 'Get in touch', take: 'The note', minH: 840, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Say hello', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 300, y: 128, w: 600, h: 42, text: 'Let’s talk', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'para', x: 340, y: 194, w: 520, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, align: 'center', text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
+        { type: 'box', x: 270, y: 294, w: 660, h: 432, radius: 22, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
+        { type: 'widget', x: 310, y: 342, w: 580, h: 360, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
       ] },
-      { name: 'Get in touch', take: 'The statement', minH: 720, els: [
-        { type: 'para', x: 72, y: 96, w: 300, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 460, h: 216, text: 'Let’s talk', fs: '__disp-m' },
-        { type: 'para', x: 72, y: 384, w: 400, h: 72, text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
-        { type: 'widget', x: 560, y: 120, w: 540, h: 456, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
+      { name: 'Get in touch', take: 'The statement', minH: 696, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Say hello', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 460, h: 228, text: 'Let’s talk', fs: '__disp-m' },
+        { type: 'para', x: 72, y: 380, w: 400, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
+        { type: 'widget', x: 560, y: 128, w: 540, h: 456, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
       ] },
     ],
     'Hero': [
       { name: 'Hero', take: 'The mirror', minH: 648, els: [
-        { type: 'box', x: 60, y: 144, w: 500, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
-        { type: 'image', x: 100, y: 120, w: 500, h: 432, cool: true },
-        { type: 'para', x: 660, y: 120, w: 340, h: 24, text: 'Design studio · Brighton', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 660, y: 168, w: 470, h: 192, text: 'We make brands people remember', fs: '__max' },
-        { type: 'para', x: 660, y: 384, w: 410, h: 72, text: 'Strategy, identity and websites for founders who care how things feel.' },
-        { type: 'button', x: 660, y: 504, w: 180, h: 48, text: 'See the work' },
-        { type: 'button', x: 860, y: 504, w: 180, h: 48, text: 'Start a project', ghost: true },
+        { type: 'box', x: 60, y: 120, w: 500, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
+        { type: 'image', x: 100, y: 96, w: 500, h: 432, cool: true },
+        { type: 'para', x: 660, y: 166, w: 340, h: 16, text: 'Design studio · Brighton', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 660, y: 198, w: 470, h: 106, text: 'We make brands people remember', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'para', x: 660, y: 328, w: 410, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'Strategy, identity and websites for founders who care how things feel.' },
+        { type: 'button', x: 660, y: 412, w: 180, h: 48, text: 'See the work' },
+        { type: 'button', x: 860, y: 412, w: 180, h: 48, text: 'Start a project', ghost: true },
       ] },
-      { name: 'Hero', take: 'The stage', minH: 864, els: [
-        { type: 'image', x: 150, y: 480, w: 900, h: 336, cool: true },
-        { type: 'para', x: 400, y: 96, w: 400, h: 24, align: 'center', text: 'Design studio · Brighton', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 150, y: 120, w: 900, h: 144, text: 'We make brands people remember', fs: '__max', align: 'center' },
-        { type: 'para', x: 360, y: 288, w: 480, h: 48, align: 'center', text: 'Strategy, identity and websites for founders who care how things feel.' },
-        { type: 'button', x: 420, y: 384, w: 180, h: 48, text: 'See the work' },
-        { type: 'button', x: 620, y: 384, w: 180, h: 48, text: 'Start a project', ghost: true },
+      { name: 'Hero', take: 'The stage', minH: 816, els: [
+        { type: 'image', x: 150, y: 370, w: 900, h: 336, cool: true },
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Design studio · Brighton', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 150, y: 128, w: 900, h: 54, text: 'We make brands people remember', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 }, align: 'center' },
+        { type: 'para', x: 360, y: 206, w: 480, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, align: 'center', text: 'Strategy, identity and websites for founders who care how things feel.' },
+        { type: 'button', x: 420, y: 290, w: 180, h: 48, text: 'See the work' },
+        { type: 'button', x: 620, y: 290, w: 180, h: 48, text: 'Start a project', ghost: true },
       ] },
-      { name: 'Hero', take: 'The overlap', minH: 648, els: [
-        { type: 'image', x: 460, y: 72, w: 640, h: 504, cool: true },
-        { type: 'box', x: 100, y: 144, w: 470, h: 384, radius: 24, mood: 'glass', kids: [
-          { type: 'para', x: 36, y: 36, w: 398, h: 22, text: 'Design studio · Brighton', tf: { fs: 12, fw: 600, ls2: 0.22, tt: 'uppercase' } },
-          { type: 'heading', x: 36, y: 76, w: 398, h: 140, text: 'We make brands people remember', fs: 'x-large' },
-          { type: 'para', x: 36, y: 236, w: 398, h: 66, text: 'Strategy, identity and websites for founders who care how things feel.' },
-          { type: 'button', x: 36, y: 320, w: 180, h: 48, text: 'See the work' },
+      { name: 'Hero', take: 'The overlap', minH: 696, els: [
+        { type: 'image', x: 460, y: 96, w: 640, h: 504, cool: true },
+        { type: 'box', x: 100, y: 168, w: 470, h: 314, radius: 24, mood: 'glass', kids: [
+          { type: 'para', x: 36, y: 32, w: 398, h: 16, text: 'Design studio · Brighton', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+          { type: 'heading', x: 36, y: 64, w: 398, h: 68, text: 'We make brands people remember', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
+          { type: 'para', x: 36, y: 156, w: 398, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Strategy, identity and websites for founders who care how things feel.' },
+          { type: 'button', x: 36, y: 234, w: 180, h: 48, text: 'See the work' },
         ] },
       ] },
     ],
 
     'Big statement': [
-      { name: 'Big statement', take: 'The ledger', minH: 504, els: [
-        { type: 'para', x: 72, y: 96, w: 400, h: 24, text: 'What we believe', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 144, w: 1000, h: 240, text: 'Good design is good business', fs: '__disp-l' },
-        { type: 'button', x: 72, y: 432, w: 168, h: 48, text: 'Our thinking', ghost: true },
+      { name: 'Big statement', take: 'The ledger', minH: 816, els: [
+        { type: 'para', x: 72, y: 96, w: 400, h: 16, text: 'What we believe', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 1000, h: 492, text: 'Good design is good business', fs: '__disp-l' },
+        { type: 'button', x: 72, y: 660, w: 168, h: 48, text: 'Our thinking', ghost: true },
       ] },
-      { name: 'Big statement', take: 'The slab', minH: 504, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 400, y: 96, w: 400, h: 24, align: 'center', text: 'What we believe', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 60, y: 144, w: 1080, h: 240, text: 'Good design is good business', fs: '__disp-l', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'button', x: 516, y: 432, w: 168, h: 48, text: 'Our thinking', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Big statement', take: 'The slab', minH: 816, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'What we believe', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 60, y: 128, w: 1080, h: 492, text: 'Good design is good business', fs: '__disp-l', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'button', x: 516, y: 660, w: 168, h: 48, text: 'Our thinking', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
-      { name: 'Big statement', take: 'The aside', minH: 360, els: [
-        { type: 'para', x: 72, y: 96, w: 400, h: 24, text: 'What we believe', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 760, h: 168, text: 'Good design is good business', fs: '__disp-m' },
+      { name: 'Big statement', take: 'The aside', minH: 576, els: [
+        { type: 'para', x: 72, y: 96, w: 400, h: 16, text: 'What we believe', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 760, h: 342, text: 'Good design is good business', fs: '__disp-m' },
         { type: 'button', x: 900, y: 192, w: 200, h: 48, text: 'Our thinking', ghost: true },
       ] },
     ],
     'Story': [
-      { name: 'Story', take: 'The mirror', minH: 576, els: [
+      { name: 'Story', take: 'The mirror', minH: 648, els: [
         { type: 'image', x: 658, y: 96, w: 470, h: 456, cool: true },
-        { type: 'para', x: 72, y: 120, w: 300, h: 24, text: 'Our story', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 168, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large' },
-        { type: 'para', x: 72, y: 312, w: 460, h: 72, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
-        { type: 'para', x: 72, y: 408, w: 460, h: 72, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
-        { type: 'button', x: 72, y: 504, w: 220, h: 48, text: 'The whole story', ghost: true },
+        { type: 'para', x: 72, y: 162, w: 300, h: 16, text: 'Our story', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 194, w: 480, h: 82, text: 'It started in a spare room', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 72, y: 300, w: 460, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
+        { type: 'para', x: 72, y: 362, w: 460, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
+        { type: 'button', x: 72, y: 440, w: 220, h: 48, text: 'The whole story', ghost: true },
       ] },
-      { name: 'Story', take: 'The spread', minH: 792, els: [
-        { type: 'image', x: 150, y: 432, w: 900, h: 336, cool: true },
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Our story', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'It started in a spare room', fs: 'x-large', align: 'center' },
-        { type: 'para', x: 150, y: 192, w: 430, h: 96, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
-        { type: 'para', x: 620, y: 192, w: 430, h: 96, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
-        { type: 'button', x: 500, y: 336, w: 200, h: 48, text: 'The whole story', ghost: true },
+      { name: 'Story', take: 'The spread', minH: 816, els: [
+        { type: 'image', x: 150, y: 374, w: 900, h: 336, cool: true },
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Our story', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'It started in a spare room', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'para', x: 150, y: 194, w: 430, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
+        { type: 'para', x: 620, y: 194, w: 430, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
+        { type: 'button', x: 500, y: 294, w: 200, h: 48, text: 'The whole story', ghost: true },
       ] },
-      { name: 'Story', take: 'The chapter', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'image', x: 620, y: 120, w: 480, h: 432, cool: true },
-        { type: 'para', x: 72, y: 144, w: 300, h: 24, text: 'Our story', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 72, y: 192, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 72, y: 336, w: 460, h: 72, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'para', x: 72, y: 432, w: 460, h: 72, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'button', x: 72, y: 528, w: 220, h: 48, text: 'The whole story', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Story', take: 'The chapter', minH: 624, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'image', x: 620, y: 96, w: 480, h: 432, cool: true },
+        { type: 'para', x: 72, y: 150, w: 300, h: 16, text: 'Our story', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 72, y: 182, w: 480, h: 82, text: 'It started in a spare room', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 72, y: 288, w: 460, h: 46, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'para', x: 72, y: 350, w: 460, h: 46, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'button', x: 72, y: 428, w: 220, h: 48, text: 'The whole story', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
     ],
     'Numbers': [
-      { name: 'Numbers', take: 'The ink strip', minH: 432, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 72, w: 300, h: 24, text: 'By the numbers', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 72, y: 144, w: 330, h: 120, text: '184', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 76, y: 288, w: 290, h: 24, text: 'Projects shipped since 2019', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'heading', x: 435, y: 144, w: 330, h: 120, text: '12', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 439, y: 288, w: 290, h: 24, text: 'Design awards on two shelves', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'heading', x: 798, y: 144, w: 330, h: 120, text: '98%', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 802, y: 288, w: 290, h: 24, text: 'Clients who came back for more', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+      { name: 'Numbers', take: 'The ink strip', minH: 408, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'By the numbers', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 330, h: 114, text: '184', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 76, y: 266, w: 290, h: 24, text: 'Projects shipped since 2019', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'heading', x: 435, y: 128, w: 330, h: 114, text: '12', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 439, y: 266, w: 290, h: 24, text: 'Design awards on two shelves', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'heading', x: 798, y: 128, w: 330, h: 114, text: '98%', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 802, y: 266, w: 290, h: 24, text: 'Clients who came back for more', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
       ] },
-      { name: 'Numbers', take: 'The tally', minH: 576, els: [
-        { type: 'para', x: 72, y: 72, w: 300, h: 24, text: 'By the numbers', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 320, h: 96, text: '184', fs: '__disp-m' },
-        { type: 'para', x: 420, y: 144, w: 400, h: 24, text: 'Projects shipped since 2019' },
-        { type: 'heading', x: 72, y: 240, w: 320, h: 96, text: '12', fs: '__disp-m' },
-        { type: 'para', x: 420, y: 288, w: 400, h: 24, text: 'Design awards on two shelves' },
-        { type: 'heading', x: 72, y: 384, w: 320, h: 96, text: '98%', fs: '__disp-m' },
-        { type: 'para', x: 420, y: 408, w: 400, h: 24, text: 'Clients who came back for more' },
+      { name: 'Numbers', take: 'The tally', minH: 624, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'By the numbers', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 320, h: 114, text: '184', fs: '__disp-m' },
+        { type: 'para', x: 420, y: 168, w: 400, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Projects shipped since 2019' },
+        { type: 'heading', x: 72, y: 266, w: 320, h: 114, text: '12', fs: '__disp-m' },
+        { type: 'para', x: 420, y: 208, w: 400, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Design awards on two shelves' },
+        { type: 'heading', x: 72, y: 404, w: 320, h: 114, text: '98%', fs: '__disp-m' },
+        { type: 'para', x: 420, y: 248, w: 400, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Clients who came back for more' },
       ] },
-      { name: 'Numbers', take: 'The cards', minH: 504, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'By the numbers', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'box', x: 100, y: 120, w: 320, h: 264, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 40, w: 264, h: 100, text: '184', fs: '__disp-m' },
-          { type: 'para', x: 28, y: 170, w: 264, h: 44, text: 'Projects shipped since 2019' },
+      { name: 'Numbers', take: 'The cards', minH: 456, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'By the numbers', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'box', x: 100, y: 128, w: 320, h: 226, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 114, text: '184', fs: '__disp-m' },
+          { type: 'para', x: 28, y: 170, w: 264, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Projects shipped since 2019' },
         ] },
-        { type: 'box', x: 440, y: 120, w: 320, h: 264, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 40, w: 264, h: 100, text: '12', fs: '__disp-m' },
-          { type: 'para', x: 28, y: 170, w: 264, h: 44, text: 'Design awards on two shelves' },
+        { type: 'box', x: 440, y: 128, w: 320, h: 226, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 114, text: '12', fs: '__disp-m' },
+          { type: 'para', x: 28, y: 170, w: 264, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Design awards on two shelves' },
         ] },
-        { type: 'box', x: 780, y: 120, w: 320, h: 264, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 40, w: 264, h: 100, text: '98%', fs: '__disp-m' },
-          { type: 'para', x: 28, y: 170, w: 264, h: 44, text: 'Clients who came back for more' },
+        { type: 'box', x: 780, y: 128, w: 320, h: 226, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 114, text: '98%', fs: '__disp-m' },
+          { type: 'para', x: 28, y: 170, w: 264, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Clients who came back for more' },
         ] },
       ] },
     ],
     'Article': [
-      { name: 'Article', take: 'The split', minH: 504, els: [
-        { type: 'para', x: 72, y: 96, w: 300, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 400, h: 144, text: 'Notes on doing less, better', fs: 'x-large' },
-        { type: 'para', x: 560, y: 96, w: 560, h: 72, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
-        { type: 'para', x: 560, y: 192, w: 560, h: 72, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
-        { type: 'para', x: 560, y: 288, w: 560, h: 72, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
-        { type: 'button', x: 72, y: 312, w: 200, h: 48, text: 'Keep reading', ghost: true },
+      { name: 'Article', take: 'The split', minH: 408, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'From the journal', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 400, h: 82, text: 'Notes on doing less, better', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 560, y: 96, w: 560, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+        { type: 'para', x: 560, y: 158, w: 560, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+        { type: 'para', x: 560, y: 220, w: 560, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+        { type: 'button', x: 72, y: 250, w: 200, h: 48, text: 'Keep reading', ghost: true },
       ] },
-      { name: 'Article', take: 'The plate', minH: 648, els: [
-        { type: 'box', x: 150, y: 48, w: 900, h: 528, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 60, y: 54, w: 300, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase' } },
-          { type: 'heading', x: 60, y: 96, w: 640, h: 70, text: 'Notes on doing less, better', fs: 'x-large' },
-          { type: 'para', x: 60, y: 196, w: 640, h: 66, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
-          { type: 'para', x: 60, y: 286, w: 640, h: 66, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
-          { type: 'para', x: 60, y: 376, w: 640, h: 66, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
-          { type: 'button', x: 60, y: 460, w: 200, h: 54, text: 'Keep reading', ghost: true },
+      { name: 'Article', take: 'The plate', minH: 624, els: [
+        { type: 'box', x: 150, y: 96, w: 900, h: 410, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'para', x: 60, y: 32, w: 300, h: 16, text: 'From the journal', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+          { type: 'heading', x: 60, y: 64, w: 640, h: 34, text: 'Notes on doing less, better', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
+          { type: 'para', x: 60, y: 122, w: 640, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+          { type: 'para', x: 60, y: 184, w: 640, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+          { type: 'para', x: 60, y: 246, w: 640, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+          { type: 'button', x: 60, y: 324, w: 200, h: 54, text: 'Keep reading', ghost: true },
         ] },
       ] },
-      { name: 'Article', take: 'The broadsheet', minH: 504, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 150, y: 96, w: 900, h: 48, text: 'Notes on doing less, better', fs: 'x-large', align: 'center' },
-        { type: 'para', x: 72, y: 216, w: 330, h: 144, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
-        { type: 'para', x: 435, y: 216, w: 330, h: 144, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
-        { type: 'para', x: 798, y: 216, w: 330, h: 144, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
-        { type: 'button', x: 500, y: 408, w: 200, h: 48, text: 'Keep reading', ghost: true },
+      { name: 'Article', take: 'The broadsheet', minH: 480, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'From the journal', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 150, y: 128, w: 900, h: 42, text: 'Notes on doing less, better', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'para', x: 72, y: 194, w: 330, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+        { type: 'para', x: 435, y: 194, w: 330, h: 90, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+        { type: 'para', x: 798, y: 194, w: 330, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+        { type: 'button', x: 500, y: 316, w: 200, h: 48, text: 'Keep reading', ghost: true },
       ] },
     ],
     'Feature cards': [
-      { name: 'Feature cards', take: 'The ink deck', minH: 576, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'heading', x: 100, y: 48, w: 1000, h: 48, text: 'What we do', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Brand identity', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+      { name: 'Feature cards', take: 'The ink deck', minH: 480, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'What we do', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 28, y: 72, w: 264, h: 68, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
         ] },
-        { type: 'box', x: 440, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Websites', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 28, y: 72, w: 264, h: 68, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
         ] },
-        { type: 'box', x: 780, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Art direction', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        ] },
-      ] },
-      { name: 'Feature cards', take: 'The ladder', minH: 648, els: [
-        { type: 'heading', x: 72, y: 72, w: 700, h: 48, text: 'What we do', fs: 'x-large' },
-        { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Brand identity', fs: 'large' },
-          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
-        ] },
-        { type: 'box', x: 440, y: 216, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Websites', fs: 'large' },
-          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
-        ] },
-        { type: 'box', x: 780, y: 288, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Art direction', fs: 'large' },
-          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
+        { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 28, y: 72, w: 264, h: 68, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
         ] },
       ] },
-      { name: 'Feature cards', take: 'The rows', minH: 648, els: [
-        { type: 'heading', x: 72, y: 48, w: 700, h: 48, text: 'What we do', fs: 'x-large' },
-        { type: 'box', x: 72, y: 144, w: 1056, h: 144, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 46, w: 300, h: 44, text: 'Brand identity', fs: 'large' },
-          { type: 'para', x: 370, y: 28, w: 650, h: 84, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
+      { name: 'Feature cards', take: 'The ladder', minH: 600, els: [
+        { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'What we do', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
         ] },
-        { type: 'box', x: 72, y: 312, w: 1056, h: 144, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 46, w: 300, h: 44, text: 'Websites', fs: 'large' },
-          { type: 'para', x: 370, y: 28, w: 650, h: 84, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
+        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
         ] },
-        { type: 'box', x: 72, y: 480, w: 1056, h: 144, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 46, w: 300, h: 44, text: 'Art direction', fs: 'large' },
-          { type: 'para', x: 370, y: 28, w: 650, h: 84, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
+        { type: 'box', x: 780, y: 312, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
+        ] },
+      ] },
+      { name: 'Feature cards', take: 'The rows', minH: 672, els: [
+        { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'What we do', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'box', x: 72, y: 194, w: 1056, h: 110, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 28, y: 32, w: 300, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 370, y: 32, w: 650, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
+        ] },
+        { type: 'box', x: 72, y: 328, w: 1056, h: 110, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 28, y: 32, w: 300, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 370, y: 32, w: 650, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
+        ] },
+        { type: 'box', x: 72, y: 462, w: 1056, h: 110, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 28, y: 32, w: 300, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 370, y: 32, w: 650, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
         ] },
       ] },
     ],
 
     'Pricing': [
-      { name: 'Pricing', take: 'The pair', minH: 648, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Simple pricing', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Two ways to work with us', fs: 'x-large', align: 'center' },
-        { type: 'box', x: 230, y: 216, w: 350, h: 384, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 32, y: 34, w: 286, h: 44, text: 'The Sprint', fs: 'large' },
-          { type: 'para', x: 32, y: 90, w: 286, h: 76, text: 'One focused week. A sharp brief in, a finished thing out.' },
-          { type: 'heading', x: 32, y: 186, w: 286, h: 60, text: '\u00a33,500', fs: 'x-large' },
-          { type: 'button', x: 32, y: 278, w: 286, h: 54, text: 'Book a sprint', ghost: true },
+      { name: 'Pricing', take: 'The pair', minH: 672, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Two ways to work with us', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'box', x: 230, y: 226, w: 350, h: 318, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 32, y: 32, w: 286, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 32, y: 72, w: 286, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'One focused week. A sharp brief in, a finished thing out.' },
+          { type: 'heading', x: 32, y: 158, w: 286, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
+          { type: 'button', x: 32, y: 232, w: 286, h: 54, text: 'Book a sprint', ghost: true },
         ] },
-        { type: 'box', x: 620, y: 192, w: 350, h: 408, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
-          { type: 'heading', x: 32, y: 34, w: 240, h: 44, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 98, w: 286, h: 76, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-          { type: 'heading', x: 32, y: 196, w: 286, h: 60, text: '\u00a34,000/mo', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 32, y: 290, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'box', x: 620, y: 214, w: 350, h: 342, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
+          { type: 'heading', x: 32, y: 44, w: 240, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 32, y: 84, w: 286, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+          { type: 'heading', x: 32, y: 170, w: 286, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'button', x: 32, y: 244, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
         ] },
       ] },
       { name: 'Pricing', take: 'The shelves', minH: 720, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Simple pricing', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Two ways to work with us', fs: 'x-large', align: 'center' },
-        { type: 'box', x: 150, y: 192, w: 900, h: 192, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 32, y: 32, w: 280, h: 44, text: 'The Sprint', fs: 'large' },
-          { type: 'para', x: 32, y: 90, w: 380, h: 66, text: 'One focused week. A sharp brief in, a finished thing out.' },
-          { type: 'heading', x: 470, y: 32, w: 190, h: 60, text: '\u00a33,500', fs: 'x-large' },
-          { type: 'button', x: 668, y: 110, w: 200, h: 54, text: 'Book a sprint', ghost: true },
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Two ways to work with us', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'box', x: 150, y: 226, w: 900, h: 150, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 32, y: 32, w: 280, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 32, y: 72, w: 380, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'One focused week. A sharp brief in, a finished thing out.' },
+          { type: 'heading', x: 470, y: 32, w: 190, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
+          { type: 'button', x: 668, y: 32, w: 200, h: 54, text: 'Book a sprint', ghost: true },
         ] },
-        { type: 'box', x: 150, y: 432, w: 900, h: 216, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
-          { type: 'heading', x: 32, y: 32, w: 300, h: 44, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 92, w: 380, h: 76, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-          { type: 'heading', x: 470, y: 32, w: 230, h: 60, text: '\u00a34,000/mo', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 668, y: 130, w: 200, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'box', x: 150, y: 424, w: 900, h: 192, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
+          { type: 'heading', x: 32, y: 32, w: 300, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 32, y: 72, w: 380, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+          { type: 'heading', x: 470, y: 32, w: 230, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'button', x: 668, y: 106, w: 200, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
         ] },
       ] },
-      { name: 'Pricing', take: 'The ink stage', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Simple pricing', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Two ways to work with us', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 230, y: 216, w: 350, h: 384, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 32, y: 34, w: 286, h: 44, text: 'The Sprint', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 90, w: 286, h: 76, text: 'One focused week. A sharp brief in, a finished thing out.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-          { type: 'heading', x: 32, y: 186, w: 286, h: 60, text: '\u00a33,500', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 32, y: 278, w: 286, h: 54, text: 'Book a sprint', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Pricing', take: 'The ink stage', minH: 672, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Two ways to work with us', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'box', x: 230, y: 226, w: 350, h: 318, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+          { type: 'heading', x: 32, y: 32, w: 286, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 32, y: 72, w: 286, h: 46, text: 'One focused week. A sharp brief in, a finished thing out.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+          { type: 'heading', x: 32, y: 158, w: 286, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'button', x: 32, y: 232, w: 286, h: 54, text: 'Book a sprint', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
         ] },
-        { type: 'box', x: 620, y: 192, w: 350, h: 408, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 16%, transparent)', kids: [
-          { type: 'heading', x: 32, y: 34, w: 240, h: 44, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 98, w: 286, h: 76, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-          { type: 'heading', x: 32, y: 196, w: 286, h: 60, text: '\u00a34,000/mo', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 32, y: 290, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'box', x: 620, y: 214, w: 350, h: 342, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 16%, transparent)', kids: [
+          { type: 'heading', x: 32, y: 44, w: 240, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 32, y: 84, w: 286, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+          { type: 'heading', x: 32, y: 170, w: 286, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'button', x: 32, y: 244, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
         ] },
       ] },
     ],
     'Quote': [
       { name: 'Quote', take: 'The centre', minH: 432, els: [
-        { type: 'heading', x: 516, y: 48, w: 168, h: 120, text: '\u201c', fs: '__disp-l', align: 'center' },
-        { type: 'para', x: 200, y: 168, w: 800, h: 144, align: 'center', text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25 } },
-        { type: 'para', x: 400, y: 384, w: 400, h: 24, align: 'center', text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 516, y: 96, w: 168, h: 98, tf: { lh: 0.62 }, text: '\u201c', fs: '__disp-l', align: 'center' },
+        { type: 'para', x: 200, y: 218, w: 800, h: 58, align: 'center', text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', tf: { fs2: 1.667, fsMin: 19, lh: 1.45 } },
+        { type: 'para', x: 400, y: 300, w: 400, h: 16, align: 'center', text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       ] },
-      { name: 'Quote', take: 'The ink', minH: 504, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'heading', x: 76, y: 48, w: 180, h: 144, text: '\u201c', fs: '__disp-l', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 200, y: 168, w: 800, h: 144, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 204, y: 360, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+      { name: 'Quote', take: 'The ink', minH: 432, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'heading', x: 76, y: 96, w: 180, h: 98, text: '\u201c', fs: '__disp-l', tf: { col: 'var(--wp--preset--color--base, #fff)', lh: 0.62 } },
+        { type: 'para', x: 200, y: 216, w: 800, h: 58, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', tf: { fs2: 1.667, fsMin: 19, lh: 1.45, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 204, y: 298, w: 500, h: 16, text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
       ] },
-      { name: 'Quote', take: 'The card', minH: 504, els: [
-        { type: 'box', x: 150, y: 48, w: 900, h: 360, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 48, y: 24, w: 140, h: 120, text: '\u201c', fs: '__disp-m' },
-          { type: 'para', x: 160, y: 110, w: 660, h: 140, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25 } },
-          { type: 'para', x: 164, y: 280, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase' } },
+      { name: 'Quote', take: 'The card', minH: 360, els: [
+        { type: 'box', x: 150, y: 96, w: 900, h: 162, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 48, y: 32, w: 140, h: 68, tf: { lh: 0.62 }, text: '\u201c', fs: '__disp-m' },
+          { type: 'para', x: 160, y: 32, w: 660, h: 58, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', tf: { fs2: 1.667, fsMin: 19, lh: 1.45 } },
+          { type: 'para', x: 164, y: 114, w: 500, h: 16, text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
         ] },
       ] },
     ],
     'Testimonials': [
-      { name: 'Testimonials', take: 'The ink wall', minH: 576, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'heading', x: 100, y: 48, w: 1000, h: 48, text: 'Kind words', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { lh: 1.45, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Hanna \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+      { name: 'Testimonials', take: 'The ink wall', minH: 480, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'Kind words', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Hanna \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         ] },
-        { type: 'box', x: 440, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { lh: 1.45, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Dev \u00b7 Marlow Bikes', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Dev \u00b7 Marlow Bikes', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         ] },
-        { type: 'box', x: 780, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { lh: 1.45, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         ] },
       ] },
-      { name: 'Testimonials', take: 'The ladder', minH: 648, els: [
-        { type: 'heading', x: 72, y: 48, w: 700, h: 48, text: 'Kind words', fs: 'x-large' },
-        { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { lh: 1.45 } },
-          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Hanna \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { name: 'Testimonials', take: 'The ladder', minH: 624, els: [
+        { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'Kind words', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Hanna \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         ] },
-        { type: 'box', x: 440, y: 216, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { lh: 1.45 } },
-          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Dev \u00b7 Marlow Bikes', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Dev \u00b7 Marlow Bikes', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         ] },
-        { type: 'box', x: 780, y: 288, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { lh: 1.45 } },
-          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'box', x: 780, y: 336, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         ] },
       ] },
       { name: 'Testimonials', take: 'The voices', minH: 648, els: [
-        { type: 'heading', x: 72, y: 48, w: 700, h: 48, text: 'Kind words', fs: 'x-large' },
-        { type: 'box', x: 72, y: 144, w: 1056, h: 120, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 24, w: 680, h: 84, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { lh: 1.45 } },
-          { type: 'para', x: 760, y: 52, w: 260, h: 24, text: 'Hanna \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'Kind words', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'box', x: 72, y: 194, w: 1056, h: 88, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'para', x: 28, y: 32, w: 680, h: 24, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+          { type: 'para', x: 760, y: 32, w: 260, h: 16, text: 'Hanna \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         ] },
-        { type: 'box', x: 72, y: 288, w: 1056, h: 120, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 24, w: 680, h: 84, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { lh: 1.45 } },
-          { type: 'para', x: 760, y: 52, w: 260, h: 24, text: 'Dev \u00b7 Marlow Bikes', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'box', x: 72, y: 306, w: 1056, h: 88, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'para', x: 28, y: 32, w: 680, h: 24, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+          { type: 'para', x: 760, y: 32, w: 260, h: 16, text: 'Dev \u00b7 Marlow Bikes', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         ] },
-        { type: 'box', x: 72, y: 456, w: 1056, h: 120, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 24, w: 680, h: 84, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { lh: 1.45 } },
-          { type: 'para', x: 760, y: 52, w: 260, h: 24, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'box', x: 72, y: 442, w: 1056, h: 88, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'para', x: 28, y: 32, w: 680, h: 24, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+          { type: 'para', x: 760, y: 32, w: 260, h: 16, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         ] },
       ] },
     ],
     'Call to action': [
-      { name: 'Call to action', take: 'The centre', minH: 432, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Next step', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 150, y: 120, w: 900, h: 120, text: 'Let\u2019s make yours', fs: '__max', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 380, y: 288, w: 440, h: 24, align: 'center', text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'button', x: 490, y: 360, w: 220, h: 48, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Call to action', take: 'The centre', minH: 456, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Next step', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 150, y: 128, w: 900, h: 54, text: 'Let\u2019s make yours', align: 'center', tf: { fs2: 4.167, fsMin: 34, lh: 1.06, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 380, y: 206, w: 440, h: 52, align: 'center', text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { fs2: 1.375, fsMin: 17, lh: 1.55, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'button', x: 490, y: 290, w: 220, h: 48, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
       { name: 'Call to action', take: 'The quiet word', minH: 360, els: [
-        { type: 'para', x: 96, y: 96, w: 300, h: 24, text: 'Next step', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 96, y: 120, w: 640, h: 120, text: 'Let\u2019s make yours', fs: '__max' },
-        { type: 'para', x: 98, y: 288, w: 440, h: 24, text: 'No forms and no decks \u2014 just a conversation about what you are building.' },
+        { type: 'para', x: 96, y: 96, w: 300, h: 16, text: 'Next step', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 96, y: 128, w: 640, h: 54, text: 'Let\u2019s make yours', tf: { fs2: 4.167, fsMin: 34, lh: 1.06 } },
+        { type: 'para', x: 98, y: 206, w: 440, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'No forms and no decks \u2014 just a conversation about what you are building.' },
         { type: 'button', x: 884, y: 192, w: 220, h: 48, text: 'Book a call' },
       ] },
-      { name: 'Call to action', take: 'The banner', minH: 288, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'Next step', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 760, h: 96, text: 'Let\u2019s make yours', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 72, y: 216, w: 480, h: 24, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'button', x: 880, y: 120, w: 220, h: 48, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Call to action', take: 'The banner', minH: 528, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Next step', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 760, h: 228, text: 'Let\u2019s make yours', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 72, y: 380, w: 480, h: 52, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { fs2: 1.375, fsMin: 17, lh: 1.55, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'button', x: 880, y: 218, w: 220, h: 48, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
     ],
 
     'Profile card': [
       { name: 'Profile card', take: 'The left dock', minH: 648,
         bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'box', x: 84, y: 120, w: 400, h: 360, radius: 24, mood: 'glass', kids: [
-          { type: 'para', x: 32, y: 36, w: 336, h: 22, align: 'center', text: 'DESIGN \u00b7 DIRECTION', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
-          { type: 'heading', x: 32, y: 70, w: 336, h: 48, align: 'center', text: 'Vincent van Gogh', fs: 'large' },
-          { type: 'para', x: 32, y: 130, w: 336, h: 48, align: 'center', text: 'Painter of light. 900 works, one sunflower obsession.' },
-          { type: 'para', x: 32, y: 196, w: 336, h: 22, align: 'center', text: 'Arles \u00b7 Saint-R\u00e9my \u00b7 Auvers', tf: { fs: 13, col: 'color-mix(in srgb, currentColor 65%, transparent)' } },
-          { type: 'button', x: 116, y: 248, w: 168, h: 48, text: 'Say hello' },
+        { type: 'box', x: 84, y: 176, w: 400, h: 296, radius: 24, mood: 'glass', kids: [
+          { type: 'para', x: 32, y: 32, w: 336, h: 16, align: 'center', text: 'DESIGN \u00b7 DIRECTION', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+          { type: 'heading', x: 32, y: 64, w: 336, h: 28, align: 'center', text: 'Vincent van Gogh', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 32, y: 104, w: 336, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, align: 'center', text: 'Painter of light. 900 works, one sunflower obsession.' },
+          { type: 'para', x: 32, y: 174, w: 336, h: 18, align: 'center', text: 'Arles \u00b7 Saint-R\u00e9my \u00b7 Auvers', tf: { fs2: 1, fsMin: 13, lh: 1.5, col: 'color-mix(in srgb, currentColor 65%, transparent)' } },
+          { type: 'button', x: 116, y: 216, w: 168, h: 48, text: 'Say hello' },
         ] },
       ] },
-      { name: 'Profile card', take: 'The paper', minH: 576, els: [
-        { type: 'box', x: 400, y: 120, w: 400, h: 384, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 32, y: 40, w: 336, h: 22, align: 'center', text: 'DESIGN \u00b7 DIRECTION', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
-          { type: 'heading', x: 32, y: 74, w: 336, h: 48, align: 'center', text: 'Vincent van Gogh', fs: 'large' },
-          { type: 'para', x: 32, y: 134, w: 336, h: 48, align: 'center', text: 'Painter of light. 900 works, one sunflower obsession.' },
-          { type: 'para', x: 32, y: 200, w: 336, h: 22, align: 'center', text: 'Arles \u00b7 Saint-R\u00e9my \u00b7 Auvers', tf: { fs: 13, col: 'color-mix(in srgb, currentColor 65%, transparent)' } },
-          { type: 'button', x: 116, y: 254, w: 168, h: 48, text: 'Say hello' },
+      { name: 'Profile card', take: 'The paper', minH: 504, els: [
+        { type: 'box', x: 400, y: 96, w: 400, h: 296, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'para', x: 32, y: 32, w: 336, h: 16, align: 'center', text: 'DESIGN \u00b7 DIRECTION', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+          { type: 'heading', x: 32, y: 64, w: 336, h: 28, align: 'center', text: 'Vincent van Gogh', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 32, y: 104, w: 336, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, align: 'center', text: 'Painter of light. 900 works, one sunflower obsession.' },
+          { type: 'para', x: 32, y: 174, w: 336, h: 18, align: 'center', text: 'Arles \u00b7 Saint-R\u00e9my \u00b7 Auvers', tf: { fs2: 1, fsMin: 13, lh: 1.5, col: 'color-mix(in srgb, currentColor 65%, transparent)' } },
+          { type: 'button', x: 116, y: 216, w: 168, h: 48, text: 'Say hello' },
         ] },
       ] },
       { name: 'Profile card', take: 'The wide', minH: 648,
         bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'box', x: 200, y: 168, w: 800, h: 288, radius: 24, mood: 'glass', kids: [
-          { type: 'para', x: 40, y: 40, w: 300, h: 22, text: 'DESIGN \u00b7 DIRECTION', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
-          { type: 'heading', x: 40, y: 74, w: 420, h: 48, text: 'Vincent van Gogh', fs: 'large' },
-          { type: 'para', x: 40, y: 134, w: 420, h: 48, text: 'Painter of light. 900 works, one sunflower obsession.' },
-          { type: 'para', x: 40, y: 196, w: 420, h: 22, text: 'Arles \u00b7 Saint-R\u00e9my \u00b7 Auvers', tf: { fs: 13, col: 'color-mix(in srgb, currentColor 65%, transparent)' } },
-          { type: 'button', x: 570, y: 116, w: 190, h: 52, text: 'Say hello' },
+        { type: 'box', x: 200, y: 224, w: 800, h: 202, radius: 24, mood: 'glass', kids: [
+          { type: 'para', x: 40, y: 32, w: 300, h: 16, text: 'DESIGN \u00b7 DIRECTION', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+          { type: 'heading', x: 40, y: 64, w: 420, h: 28, text: 'Vincent van Gogh', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 40, y: 104, w: 420, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Painter of light. 900 works, one sunflower obsession.' },
+          { type: 'para', x: 40, y: 152, w: 420, h: 18, text: 'Arles \u00b7 Saint-R\u00e9my \u00b7 Auvers', tf: { fs2: 1, fsMin: 13, lh: 1.5, col: 'color-mix(in srgb, currentColor 65%, transparent)' } },
+          { type: 'button', x: 570, y: 32, w: 190, h: 52, text: 'Say hello' },
         ] },
       ] },
     ],
     'Job card': [
       { name: 'Job card', take: 'The left dock', minH: 648,
         bgImage: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', bgA: 25, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'box', x: 84, y: 120, w: 440, h: 408, radius: 24, mood: 'glass', kids: [
-          { type: 'heading', x: 32, y: 84, w: 376, h: 44, text: 'Senior designer', fs: 'large' },
-          { type: 'para', x: 32, y: 140, w: 376, h: 66, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
-          { type: 'para', x: 32, y: 220, w: 376, h: 22, text: '\u00a370\u201385k \u00b7 Remote-first \u00b7 Full time', tf: { fs: 13, fw: 600 } },
-          { type: 'button', x: 32, y: 268, w: 180, h: 52, text: 'Apply now' },
+        { type: 'box', x: 84, y: 192, w: 440, h: 268, radius: 24, mood: 'glass', kids: [
+          { type: 'heading', x: 32, y: 32, w: 376, h: 28, text: 'Senior designer', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 32, y: 72, w: 376, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
+          { type: 'para', x: 32, y: 142, w: 376, h: 18, text: '\u00a370\u201385k \u00b7 Remote-first \u00b7 Full time', tf: { fs2: 1, fsMin: 13, lh: 1.5, fw: 600 } },
+          { type: 'button', x: 32, y: 184, w: 180, h: 52, text: 'Apply now' },
         ] },
       ] },
-      { name: 'Job card', take: 'The paper', minH: 576, els: [
-        { type: 'box', x: 380, y: 96, w: 440, h: 408, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 32, y: 84, w: 376, h: 44, text: 'Senior designer', fs: 'large' },
-          { type: 'para', x: 32, y: 140, w: 376, h: 66, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
-          { type: 'para', x: 32, y: 220, w: 376, h: 22, text: '\u00a370\u201385k \u00b7 Remote-first \u00b7 Full time', tf: { fs: 13, fw: 600 } },
-          { type: 'button', x: 32, y: 268, w: 180, h: 52, text: 'Apply now' },
+      { name: 'Job card', take: 'The paper', minH: 480, els: [
+        { type: 'box', x: 380, y: 96, w: 440, h: 268, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'heading', x: 32, y: 32, w: 376, h: 28, text: 'Senior designer', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 32, y: 72, w: 376, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
+          { type: 'para', x: 32, y: 142, w: 376, h: 18, text: '\u00a370\u201385k \u00b7 Remote-first \u00b7 Full time', tf: { fs2: 1, fsMin: 13, lh: 1.5, fw: 600 } },
+          { type: 'button', x: 32, y: 184, w: 180, h: 52, text: 'Apply now' },
         ] },
       ] },
       { name: 'Job card', take: 'The banner', minH: 576,
         bgImage: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', bgA: 25, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'box', x: 100, y: 144, w: 1000, h: 288, radius: 24, mood: 'glass', kids: [
-          { type: 'heading', x: 32, y: 88, w: 400, h: 44, text: 'Senior designer', fs: 'large' },
-          { type: 'para', x: 460, y: 36, w: 360, h: 66, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
-          { type: 'para', x: 460, y: 118, w: 360, h: 22, text: '\u00a370\u201385k \u00b7 Remote-first \u00b7 Full time', tf: { fs: 13, fw: 600 } },
-          { type: 'button', x: 860, y: 100, w: 180, h: 52, text: 'Apply now' },
+        { type: 'box', x: 100, y: 208, w: 1000, h: 169, radius: 24, mood: 'glass', kids: [
+          { type: 'heading', x: 32, y: 32, w: 400, h: 28, text: 'Senior designer', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 460, y: 32, w: 360, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
+          { type: 'para', x: 460, y: 102, w: 360, h: 18, text: '\u00a370\u201385k \u00b7 Remote-first \u00b7 Full time', tf: { fs2: 1, fsMin: 13, lh: 1.5, fw: 600 } },
+          { type: 'button', x: 860, y: 86, w: 180, h: 52, text: 'Apply now' },
         ] },
       ] },
     ],
     'Place card': [
       { name: 'Place card', take: 'The right dock', minH: 648,
         bgImage: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'box', x: 716, y: 144, w: 400, h: 336, radius: 24, mood: 'glass', kids: [
-          { type: 'para', x: 32, y: 34, w: 336, h: 22, align: 'center', text: 'THE YELLOW HOUSE', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
-          { type: 'heading', x: 32, y: 66, w: 336, h: 44, align: 'center', text: 'Come see it in person', fs: 'large' },
-          { type: 'para', x: 32, y: 124, w: 336, h: 48, align: 'center', text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
-          { type: 'para', x: 32, y: 188, w: 336, h: 22, align: 'center', text: '\ud83d\udccd Place Lamartine, Arles', tf: { fs: 13 } },
-          { type: 'button', x: 116, y: 228, w: 168, h: 48, text: 'Plan a visit' },
+        { type: 'box', x: 716, y: 176, w: 400, h: 296, radius: 24, mood: 'glass', kids: [
+          { type: 'para', x: 32, y: 32, w: 336, h: 16, align: 'center', text: 'THE YELLOW HOUSE', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+          { type: 'heading', x: 32, y: 64, w: 336, h: 28, align: 'center', text: 'Come see it in person', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 32, y: 104, w: 336, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, align: 'center', text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
+          { type: 'para', x: 32, y: 174, w: 336, h: 18, align: 'center', text: '\ud83d\udccd Place Lamartine, Arles', tf: { fs2: 1, fsMin: 13, lh: 1.5 } },
+          { type: 'button', x: 116, y: 216, w: 168, h: 48, text: 'Plan a visit' },
         ] },
       ] },
-      { name: 'Place card', take: 'The paper', minH: 576, els: [
-        { type: 'box', x: 400, y: 120, w: 400, h: 360, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 32, y: 38, w: 336, h: 22, align: 'center', text: 'THE YELLOW HOUSE', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
-          { type: 'heading', x: 32, y: 70, w: 336, h: 44, align: 'center', text: 'Come see it in person', fs: 'large' },
-          { type: 'para', x: 32, y: 128, w: 336, h: 48, align: 'center', text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
-          { type: 'para', x: 32, y: 192, w: 336, h: 22, align: 'center', text: '\ud83d\udccd Place Lamartine, Arles', tf: { fs: 13 } },
-          { type: 'button', x: 116, y: 232, w: 168, h: 48, text: 'Plan a visit' },
+      { name: 'Place card', take: 'The paper', minH: 504, els: [
+        { type: 'box', x: 400, y: 96, w: 400, h: 296, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+          { type: 'para', x: 32, y: 32, w: 336, h: 16, align: 'center', text: 'THE YELLOW HOUSE', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+          { type: 'heading', x: 32, y: 64, w: 336, h: 28, align: 'center', text: 'Come see it in person', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 32, y: 104, w: 336, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, align: 'center', text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
+          { type: 'para', x: 32, y: 174, w: 336, h: 18, align: 'center', text: '\ud83d\udccd Place Lamartine, Arles', tf: { fs2: 1, fsMin: 13, lh: 1.5 } },
+          { type: 'button', x: 116, y: 216, w: 168, h: 48, text: 'Plan a visit' },
         ] },
       ] },
       { name: 'Place card', take: 'The wide', minH: 576,
         bgImage: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'box', x: 200, y: 168, w: 800, h: 264, radius: 24, mood: 'glass', kids: [
-          { type: 'para', x: 40, y: 40, w: 300, h: 22, text: 'THE YELLOW HOUSE', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
-          { type: 'heading', x: 40, y: 74, w: 420, h: 44, text: 'Come see it in person', fs: 'large' },
-          { type: 'para', x: 40, y: 132, w: 420, h: 48, text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
-          { type: 'para', x: 40, y: 192, w: 420, h: 22, text: '\ud83d\udccd Place Lamartine, Arles', tf: { fs: 13 } },
-          { type: 'button', x: 570, y: 104, w: 190, h: 52, text: 'Plan a visit' },
+        { type: 'box', x: 200, y: 184, w: 800, h: 202, radius: 24, mood: 'glass', kids: [
+          { type: 'para', x: 40, y: 32, w: 300, h: 16, text: 'THE YELLOW HOUSE', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase' } },
+          { type: 'heading', x: 40, y: 64, w: 420, h: 28, text: 'Come see it in person', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+          { type: 'para', x: 40, y: 104, w: 420, h: 24, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
+          { type: 'para', x: 40, y: 152, w: 420, h: 18, text: '\ud83d\udccd Place Lamartine, Arles', tf: { fs2: 1, fsMin: 13, lh: 1.5 } },
+          { type: 'button', x: 570, y: 32, w: 190, h: 52, text: 'Plan a visit' },
         ] },
       ] },
     ],
 
     'Photo wall': [
-      { name: 'Photo wall', take: 'The pair', minH: 792, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'In pictures', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'The wall', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 240, y: 192, w: 720, h: 552, wopt: { light: 1, cols: 2 }, wall: [
+      { name: 'Photo wall', take: 'The pair', minH: 888, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'In pictures', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'The wall', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'widget', x: 240, y: 226, w: 720, h: 552, wopt: { light: 1, cols: 2 }, wall: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
@@ -11059,10 +11242,10 @@
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
         ] },
       ] },
-      { name: 'Photo wall', take: 'The field', minH: 576, els: [
-        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'In pictures', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'The wall', fs: 'x-large' },
-        { type: 'widget', x: 72, y: 192, w: 1056, h: 336, wopt: { light: 1, cols: 4 }, wall: [
+      { name: 'Photo wall', take: 'The field', minH: 672, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'In pictures', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 520, h: 42, text: 'The wall', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'widget', x: 72, y: 226, w: 1056, h: 336, wopt: { light: 1, cols: 4 }, wall: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
@@ -11071,10 +11254,10 @@
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
         ] },
       ] },
-      { name: 'Photo wall', take: 'The reel', minH: 576, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'In pictures', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'The wall', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 120, y: 192, w: 960, h: 288, copt: { light: 1 }, slides: [
+      { name: 'Photo wall', take: 'The reel', minH: 624, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'In pictures', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'The wall', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'widget', x: 120, y: 226, w: 960, h: 288, copt: { light: 1 }, slides: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
@@ -11085,30 +11268,30 @@
       ] },
     ],
     'Carousel': [
-      { name: 'Carousel', take: 'The wall', minH: 648, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'A closer look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Slide through the work', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 120, y: 192, w: 960, h: 408, wopt: { light: 1, cols: 3 }, wall: [
+      { name: 'Carousel', take: 'The wall', minH: 744, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'A closer look', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Slide through the work', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'widget', x: 120, y: 226, w: 960, h: 408, wopt: { light: 1, cols: 3 }, wall: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
           { img: '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', cap: 'Almond Blossom' },
         ] },
       ] },
-      { name: 'Carousel', take: 'The wide sides', minH: 576, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'A closer look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Slide through the work', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 72, y: 192, w: 1056, h: 312, copt: { light: 1, nav: 'sides' }, slides: [
+      { name: 'Carousel', take: 'The wide sides', minH: 648, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'A closer look', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Slide through the work', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'widget', x: 72, y: 226, w: 1056, h: 312, copt: { light: 1, nav: 'sides' }, slides: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
           { img: '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', cap: 'Almond Blossom' },
         ] },
       ] },
-      { name: 'Carousel', take: 'The auto reel', minH: 576, els: [
-        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'A closer look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 620, h: 48, text: 'Slide through the work', fs: 'x-large' },
-        { type: 'widget', x: 72, y: 216, w: 1056, h: 288, copt: { light: 1, auto: 1 }, slides: [
+      { name: 'Carousel', take: 'The auto reel', minH: 624, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'A closer look', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 620, h: 42, text: 'Slide through the work', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'widget', x: 72, y: 226, w: 1056, h: 288, copt: { light: 1, auto: 1 }, slides: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
@@ -11117,29 +11300,29 @@
       ] },
     ],
     'FAQ': [
-      { name: 'FAQ', take: 'The brief', minH: 576, els: [
-        { type: 'para', x: 72, y: 96, w: 300, h: 24, text: 'Questions, answered', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 380, h: 120, text: 'Before you ask', fs: 'x-large' },
+      { name: 'FAQ', take: 'The brief', minH: 624, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Questions, answered', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 380, h: 42, text: 'Before you ask', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
         { type: 'widget', x: 520, y: 96, w: 600, h: 432, faq: [
           { q: 'How long does a project take?', a: 'Six to ten weeks for most sites. The Sprint is one week, by design.' },
           { q: 'Do you work with small budgets?', a: 'Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.' },
           { q: 'Who will we actually work with?', a: 'The people on the team page \u2014 no handoffs to a bench you never met.' },
         ] },
       ] },
-      { name: 'FAQ', take: 'The long read', minH: 576, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Questions, answered', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Before you ask', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 150, y: 192, w: 900, h: 312, faq: [
+      { name: 'FAQ', take: 'The long read', minH: 648, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Questions, answered', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Before you ask', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'widget', x: 150, y: 226, w: 900, h: 312, faq: [
           { q: 'How long does a project take?', a: 'Six to ten weeks for most sites. The Sprint is one week, by design.' },
           { q: 'Do you work with small budgets?', a: 'Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.' },
           { q: 'Who will we actually work with?', a: 'The people on the team page \u2014 no handoffs to a bench you never met.' },
         ] },
       ] },
-      { name: 'FAQ', take: 'The counter', minH: 648, els: [
-        { type: 'para', x: 72, y: 72, w: 300, h: 24, text: 'Questions, answered', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'Before you ask', fs: 'x-large' },
-        { type: 'box', x: 40, y: 192, w: 1120, h: 384, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
-        { type: 'widget', x: 100, y: 240, w: 1000, h: 288, faq: [
+      { name: 'FAQ', take: 'The counter', minH: 720, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Questions, answered', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 520, h: 42, text: 'Before you ask', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'box', x: 40, y: 226, w: 1120, h: 384, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
+        { type: 'widget', x: 100, y: 274, w: 1000, h: 288, faq: [
           { q: 'How long does a project take?', a: 'Six to ten weeks for most sites. The Sprint is one week, by design.' },
           { q: 'Do you work with small budgets?', a: 'Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.' },
           { q: 'Who will we actually work with?', a: 'The people on the team page \u2014 no handoffs to a bench you never met.' },
@@ -11147,29 +11330,29 @@
       ] },
     ],
     'Tabs': [
-      { name: 'Tabs', take: 'The brief', minH: 504, els: [
-        { type: 'para', x: 72, y: 96, w: 300, h: 24, text: 'Ways to work with us', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 380, h: 120, text: 'Pick your pace', fs: 'x-large' },
+      { name: 'Tabs', take: 'The brief', minH: 576, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Ways to work with us', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 380, h: 42, text: 'Pick your pace', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
         { type: 'widget', x: 520, y: 96, w: 600, h: 384, tabs: [
           { t: 'The Sprint', body: 'One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.' },
           { t: 'The Partnership', body: 'A standing team beside yours \u2014 design, build and everything between, month by month.' },
           { t: 'Ongoing care', body: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
         ] },
       ] },
-      { name: 'Tabs', take: 'The long read', minH: 504, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Ways to work with us', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Pick your pace', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 150, y: 192, w: 900, h: 288, tabs: [
+      { name: 'Tabs', take: 'The long read', minH: 624, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Ways to work with us', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Pick your pace', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'widget', x: 150, y: 226, w: 900, h: 288, tabs: [
           { t: 'The Sprint', body: 'One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.' },
           { t: 'The Partnership', body: 'A standing team beside yours \u2014 design, build and everything between, month by month.' },
           { t: 'Ongoing care', body: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
         ] },
       ] },
-      { name: 'Tabs', take: 'The counter', minH: 576, els: [
-        { type: 'para', x: 72, y: 72, w: 300, h: 24, text: 'Ways to work with us', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'Pick your pace', fs: 'x-large' },
-        { type: 'box', x: 40, y: 192, w: 1120, h: 336, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
-        { type: 'widget', x: 100, y: 240, w: 1000, h: 264, tabs: [
+      { name: 'Tabs', take: 'The counter', minH: 672, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Ways to work with us', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 520, h: 42, text: 'Pick your pace', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'box', x: 40, y: 226, w: 1120, h: 336, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
+        { type: 'widget', x: 100, y: 274, w: 1000, h: 264, tabs: [
           { t: 'The Sprint', body: 'One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.' },
           { t: 'The Partnership', body: 'A standing team beside yours \u2014 design, build and everything between, month by month.' },
           { t: 'Ongoing care', body: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
@@ -11178,176 +11361,176 @@
     ],
 
     'Gallery': [
-      { name: 'Gallery', take: 'The row', minH: 720, els: [
-        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'Selected work', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'A few favourites', fs: 'x-large' },
-        { type: 'image', x: 72, y: 216, w: 330, h: 384, cool: true },
-        { type: 'image', x: 435, y: 216, w: 330, h: 384 },
-        { type: 'image', x: 798, y: 216, w: 330, h: 384, cool: true },
-        { type: 'button', x: 918, y: 624, w: 210, h: 48, text: 'See the archive', ghost: true },
+      { name: 'Gallery', take: 'The row', minH: 792, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Selected work', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 520, h: 42, text: 'A few favourites', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'image', x: 72, y: 226, w: 330, h: 384, cool: true },
+        { type: 'image', x: 435, y: 226, w: 330, h: 384 },
+        { type: 'image', x: 798, y: 226, w: 330, h: 384, cool: true },
+        { type: 'button', x: 918, y: 634, w: 210, h: 48, text: 'See the archive', ghost: true },
       ] },
-      { name: 'Gallery', take: 'The mosaic', minH: 720, els: [
-        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'Selected work', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'A few favourites', fs: 'x-large' },
-        { type: 'image', x: 72, y: 192, w: 560, h: 456, cool: true },
-        { type: 'image', x: 668, y: 192, w: 460, h: 216 },
-        { type: 'image', x: 668, y: 432, w: 460, h: 216, cool: true },
-        { type: 'button', x: 918, y: 672, w: 210, h: 48, text: 'See the archive', ghost: true },
+      { name: 'Gallery', take: 'The mosaic', minH: 864, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Selected work', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 520, h: 42, text: 'A few favourites', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'image', x: 72, y: 226, w: 560, h: 456, cool: true },
+        { type: 'image', x: 668, y: 226, w: 460, h: 216 },
+        { type: 'image', x: 668, y: 466, w: 460, h: 216, cool: true },
+        { type: 'button', x: 918, y: 706, w: 210, h: 48, text: 'See the archive', ghost: true },
       ] },
-      { name: 'Gallery', take: 'The lookbook', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'Selected work', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'A few favourites', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'image', x: 72, y: 192, w: 330, h: 360, cool: true },
-        { type: 'image', x: 435, y: 192, w: 330, h: 360 },
-        { type: 'image', x: 798, y: 192, w: 330, h: 360, cool: true },
-        { type: 'button', x: 798, y: 600, w: 210, h: 48, text: 'See the archive', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Gallery', take: 'The lookbook', minH: 792, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'Selected work', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 520, h: 42, text: 'A few favourites', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'image', x: 72, y: 226, w: 330, h: 360, cool: true },
+        { type: 'image', x: 435, y: 226, w: 330, h: 360 },
+        { type: 'image', x: 798, y: 226, w: 330, h: 360, cool: true },
+        { type: 'button', x: 798, y: 634, w: 210, h: 48, text: 'See the archive', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
     ],
     'Photo cards': [
-      { name: 'Photo cards', take: 'The stack', minH: 792, els: [
-        { type: 'image', x: 72, y: 48, w: 1056, h: 312, cool: true },
-        { type: 'box', x: 72, y: 48, w: 1056, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 108, y: 192, w: 400, h: 24, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 108, y: 240, w: 560, h: 48, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
-        { type: 'button', x: 760, y: 192, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 72, y: 408, w: 1056, h: 312, cool: true },
-        { type: 'box', x: 72, y: 408, w: 1056, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 108, y: 552, w: 400, h: 24, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 108, y: 600, w: 560, h: 48, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
-        { type: 'button', x: 760, y: 552, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      { name: 'Photo cards', take: 'The stack', minH: 864, els: [
+        { type: 'image', x: 72, y: 96, w: 1056, h: 312, cool: true },
+        { type: 'box', x: 72, y: 96, w: 1056, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 108, y: 250, w: 400, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
+        { type: 'para', x: 108, y: 290, w: 560, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
+        { type: 'button', x: 760, y: 250, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'image', x: 72, y: 456, w: 1056, h: 312, cool: true },
+        { type: 'box', x: 72, y: 456, w: 1056, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 108, y: 610, w: 400, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
+        { type: 'para', x: 108, y: 650, w: 560, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
+        { type: 'button', x: 760, y: 610, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
       ] },
-      { name: 'Photo cards', take: 'The offset', minH: 792, els: [
-        { type: 'image', x: 100, y: 48, w: 470, h: 624, cool: true },
-        { type: 'box', x: 100, y: 336, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 136, y: 384, w: 340, h: 24, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 136, y: 432, w: 398, h: 72, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
-        { type: 'button', x: 136, y: 600, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 630, y: 120, w: 470, h: 624, cool: true },
-        { type: 'box', x: 630, y: 432, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 666, y: 456, w: 340, h: 24, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 666, y: 528, w: 398, h: 72, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
-        { type: 'button', x: 666, y: 672, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-      ] },
-      { name: 'Photo cards', take: 'The ink shelf', minH: 792, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'image', x: 100, y: 48, w: 470, h: 624, cool: true },
-        { type: 'box', x: 100, y: 360, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 136, y: 408, w: 340, h: 24, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 136, y: 456, w: 398, h: 72, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
+      { name: 'Photo cards', take: 'The offset', minH: 888, els: [
+        { type: 'image', x: 100, y: 96, w: 470, h: 624, cool: true },
+        { type: 'box', x: 100, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 136, y: 506, w: 340, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
+        { type: 'para', x: 136, y: 546, w: 398, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
         { type: 'button', x: 136, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 630, y: 48, w: 470, h: 624, cool: true },
-        { type: 'box', x: 630, y: 360, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 666, y: 408, w: 340, h: 24, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 666, y: 456, w: 398, h: 72, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
+        { type: 'image', x: 630, y: 168, w: 470, h: 624, cool: true },
+        { type: 'box', x: 630, y: 456, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 666, y: 578, w: 340, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
+        { type: 'para', x: 666, y: 618, w: 398, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
+        { type: 'button', x: 666, y: 696, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      ] },
+      { name: 'Photo cards', take: 'The ink shelf', minH: 816, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'image', x: 100, y: 96, w: 470, h: 624, cool: true },
+        { type: 'box', x: 100, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 136, y: 506, w: 340, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
+        { type: 'para', x: 136, y: 546, w: 398, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
+        { type: 'button', x: 136, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'image', x: 630, y: 96, w: 470, h: 624, cool: true },
+        { type: 'box', x: 630, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 666, y: 506, w: 340, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
+        { type: 'para', x: 666, y: 546, w: 398, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
         { type: 'button', x: 666, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
       ] },
     ],
     'Portfolio': [
-      { name: 'Portfolio', take: 'The mirror', minH: 576, els: [
-        { type: 'box', x: 608, y: 120, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
-        { type: 'image', x: 568, y: 72, w: 560, h: 432, cool: true },
-        { type: 'para', x: 72, y: 120, w: 300, h: 24, text: 'Case study', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 168, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large' },
-        { type: 'para', x: 72, y: 312, w: 400, h: 72, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
-        { type: 'button', x: 72, y: 480, w: 210, h: 48, text: 'Read the study', ghost: true },
+      { name: 'Portfolio', take: 'The mirror', minH: 672, els: [
+        { type: 'box', x: 608, y: 144, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
+        { type: 'image', x: 568, y: 96, w: 560, h: 432, cool: true },
+        { type: 'para', x: 72, y: 164, w: 300, h: 16, text: 'Case study', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 196, w: 420, h: 82, text: 'A bakery worth queueing for', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 72, y: 302, w: 400, h: 78, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
+        { type: 'button', x: 72, y: 412, w: 210, h: 48, text: 'Read the study', ghost: true },
       ] },
-      { name: 'Portfolio', take: 'The banner', minH: 720, els: [
-        { type: 'box', x: 40, y: 120, w: 1056, h: 288, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
-        { type: 'image', x: 72, y: 72, w: 1056, h: 288, cool: true },
-        { type: 'para', x: 72, y: 432, w: 300, h: 24, text: 'Case study', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 456, w: 620, h: 48, text: 'A bakery worth queueing for', fs: 'x-large' },
-        { type: 'para', x: 72, y: 552, w: 560, h: 48, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
-        { type: 'button', x: 760, y: 552, w: 210, h: 48, text: 'Read the study', ghost: true },
+      { name: 'Portfolio', take: 'The banner', minH: 744, els: [
+        { type: 'box', x: 40, y: 144, w: 1056, h: 288, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
+        { type: 'image', x: 72, y: 96, w: 1056, h: 288, cool: true },
+        { type: 'para', x: 72, y: 448, w: 300, h: 16, text: 'Case study', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 480, w: 620, h: 42, text: 'A bakery worth queueing for', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'para', x: 72, y: 576, w: 560, h: 52, tf: { fs2: 1.375, fsMin: 17, lh: 1.55 }, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
+        { type: 'button', x: 760, y: 576, w: 210, h: 48, text: 'Read the study', ghost: true },
       ] },
-      { name: 'Portfolio', take: 'The ink study', minH: 576, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'box', x: 40, y: 120, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', radius: 24 },
-        { type: 'image', x: 72, y: 72, w: 560, h: 432, cool: true },
-        { type: 'para', x: 700, y: 120, w: 300, h: 24, text: 'Case study', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 700, y: 168, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 700, y: 312, w: 400, h: 72, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'button', x: 700, y: 480, w: 210, h: 48, text: 'Read the study', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Portfolio', take: 'The ink study', minH: 672, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'box', x: 40, y: 144, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', radius: 24 },
+        { type: 'image', x: 72, y: 96, w: 560, h: 432, cool: true },
+        { type: 'para', x: 700, y: 164, w: 300, h: 16, text: 'Case study', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 700, y: 196, w: 420, h: 82, text: 'A bakery worth queueing for', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 700, y: 302, w: 400, h: 78, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.', tf: { fs2: 1.375, fsMin: 17, lh: 1.55, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'button', x: 700, y: 412, w: 210, h: 48, text: 'Read the study', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
     ],
     'Menu': [
-      { name: 'Menu', take: 'The two tops', minH: 504, els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Served all day', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 300, y: 96, w: 600, h: 48, text: 'Small plates', fs: 'x-large', align: 'center' },
-        { type: 'heading', x: 72, y: 216, w: 400, h: 24, text: 'Sourdough, cultured butter', fs: 'medium' },
-        { type: 'para', x: 500, y: 216, w: 70, h: 24, text: '\u00a36', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 72, y: 288, w: 400, h: 24, text: 'Burrata, blood orange, mint', fs: 'medium' },
-        { type: 'para', x: 500, y: 288, w: 70, h: 24, text: '\u00a311', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 640, y: 216, w: 400, h: 24, text: 'Wood-roast leeks, romesco', fs: 'medium' },
-        { type: 'para', x: 1058, y: 216, w: 70, h: 24, text: '\u00a39', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 640, y: 288, w: 400, h: 24, text: 'Anchovy toast, soft egg', fs: 'medium' },
-        { type: 'para', x: 1058, y: 288, w: 70, h: 24, text: '\u00a38', align: 'right', fs: 'medium' },
-        { type: 'para', x: 280, y: 384, w: 640, h: 24, align: 'center', text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { name: 'Menu', take: 'The two tops', minH: 408, els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Served all day', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 300, y: 128, w: 600, h: 42, text: 'Small plates', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'heading', x: 72, y: 194, w: 400, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 500, y: 194, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'heading', x: 72, y: 234, w: 400, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 500, y: 234, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'heading', x: 640, y: 194, w: 400, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 1058, y: 194, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'heading', x: 640, y: 234, w: 400, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 1058, y: 234, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'para', x: 280, y: 274, w: 640, h: 24, align: 'center', text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       ] },
-      { name: 'Menu', take: 'The card', minH: 648, els: [
-        { type: 'box', x: 150, y: 48, w: 900, h: 552, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
-        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Served all day', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 300, y: 120, w: 600, h: 48, text: 'Small plates', fs: 'x-large', align: 'center' },
-        { type: 'heading', x: 300, y: 240, w: 420, h: 24, text: 'Sourdough, cultured butter', fs: 'medium' },
-        { type: 'para', x: 790, y: 240, w: 70, h: 24, text: '\u00a36', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 300, y: 288, w: 420, h: 24, text: 'Burrata, blood orange, mint', fs: 'medium' },
-        { type: 'para', x: 790, y: 288, w: 70, h: 24, text: '\u00a311', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 300, y: 360, w: 420, h: 24, text: 'Wood-roast leeks, romesco', fs: 'medium' },
-        { type: 'para', x: 790, y: 360, w: 70, h: 24, text: '\u00a39', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 300, y: 432, w: 420, h: 24, text: 'Anchovy toast, soft egg', fs: 'medium' },
-        { type: 'para', x: 790, y: 432, w: 70, h: 24, text: '\u00a38', align: 'right', fs: 'medium' },
-        { type: 'para', x: 300, y: 528, w: 560, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { name: 'Menu', take: 'The card', minH: 576, els: [
+        { type: 'box', x: 150, y: 96, w: 900, h: 370, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
+        { type: 'para', x: 400, y: 136, w: 400, h: 16, align: 'center', text: 'Served all day', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 300, y: 168, w: 600, h: 42, text: 'Small plates', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
+        { type: 'heading', x: 300, y: 234, w: 420, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 790, y: 234, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'heading', x: 300, y: 274, w: 420, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 790, y: 274, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'heading', x: 300, y: 314, w: 420, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 790, y: 314, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'heading', x: 300, y: 354, w: 420, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 790, y: 354, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'para', x: 300, y: 394, w: 560, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       ] },
-      { name: 'Menu', take: 'The board', minH: 576, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Served all day', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 300, y: 96, w: 600, h: 48, text: 'Small plates', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 216, w: 520, h: 24, text: 'Sourdough, cultured butter', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 216, w: 70, h: 24, text: '\u00a36', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 288, w: 520, h: 24, text: 'Burrata, blood orange, mint', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 288, w: 70, h: 24, text: '\u00a311', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 360, w: 520, h: 24, text: 'Wood-roast leeks, romesco', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 360, w: 70, h: 24, text: '\u00a39', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 432, w: 520, h: 24, text: 'Anchovy toast, soft egg', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 432, w: 70, h: 24, text: '\u00a38', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 280, y: 528, w: 640, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+      { name: 'Menu', take: 'The board', minH: 480, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Served all day', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 300, y: 128, w: 600, h: 42, text: 'Small plates', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'heading', x: 280, y: 194, w: 520, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 850, y: 194, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'heading', x: 280, y: 234, w: 520, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 850, y: 234, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'heading', x: 280, y: 274, w: 520, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 850, y: 274, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'heading', x: 280, y: 314, w: 520, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 850, y: 314, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 280, y: 354, w: 640, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
       ] },
     ],
     'Team': [
-      { name: 'Team', take: 'The list', minH: 864, els: [
-        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'The studio', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 600, h: 48, text: 'Eleven people, no egos', fs: 'x-large' },
-        { type: 'image', x: 72, y: 192, w: 200, h: 192, cool: true },
-        { type: 'heading', x: 310, y: 240, w: 400, h: 24, text: 'June Ashby', fs: 'medium' },
-        { type: 'para', x: 310, y: 288, w: 400, h: 24, text: 'Creative director', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 72, y: 432, w: 200, h: 192 },
-        { type: 'heading', x: 310, y: 480, w: 400, h: 24, text: 'Marco Reyes', fs: 'medium' },
-        { type: 'para', x: 310, y: 528, w: 400, h: 24, text: 'Lead engineer', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 72, y: 672, w: 200, h: 192, cool: true },
-        { type: 'heading', x: 310, y: 720, w: 400, h: 24, text: 'Priya Chandra', fs: 'medium' },
-        { type: 'para', x: 310, y: 768, w: 400, h: 24, text: 'Strategy', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { name: 'Team', take: 'The list', minH: 1008, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'image', x: 72, y: 226, w: 200, h: 192, cool: true },
+        { type: 'heading', x: 310, y: 274, w: 400, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 310, y: 318, w: 400, h: 16, text: 'Creative director', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'image', x: 72, y: 466, w: 200, h: 192 },
+        { type: 'heading', x: 310, y: 514, w: 400, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 310, y: 558, w: 400, h: 16, text: 'Lead engineer', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'image', x: 72, y: 706, w: 200, h: 192, cool: true },
+        { type: 'heading', x: 310, y: 754, w: 400, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 310, y: 798, w: 400, h: 16, text: 'Strategy', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       ] },
-      { name: 'Team', take: 'The ink studio', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'The studio', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 600, h: 48, text: 'Eleven people, no egos', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'image', x: 72, y: 216, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 74, y: 528, w: 320, h: 24, text: 'June Ashby', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 74, y: 576, w: 320, h: 24, text: 'Creative director', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'image', x: 435, y: 216, w: 330, h: 288 },
-        { type: 'heading', x: 437, y: 528, w: 320, h: 24, text: 'Marco Reyes', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 437, y: 576, w: 320, h: 24, text: 'Lead engineer', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'image', x: 798, y: 216, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 800, y: 528, w: 320, h: 24, text: 'Priya Chandra', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 800, y: 576, w: 320, h: 24, text: 'Strategy', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+      { name: 'Team', take: 'The ink studio', minH: 696, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'image', x: 72, y: 226, w: 330, h: 288, cool: true },
+        { type: 'heading', x: 74, y: 538, w: 320, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 74, y: 582, w: 320, h: 16, text: 'Creative director', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'image', x: 435, y: 226, w: 330, h: 288 },
+        { type: 'heading', x: 437, y: 538, w: 320, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 437, y: 582, w: 320, h: 16, text: 'Lead engineer', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'image', x: 798, y: 226, w: 330, h: 288, cool: true },
+        { type: 'heading', x: 800, y: 538, w: 320, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 800, y: 582, w: 320, h: 16, text: 'Strategy', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
       ] },
-      { name: 'Team', take: 'The offset', minH: 648, els: [
-        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'The studio', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 600, h: 48, text: 'Eleven people, no egos', fs: 'x-large' },
-        { type: 'image', x: 72, y: 240, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 74, y: 552, w: 320, h: 24, text: 'June Ashby', fs: 'medium' },
-        { type: 'para', x: 74, y: 600, w: 320, h: 24, text: 'Creative director', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 435, y: 192, w: 330, h: 288 },
-        { type: 'heading', x: 437, y: 504, w: 320, h: 24, text: 'Marco Reyes', fs: 'medium' },
-        { type: 'para', x: 437, y: 552, w: 320, h: 24, text: 'Lead engineer', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 798, y: 264, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 800, y: 576, w: 320, h: 24, text: 'Priya Chandra', fs: 'medium' },
-        { type: 'para', x: 800, y: 624, w: 320, h: 24, text: 'Strategy', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { name: 'Team', take: 'The offset', minH: 792, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
+        { type: 'image', x: 72, y: 226, w: 330, h: 288, cool: true },
+        { type: 'heading', x: 74, y: 582, w: 320, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 74, y: 626, w: 320, h: 16, text: 'Creative director', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'image', x: 435, y: 226, w: 330, h: 288 },
+        { type: 'heading', x: 437, y: 538, w: 320, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 437, y: 582, w: 320, h: 16, text: 'Lead engineer', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'image', x: 798, y: 312, w: 330, h: 288, cool: true },
+        { type: 'heading', x: 800, y: 624, w: 320, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
+        { type: 'para', x: 800, y: 668, w: 320, h: 16, text: 'Strategy', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       ] },
     ],
   };
@@ -11429,7 +11612,9 @@
       if (wantWords > 8 && haveWords <= 2) return;
       // a wordy headline in a slot under half its size is a bad fit: the
       // score falls with the shortfall (a short heading fits anywhere)
-      var fit = Math.min(1, (hh.w * hh.h) / Math.max(1, wh.w * wh.h));
+      // (by WIDTH: a design's heading box is now as tall as its own words and
+      // grows with longer ones, so its area says nothing about room)
+      var fit = Math.min(1, hh.w / Math.max(1, wh.w));
       if (wantWords > 20 && fit < 0.5) score = score * (fit / 0.5);
       if (score > bestScore) { bestScore = score; best = fam; }
     });
@@ -12101,12 +12286,15 @@
     if (!keepBg) delete m2.keepBg;
     if (m2.order) delete m2.order;
     sec.m = m2;
+    var drawn = drawnHeights(sec);
     renderSection(sec);
     diceFitWords(sec); // the take's display sizes were set for its own words: the user's must fit
+    settleFresh(sec, drawn);
     guardCheck(sec, 'roll to take ' + (next + 1));
     if (!quiet) {
       sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
       pushState();
+      settleFreshLater(sec);
       contrastSentinel(sec);
     }
     return { face: next, of: faces.length, take: t2.take || null };
@@ -13406,12 +13594,15 @@
         S.splice(bi, 1);
       }
     }
+    var drawn = drawnHeights(sec);
     renderSection(sec);
+    settleFresh(sec, drawn);
     sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
     sel = null;
     hideHandles();
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     pushState();
+    settleFreshLater(sec);
     // a template designed on a friendly palette can land on a hostile one
     // (white display type on lemon) — the sentinel checks every insert
     contrastSentinel(sec);

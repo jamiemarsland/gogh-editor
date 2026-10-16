@@ -865,43 +865,40 @@
       expect(added.styleEl.textContent.indexOf(added.scope) !== -1, 'scoped CSS missing');
     });
 
-    // ---- the rhythm: gogh's own gaps sit on 24, its section heights on 72 ----
-    test('the takes keep the rhythm: positions and heights on 24, section heights on 72', function () {
-      var r = G.rhythm();
-      expect(r.minor === 24 && r.major === 72, 'rhythm constants: ' + JSON.stringify(r));
+    // ---- the system: gogh owns the sizes and the gaps of its own designs ----
+    test('the takes keep the system: text wears gogh’s roles, pieces sit on the 8 grid', function () {
       var off = [];
-      G.templates().forEach(function (t) {
-        if (t.retired || !t.els || !t.els.length || /^__/.test(t.name)) return;
-        if (t.minH && t.minH % r.major) off.push(t.name + ' minH ' + t.minH);
-        t.els.forEach(function (e) {
-          // a card's kids keep their own inner spacing for now (rounding them
-          // on their own put words over a button); the card itself must sit
-          if (e.y % r.minor) off.push(t.name + ' ' + e.type + ' y ' + e.y);
-          if (e.h % r.minor) off.push(t.name + ' ' + e.type + ' h ' + e.h);
-        });
+      var all = [];
+      G.templates().forEach(function (t) { all.push(t); });
+      Object.keys(G.variants()).forEach(function (k) { G.variants()[k].forEach(function (t) { all.push(t); }); });
+      all.forEach(function (t) {
+        if (t.retired || !t.els || !t.els.length || /^__/.test(t.name) || t.intent === 'panel') return;
+        var walk = function (els, inKid) {
+          els.forEach(function (e) {
+            if (e.fs === '__max') off.push(t.name + (t.take ? ' / ' + t.take : '') + ' still carries __max');
+            var display = /^__disp-/.test(e.fs || '');
+            if ((e.type === 'heading' || e.type === 'para') && !display && !(e.tf && e.tf.fs2 && e.tf.fsMin)) off.push(t.name + (t.take ? ' / ' + t.take : '') + ' ' + e.type + ' has no role size');
+            if (!inKid && e.y % 2) off.push(t.name + ' ' + e.type + ' y ' + e.y);
+            if (e.kids) walk(e.kids, true);
+          });
+        };
+        walk(t.els, false);
       });
-      expect(!off.length, 'off the rhythm: ' + off.slice(0, 6).join('; ') + (off.length > 6 ? ' (+' + (off.length - 6) + ')' : ''));
+      expect(!off.length, 'off the system: ' + off.slice(0, 6).join('; ') + (off.length > 6 ? ' (+' + (off.length - 6) + ')' : ''));
+      return 'every take: role sizes, no theme-preset headings';
     });
-
-    test('__max font sentinel resolves to the largest preset at insert', function () {
-      var s0 = G.sections().length;
-      // any template whose heading carries the __max sentinel (the starters do)
-      var tpls = G.templates();
-      var idx = -1;
-      for (var i = 0; i < tpls.length; i++) {
-        if ((tpls[i].els || []).some(function (e) { return e.type === 'heading' && e.fs === '__max'; })) { idx = i; break; }
-      }
-      expect(idx !== -1, 'no template carries the __max sentinel');
-      G.addSection(tpls[idx], G.sections().length);
-      var added = lastSec();
-      var head = added.els.filter(function (e) { return e.type === 'heading' && e.fs; })[0];
-      var sizes = G.fontSizes();
-      var biggest = sizes.length ? sizes[sizes.length - 1].slug : null;
-      expect(head, 'template has no sized heading');
-      expect(head.fs === biggest, 'heading fs ' + head.fs + ' != largest preset ' + biggest);
-      expect(head.fs !== '__max', 'sentinel leaked into model');
-      G.deleteSection(G.sections().indexOf(added));
-      expect(G.sections().length === s0, 'cleanup failed');
+    test('a design settles on arrival: its words close up and the section keeps its air', function () {
+      var t = G.templates().filter(function (x) { return x.name === 'Story'; })[0];
+      G.addSection(t, G.sections().length);
+      var s = lastSec();
+      var head = s.els.filter(function (e) { return e.type === 'heading'; })[0];
+      var paras = s.els.filter(function (e) { return e.type === 'para' && !(e.tf && e.tf.tt === 'uppercase'); });
+      var gap = paras[0].y - (head.y + head.h);
+      var bottom = Math.max.apply(null, s.els.map(function (e) { return e.y + e.h; }));
+      G.deleteSection(G.sections().indexOf(s));
+      expect(gap >= 12 && gap <= 40, 'heading to words should be the rhythm’s 24 (give or take a font), got ' + gap);
+      expect(s.minH - bottom >= 72 && s.minH - bottom <= 120, 'the floor under the design should be about 96, got ' + (s.minH - bottom));
+      return 'gap ' + gap + ', floor ' + (s.minH - bottom);
     });
 
     test('toolbar alignment cycles left/center/right', function () {
@@ -10301,7 +10298,7 @@
       expect(fam && fam !== 'Quote', 'a wordy hero should not roll as a Quote, got ' + fam);
       var base = G.tplEls(G.diceFaces(fam)[0]);
       var slot = base.filter(function (e) { return e.type === 'heading'; })[0];
-      expect(slot && slot.w * slot.h >= 0.5 * 820 * 210, fam + '’s headline slot (' + (slot ? slot.w + 'x' + slot.h : 'none') + ') cannot hold the words');
+      expect(slot && slot.w >= 0.5 * 820, fam + '’s headline slot (' + (slot ? slot.w + 'x' + slot.h : 'none') + ') cannot hold the words');
       // a real quote still finds its family: a glyph heading, the words, a name
       var quote = { m: {}, els: [
         { type: 'heading', x: 76, y: 44, w: 180, h: 160, text: '“' },

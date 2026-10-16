@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.743",
+    "plugin_version": "0.99.744",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.743-chrome"
+    "asset_version": "0.99.744-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -53,61 +53,61 @@
       "name": "Big statement",
       "starter": true,
       "retired": false,
-      "minH": 504
+      "minH": 816
     },
     {
       "name": "Story",
       "starter": true,
       "retired": false,
-      "minH": 576
+      "minH": 648
     },
     {
       "name": "Numbers",
       "starter": true,
       "retired": false,
-      "minH": 432
+      "minH": 408
     },
     {
       "name": "Article",
       "starter": true,
       "retired": false,
-      "minH": 648
+      "minH": 552
     },
     {
       "name": "Featured product",
       "starter": true,
       "retired": false,
-      "minH": 576
+      "minH": 624
     },
     {
       "name": "Bestsellers",
       "starter": true,
       "retired": false,
-      "minH": 720
+      "minH": 768
     },
     {
       "name": "Editorial split",
       "starter": true,
       "retired": false,
-      "minH": 648
+      "minH": 720
     },
     {
       "name": "Latest posts",
       "starter": true,
       "retired": false,
-      "minH": 648
+      "minH": 696
     },
     {
       "name": "Featured post",
       "starter": true,
       "retired": false,
-      "minH": 792
+      "minH": 864
     },
     {
       "name": "Titles and dates",
       "starter": true,
       "retired": false,
-      "minH": 648
+      "minH": 672
     },
     {
       "name": "Columns of links",
@@ -143,49 +143,49 @@
       "name": "Shop the look",
       "starter": true,
       "retired": false,
-      "minH": 648
+      "minH": 744
     },
     {
       "name": "New in",
       "starter": true,
       "retired": false,
-      "minH": 648
+      "minH": 696
     },
     {
       "name": "Sale",
       "starter": true,
       "retired": false,
-      "minH": 720
+      "minH": 744
     },
     {
       "name": "Categories",
       "starter": true,
       "retired": false,
-      "minH": 648
+      "minH": 672
     },
     {
       "name": "Feature cards",
       "starter": true,
       "retired": false,
-      "minH": 576
+      "minH": 480
     },
     {
       "name": "Pricing",
       "starter": true,
       "retired": false,
-      "minH": 648
+      "minH": 696
     },
     {
       "name": "Quote",
       "starter": true,
       "retired": false,
-      "minH": 504
+      "minH": 432
     },
     {
       "name": "Testimonials",
       "starter": true,
       "retired": false,
-      "minH": 576
+      "minH": 480
     },
     {
       "name": "Call to action",
@@ -197,7 +197,7 @@
       "name": "Get in touch",
       "starter": true,
       "retired": false,
-      "minH": 720
+      "minH": 744
     },
     {
       "name": "Profile card",
@@ -221,55 +221,55 @@
       "name": "Photo wall",
       "starter": true,
       "retired": false,
-      "minH": 648
+      "minH": 744
     },
     {
       "name": "Carousel",
       "starter": true,
       "retired": false,
-      "minH": 504
+      "minH": 624
     },
     {
       "name": "FAQ",
       "starter": true,
       "retired": false,
-      "minH": 576
+      "minH": 648
     },
     {
       "name": "Tabs",
       "starter": true,
       "retired": false,
-      "minH": 504
+      "minH": 624
     },
     {
       "name": "Gallery",
       "starter": true,
       "retired": false,
-      "minH": 720
+      "minH": 768
     },
     {
       "name": "Photo cards",
       "starter": true,
       "retired": false,
-      "minH": 720
+      "minH": 816
     },
     {
       "name": "Portfolio",
       "starter": true,
       "retired": false,
-      "minH": 576
+      "minH": 672
     },
     {
       "name": "Menu",
       "starter": true,
       "retired": false,
-      "minH": 576
+      "minH": 480
     },
     {
       "name": "Team",
       "starter": true,
       "retired": false,
-      "minH": 648
+      "minH": 696
     }
   ],
   "shapes": [
