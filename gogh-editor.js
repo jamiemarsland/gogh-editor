@@ -15570,30 +15570,30 @@
     var gap = document.createElement('div');
     gap.className = 'gogh-seamgap alignfull';
     gap.setAttribute('aria-hidden', 'true');
-    gap.innerHTML = '<div class="gogh-seamgap-room"></div><div class="gogh-seamgap-stage"><span class="gogh-seamgap-hint">Your new section goes here</span></div>';
+    gap.innerHTML = '<div class="gogh-seamgap-stage"><span class="gogh-seamgap-hint">Your new section goes here — hover a choice to see it</span></div>';
     pageParent.insertBefore(gap, insertAnchorFor(idx, before));
-    var room = gap.firstChild, stage = gap.lastChild, hint = stage.firstChild;
+    var stage = gap.firstChild, hint = stage.firstChild;
     var prev = null, prevKey = null, clearT = null;
     hideHbar(); // the seam's height line steps aside while the gap is open
     hideSecBar();
-    panel.classList.add('gogh-panel-seam');
-    panel.hidden = false;
-    panelAnchor = room;
-    // the ask rides in the gap's room, following it through scrolling and
-    // every redraw (the panel stays the one panel, so Esc and ✕ work as ever)
-    var raf = 0;
-    var place = function () {
-      raf = 0;
-      if (!gap.isConnected || panel.hidden) return;
-      var pw = panel.offsetWidth || 380, ph = panel.offsetHeight || 200;
-      var want = ph + 48 + 'px';
-      if (room.style.height !== want) room.style.height = want;
-      var r = room.getBoundingClientRect();
-      panel.style.left = Math.round(r.left + (r.width - pw) / 2) + 'px';
-      panel.style.top = Math.round(r.top + 24) + 'px';
-      panel.style.right = 'auto';
-      panel.style.bottom = 'auto';
-      raf = requestAnimationFrame(place);
+    // the ask docks in the sidebar and the page zooms out beside it, so a
+    // whole section fits in the gap where it will land (James: 'its quite
+    // hard to see the preview because it gets cropped - zoom out?')
+    dockSidebar();
+    panelAnchor = gap;
+    zoomOutCanvas();
+    var want = function () { return barBottom() + Math.max(64, Math.round(window.innerHeight * 0.16)); };
+    // the zoom starts from the top of the page: bring the seam back in view
+    var settleT = setTimeout(function () {
+      if (!gap.isConnected) return;
+      var r = gap.getBoundingClientRect();
+      window.scrollBy(0, r.top - want());
+    }, 440);
+    // a drawn section taller than what is left of the screen: show it whole
+    var reveal = function () {
+      var r = gap.getBoundingClientRect();
+      var over = r.bottom - (window.innerHeight - 16);
+      if (over > 0) window.scrollBy({ top: Math.min(over, r.top - barBottom() - 16), behavior: 'smooth' });
     };
     var api = {
       el: gap,
@@ -15624,6 +15624,7 @@
         gap.classList.add('is-previewing');
         prev = sec; prevKey = key;
         if (chip) chip.classList.add('is-previewed');
+        requestAnimationFrame(reveal);
       },
     };
     api.preview.clear = function () {
@@ -15634,16 +15635,10 @@
       panel.querySelectorAll('.gogh-askchip.is-previewed').forEach(function (c) { c.classList.remove('is-previewed'); });
     };
     panelCleanup = function () {
-      if (raf) cancelAnimationFrame(raf);
       clearTimeout(clearT);
+      clearTimeout(settleT);
       gap.remove();
-      panel.classList.remove('gogh-panel-seam');
-      panel.style.left = panel.style.top = panel.style.right = panel.style.bottom = '';
     };
-    place();
-    // the seam in view: the gap a little below the top, its neighbour above peeking in
-    var gr = gap.getBoundingClientRect();
-    if (gr.top < barBottom() + 60 || gr.top > window.innerHeight * 0.55) window.scrollBy({ top: gr.top - Math.max(barBottom() + 120, window.innerHeight * 0.22), behavior: 'smooth' });
     return api;
   }
   function openSeamAsk(idx, before) {

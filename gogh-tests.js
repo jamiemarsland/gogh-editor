@@ -4589,7 +4589,7 @@
       var panel = q('.gogh-panel');
       expect(gap && !panel.hidden, 'the gap and the ask should open');
       expect(gap.nextElementSibling === below.wrapEl, 'the gap should sit right above the section it goes before');
-      expect(panel.classList.contains('gogh-panel-seam'), 'the ask should ride in the gap');
+      expect(panel.classList.contains('gogh-panel-sidebar'), 'the ask should dock in the sidebar, the page zoomed beside it');
       var chip = [].filter.call(panel.querySelectorAll('.gogh-askchip'), function (x) { return !x.classList.contains('gogh-askmore') && (x.dataset.tpl != null || x.dataset.say); })[0];
       expect(chip, 'no choice to hover');
       chip.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
