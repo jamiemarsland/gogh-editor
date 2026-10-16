@@ -5626,7 +5626,7 @@
   // a docked sidebar is already where it belongs: re-placing it by its piece
   // floated it into the page (James: 'we seem to have a modal after clicking
   // shop the look? this should be sidebar')
-  function reclampPanel() { if (!panel.hidden && panelAnchor && !panel.classList.contains('gogh-panel-sidebar')) placePanelNear(panelAnchor); }
+  function reclampPanel() { if (!panel.hidden && panelAnchor && !panel.classList.contains('gogh-panel-sidebar') && !panel.classList.contains('gogh-panel-strip')) placePanelNear(panelAnchor); }
   function openPanel(sec, i) {
     var e = sec.els[i];
     panel.classList.remove('gogh-panel-wide');
@@ -15569,32 +15569,22 @@
   function openSeamGap(idx, before) {
     var gap = document.createElement('div');
     gap.className = 'gogh-seamgap alignfull';
-    gap.setAttribute('aria-hidden', 'true');
-    gap.innerHTML = '<div class="gogh-seamgap-stage"><span class="gogh-seamgap-hint">Your new section goes here — hover a choice to see it</span></div>';
+    gap.innerHTML = '<div class="gogh-seamgap-stage" aria-hidden="true"><span class="gogh-seamgap-hint">Your new section goes here. Hover a choice to see it in place, full size.</span></div>';
     pageParent.insertBefore(gap, insertAnchorFor(idx, before));
     var stage = gap.firstChild, hint = stage.firstChild;
     var prev = null, prevKey = null, clearT = null;
     hideHbar(); // the seam's height line steps aside while the gap is open
     hideSecBar();
-    // the ask docks in the sidebar and the page zooms out beside it, so a
-    // whole section fits in the gap where it will land (James: 'its quite
-    // hard to see the preview because it gets cropped - zoom out?')
-    dockSidebar();
+    // the ask is a slim strip at the top of the gap, sticking under the bar
+    // while you scroll through what it shows (James, after the zoom: 'i kinda
+    // lose context'): nothing jumps, nothing shrinks, the page never moves
+    // on its own — only the gap grows
+    gap.insertBefore(panel, stage);
+    panel.classList.add('gogh-panel-strip');
+    panel.style.left = panel.style.right = panel.style.bottom = panel.style.width = panel.style.maxHeight = '';
+    panel.style.top = (barBottom() + 8) + 'px';
+    panel.hidden = false;
     panelAnchor = gap;
-    zoomOutCanvas();
-    var want = function () { return barBottom() + Math.max(64, Math.round(window.innerHeight * 0.16)); };
-    // the zoom starts from the top of the page: bring the seam back in view
-    var settleT = setTimeout(function () {
-      if (!gap.isConnected) return;
-      var r = gap.getBoundingClientRect();
-      window.scrollBy(0, r.top - want());
-    }, 440);
-    // a drawn section taller than what is left of the screen: show it whole
-    var reveal = function () {
-      var r = gap.getBoundingClientRect();
-      var over = r.bottom - (window.innerHeight - 16);
-      if (over > 0) window.scrollBy({ top: Math.min(over, r.top - barBottom() - 16), behavior: 'smooth' });
-    };
     var api = {
       el: gap,
       preview: function (match, chip) {
@@ -15624,7 +15614,6 @@
         gap.classList.add('is-previewing');
         prev = sec; prevKey = key;
         if (chip) chip.classList.add('is-previewed');
-        requestAnimationFrame(reveal);
       },
     };
     api.preview.clear = function () {
@@ -15636,24 +15625,33 @@
     };
     panelCleanup = function () {
       clearTimeout(clearT);
-      clearTimeout(settleT);
+      panel.classList.remove('gogh-panel-strip');
+      panel.style.top = '';
+      document.body.appendChild(panel); // home again, for every other panel
       gap.remove();
     };
+    // only when the seam sits under the bar (a click right at the top edge)
+    // does the page make room: never otherwise
+    var gr = gap.getBoundingClientRect();
+    if (gr.top < barBottom() + 8) window.scrollBy(0, gr.top - barBottom() - 24);
     return api;
   }
   function openSeamAsk(idx, before) {
-    var chips = askSeamChips();
+    // the likeliest few fit the one row; typing finds the rest
+    var chips = askSeamChips().slice(0, 6);
     panel.innerHTML =
-      '<div class="gogh-panel-head"><span class="gogh-panel-title">What should go here?</span>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">✕</button></div>' +
-      '<div class="gogh-askrow">' +
-      '<input type="text" class="gogh-input gogh-askin" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-askgo">Add</button></div>' +
+      '<div class="gogh-strip-row">' +
+      '<span class="gogh-strip-title">What should go here?</span>' +
       '<div class="gogh-askchips">' +
       chips.map(function (c) {
         return '<button type="button" class="gogh-askchip" data-say="' + escAttr(c.say) + '">' + esc(c.label) + '</button>';
       }).join('') +
-      '<button type="button" class="gogh-askchip gogh-askmore">Browse them all →</button></div>' +
+      '</div>' +
+      '<label class="gogh-strip-ask"><span class="gogh-sr">Or describe it</span><input type="text" class="gogh-input gogh-askin" /></label>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-askgo">Add</button>' +
+      '<button type="button" class="gogh-askchip gogh-askmore gogh-strip-browse">Browse all \u2192</button>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close" aria-label="Close">\u2715</button>' +
+      '</div>' +
       '<div class="gogh-askmiss" hidden></div>';
     panelOpen = true;
     panelSticky = true;
@@ -15704,10 +15702,10 @@
         ? '<button type="button" class="gogh-askchip" data-tpl="' + c.tpl + '">' + esc(c.label) + '</button>'
         : '<button type="button" class="gogh-askchip" data-say="' + escAttr(c.say) + '">' + esc(c.label) + '</button>';
     };
-    var browseBtn = '<button type="button" class="gogh-askchip gogh-askmore">Browse them all \u2192</button>';
+    var browseBtn = '';
     var renderChips = function (list) {
       if (list === null) { chipsBox.innerHTML = chips.map(chipHTML).join('') + browseBtn; return; }
-      chipsBox.innerHTML = (list.length ? list.map(chipHTML).join('') : '<span class="gogh-askempty">Nothing here matches.</span>') + browseBtn;
+      chipsBox.innerHTML = (list.length ? list.slice(0, 6).map(chipHTML).join('') : '<span class="gogh-askempty">Nothing here matches.</span>') + browseBtn;
     };
     input.addEventListener('input', function () { missRow.hidden = true; renderChips(seamMatches(input.value)); });
     var go = function (text) {
@@ -15750,6 +15748,7 @@
       askSeamInsert(m, idx, before);
     };
     panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
+    panel.querySelector('.gogh-strip-browse').addEventListener('click', function () { closePanel(); openPicker(idx == null ? S.length : idx, before); });
     panel.querySelector('.gogh-askgo').addEventListener('click', function () { go(input.value); });
     input.addEventListener('keydown', function (ev) {
       if (ev.key === 'Enter') { ev.preventDefault(); go(input.value); }
@@ -15767,7 +15766,10 @@
     };
     chipsBox.addEventListener('mouseover', previewChip);
     chipsBox.addEventListener('focusin', previewChip);
-    chipsBox.addEventListener('mouseleave', function () { gap.preview(null); });
+    // the look stays while the hand is anywhere in the gap: scrolling through
+    // a tall section moves the strip up under the bar, and the hand ends up
+    // over the drawing (it used to vanish right then). Leaving the gap clears it
+    gap.el.addEventListener('mouseleave', function () { gap.preview(null); });
     // one listener for every chip, since the row is redrawn as you type
     chipsBox.addEventListener('click', function (ev) {
       var ch = ev.target.closest ? ev.target.closest('.gogh-askchip') : null;

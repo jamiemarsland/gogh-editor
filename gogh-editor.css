@@ -4860,11 +4860,28 @@ button.gogh-sb-take { border: 0; background: none; font: inherit; color: inherit
    ask; a hovered choice is drawn in it, real size, between its neighbours */
 .gogh-seamgap { position: relative; margin: 10px 14px; border: 2px dashed rgba(74, 99, 216, 0.55); border-radius: 12px;
   background: color-mix(in srgb, #4a63d8 5%, transparent); animation: gogh-seamgap-in 0.24s ease both; }
-.gogh-seamgap-stage { position: relative; min-height: 220px; display: flex; align-items: center; justify-content: center; }
-.gogh-seamgap-hint { font: 500 18px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #4a63d8; letter-spacing: 0.01em; padding: 24px; text-align: center; }
+.gogh-seamgap-stage { position: relative; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+.gogh-seamgap-hint { font: 500 15px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #4a63d8; letter-spacing: 0.01em; padding: 24px; text-align: center; }
 .gogh-seamgap-hint[hidden] { display: none; }
 .gogh-seamgap.is-previewing .gogh-seamgap-stage { display: block; min-height: 0; padding: 0 0 2px; }
 .gogh-seamgap .gogh-seamprev { pointer-events: none; border-radius: 10px; overflow: hidden; animation: gogh-seamgap-in 0.18s ease both; }
 .gogh-panel .gogh-askchip.is-previewed { border-color: #4a63d8; color: #2f45b8; background: color-mix(in srgb, #4a63d8 8%, #fff); }
 @keyframes gogh-seamgap-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .gogh-seamgap, .gogh-seamgap .gogh-seamprev { animation: none; } }
+/* the seam's ask as one slim strip at the top of the gap, sticking under the
+   bar while the gap is scrolled through (v0.99.738) */
+.gogh-panel.gogh-panel-strip { position: sticky; z-index: 30; left: auto; right: auto; bottom: auto; width: auto; min-width: 0; max-width: none;
+  max-height: none; overflow: visible; resize: none; margin: 10px 10px 10px 46px; padding: 8px 8px 8px 16px; border-radius: 12px;
+  box-shadow: 0 10px 30px -12px rgba(20, 30, 80, 0.35), 0 0 0 1px rgba(20, 30, 80, 0.06); }
+.gogh-panel-strip .gogh-strip-row { display: flex; align-items: center; gap: 8px; }
+.gogh-panel-strip .gogh-strip-title { font-size: 13px; font-weight: 650; white-space: nowrap; margin-right: 4px; }
+.gogh-panel-strip .gogh-askchips { margin: 0; flex-wrap: nowrap; gap: 6px; min-width: 0; overflow: hidden; }
+.gogh-panel-strip .gogh-askchip { padding: 8px 13px; font-size: 12.5px; white-space: nowrap; }
+.gogh-panel-strip .gogh-askchip.gogh-strip-browse { background: rgba(74, 99, 216, 0.08); border-color: transparent; color: #2f45b8; }
+.gogh-panel-strip .gogh-strip-ask { flex: 1 1 200px; min-width: 140px; display: flex; }
+.gogh-panel-strip .gogh-strip-ask .gogh-askin { flex: 1; min-width: 0; }
+.gogh-panel-strip .gogh-askgo { flex: none; }
+.gogh-panel-strip .gogh-panel-close { flex: none; }
+.gogh-panel-strip .gogh-askmiss { margin: 8px 4px 2px; }
+.gogh-panel-strip .gogh-askempty { font-size: 12.5px; color: var(--gogh-ui-muted, #6b6c72); padding: 8px 4px; white-space: nowrap; }
+@media (max-width: 900px) { .gogh-panel-strip .gogh-strip-row { flex-wrap: wrap; } .gogh-panel-strip .gogh-askchips { flex-wrap: wrap; } }
