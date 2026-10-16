@@ -4673,9 +4673,18 @@
       ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : e.type === 'rule' ? 'rule' : e.type === 'icon' ? 'icon' : e.type === 'embed' ? 'embed' : 'image'];
       ctxBtn.title = (e.rails && (e.shop || e.posts)) ? 'Edit design' : e.type === 'video' ? 'Video' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
       ctxBtn.style.display = '';
+    } else if (e.type === 'widget') {
+      // a photo wall, carousel, questions or tabs: an Edit in words, so it
+      // is plain how to change what is inside (James: 'we should have a
+      // little edit option on it so its clear to users how to change')
+      var what = e.wall ? 'Edit photos' : e.slides ? 'Edit slides' : e.faq ? 'Edit questions' : e.tabs ? 'Edit tabs' : 'Edit';
+      ctxBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>' + what + '</span>';
+      ctxBtn.title = what;
+      ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
     }
+    ctxBtn.classList.toggle('gogh-eb-labelled', e.type === 'widget');
     var isCardSel = e.type === 'box' && e.kids && e.kids.length;
     elbar.querySelector('.gogh-eb-lineup').style.display = isCardSel ? '' : 'none';
     if (!isCardSel) { elbar.querySelector('.gogh-elbar-more').hidden = true; elbar.classList.remove('gogh-elbar-open'); }
@@ -6536,7 +6545,7 @@
           '<button type="button" class="gogh-btn gogh-btn-small gogh-style-outline' + (e.ghost ? ' is-active' : '') + '">Outline</button>' +
           '</div>' +
           swRow('Fill', 'btnBg') +
-          swRow('Words', 'btnText') +
+          swRow('Text', 'btnText') +
           swRow('On hover', 'btnHover')
         : '');
     if (showColour) {
@@ -8382,6 +8391,25 @@
     });
   }
   var shopProds = new WeakMap(); // piece → the products its sketch was drawn from
+  // the real products (or categories) a shop piece would show, from the
+  // public Store API: the page's preview and the chooser's cards both use it
+  function shopFetch(e) {
+    var shop = e.shop || shopDefaults();
+    var base = cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/';
+    if (shop.kind === 'categories') {
+      return fetch(base + 'products/categories?per_page=' + Math.max(2, Math.min(8, +shop.count || 3)) + '&hide_empty=true', { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : []; }).then(function (c) { return { list: c || [], prods: false }; });
+    }
+    var q = 'per_page=' + Math.max(1, Math.min(12, +shop.count || 3)) +
+      '&orderby=' + (shop.order === 'popularity' ? 'popularity' : shop.order === 'title' ? 'title' : 'date') +
+      '&order=' + (shop.order === 'title' ? 'asc' : 'desc') +
+      (shop.order === 'sale' ? '&on_sale=true' : '') +
+      (shop.catId ? '&category=' + shop.catId : '');
+    var pickIds = (shop.pick || []).map(function (p) { return +p.id; }).filter(Boolean);
+    if (pickIds.length) q = 'include=' + pickIds.join(',') + '&per_page=' + pickIds.length;
+    return fetch(base + 'products?' + q, { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : []; }).then(function (p) { return { list: p || [], prods: true }; });
+  }
   function hydrateProductsPreview(sec, e, catId) {
     // the Store API is public \u2014 the preview is drawn from the same
     // products Woo will render, in the shape the rails element chose
@@ -8394,32 +8422,12 @@
       if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
       return;
     }
-    if (shop.kind === 'categories') {
-      var genc = e.__shopGen = (e.__shopGen || 0) + 1;
-      fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products/categories?per_page=' + Math.max(2, Math.min(8, +shop.count || 3)) + '&hide_empty=true', { credentials: 'same-origin' })
-        .then(function (r) { return r.ok ? r.json() : []; }).then(function (cats) {
-          if (genc !== e.__shopGen || sec.els.indexOf(e) === -1) return;
-          e.whtml = shopPreviewHTML(e, cats || []);
-          renderSection(sec);
-          if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
-        }).catch(function () {});
-      return;
-    }
-    if (catId && !shop.catId) shop.catId = catId;
-    var q = 'per_page=' + Math.max(1, Math.min(12, +shop.count || 3)) +
-      '&orderby=' + (shop.order === 'popularity' ? 'popularity' : shop.order === 'title' ? 'title' : 'date') +
-      '&order=' + (shop.order === 'title' ? 'asc' : 'desc') +
-      (shop.order === 'sale' ? '&on_sale=true' : '') +
-      (shop.catId ? '&category=' + shop.catId : '');
-    var pickIds = (shop.pick || []).map(function (p) { return +p.id; }).filter(Boolean);
-    if (pickIds.length) q = 'include=' + pickIds.join(',') + '&per_page=' + pickIds.length;
+    if (catId && !shop.catId && shop.kind !== 'categories') shop.catId = catId;
     var gen = e.__shopGen = (e.__shopGen || 0) + 1;
-    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?' + q, {
-      credentials: 'same-origin',
-    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (prods) {
+    shopFetch(e).then(function (res) {
       if (gen !== e.__shopGen || sec.els.indexOf(e) === -1) return; // a newer choice is on its way
-      shopProds.set(e, prods || []); // a dragged dot redraws from these (kept off the saved piece)
-      e.whtml = shopPreviewHTML(e, prods || []);
+      if (res.prods) shopProds.set(e, res.list); // a dragged dot redraws from these (kept off the saved piece)
+      e.whtml = shopPreviewHTML(e, res.list);
       renderSection(sec);
       if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
     }).catch(function () {});
@@ -12666,30 +12674,22 @@
       if (down) down.style.top = Math.round(top + h * scale) + 'px';
     }
   }
-  // the two sections either side of a seam, as a person would name them
+  // the two sections either side of a seam: their colours, for the slices
+  // each card shows above and below its design
   function seamNeighbours(idx, before) {
     var anchor = insertAnchorFor(idx, before);
     var isBlock = function (n) { return n && n.nodeType === 1 && n.tagName !== 'STYLE' && n.tagName !== 'SCRIPT' && !n.classList.contains('gogh-seammark'); };
     var next = isBlock(anchor) ? anchor : null;
     var prev = anchor ? anchor.previousSibling : null;
     while (prev && !isBlock(prev)) prev = prev.previousSibling;
-    var describe = function (node, fallback) {
+    var describe = function (node) {
       if (!node) return null;
       var sec = S.filter(function (x) { return x.wrapEl === node; })[0];
-      var txt = '';
-      if (sec) {
-        var h = diceFlatten(sec.els || []).filter(function (e) { return e.type === 'heading' && e.text; })[0];
-        txt = h ? String(h.text).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '') : '';
-      }
-      if (!txt) { var hn = node.querySelector('h1, h2, h3'); txt = hn ? hn.textContent : ''; }
-      txt = txt.replace(/&nbsp;|\s+/g, ' ').replace(/&amp;/g, '&').trim();
-      if (txt.length > 34) txt = txt.slice(0, 32).replace(/\s+\S*$/, '') + '\u2026';
-      var paintEl = sec ? sec.sectionEl : node;
-      var bg = getComputedStyle(paintEl).backgroundColor;
+      var bg = getComputedStyle(sec ? sec.sectionEl : node).backgroundColor;
       if (!bg || /rgba\(0, 0, 0, 0\)|transparent/.test(bg)) bg = getComputedStyle(document.body).backgroundColor || '#fff';
-      return { name: txt || fallback, bg: bg };
+      return { bg: bg };
     };
-    return { prev: describe(prev, 'the section above'), next: describe(next, 'the section below') };
+    return { prev: describe(prev), next: describe(next) };
   }
   // one taxonomy for everything in the picker \u2014 starters and theme patterns
   // share these buckets, so the chips are the only navigation concept
@@ -12712,8 +12712,9 @@
     pickerIdx = idx;
     pickerBefore = (before && before.isConnected) ? before : null;
     // opened from + Section between two sections (James: 'build b', after
-    // Squarespace): the header names where it goes, every card shows its
-    // neighbours either side, and the page marks the spot
+    // Squarespace): every card shows its neighbours either side, and the
+    // page marks the spot (a 'Goes between' line in the header came out:
+    // James didn't think it was needed)
     var atSeam = !!(opts && opts.seam);
     var nbrs = atSeam ? seamNeighbours(idx, pickerBefore) : null;
     [].forEach.call(document.querySelectorAll('.gogh-seammark'), function (n) { n.remove(); });
@@ -12724,16 +12725,15 @@
       mk.innerHTML = '<span>New section goes here</span>';
       pageParent.insertBefore(mk, insertAnchorFor(idx, pickerBefore));
     }
-    var seamChip = function (n) {
-      return '<span class="gogh-seamchip"><i style="background:' + escAttr(n.bg) + '"></i>' + esc(n.name) + '</span>';
-    };
     var nbBand = function (where) {
       var n = nbrs && nbrs[where === 'top' ? 'prev' : 'next'];
       return n ? '<span class="gogh-nb gogh-nb-' + (where === 'top' ? 'top' : 'bot') + '" style="background:' + escAttr(n.bg) + '"></span>' : '';
     };
     try { picker.style.setProperty('--gogh-body-ff', getComputedStyle(document.body).fontFamily); } catch (err) {}
+    var cardEls = {}; // a card's pieces, by its key, so a shop card can be redrawn with real products
     var tplCardHTML = function (tpl, t, popular, si) {
       var els = tplEls(tpl);
+      cardEls[t] = els;
       var scope = 'gogh-tpl-' + t;
       var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null, bgImage: tplBgFor(tpl), bgA: tpl.bgA != null ? tpl.bgA : null }) : '';
       var inner = els.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
@@ -12811,10 +12811,7 @@
       '<div class="gogh-picker-inner">' +
       '<div class="gogh-picker-head">' +
       '<span class="gogh-picker-headings"><span class="gogh-picker-title">Add a section</span>' +
-      (atSeam && nbrs ? '<span class="gogh-picker-sub gogh-picker-between">Goes ' +
-        (nbrs.prev && nbrs.next ? 'between ' + seamChip(nbrs.prev) + ' and ' + seamChip(nbrs.next)
-          : nbrs.next ? 'above ' + seamChip(nbrs.next) : nbrs.prev ? 'below ' + seamChip(nbrs.prev) : 'here') + '</span></span>'
-        : '<span class="gogh-picker-sub">Choose a layout to get started. You can customise everything.</span></span>') +
+      '<span class="gogh-picker-sub">Choose a layout to get started. You can customise everything.</span></span>' +
       '<span class="gogh-picker-tools">' +
       '<label class="gogh-picker-search">' +
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>' +
@@ -12911,6 +12908,33 @@
     picker.querySelectorAll('.gogh-card-prev').forEach(function (p) {
       var st = p.querySelector('.gogh-card-stage');
       if (st) fitCardStage(p, st);
+    });
+    // a shop's own products in its shop designs (James: 'should we see
+    // actual product images here?'): each shop card is drawn with the sample
+    // first, then redrawn from the Store API with the real ones
+    picker.querySelectorAll('.gogh-card').forEach(function (card) {
+      var key = card.dataset.tpl != null ? card.dataset.tpl : (card.dataset.dtpl != null ? 'd' + card.dataset.dtpl : null);
+      var els = key != null ? cardEls[key] : null;
+      if (!els) return;
+      els.forEach(function (e, i) {
+        if (!(e.rails && e.shop)) return;
+        var sh = e.shop;
+        if (sh.layout === 'photo' && !(sh.pick || []).length) return; // its own picture already
+        shopFetch(e).then(function (res) {
+          if (!res.list.length || !card.isConnected) return;
+          e.whtml = shopPreviewHTML(e, res.list);
+          var secN = card.querySelector('.gogh-card-sec');
+          var old = secN && secN.children[i];
+          if (!old) return;
+          old.replaceWith(makeNode(e, i));
+          var pv = card.querySelector('.gogh-card-prev'), st = card.querySelector('.gogh-card-stage');
+          if (!pv || !st) return;
+          fitCardStage(pv, st);
+          [].forEach.call(st.querySelectorAll('img'), function (im) {
+            if (!im.complete) im.addEventListener('load', function () { fitCardStage(pv, st); }, { once: true });
+          });
+        }).catch(function () {});
+      });
     });
     var cardsBox = picker.querySelector('.gogh-cards');
     var emptyHint = picker.querySelector('.gogh-pickempty');

@@ -4578,7 +4578,7 @@
       return 'a video rides the die like a picture';
     });
 
-    test('+ Section opens the chooser at the seam: it names the spot, shows the neighbours, adds there', function () {
+    test('+ Section opens the chooser at the seam: it shows the neighbours and adds there', function () {
       G.addSection({ title: 'SEAMTOP', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Above the seam' } ] }, G.sections().length);
       G.addSection({ title: 'SEAMBOT', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Below the seam' } ] }, G.sections().length);
       var c = contentSecs();
@@ -4588,8 +4588,7 @@
       G.openPicker(idx, below.wrapEl, { seam: true });
       var pk = q('.gogh-picker');
       expect(pk && !pk.hidden, 'the chooser should open');
-      var between = pk.querySelector('.gogh-picker-between');
-      expect(between && /Above the seam/.test(between.textContent) && /Below the seam/.test(between.textContent), 'the header should name both neighbours, got ' + (between && between.textContent));
+      expect(!pk.querySelector('.gogh-picker-between'), 'no Goes between line in the header');
       var mk = q('.gogh-seammark');
       expect(mk && mk.nextElementSibling === below.wrapEl, 'the page should mark the spot, right above the section below');
       var card = [].filter.call(pk.querySelectorAll('.gogh-card[data-tpl]'), function (b) { return b.style.display !== 'none'; })[0];
@@ -4602,7 +4601,27 @@
       G.deleteSection(G.sections().indexOf(born));
       G.deleteSection(G.sections().indexOf(below));
       G.deleteSection(G.sections().indexOf(above));
-      return 'named, neighboured, landed';
+      return 'neighboured, landed';
+    });
+
+    test('a photo wall says Edit photos on its toolbar, and it opens the photos', function () {
+      var tpl = G.templates().filter(function (t) { return !t.retired && (t.els || []).some(function (e) { return e.type === 'widget' && e.wall; }); })[0];
+      expect(tpl, 'no starter with a photo wall');
+      G.addSection(tpl, G.sections().length);
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      var i = s.els.findIndex(function (e) { return e.type === 'widget' && e.wall; });
+      s.nodes[i].scrollIntoView({ block: 'center' });
+      pev('pointerdown', s.nodes[i]);
+      pev('pointerup', s.nodes[i]);
+      var ctx = q('.gogh-eb-ctx');
+      expect(ctx && ctx.style.display !== 'none' && /Edit photos/.test(ctx.textContent), 'the toolbar should say Edit photos, got ' + (ctx && ctx.textContent));
+      ctx.click();
+      var panel = q('.gogh-panel');
+      expect(!panel.hidden, 'Edit photos should open the photos');
+      G.closePanel();
+      G.deleteSection(G.sections().indexOf(s));
+      return tpl.name + ': Edit photos';
     });
 
     test('a hovered section shows a ring; its background docks in the sidebar', function () {

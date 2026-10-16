@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.739 · knowledge base 6573ea4.
+Generated for plugin version 0.99.740 · knowledge base b9ddde7.
 
 ---
 
@@ -830,7 +830,9 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
-**Adding a section, Squarespace-style (v0.99.739).** Click **+ Section** between two sections and the Add a section chooser opens straight away, with the spot named at the top: "Goes between *your hero's headline* and *The spring pour*", each with a small swatch of its colour. Every design is drawn in your site's own fonts and colours, with a slice of the section above and the one below hugging it, so you can see how it sits in place; hover one and **Add here** appears. Click a design to add it exactly there; the page marks the spot with a blue line while the chooser is open. Search works as before, and pressing Enter takes the first design showing; if nothing matches, words like "a map and opening hours" are understood the way the + used to understand them. The gap and the strip from v0.99.736–738 are gone.
+**Real products in the chooser; Edit on photo walls (v0.99.740).** In Add a section, the shop designs (Featured product, Bestsellers, New in, Editorial split, Categories) now show your own products and category pictures instead of samples; a design whose shelf would be empty, like Sale with nothing on sale, keeps its sample. Choose a photo wall, carousel, questions or tabs on the page and its toolbar now says **Edit photos**, **Edit slides**, **Edit questions** or **Edit tabs**, which opens what's inside. In a button's colours, "Words" is now called **Text**.
+
+**Adding a section, Squarespace-style (v0.99.739).** Click **+ Section** between two sections and the Add a section chooser opens straight away, right where you clicked. Every design is drawn in your site's own fonts and colours, with a slice of the section above and the one below hugging it, so you can see how it sits in place; hover one and **Add here** appears. Click a design to add it exactly there; the page marks the spot with a blue line while the chooser is open. Search works as before, and pressing Enter takes the first design showing; if nothing matches, words like "a map and opening hours" are understood the way the + used to understand them. The gap and the strip from v0.99.736–738 are gone.
 
 **Adding a section: the slim strip (v0.99.738).** "What should go here?" is now one slim row at the top of the gap: the likeliest choices, a box to describe anything else, Add, Browse all and ✕. Hover a choice and that section is drawn in the gap at full size, in your site's own fonts and colours, exactly where it will land. The page never zooms or jumps. If the section is taller than your screen, scroll: the strip sticks under the top bar while you're inside the gap, and the preview stays while your pointer is anywhere in the gap. Click a choice to add it there; move out of the gap to clear the preview; ✕ or Esc closes the gap.
 
@@ -1087,11 +1089,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.739**
+- Plugin version: **0.99.740**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.739`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.740`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1677,4 +1679,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`365` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`366` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

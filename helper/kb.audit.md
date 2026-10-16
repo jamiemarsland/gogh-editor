@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.739
+# Knowledge-base audit — plugin v0.99.740
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (109)
+## MISSING (104)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -97,17 +97,12 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `wp_head` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post` exists in source but is never mentioned in the prose
 - template `Story` exists in source but is never mentioned in the prose
-- template `Featured product` exists in source but is never mentioned in the prose
-- template `Bestsellers` exists in source but is never mentioned in the prose
-- template `Editorial split` exists in source but is never mentioned in the prose
 - template `Columns of links` exists in source but is never mentioned in the prose
 - template `Featured and links` exists in source but is never mentioned in the prose
 - template `Picture doors` exists in source but is never mentioned in the prose
 - template `Categories in the menu` exists in source but is never mentioned in the prose
 - template `Featured product in the menu` exists in source but is never mentioned in the prose
 - template `Shop the look` exists in source but is never mentioned in the prose
-- template `New in` exists in source but is never mentioned in the prose
-- template `Sale` exists in source but is never mentioned in the prose
 - template `Profile card` exists in source but is never mentioned in the prose
 - template `Job card` exists in source but is never mentioned in the prose
 - template `Place card` exists in source but is never mentioned in the prose
@@ -150,3 +145,9 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.739 → 0.99.740

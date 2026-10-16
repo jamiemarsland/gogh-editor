@@ -4856,18 +4856,16 @@ button.gogh-sb-take { border: 0; background: none; font: inherit; color: inherit
 /* the section under the hand: a thin ring (after Albers, with no wash, no
    mode bar and no name pill). A chosen section's own ring (.gogh-selsec) wins */
 .gogh-editing .gogh-section.gogh-hoversec:not(.gogh-selsec) { outline: 1.5px solid rgba(74, 99, 216, 0.5); outline-offset: -1.5px; }
-/* + Section opens the chooser at a seam (v0.99.739): the header names the
-   spot, each card hugs a slice of the sections either side, and the page
-   marks where it goes */
+/* + Section opens the chooser at a seam (v0.99.739): each card hugs a slice
+   of the sections either side, and the page marks where it goes */
 .gogh-seammark { position: relative; height: 4px; margin: 0 !important; background: #4a63d8; z-index: 5; }
 .gogh-seammark span { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #4a63d8; color: #fff; border-radius: 999px;
   padding: 6px 14px; font: 600 12px/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; white-space: nowrap; }
-.gogh-picker-between { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.gogh-seamchip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e3e3e8; border-radius: 999px; padding: 2px 10px 2px 4px; color: #1e1e1e; font-weight: 550; }
-.gogh-seamchip i { width: 18px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
 .gogh-card-prev .gogh-nb { position: absolute; left: 0; right: 0; height: 12px; z-index: 1; box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.06); }
 .gogh-card-prev .gogh-nb-bot { box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.06); }
 .gogh-card-prev .gogh-card-add { position: absolute; right: 12px; bottom: 18px; z-index: 2; background: #3858e9; color: #fff; border-radius: 999px; padding: 7px 13px;
   font: 600 12.5px/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; box-shadow: 0 6px 16px -6px rgba(20, 30, 80, 0.5); opacity: 0; transform: translateY(4px); transition: opacity 0.15s ease, transform 0.15s ease; pointer-events: none; }
 .gogh-card:hover .gogh-card-add, .gogh-card:focus-visible .gogh-card-add { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .gogh-card-prev .gogh-card-add { transition: none; } }
+/* a widget's Edit, in words (v0.99.740) */
+.gogh-eb.gogh-eb-ctx.gogh-eb-labelled { display: inline-flex; align-items: center; gap: 6px; width: auto; padding: 6px 12px; font-size: 13px; font-weight: 650; white-space: nowrap; }
