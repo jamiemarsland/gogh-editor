@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.741 · knowledge base 6b0bc12.
+Generated for plugin version 0.99.742 · knowledge base 3e4b1bc.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**One look for every sidebar (v0.99.742).** The panels that open on the left now share the Site styles look: a small **‹ Back** at the top, then the panel's name as a real title and a line saying what it's for. Lists of choices (Page style, Motion and the page styles in Add a page) are calm rows with a line under each name and a tick on the current one, instead of stacked buttons. Section background, Layouts and the panels for photo walls and other blocks use the same heading. Fonts, Motion and Add a page now always open beside the page, zoomed out, like the rest.
+
 **Add a section, redesigned (v0.99.741).** The Add a section chooser is now a plain white sheet with a list on the left: **Start blank**, **Paste HTML** and **My sections** at the top, then the groups **Introduce**, **Sell**, **Showcase** and **Share**, each with its designs listed by name (and your theme's own patterns at the end). Click a group to see all its designs; click a design's name to see every layout of it side by side, and add the one you like. Designs show at their natural height, in your site's own fonts, colours and products, without names or boxes; hover one and **Add** (or **Add here**) appears. The three buttons top right change the size: three across, two across, or one large; gogh remembers your choice. Search is the magnifier beside them.
 
 **Real products in the chooser; Edit on photo walls (v0.99.740).** In Add a section, the shop designs (Featured product, Bestsellers, New in, Editorial split, Categories) now show your own products and category pictures instead of samples; a design whose shelf would be empty, like Sale with nothing on sale, keeps its sample. Choose a photo wall, carousel, questions or tabs on the page and its toolbar now says **Edit photos**, **Edit slides**, **Edit questions** or **Edit tabs**, which opens what's inside. In a button's colours, "Words" is now called **Text**.
@@ -1091,11 +1093,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.741**
+- Plugin version: **0.99.742**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.741`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.742`). Quote the plugin header version.
 
 ## Design constants
 

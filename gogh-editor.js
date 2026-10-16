@@ -18884,6 +18884,7 @@
         if (a && panel.contains(a)) { try { a.blur(); } catch (err) {} }
       };
       dockSidebar();
+    if (!zoomState) zoomOutCanvas(); // the sidebar standard: always beside the fitted page, however it was reached
       markCurrentFontPair();
     });
   }
@@ -18994,6 +18995,7 @@
       '<div class="gogh-panel-hint">One gait for the whole site — hover to audition, click to keep. Visitors who prefer reduced motion always see it still.</div>' +
       '<div class="gogh-motionlist"></div>';
     dockSidebar();
+    if (!zoomState) zoomOutCanvas(); // the sidebar standard: always beside the fitted page, however it was reached
     panel.querySelector('.gogh-panel-close').addEventListener('click', backToDesign);
     var box = panel.querySelector('.gogh-motionlist');
     MOTION_LOOKS.forEach(function (l) {
@@ -19390,6 +19392,7 @@
       '<div class="gogh-addpage"><input type="text" class="gogh-input gogh-addpage-title" placeholder="Page title, e.g. Prices" maxlength="120" />' +
       '<button type="button" class="gogh-btn gogh-addpage-go">Add</button></div>';
     dockSidebar();
+    if (!zoomState) zoomOutCanvas(); // the sidebar standard: always beside the fitted page, however it was reached
     panel.hidden = false;
     panelOpen = true;
     panelSticky = false;

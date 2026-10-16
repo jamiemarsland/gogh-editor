@@ -4912,3 +4912,30 @@ button.gogh-sb-take { border: 0; background: none; font: inherit; color: inherit
   .gogh-picker-sq .gogh-pl-group { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
   .gogh-picker-sq .gogh-cards { column-count: 1 !important; }
 }
+/* ---------- the sidebar standard (v0.99.742) ----------
+   Every docked sidebar reads like Site styles (James: 'lets make all our
+   sidebars to this standard'): a quiet "‹ Back" above a real title and a
+   one-line lead; choices are hairline rows (name, a line under it, a tick on
+   the current one) instead of stacks of shadowed pills. */
+.gogh-panel.gogh-panel-sidebar .gogh-panel-title { font-size: 16.5px; font-weight: 700; text-transform: none; letter-spacing: -0.01em; color: var(--gogh-ui-fg); margin-bottom: 0; }
+.gogh-panel.gogh-panel-sidebar .gogh-panel-head:has(.gogh-panel-x) { flex-direction: column; align-items: flex-start; gap: 7px; margin-bottom: 12px; }
+.gogh-panel.gogh-panel-sidebar .gogh-panel-head .gogh-panel-x { order: -1; width: auto; height: 26px; padding: 0 8px 0 2px; margin-left: -2px; background: transparent; color: var(--gogh-ui-muted);
+  font-size: 0; display: inline-flex; align-items: center; gap: 3px; border-radius: 6px; }
+.gogh-panel.gogh-panel-sidebar .gogh-panel-head .gogh-panel-x::before { content: ""; width: 15px; height: 15px; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 6l-6 6 6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 6l-6 6 6 6'/%3E%3C/svg%3E") center / contain no-repeat; }
+.gogh-panel.gogh-panel-sidebar .gogh-panel-head .gogh-panel-x::after { content: "Back"; font-size: 12px; font-weight: 600; }
+.gogh-panel.gogh-panel-sidebar .gogh-panel-head .gogh-panel-x:hover { background: var(--gogh-ui-hover); color: var(--gogh-ui-fg); }
+.gogh-panel.gogh-panel-sidebar .gogh-panel-hint { color: var(--gogh-ui-muted); }
+/* choices as rows */
+.gogh-panel.gogh-panel-sidebar .gogh-pagestyles, .gogh-panel.gogh-panel-sidebar .gogh-motionlist { gap: 0; margin: 4px 0 16px; }
+.gogh-panel.gogh-panel-sidebar .gogh-pagestyle.gogh-btn, .gogh-panel.gogh-panel-sidebar .gogh-motioncard.gogh-btn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; box-sizing: border-box; padding: 12px 34px 12px 4px;
+  border: 0; border-top: 1px solid var(--gogh-ui-border); border-radius: 0; background: transparent; box-shadow: none; outline: none; text-align: left; transform: none; }
+.gogh-panel.gogh-panel-sidebar .gogh-pagestyle.gogh-btn:last-child, .gogh-panel.gogh-panel-sidebar .gogh-motioncard.gogh-btn:last-child { border-bottom: 1px solid var(--gogh-ui-border); }
+.gogh-panel.gogh-panel-sidebar .gogh-pagestyle.gogh-btn:hover, .gogh-panel.gogh-panel-sidebar .gogh-motioncard.gogh-btn:hover { background: var(--gogh-ui-hover); }
+.gogh-panel.gogh-panel-sidebar .gogh-pagestyle.gogh-btn:focus-visible, .gogh-panel.gogh-panel-sidebar .gogh-motioncard.gogh-btn:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; border-radius: 6px; }
+.gogh-panel.gogh-panel-sidebar .gogh-pagestyle-name, .gogh-panel.gogh-panel-sidebar .gogh-motioncard-name { font: 650 14.5px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg); }
+.gogh-panel.gogh-panel-sidebar .gogh-pagestyle-hint, .gogh-panel.gogh-panel-sidebar .gogh-motioncard-hint { font: 500 12px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-muted); }
+.gogh-panel.gogh-panel-sidebar .gogh-pagestyle.is-current .gogh-pagestyle-name, .gogh-panel.gogh-panel-sidebar .gogh-motioncard.is-current .gogh-motioncard-name { color: #3858e9; }
+.gogh-panel.gogh-panel-sidebar .gogh-motioncard .gogh-pagestyle-tick { top: 50%; transform: translateY(-50%); }
