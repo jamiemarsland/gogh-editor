@@ -4227,7 +4227,7 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Back"; } /* "Si
 .gogh-shopprev-emptycard strong { font-size: 1.15em; }
 .gogh-shopprev-emptycard span { opacity: 0.7; }
 .gogh-shopprev-emptycard a { margin-top: 8px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; color: inherit; }
-@container gogh (max-width: 700px) { .gogh-shopprev-c3, .gogh-shopprev-c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 700px) { .gogh-shopprev-c3, .gogh-shopprev-c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* two verbs at the point of touch */
 .gogh-eb-manage { font-weight: 700; padding: 0 10px; white-space: nowrap; }
 .gogh-shop-verbs { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; }
@@ -4253,7 +4253,7 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 /* the column count the composer chose wins over the tiles' default (the editor drew four as 3 + 1) */
 .gogh-shopprev-cats.gogh-shopprev-c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .gogh-shopprev-cats.gogh-shopprev-c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@container gogh (max-width: 700px) { .gogh-shopprev-cats.gogh-shopprev-c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 700px) { .gogh-shopprev-cats.gogh-shopprev-c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .gogh-shopprev-tile { position: relative; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: color-mix(in srgb, currentColor 8%, transparent); }
 .gogh-shopprev-tile img, .gogh-shopprev-tileph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .gogh-shopprev-tileph { background: linear-gradient(135deg, color-mix(in srgb, currentColor 10%, transparent), color-mix(in srgb, currentColor 22%, transparent)); }
@@ -4939,3 +4939,45 @@ button.gogh-sb-take { border: 0; background: none; font: inherit; color: inherit
 .gogh-panel.gogh-panel-sidebar .gogh-pagestyle-hint, .gogh-panel.gogh-panel-sidebar .gogh-motioncard-hint { font: 500 12px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-muted); }
 .gogh-panel.gogh-panel-sidebar .gogh-pagestyle.is-current .gogh-pagestyle-name, .gogh-panel.gogh-panel-sidebar .gogh-motioncard.is-current .gogh-motioncard-name { color: #3858e9; }
 .gogh-panel.gogh-panel-sidebar .gogh-motioncard .gogh-pagestyle-tick { top: 50%; transform: translateY(-50%); }
+/* the sidebar standard, pass 2 (v0.99.743): the Page/Site drawer's cards are
+   Site-styles rows (name, what is current, chevron), and Add a page's button
+   is the panel's one clear action */
+.gogh-side-title { font-size: 16.5px; letter-spacing: -0.01em; }
+.gogh-side .gogh-side-cards { gap: 0 !important; margin-top: 6px; }
+.gogh-side .gogh-scard { padding: 12px 4px; gap: 12px; border: 0; border-top: 1px solid var(--gogh-ui-border); border-radius: 0; background: transparent; }
+.gogh-side .gogh-side-cards .gogh-scard:last-child { border-bottom: 1px solid var(--gogh-ui-border); }
+.gogh-side .gogh-scard:hover { background: var(--gogh-ui-hover); border-color: var(--gogh-ui-border); }
+.gogh-side .gogh-scard:active { transform: none; }
+.gogh-side .gogh-scard-ic { display: none; }
+.gogh-side .gogh-scard-t { font: 650 14.5px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg); }
+.gogh-side .gogh-scard-s { font: 500 12px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-muted); }
+.gogh-side .gogh-scard-chev { color: var(--gogh-ui-muted); }
+.gogh-panel.gogh-panel-sidebar .gogh-addpage { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.gogh-panel.gogh-panel-sidebar .gogh-addpage .gogh-addpage-go { width: 100%; box-shadow: none; background: #3858e9; border-color: #3858e9; color: #fff; padding: 11px 18px; }
+.gogh-panel.gogh-panel-sidebar .gogh-addpage .gogh-addpage-go:hover { background: #2c49c9; }
+.gogh-panel.gogh-panel-sidebar .gogh-addpage .gogh-addpage-go::after { content: " page"; }
+/* the Lookbook's still preview on a phone-wide section (the phone view):
+   one page, the picture above the words, as visitors' phones show it. The
+   page's own script picks one page by measuring; the still copy can't, so
+   the section's width decides */
+@container (max-width: 700px) {
+  .gogh-shopprev.gogh-shopprev-look.gogh-shop-book .gogh-book-stage { width: 100%; }
+  .gogh-shopprev.gogh-shopprev-look.gogh-shop-book .gogh-book { aspect-ratio: auto; min-height: 0; }
+  .gogh-shopprev.gogh-shopprev-look.gogh-shop-book .gogh-book > li { position: relative !important; display: grid; grid-template-columns: 1fr; padding-bottom: 28px !important; }
+  .gogh-shopprev.gogh-shopprev-look.gogh-shop-book .gogh-book > li > * { grid-column: 1; margin-left: 22px !important; margin-right: 22px !important; }
+  .gogh-shopprev.gogh-shopprev-look.gogh-shop-book .gogh-book > li > .gogh-book-pic { position: relative !important; width: auto !important; grid-column: 1; margin: 0 0 22px !important; aspect-ratio: 4 / 5; }
+  .gogh-shopprev.gogh-shopprev-look.gogh-shop-book .gogh-book > li::after { display: none; }
+  .gogh-shopprev.gogh-shopprev-look.gogh-shop-book .gogh-book-arrow { width: 44px; height: 44px; }
+  .gogh-shopprev.gogh-shopprev-look.gogh-shop-book .gogh-book-next { right: 10px; }
+  .gogh-shopprev.gogh-shopprev-look.gogh-shop-book .gogh-book-corner { display: none; }
+}
+/* sidebar standard, pass 2: the header and footer rooms' doors are the
+   Site styles rows — hairlines, no boxes; Stick to the top joins the list */
+.gogh-hdoors { gap: 0; margin: 4px 0 14px; }
+.gogh-hdoors:has(+ .gogh-hstickyrow) { margin-bottom: 0; }
+.gogh-hdoor { border: 0; border-top: 1px solid var(--gogh-ui-border); border-radius: 0; padding: 13px 4px; font-size: 14.5px; }
+.gogh-hdoors > :last-child { border-bottom: 1px solid var(--gogh-ui-border); }
+.gogh-hdoor:hover { border-color: var(--gogh-ui-border); background: var(--gogh-ui-hover); }
+.gogh-hdoor:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; border-radius: 6px; }
+.gogh-hdoors .gogh-hlaybox { padding: 4px 0 12px; }
+.gogh-hstickyrow { border: 0; border-bottom: 1px solid var(--gogh-ui-border); border-radius: 0; padding: 11px 4px; font-size: 14.5px; margin: 0 0 14px; }

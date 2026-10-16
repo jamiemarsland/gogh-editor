@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.742 · knowledge base 3e4b1bc.
+Generated for plugin version 0.99.743 · knowledge base 0bacc91.
 
 ---
 
@@ -226,14 +226,14 @@ Live starter layouts:
 
 | Name | What it is |
 |---|---|
-| **Hero** | Heading, body copy, two buttons, image + tinted box + badge |
-| **Feature cards** | Centred heading + three real cards with badges, headings and copy |
+| **Hero** | Heading, body copy, two buttons, image + tinted box |
+| **Feature cards** | Centred heading + three real cards with headings and copy |
 | **Big statement** | Badge, huge centred heading, ghost button |
 | **Quote** | Tinted box + pull quote + attribution + image |
 | **Call to action** | Wide tinted box, heading, button |
 | **Article** | 640px reading column, heading, three paragraphs, ghost button |
 | **Photo cards** | Two full-bleed photo cards with gradient scrims, ratings, buttons |
-| **Gallery** | Heading + three staggered images + badge |
+| **Gallery** | Heading + three staggered images |
 | **Get in touch** | Badge, heading, two contact buttons |
 
 Plus **Start from scratch** (empty). Categories: Heroes & banners · Text · Cards & pricing · Photos · Contact & social.
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Calmer section designs, a truer phone view (v0.99.743).** The ready-made section designs no longer carry little badges such as "Nº 01" or "★ Est. 2019"; you can still add a badge yourself from the + menu. Hovering a design in the Add a section chooser now just says **Add**. In the phone view, shop pieces show two products to a row the way a phone does (and published pages now do the same on phones), and the Lookbook shows one page at a time, picture above words, instead of a squeezed spread. Giving a section a dark background colour now also lightens its small label above the heading, which used to stay dark. In the sidebar, the Page drawer shows what's set (the page style, how many sections, the motion), Add a page has one clear blue **Add page** button, and the header and footer rooms use the same calm rows as Site styles.
+
 **One look for every sidebar (v0.99.742).** The panels that open on the left now share the Site styles look: a small **‹ Back** at the top, then the panel's name as a real title and a line saying what it's for. Lists of choices (Page style, Motion and the page styles in Add a page) are calm rows with a line under each name and a tick on the current one, instead of stacked buttons. Section background, Layouts and the panels for photo walls and other blocks use the same heading. Fonts, Motion and Add a page now always open beside the page, zoomed out, like the rest.
 
 **Add a section, redesigned (v0.99.741).** The Add a section chooser is now a plain white sheet with a list on the left: **Start blank**, **Paste HTML** and **My sections** at the top, then the groups **Introduce**, **Sell**, **Showcase** and **Share**, each with its designs listed by name (and your theme's own patterns at the end). Click a group to see all its designs; click a design's name to see every layout of it side by side, and add the one you like. Designs show at their natural height, in your site's own fonts, colours and products, without names or boxes; hover one and **Add** (or **Add here**) appears. The three buttons top right change the size: three across, two across, or one large; gogh remembers your choice. Search is the magnifier beside them.
@@ -1093,11 +1095,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.742**
+- Plugin version: **0.99.743**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.742`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.743`). Quote the plugin header version.
 
 ## Design constants
 

@@ -651,13 +651,13 @@ async function handleChat(req, env) {
 // fillTake() in gogh-editor.js — keep the two together.
 const TAKES = {
   'Cover': { for: 'the front door: one headline over one full-bleed picture', fields: ['eyebrow', 'heading', 'text', 'button', 'link', 'image'] },
-  'Hero': { for: 'a headline and a photo side by side, two buttons, a badge', fields: ['eyebrow', 'heading', 'text', 'button', 'link', 'button2', 'badge', 'image'] },
+  'Hero': { for: 'a headline and a photo side by side, two buttons', fields: ['eyebrow', 'heading', 'text', 'button', 'link', 'button2', 'image'] },
   'Big statement': { for: 'one big line, nothing else', fields: ['eyebrow', 'heading', 'button', 'link'] },
-  'Story': { for: 'a picture beside two paragraphs — about pages, origins', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'link', 'badge', 'image'] },
+  'Story': { for: 'a picture beside two paragraphs — about pages, origins', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'link', 'image'] },
   'Article': { for: 'a comfortable reading column', fields: ['eyebrow', 'heading', 'text', 'text2', 'text3', 'button', 'link'] },
   'Numbers': { for: 'three figures with labels', fields: ['eyebrow'], items: { value: 'the figure, e.g. "312"', label: 'what it counts' }, count: 3 },
   'Feature cards': { for: 'three things you do, offer or believe', fields: ['heading', 'mood'], items: { title: '', text: 'one or two sentences' }, count: 3, max: 3 },
-  'Pricing': { for: 'three plans', fields: ['eyebrow', 'heading'], items: { title: '', text: '', price: 'e.g. "£40/mo"', button: '', badge: 'optional, e.g. "Most popular"' }, count: 3, max: 3 },
+  'Pricing': { for: 'three plans', fields: ['eyebrow', 'heading'], items: { title: '', text: '', price: 'e.g. "£40/mo"', button: '' }, count: 3, max: 3 },
   'Quote': { for: 'one big quotation', fields: ['text', 'name'] },
   'Testimonials': { for: 'three short quotes from customers', fields: ['heading'], items: { quote: '', name: 'who, e.g. "Ella · Bath"' }, count: 3, max: 3 },
   'Call to action': { for: 'the ask, on a coloured band', fields: ['eyebrow', 'heading', 'text', 'button', 'link'] },
@@ -668,10 +668,10 @@ const TAKES = {
   'Carousel': { for: 'pictures that slide', fields: ['eyebrow', 'heading'], items: { image: 'a picture URL', caption: 'optional' }, count: 4, max: 10 },
   'FAQ': { for: 'questions and answers', fields: ['eyebrow', 'heading'], items: { q: 'the question', a: 'the answer' }, count: 4, max: 8 },
   'Menu': { for: 'dishes and prices', fields: ['eyebrow', 'heading', 'text'], items: { name: '', price: 'e.g. "£9"' }, count: 4, max: 4 },
-  'Portfolio': { for: 'one case study with a picture and two results', fields: ['eyebrow', 'heading', 'text', 'badge', 'badge2', 'button', 'link', 'image'] },
-  'Profile card': { for: 'one person on a card over a picture', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'link', 'badge'] },
-  'Place card': { for: 'one place on a card over a picture', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'link', 'badge'] },
-  'Job card': { for: 'one job on a card', fields: ['heading', 'text', 'text2', 'button', 'link', 'badge'] },
+  'Portfolio': { for: 'one case study with a picture and two results', fields: ['eyebrow', 'heading', 'text', 'button', 'link', 'image'] },
+  'Profile card': { for: 'one person on a card over a picture', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'link'] },
+  'Place card': { for: 'one place on a card over a picture', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'link'] },
+  'Job card': { for: 'one job on a card', fields: ['heading', 'text', 'text2', 'button', 'link'] },
   'Latest posts': { for: 'the newest posts, live', fields: ['heading', 'posts'] },
 };
 const VARIATIONS = ['Morning', 'Evening', 'Noon', 'Afternoon', 'Dusk', 'Twilight', 'Sunrise', 'Midnight'];

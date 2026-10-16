@@ -207,14 +207,14 @@ Live starter layouts:
 
 | Name | What it is |
 |---|---|
-| **Hero** | Heading, body copy, two buttons, image + tinted box + badge |
-| **Feature cards** | Centred heading + three real cards with badges, headings and copy |
+| **Hero** | Heading, body copy, two buttons, image + tinted box |
+| **Feature cards** | Centred heading + three real cards with headings and copy |
 | **Big statement** | Badge, huge centred heading, ghost button |
 | **Quote** | Tinted box + pull quote + attribution + image |
 | **Call to action** | Wide tinted box, heading, button |
 | **Article** | 640px reading column, heading, three paragraphs, ghost button |
 | **Photo cards** | Two full-bleed photo cards with gradient scrims, ratings, buttons |
-| **Gallery** | Heading + three staggered images + badge |
+| **Gallery** | Heading + three staggered images |
 | **Get in touch** | Badge, heading, two contact buttons |
 
 Plus **Start from scratch** (empty). Categories: Heroes & banners · Text · Cards & pricing · Photos · Contact & social.
@@ -810,6 +810,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 **The open menu keeps to the window in a zoomed view (v0.99.605).** Inside the zoomed page, a menu positioned to the screen answers to the page's box instead, so Stack and Centred filled the whole page, Drawer ran the page's height and Sheet landed at the page's foot, out of sight. While the menu is open under a zoom, gogh pins its box to the part of the page the window shows and re-pins on every layout change, scroll or resize, so Sheet auditions and every layout looks as it does on a phone. Nothing of this runs on the real page.
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
+
+**Calmer section designs, a truer phone view (v0.99.743).** The ready-made section designs no longer carry little badges such as "Nº 01" or "★ Est. 2019"; you can still add a badge yourself from the + menu. Hovering a design in the Add a section chooser now just says **Add**. In the phone view, shop pieces show two products to a row the way a phone does (and published pages now do the same on phones), and the Lookbook shows one page at a time, picture above words, instead of a squeezed spread. Giving a section a dark background colour now also lightens its small label above the heading, which used to stay dark. In the sidebar, the Page drawer shows what's set (the page style, how many sections, the motion), Add a page has one clear blue **Add page** button, and the header and footer rooms use the same calm rows as Site styles.
 
 **One look for every sidebar (v0.99.742).** The panels that open on the left now share the Site styles look: a small **‹ Back** at the top, then the panel's name as a real title and a line saying what it's for. Lists of choices (Page style, Motion and the page styles in Add a page) are calm rows with a line under each name and a tick on the current one, instead of stacked buttons. Section background, Layouts and the panels for photo walls and other blocks use the same heading. Fonts, Motion and Add a page now always open beside the page, zoomed out, like the rest.
 

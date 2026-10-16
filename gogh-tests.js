@@ -4572,7 +4572,7 @@
       var mk = q('.gogh-seammark');
       expect(mk && mk.nextElementSibling === below.wrapEl, 'the page should mark the spot, right above the section below');
       var card = [].filter.call(pk.querySelectorAll('.gogh-card[data-tpl]'), function (b) { return b.style.display !== 'none'; })[0];
-      expect(card && card.querySelector('.gogh-nb-top') && card.querySelector('.gogh-nb-bot') && card.querySelector('.gogh-card-add'), 'each card should show its neighbours and Add here');
+      expect(card && card.querySelector('.gogh-nb-top') && card.querySelector('.gogh-nb-bot') && card.querySelector('.gogh-card-add'), 'each card should show its neighbours and Add');
       card.click();
       expect(G.sections().length === n0 + 1, 'choosing should add one section');
       var born = G.sections()[idx];
@@ -6565,8 +6565,8 @@
       expect(!/Est\. 2019/.test(words) && !/Start a project/.test(words) && !/Brighton/.test(words), 'nothing of the demo studio should survive: ' + words.slice(0, 150));
       expect(hero.els.filter(function (e) { return e.type === 'button'; }).length === 1 && hero.els.filter(function (e) { return e.type === 'badge'; }).length === 0, 'one button was asked for, so one button; no badge was asked for, so none');
       expect(/Architecture · Bristol/.test(words) && /Buildings that keep/.test(words) && /small practice/.test(words), 'what WAS asked for stays');
-      var two = G.fillTake({ take: 'Hero', heading: 'Two doors', text: 'Words.', button: 'One', button2: 'Two', badge: 'New' });
-      expect(two.els.filter(function (e) { return e.type === 'button'; }).length === 2 && two.els.filter(function (e) { return e.type === 'badge'; }).length === 1, 'ask for two buttons and a badge and you get them');
+      var two = G.fillTake({ take: 'Hero', heading: 'Two doors', text: 'Words.', button: 'One', button2: 'Two' });
+      expect(two.els.filter(function (e) { return e.type === 'button'; }).length === 2, 'ask for two buttons and you get them');
       var story = G.fillTake({ take: 'Story', heading: 'One paragraph only', text: 'Just the one.' });
       expect(story.els.filter(function (e) { return e.type === 'para' && !(e.tf && e.tf.tt === 'uppercase'); }).length === 1, 'a second paragraph nobody wrote should not appear');
       var card = G.fillTake({ take: 'Pricing', heading: 'Plans', items: [{ title: 'Simple', text: 'One rate.', price: '£40' }] });
