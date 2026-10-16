@@ -4869,3 +4869,46 @@ button.gogh-sb-take { border: 0; background: none; font: inherit; color: inherit
 @media (prefers-reduced-motion: reduce) { .gogh-card-prev .gogh-card-add { transition: none; } }
 /* a widget's Edit, in words (v0.99.740) */
 .gogh-eb.gogh-eb-ctx.gogh-eb-labelled { display: inline-flex; align-items: center; gap: 6px; width: auto; padding: 6px 12px; font-size: 13px; font-weight: 650; white-space: nowrap; }
+/* Add a section, Squarespace-style (v0.99.741): a plain white sheet, a big
+   title, a grouped list on the left, masonry previews at their natural
+   height with no names, and a three-way size switch */
+.gogh-picker-sq .gogh-picker-inner { width: min(1180px, calc(100vw - 48px)); height: calc(100vh - 56px); max-height: none; background: #ffffff;
+  border: 0; border-radius: 4px; padding: 0 40px 40px; box-shadow: 0 30px 80px -24px rgba(10, 5, 30, 0.5); }
+.gogh-picker-sq .gogh-picker-head { position: sticky; top: 0; z-index: 3; background: #ffffff; align-items: center; margin: 0; padding: 34px 0 18px; }
+.gogh-picker-sq .gogh-picker-title { font-size: 32px; font-weight: 600; letter-spacing: -0.015em; color: #141414; }
+.gogh-picker-sq .gogh-picker-tools { gap: 6px; }
+.gogh-picker-sq .gogh-picker-search { background: transparent; border-color: transparent; }
+.gogh-picker-sq .gogh-picker-search:focus-within { background: #f4f4f5; border-color: #e3e3e6; }
+.gogh-pk-sizes { display: inline-flex; gap: 2px; padding: 0 6px; margin: 0 4px; border-left: 1px solid #e6e6e6; border-right: 1px solid #e6e6e6; }
+.gogh-pk-size { all: unset; cursor: pointer; width: 36px; height: 36px; border-radius: 6px; display: grid; place-items: center; color: #141414; }
+.gogh-pk-size:hover { background: #f2f2f3; }
+.gogh-pk-size.is-on { background: #e9e9eb; }
+.gogh-pk-size:focus-visible, .gogh-pl-link:focus-visible, .gogh-pl-head:focus-visible, .gogh-pl-item:focus-visible { outline: 2px solid #3858e9; outline-offset: 2px; }
+.gogh-picker-sq .gogh-picker-body { gap: 32px; }
+.gogh-picker-sq .gogh-picklist { flex: 0 0 210px; position: sticky; top: 92px; max-height: calc(100vh - 180px); overflow-y: auto; gap: 0; padding: 4px 0 24px; }
+.gogh-picker-sq .gogh-picklist button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 10px; box-sizing: border-box; }
+.gogh-picker-sq .gogh-picklist .gogh-pl-link { height: 34px; font-size: 15px; color: #3a3a3a; }
+.gogh-picker-sq .gogh-picklist .gogh-pl-link:hover { color: #141414; }
+.gogh-pl-group { display: flex; flex-direction: column; margin-top: 22px; }
+.gogh-pl-group[hidden] { display: none; }
+.gogh-picker-sq .gogh-picklist .gogh-pl-head { font-size: 17px; font-weight: 600; color: #141414; padding: 2px 0 8px; }
+.gogh-picker-sq .gogh-picklist .gogh-pl-item { font-size: 15px; color: #6b6b6b; padding: 5px 0; line-height: 1.3; }
+.gogh-picker-sq .gogh-picklist .gogh-pl-item:hover, .gogh-picker-sq .gogh-picklist .gogh-pl-head:hover { color: #141414; }
+.gogh-picker-sq .gogh-picklist .is-on { color: #141414; text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1.5px; }
+.gogh-picker-sq .gogh-cards { display: block; column-count: 2; column-gap: 24px; margin-top: 4px; }
+.gogh-picker-sq.gogh-cols-1 .gogh-cards { column-count: 1; }
+.gogh-picker-sq.gogh-cols-3 .gogh-cards { column-count: 3; column-gap: 20px; }
+.gogh-picker-sq .gogh-card { display: block; width: 100%; break-inside: avoid; margin: 0 0 24px; border-radius: 2px; outline: 1px solid #e6e6e6; box-sizing: border-box; }
+.gogh-picker-sq.gogh-cols-3 .gogh-card { margin-bottom: 20px; }
+.gogh-picker-sq .gogh-card:hover { transform: translateY(-2px); outline-color: #c9c9c9; box-shadow: 0 16px 36px -20px rgba(0, 0, 0, 0.45); }
+.gogh-picker-sq .gogh-card-prev { aspect-ratio: auto; height: 180px; }
+.gogh-picker-sq .gogh-card[data-tpl] .gogh-card-name, .gogh-picker-sq .gogh-card[data-fam] .gogh-card-name, .gogh-picker-sq .gogh-card[data-dtpl] .gogh-card-name { display: none; }
+.gogh-picker-sq .gogh-card-add { background: #141414; }
+.gogh-picker-sq .gogh-quickrow, .gogh-picker-sq .gogh-quicklab, .gogh-picker-sq .gogh-seclab, .gogh-picker-sq .gogh-gridlab, .gogh-picker-sq .gogh-viewbar { display: none !important; }
+@media (max-width: 780px) {
+  .gogh-picker-sq .gogh-picker-inner { padding: 0 18px 24px; }
+  .gogh-picker-sq .gogh-picker-body { flex-direction: column; gap: 8px; }
+  .gogh-picker-sq .gogh-picklist { display: flex; position: static; flex: none; flex-direction: row; flex-wrap: wrap; max-height: none; gap: 4px 14px; }
+  .gogh-picker-sq .gogh-pl-group { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
+  .gogh-picker-sq .gogh-cards { column-count: 1 !important; }
+}

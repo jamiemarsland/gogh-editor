@@ -12661,6 +12661,9 @@
     // opened at a seam, a card shows a slice of the section above and below,
     // hugging the design, so it reads 'this goes between these two'
     var nb = pv.classList.contains('gogh-card-nb') ? 12 : 0;
+    // the chooser shows each design at its natural height (masonry, after
+    // Squarespace), not letterboxed into one shape
+    if (pv.closest && pv.closest('.gogh-picker-sq') && pv.clientWidth) pv.style.height = Math.round(h * pv.clientWidth / 1200 + nb * 2) + 'px';
     var room = (pv.clientHeight || 1) - nb * 2;
     var scale = Math.min(pv.clientWidth / 1200, room / h);
     if (!isFinite(scale) || scale <= 0) scale = pv.clientWidth / 1200;
@@ -12738,11 +12741,13 @@
       var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null, bgImage: tplBgFor(tpl), bgA: tpl.bgA != null ? tpl.bgA : null }) : '';
       var inner = els.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
       return '<button type="button" class="gogh-card" data-tpl="' + t + '" data-si="' + (si || 0) + '"' +
-        ' data-cats="' + (STARTER_CATS[tpl.name] || '') + '"' + (tpl.keywords ? ' data-kw="' + escAttr(tpl.keywords) + '"' : '') + '>' +
+        ' data-intent="' + escAttr(tpl.intent || 'more') + '"' +
+        ' data-cats="' + (STARTER_CATS[tpl.name] || '') + '"' + (tpl.keywords ? ' data-kw="' + escAttr(tpl.keywords) + '"' : '') +
+        ' aria-label="' + escAttr('Add ' + String(tpl.label || tpl.name).replace(/<[^>]*>/g, '')) + '">' +
         '<span class="gogh-card-prev' + (atSeam ? ' gogh-card-nb' : '') + '"><style>' + css + '</style>' +
         (atSeam ? nbBand('top') : '') +
         '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
-        (atSeam ? nbBand('bot') + '<span class="gogh-card-add">Add here</span>' : '') +
+        (atSeam ? nbBand('bot') : '') + '<span class="gogh-card-add">' + (atSeam ? 'Add here' : 'Add') + '</span>' +
         '</span>' +
         '<span class="gogh-card-name">' + (tpl.label || tpl.name) +
         (popular ? '<span class="gogh-pop">🔥 Popular</span>' : '') + '</span>' +
@@ -12799,6 +12804,36 @@
       cardsArr.push(tplCardHTML(tpl, t, false, starterSeen));
     });
     var cards = cardsArr.join('');
+    // the list on the left (James, after Squarespace's Add a Section): quiet
+    // links, then each intent as a bold heading with its designs under it.
+    // A heading shows the group; a design shows every take of it
+    var listGroups = [];
+    if (designShelf.length) listGroups.push({ view: 'design', label: 'Made for ' + (cfg.design.name || 'this design'), items: [] });
+    INTENTS.concat([{ key: 'more', label: 'More' }]).forEach(function (g) {
+      var items = [];
+      TEMPLATES.forEach(function (tpl, t) {
+        if (tpl.retired || !tpl.starter || tpl.gated && !cfg[tpl.gated]) return;
+        if ((tpl.intent || 'more') !== g.key) return;
+        items.push({ view: 'tpl:' + t, label: String(tpl.label || tpl.name).replace(/<[^>]*>/g, '') });
+      });
+      if (items.length) listGroups.push({ view: 'intent:' + g.key, label: g.label, items: items });
+    });
+    var listHTML =
+      '<button type="button" class="gogh-pl-link" data-act="blank"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Start blank</button>' +
+      '<button type="button" class="gogh-pl-link" data-act="paste"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v4H8z"/><path d="M6 6H5v14h14V6h-1"/></svg>Paste HTML</button>' +
+      '<button type="button" class="gogh-pl-link" data-act="yours"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-9-8.6C1.6 8.4 3.4 5 6.6 5c2 0 3.4 1.1 4.2 2.4L12 9l1.2-1.6C14 6.1 15.4 5 17.4 5c3.2 0 5 3.4 3.6 6.4C19 15.6 12 20 12 20z"/></svg>My sections</button>' +
+      listGroups.map(function (g) {
+        return '<div class="gogh-pl-group"><button type="button" class="gogh-pl-head" data-view="' + escAttr(g.view) + '">' + esc(g.label) + '</button>' +
+          g.items.map(function (it) { return '<button type="button" class="gogh-pl-item" data-view="' + escAttr(it.view) + '">' + esc(it.label) + '</button>'; }).join('') +
+          '</div>';
+      }).join('') +
+      '<div class="gogh-pl-group gogh-pl-theme" hidden><button type="button" class="gogh-pl-head" data-view="theme"></button></div>';
+    var cols = 2;
+    try { cols = +(localStorage.getItem('gogh-picker-cols') || 2) || 2; } catch (err) {}
+    if ([1, 2, 3].indexOf(cols) === -1) cols = 2;
+    var sizeBtn = function (n, label, svg) {
+      return '<button type="button" class="gogh-pk-size" data-cols="' + n + '" aria-label="' + label + '" title="' + label + '">' + svg + '</button>';
+    };
     var quickTile = function (cls, icon, title, sub) {
       return '<button type="button" class="gogh-quick ' + cls + '">' +
         '<span class="gogh-quick-ic">' + icon + '</span>' +
@@ -12810,13 +12845,17 @@
     picker.innerHTML =
       '<div class="gogh-picker-inner">' +
       '<div class="gogh-picker-head">' +
-      '<span class="gogh-picker-headings"><span class="gogh-picker-title">Add a section</span>' +
-      '<span class="gogh-picker-sub">Choose a layout to get started. You can customise everything.</span></span>' +
+      '<span class="gogh-picker-headings"><span class="gogh-picker-title">Add a section</span></span>' +
       '<span class="gogh-picker-tools">' +
       '<label class="gogh-picker-search">' +
-      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>' +
-      '<input type="text" class="gogh-patsearch" placeholder="Search layouts\u2026" />' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>' +
+      '<input type="text" class="gogh-patsearch" placeholder="Search sections\u2026" aria-label="Search sections" />' +
       '</label>' +
+      '<span class="gogh-pk-sizes" role="group" aria-label="Preview size">' +
+      sizeBtn(3, 'Small previews', '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>') +
+      sizeBtn(2, 'Two across', '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.2"/></svg>') +
+      sizeBtn(1, 'One large preview', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5"/></svg>') +
+      '</span>' +
       '<button type="button" class="gogh-picker-close gogh-picker-x" title="Close">' +
       '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
       '</button>' +
@@ -12829,7 +12868,7 @@
       // ours lists exactly the shelves on the page, and grows only when
       // a shelf does)
       '<div class="gogh-picker-body">' +
-      '<nav class="gogh-pickrail" aria-label="Section shelves"></nav>' +
+      '<nav class="gogh-pickrail gogh-picklist" aria-label="Kinds of section">' + listHTML + '</nav>' +
       '<div class="gogh-picker-main">' +
       '<div class="gogh-seclab gogh-viewbar" hidden><span></span>' +
       '<button type="button" class="gogh-gridlab-all gogh-view-back">← All layouts</button></div>' +
@@ -12903,7 +12942,7 @@
       closePicker();
     });
     picker.querySelector('.gogh-quick-yours').addEventListener('click', function () {
-      setView('yours', 'Your sections'); // empty state falls through to the grid's hint
+      activeCat = 'yours'; applyFilter(); // empty state falls through to the grid's hint
     });
     picker.querySelectorAll('.gogh-card-prev').forEach(function (p) {
       var st = p.querySelector('.gogh-card-stage');
@@ -12912,8 +12951,8 @@
     // a shop's own products in its shop designs (James: 'should we see
     // actual product images here?'): each shop card is drawn with the sample
     // first, then redrawn from the Store API with the real ones
-    picker.querySelectorAll('.gogh-card').forEach(function (card) {
-      var key = card.dataset.tpl != null ? card.dataset.tpl : (card.dataset.dtpl != null ? 'd' + card.dataset.dtpl : null);
+    function hydrateShopCard(card) {
+      var key = card.dataset.tpl != null ? card.dataset.tpl : card.dataset.dtpl != null ? 'd' + card.dataset.dtpl : card.dataset.fam != null ? 'f' + card.dataset.fam + '-' + card.dataset.face : null;
       var els = key != null ? cardEls[key] : null;
       if (!els) return;
       els.forEach(function (e, i) {
@@ -12935,107 +12974,133 @@
           });
         }).catch(function () {});
       });
-    });
+    }
+    picker.querySelectorAll('.gogh-card').forEach(hydrateShopCard);
     var cardsBox = picker.querySelector('.gogh-cards');
     var emptyHint = picker.querySelector('.gogh-pickempty');
     var searchIn = picker.querySelector('.gogh-patsearch');
-    var activeCat = '', query = '';
-    // one grid, one filter: chips and search treat every card the same
+    var activeCat = (listGroups[0] && listGroups[0].view) || '', query = '';
+    picker.classList.add('gogh-picker-sq');
+    var setCols = function (n) {
+      cols = n;
+      picker.classList.remove('gogh-cols-1', 'gogh-cols-2', 'gogh-cols-3');
+      picker.classList.add('gogh-cols-' + n);
+      picker.querySelectorAll('.gogh-pk-size').forEach(function (b) {
+        var on = +b.dataset.cols === n;
+        b.classList.toggle('is-on', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      try { localStorage.setItem('gogh-picker-cols', String(n)); } catch (err) {}
+    };
+    setCols(cols);
+    // every take of a design, drawn when its name is chosen in the list
+    var takesDone = {};
+    var addAtFace = function (t, k) {
+      var seen = S.map(function (x) { return x.wrapEl; });
+      addSection(TEMPLATES[t], pickerIdx, pickerBefore);
+      var born = S.filter(function (x) { return seen.indexOf(x.wrapEl) === -1; })[0];
+      var bi = S.indexOf(born);
+      if (bi === -1 || !k) return;
+      for (var j = 0; j < k; j++) rollSection(bi, j < k - 1 ? { quiet: true } : null);
+      // one undo step: the arrival on the first take folds into the roll
+      if (hIdx >= 1) { history.splice(hIdx - 1, 1); hIdx--; syncHistoryButtons(); }
+    };
+    var ensureTakes = function (t) {
+      if (takesDone[t]) return;
+      takesDone[t] = true;
+      var fam = TEMPLATES[t], faces = fam ? diceFaces(fam.name) : null;
+      var base = cardsBox.querySelector('.gogh-card[data-tpl="' + t + '"]');
+      if (!faces || faces.length < 2 || !base) return;
+      var after = base;
+      faces.forEach(function (face, k) {
+        if (!k) return;
+        var key = 'f' + t + '-' + k;
+        var holder = document.createElement('div');
+        holder.innerHTML = tplCardHTML(Object.assign({}, face, { intent: fam.intent, label: fam.label || fam.name }), key, false, 0);
+        var card = holder.firstChild;
+        card.removeAttribute('data-tpl');
+        card.dataset.fam = String(t);
+        card.dataset.face = String(k);
+        card.addEventListener('click', function () {
+          var i0 = pickerIdx, b0 = pickerBefore;
+          closePicker();
+          pickerIdx = i0; pickerBefore = b0;
+          addAtFace(t, k);
+        });
+        after.parentNode.insertBefore(card, after.nextSibling);
+        after = card;
+        hydrateShopCard(card);
+      });
+    };
+    var refit = function () {
+      picker.querySelectorAll('.gogh-card').forEach(function (b) {
+        if (b.style.display === 'none') return;
+        var pv = b.querySelector('.gogh-card-prev'), st = b.querySelector('.gogh-card-stage');
+        if (pv && st) fitCardStage(pv, st);
+      });
+    };
+    var markList = function () {
+      picker.querySelectorAll('.gogh-pl-head, .gogh-pl-item').forEach(function (b) {
+        var on = !query && b.dataset.view === activeCat;
+        b.classList.toggle('is-on', on);
+        if (on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+      });
+      var yl = picker.querySelector('.gogh-pl-link[data-act="yours"]');
+      if (yl) yl.classList.toggle('is-on', !query && activeCat === 'yours');
+    };
+    // one grid, one filter: the list and the search choose what shows
     function applyFilter() {
-      var shown = 0, teaser = 0;
-      var filtered = !!(activeCat || query);
-      // the labelled library shape (Quick start / Recommended / Browse) only
-      // makes sense on the first screen — filters flatten to one plain grid
-      [].forEach.call(picker.querySelectorAll('.gogh-quicklab, .gogh-quickrow'), function (n) {
-        n.hidden = filtered;
-      });
-      [].forEach.call(cardsBox.querySelectorAll('.gogh-seclab'), function (n) {
-        n.hidden = filtered;
-      });
+      if (activeCat.indexOf('tpl:') === 0) ensureTakes(activeCat.slice(4));
+      var shown = 0;
+      [].forEach.call(picker.querySelectorAll('.gogh-quicklab, .gogh-quickrow, .gogh-gridlab, .gogh-viewbar'), function (n) { n.hidden = true; });
+      [].forEach.call(cardsBox.querySelectorAll('.gogh-seclab'), function (n) { n.hidden = true; });
       [].slice.call(cardsBox.querySelectorAll('.gogh-card')).forEach(function (b) {
         var ok;
         var isPat = b.classList.contains('gogh-card-pattern');
-        if (!activeCat && !query) {
-          // first screen: every starter under its intent shelf — the
-          // shelves are the map, so nothing hides behind a See all — plus
-          // a one-row taste of the theme's patterns (recents/faves carry
-          // kind="yours" and stay off the first screen)
-          ok = b.dataset.tpl != null || b.dataset.dtpl != null ||
-            (isPat && !b.dataset.kind && teaser < 4 && !!(++teaser));
-        } else {
-          var cats = (b.dataset.cats || '').split(' ');
+        if (query) {
           var name = ((b.querySelector('.gogh-card-name') || {}).textContent || '').toLowerCase();
-          ok = (!activeCat ||
-            (activeCat === 'yours' ? b.dataset.kind === 'yours' :
-              activeCat === 'theme' ? isPat : cats.indexOf(activeCat) !== -1)) &&
-            (!query || name.indexOf(query) !== -1 || (b.dataset.kw || '').indexOf(query) !== -1);
-        }
+          ok = !b.dataset.face && (name.indexOf(query) !== -1 || (b.dataset.kw || '').indexOf(query) !== -1 || (b.dataset.cats || '').indexOf(query) !== -1);
+        } else if (activeCat === 'yours') ok = b.dataset.kind === 'yours';
+        else if (activeCat === 'theme') ok = isPat;
+        else if (activeCat === 'design') ok = b.dataset.dtpl != null;
+        else if (activeCat.indexOf('intent:') === 0) ok = b.dataset.tpl != null && b.dataset.intent === activeCat.slice(7);
+        else if (activeCat.indexOf('tpl:') === 0) ok = b.dataset.tpl === activeCat.slice(4) || b.dataset.fam === activeCat.slice(4);
+        else ok = b.dataset.tpl != null;
         b.style.display = ok ? '' : 'none';
         if (ok) {
           shown++;
           if (io && b.__pat && !b.__hydrated) { io.unobserve(b); hydrate(b, b.__pat); }
         }
       });
-      var lab = cardsBox.querySelector('.gogh-gridlab');
-      if (lab) lab.hidden = !(!activeCat && !query && teaser > 0);
       emptyHint.hidden = shown > 0;
-      // filters flatten the modal to one plain grid — a map of hidden
-      // shelves would lie, so the rail steps aside with them
-      var railN = picker.querySelector('.gogh-pickrail');
-      if (railN) { railN.hidden = filtered; buildRail(); }
+      markList();
+      refit();
     }
-    // ---- the rail: sticky shelf map — jump, don't hunt ----
-    function buildRail() {
-      var railN = picker.querySelector('.gogh-pickrail');
-      if (!railN || railN.hidden) return;
-      // rebuilt from the DOM each pass, so the async theme shelf simply
-      // appears on the map the moment it appears on the page
-      var stops = [].slice.call(picker.querySelectorAll('.gogh-quicklab, .gogh-intentlab, .gogh-gridlab'))
-        .filter(function (n) { return !n.hidden; });
-      railN.innerHTML = stops.map(function (n, i) {
-        var t = String((n.firstChild && n.firstChild.textContent) || n.textContent || '').trim();
-        return '<button type="button" data-stop="' + i + '">' + esc(t) + '</button>';
-      }).join('');
-      var mark = function () {
-        var top = pin.getBoundingClientRect().top;
-        var here = 0;
-        stops.forEach(function (n, i) {
-          if (n.getBoundingClientRect().top - top < 130) here = i;
-        });
-        railN.querySelectorAll('button').forEach(function (b, i) {
-          b.classList.toggle('is-here', i === here);
-        });
-      };
-      railN.querySelectorAll('button').forEach(function (b) {
-        b.addEventListener('click', function () {
-          var n = stops[+b.dataset.stop];
-          if (!n) return;
-          pin.scrollTo({
-            top: n.getBoundingClientRect().top - pin.getBoundingClientRect().top + pin.scrollTop - 14,
-            behavior: 'smooth',
-          });
-        });
-      });
-      pin.__railMark = mark; // each rebuild swaps in its own stops
-      if (!pin.__railSpy) {
-        pin.__railSpy = true;
-        pin.addEventListener('scroll', function () {
-          var r2 = picker.querySelector('.gogh-pickrail');
-          if (r2 && !r2.hidden && pin.__railMark) pin.__railMark();
-        }, { passive: true });
-      }
-      mark();
-    }
+    picker.querySelectorAll('.gogh-pk-size').forEach(function (b) {
+      b.addEventListener('click', function () { setCols(+b.dataset.cols); refit(); });
+    });
+    picker.querySelector('.gogh-picklist').addEventListener('click', function (ev) {
+      var b = ev.target.closest('button');
+      if (!b) return;
+      if (b.dataset.act === 'blank') { picker.querySelector('.gogh-quick-scratch').click(); return; }
+      if (b.dataset.act === 'paste') { picker.querySelector('.gogh-card-htmladd').click(); return; }
+      if (b.dataset.act === 'yours') activeCat = 'yours';
+      else if (b.dataset.view) activeCat = b.dataset.view;
+      else return;
+      if (query) { query = ''; searchIn.value = ''; }
+      if (pin) pin.scrollTop = 0;
+      var mainEl = picker.querySelector('.gogh-picker-main');
+      if (mainEl) mainEl.scrollTop = 0;
+      applyFilter();
+    });
     // lightweight views (yours / theme) replace the old chip row
     var viewBar = picker.querySelector('.gogh-viewbar');
-    function setView(cat, label) {
-      activeCat = cat;
+    function setView(cat) {
+      activeCat = cat || ((listGroups[0] && listGroups[0].view) || '');
       picker.classList.toggle('gogh-view-yours', cat === 'yours');
-      viewBar.querySelector('span').textContent = label || '';
-      viewBar.hidden = !cat;
       applyFilter();
     }
-    picker.querySelector('.gogh-view-back').addEventListener('click', function () { setView('', ''); });
+    picker.querySelector('.gogh-view-back').addEventListener('click', function () { setView(''); });
     searchIn.addEventListener('input', function () {
       query = this.value.trim().toLowerCase();
       applyFilter();
@@ -13131,7 +13196,7 @@
       // "Your sections" view
       var updateYoursChip = function () {
         if (activeCat === 'yours' && !cardsBox.querySelector('.gogh-card[data-kind="yours"]')) {
-          setView('', '');
+          setView('');
         }
       };
       var patCard = function (p) {
@@ -13280,8 +13345,10 @@
         lab.querySelector('span').textContent = themeLabel;
         cardsBox.appendChild(lab);
         lab.querySelector('.gogh-gridlab-all').addEventListener('click', function () {
-          setView('theme', themeLabel);
+          setView('theme');
         });
+        var thG = picker.querySelector('.gogh-pl-theme');
+        if (thG) { thG.hidden = false; thG.querySelector('.gogh-pl-head').textContent = themeLabel; }
       }
       pats.forEach(function (p) {
         var b = patCard(p);

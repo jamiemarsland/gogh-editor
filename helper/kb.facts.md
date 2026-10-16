@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.740**
+- Plugin version: **0.99.741**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.740`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.741`). Quote the plugin header version.
 
 ## Design constants
 
@@ -226,6 +226,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + escAttr(stl.name) + '’s colour"
 - "' + escAttr(t.name) + '"
 - "' + hp[1] + ' — ' + hp[2] + ' units"
+- "' + label + '"
 - "' + m[2] + '"
 - "' + nm.replace(/-/g, ' ') + '"
 - "' + p.slug + '"
@@ -371,6 +372,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Move up in the phone stack"
 - "Move, duplicate, save, delete…"
 - "My account"
+- "My sections"
 - "Name, email and a message — straight into your own site, no plugin"
 - "New in"
 - "None"
@@ -381,6 +383,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Open your products in WordPress"
 - "Our story"
 - "Outline"
+- "Paste HTML"
 - "Peek at pages"
 - "Phone menu"
 - "Pick a custom colour for this section"
@@ -431,6 +434,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Site styles: the fonts and colours of the whole site"
 - "Smaller text"
 - "Solid"
+- "Start blank"
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
 - "Switch it on"

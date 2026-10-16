@@ -3706,80 +3706,60 @@
       G.deleteSection(G.sections().indexOf(added));
     });
 
-    test('picker: no chip row — intent shelves, search filters', function () {
+    test('picker: the list shows each group, search filters across them all', function () {
       G.openPicker(G.sections().length);
       expect(!q('.gogh-topstrip') && !q('.gogh-patcats'), 'chip row should be gone');
       var cardByName = function (nm) {
-        return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card'), function (c) {
+        return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]'), function (c) {
           var n = c.querySelector('.gogh-card-name');
           return n && n.textContent.indexOf(nm) === 0;
         })[0];
       };
-      // first screen: every starter under its intent shelf — the shelves
-      // are the map, so nothing hides behind a See all
-      var shelfText = [].map.call(document.querySelectorAll('.gogh-cards .gogh-intentlab'), function (l) { return l.textContent; }).join(' ');
-      expect(/Introduce/.test(shelfText) && /Sell/.test(shelfText) && /Showcase/.test(shelfText),
-        'intent shelves missing: ' + shelfText);
+      var heads = [].slice.call(document.querySelectorAll('.gogh-picklist .gogh-pl-head')).filter(function (h) { return h.offsetParent || !h.closest('[hidden]'); });
+      var names = heads.map(function (h) { return h.textContent; });
+      expect(names.indexOf('Introduce') !== -1 && names.indexOf('Sell') !== -1 && names.indexOf('Showcase') !== -1, 'groups missing: ' + names.join(', '));
       var totalTpl = document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]').length;
-      var visTpl = function () {
-        return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]'), function (c) {
-          return c.style.display !== 'none';
-        }).length;
-      };
       expect(totalTpl >= 15, 'the beauty pass promises ~15 starters, found ' + totalTpl);
-      expect(visTpl() === totalTpl, 'every starter should show on the first screen, got ' + visTpl() + '/' + totalTpl);
-      expect(!q('.gogh-browse-all'), 'See all should be gone — the shelves are the map');
+      var vis = function () {
+        return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]'), function (c) { return c.style.display !== 'none'; });
+      };
+      // the first group shows on opening; every starter is in one group
+      expect(vis().length > 0 && vis().length < totalTpl, 'the first group should show on its own, got ' + vis().length + '/' + totalTpl);
+      var seen = {};
+      heads.forEach(function (h) { if (!/^(intent:|design)/.test(h.dataset.view)) return; h.click(); vis().forEach(function (c) { seen[c.dataset.tpl] = 1; }); });
+      expect(Object.keys(seen).length === totalTpl, 'every starter should be in a group, got ' + Object.keys(seen).length + '/' + totalTpl);
       // search flattens to matches only
-      var quick = q('.gogh-quickrow');
       var sIn = q('.gogh-picker-search .gogh-patsearch');
       sIn.value = 'quote';
       sIn.dispatchEvent(new Event('input', { bubbles: true }));
       expect(cardByName('Quote').style.display !== 'none', 'Quote hidden under search');
       expect(cardByName('Hero').style.display === 'none', 'Hero visible under search');
-      expect(quick.hidden, 'Quick start row visible while searching');
       sIn.value = '';
       sIn.dispatchEvent(new Event('input', { bubbles: true }));
-      expect(cardByName('Hero').style.display !== 'none', 'Hero not restored');
-      expect(!quick.hidden, 'Quick start row not restored');
-      // My sections opens a view with a way back
-      q('.gogh-quick-yours').click();
-      expect(!q('.gogh-viewbar').hidden, 'view bar did not open for My sections');
-      q('.gogh-view-back').click();
-      expect(q('.gogh-viewbar').hidden, 'view bar did not close');
+      q('.gogh-picklist .gogh-pl-head').click();
+      expect(cardByName('Hero').style.display !== 'none', 'Hero not back with Introduce');
       q('.gogh-picker-close').click();
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
 
-    test('picker: the rail maps the shelves', function () {
+    test('picker: a design in the list shows every take of it, and the size switch reshapes the grid', function () {
       G.openPicker(G.sections().length);
-      var rail = q('.gogh-pickrail');
-      expect(rail && !rail.hidden, 'the rail is missing from the first screen');
-      var names = [].map.call(rail.querySelectorAll('button'), function (b) { return b.textContent; });
-      expect(names.length >= 4, 'expected at least four shelves on the map, got ' + names.join(', '));
-      expect(/Quick start/.test(names[0]) && names.indexOf('Introduce') !== -1 &&
-        names.indexOf('Sell') !== -1 && names.indexOf('Showcase') !== -1,
-        'the map misnames the shelves: ' + names.join(', '));
-      expect(rail.querySelector('button.is-here'), 'no shelf is marked as here');
-      // the spy follows the scroll — dispatched by hand, because background
-      // tabs freeze smooth scrolling but never the listener
-      var pin = q('.gogh-picker-inner');
-      pin.scrollTop = pin.scrollHeight;
-      pin.dispatchEvent(new Event('scroll'));
-      var here = rail.querySelector('button.is-here');
-      expect(here && here.textContent !== names[0],
-        'scrolled to the bottom, but the map still says ' + (here ? here.textContent : 'nothing'));
-      pin.scrollTop = 0;
-      pin.dispatchEvent(new Event('scroll'));
-      // filters flatten the modal to one grid — the map steps aside too
-      var sIn = q('.gogh-picker-search .gogh-patsearch');
-      sIn.value = 'quote';
-      sIn.dispatchEvent(new Event('input', { bubbles: true }));
-      expect(rail.hidden, 'the rail should hide while a filter is on');
-      sIn.value = '';
-      sIn.dispatchEvent(new Event('input', { bubbles: true }));
-      expect(!q('.gogh-pickrail').hidden, 'the rail should return when the filter clears');
+      var hero = [].filter.call(document.querySelectorAll('.gogh-picklist .gogh-pl-item'), function (b) { return b.textContent === 'Hero'; })[0];
+      expect(hero, 'Hero missing from the list');
+      hero.click();
+      expect(hero.classList.contains('is-on'), 'the chosen design should be marked');
+      var t = hero.dataset.view.slice(4);
+      var faces = G.diceFaces(G.templates()[+t].name);
+      var shown = [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card'), function (c) { return c.style.display !== 'none'; });
+      expect(shown.length === faces.length, 'Hero should show its ' + faces.length + ' takes, showed ' + shown.length);
+      expect(shown.slice(1).every(function (c) { return c.dataset.fam === t; }), 'the other cards should be Hero takes');
+      var pk = q('.gogh-picker');
+      q('.gogh-pk-size[data-cols="3"]').click();
+      expect(pk.classList.contains('gogh-cols-3') && q('.gogh-pk-size[data-cols="3"]').classList.contains('is-on'), 'small previews should switch on');
+      q('.gogh-pk-size[data-cols="2"]').click();
+      expect(pk.classList.contains('gogh-cols-2'), 'two across should switch back');
       q('.gogh-picker-close').click();
-      return 'rail: ' + names.join(' · ');
+      return faces.length + ' Hero takes';
     });
 
     test('picker: a Share shelf of three live posts layouts, found by "blog", with All posts going to the blog page', function () {
@@ -5954,23 +5934,20 @@
     });
 
     // ---- picker: Quick start row of three banners ----
-    test('picker: quick start offers scratch / paste / my sections', function () {
+    test('picker: quiet links offer start blank / paste / my sections', function () {
       G.openPicker(G.sections().length);
-      var tiles = document.querySelectorAll('.gogh-quickrow .gogh-quick');
-      expect(tiles.length === 3, 'expected 3 quick tiles, got ' + tiles.length);
-      expect(/Start from scratch/.test(tiles[0].textContent), 'scratch tile missing');
-      expect(/Paste HTML/.test(tiles[1].textContent), 'paste tile missing');
-      expect(/My sections/.test(tiles[2].textContent), 'my-sections tile missing');
-      expect(q('.gogh-picker-sub'), 'header subtitle missing');
-      var labs = document.querySelectorAll('.gogh-seclab');
-      expect(labs.length >= 3, 'section labels missing (Quick start / Recommended / Browse)');
-      q('.gogh-card-htmladd').click();
-      expect(q('.gogh-htmlpaste'), 'paste tile did not open the paste view');
+      var links = document.querySelectorAll('.gogh-picklist .gogh-pl-link');
+      expect(links.length === 3, 'expected 3 quiet links, got ' + links.length);
+      expect(/Start blank/.test(links[0].textContent), 'Start blank missing');
+      expect(/Paste HTML/.test(links[1].textContent), 'Paste HTML missing');
+      expect(/My sections/.test(links[2].textContent), 'My sections missing');
+      expect(!q('.gogh-picker-sub'), 'no subtitle under the title');
+      links[1].click();
+      expect(q('.gogh-htmlpaste'), 'Paste HTML did not open the paste view');
       q('.gogh-picker-close').click();
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
 
-    // ---- section background: upload lives in the panel ----
     test('section background panel offers Upload', function () {
       G.openSecBgPanel(G.sections().indexOf(sec()));
       if (window.GOGH && window.GOGH.canUpload) {

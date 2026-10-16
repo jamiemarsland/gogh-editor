@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.740
+# Knowledge-base audit — plugin v0.99.741
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -111,12 +111,13 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 
-## QUOTE (30)
+## QUOTE (31)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
 - All changes published
 - Unpublished changes · backed up
+- Choose a layout to get started. You can customise everything.
 - Launched N times on Playground
 - Fraunces & Inter. Installed on your site, yours to keep.
 - Already the same size
@@ -145,3 +146,13 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.740 → 0.99.741
+- added UI label: "' + label + '"
+- added UI label: "My sections"
+- added UI label: "Paste HTML"
+- added UI label: "Start blank"
