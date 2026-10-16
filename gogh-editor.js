@@ -1199,6 +1199,13 @@
       // own (a remix's dark opening) a navy accent sat unseen on navy
       sec + ' .gogh-ghost .wp-block-button__link { background: transparent; color: ' + ghostInkCss(opts) + '; box-shadow: inset 0 0 0 1.5px currentColor; }',
       sec + ' .gogh-embed iframe { width: 100%; height: 100%; border-width: 0; display: block; position: absolute; inset: 0; }',
+      // a widget's own words (a shop's names and prices, an empty shelf's
+      // note) wear the ink that reads on the section's colour: on an ink
+      // band they inherited the page's dark words and vanished
+      opts.bg && !/gradient\(/.test(String(opts.bg)) ? sec + ' .gogh-widget { color: ' + ghostInkCss(opts) + '; } ' +
+        sec + ' .gogh-widget :is(.wp-block-post-title, .wp-block-post-title a, .wc-block-components-product-price, .wc-block-grid__product-price, .gogh-shopprev-price, .gogh-shopprev-body h3, .gogh-shopprev-emptycard a) { color: inherit; } ' +
+        // and its buttons turn over: the ink becomes the button, the section's colour its words
+        sec + ' .gogh-widget :is(.wc-block-components-product-button__button, .gogh-postsprev-btn, .wp-block-button__link) { background: ' + ghostInkCss(opts) + ' !important; color: ' + opts.bg + ' !important; }' : '',
       sec + ' .gogh-embed .wp-block-embed__wrapper { height: 100%; }',
       '',
       '@container (max-width: 700px) {',
@@ -2432,16 +2439,21 @@
     // words drawn centred beside a tall picture stay centred on it
     var midOf = function (list) { var t = Infinity, b2 = -Infinity; list.forEach(function (e) { t = Math.min(t, e.y); b2 = Math.max(b2, e.y + e.h); }); return (t + b2) / 2; };
     var besides = [];
-    sec.els.forEach(function (im) {
+    if (!drawn && sec.__besides) {
+      // a later pass (a font landed, a shelf learned it is empty) keeps the
+      // pairs the arrival found: the words stay centred on what they sat beside
+      besides = sec.__besides.filter(function (b3) { return sec.els.indexOf(b3.im) !== -1; });
+    } else sec.els.forEach(function (im) {
       if (!(im.type === 'image' || (im.type === 'widget' && (im.rails || im.wall || im.slides))) || im.h < 160) return;
       var col = sec.els.filter(function (e) {
-        return e !== im && e.type !== 'box' && (e.x + e.w <= im.x || e.x >= im.x + im.w) && e.y >= im.y - 8 && e.y + e.h <= im.y + im.h + 8;
+        return e !== im && e.type !== 'box' && (e.x + e.w <= im.x || e.x >= im.x + im.w) && e.y < im.y + im.h && e.y + e.h > im.y;
       });
-      if (col.length < 2 || !col.some(isText) || Math.abs(midOf(col) - (im.y + im.h / 2)) > 16) return;
+      if (col.length < 2 || !col.some(isText) || Math.abs(midOf(col) - (im.y + im.h / 2)) > Math.max(16, im.h * 0.12)) return;
       var side = col[0].x < im.x;
       if (col.some(function (e) { return (e.x < im.x) !== side; })) return;
       besides.push({ im: im, col: col });
     });
+    if (drawn) sec.__besides = besides;
     var cards = [];
     sec.els.forEach(function (host, ci) {
       if (!host.kids || !host.kids.length || !sec.nodes[ci]) return;
@@ -2542,7 +2554,11 @@
       reflowPush(sec, H.b, oh, sec.els.filter(function (o) { return H.inner.indexOf(o) === -1; }));
     });
     besides.forEach(function (b3) {
+      // centred on it, but never climbing above it (words taller than a
+      // shrunken shelf line up with its top instead)
+      var top = Math.min.apply(null, b3.col.map(function (e) { return e.y; }));
       var d = Math.round(b3.im.y + b3.im.h / 2 - midOf(b3.col));
+      if (top + d < b3.im.y) d = b3.im.y - top;
       if (Math.abs(d) > 2) b3.col.forEach(function (e) { e.y = Math.max(0, e.y + d); });
     });
     resolveAndApply(sec);
@@ -12289,12 +12305,13 @@
     var drawn = drawnHeights(sec);
     renderSection(sec);
     diceFitWords(sec); // the take's display sizes were set for its own words: the user's must fit
-    settleFresh(sec, drawn);
+    // home is the person's own arrangement: only a take drawn by gogh settles
+    if (!home) settleFresh(sec, drawn);
     guardCheck(sec, 'roll to take ' + (next + 1));
     if (!quiet) {
       sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
       pushState();
-      settleFreshLater(sec);
+      if (!home) settleFreshLater(sec);
       contrastSentinel(sec);
     }
     return { face: next, of: faces.length, take: t2.take || null };
