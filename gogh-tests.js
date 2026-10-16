@@ -3947,6 +3947,50 @@
       return 'boxes → set, words kept';
     });
 
+    test('Cards: the set’s bar is Layout, Style, Add card and •••; its popovers try on hover and keep on click', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      var shown = function (c) { var b = q('.gogh-elbar ' + c); return !!b && getComputedStyle(b).display !== 'none'; };
+      expect(shown('.gogh-eb-cardslayout') && shown('.gogh-eb-cardsstyle') && shown('.gogh-eb-addcard') && shown('.gogh-eb-cardsmore'), 'the set’s bar should show Layout, Style, Add card and •••');
+      expect(!shown('.gogh-eb-ctx') && !shown('.gogh-eb-dup') && !shown('.gogh-eb-del'), 'no Edit door, and copy and bin live in the set’s •••');
+      try {
+        q('.gogh-eb-cardslayout').click();
+        var pop = G.cards.pop();
+        expect(pop && pop.querySelectorAll('.gogh-cltile').length === G.cards.layouts.length, 'Layout should open its popover with every layout');
+        pop.querySelector('.gogh-cltile[data-v="rows"]').dispatchEvent(new MouseEvent('mouseenter'));
+        expect(e.cards.layout === 'g3' && /gogh-cardset-rows/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'pointing at Rows should dress the canvas, not the model');
+        pop.querySelector('.gogh-cltile[data-v="g2"]').click();
+        expect(e.cards.layout === 'g2' && /gogh-cardset-g2/.test(e.wsrc), 'a click should keep 2 across');
+        q('.gogh-eb-cardsstyle').click();
+        pop = G.cards.pop();
+        expect(pop && /Style/.test(pop.textContent), 'Style should open its popover');
+        pop.querySelector('.gogh-cslook-outline').click();
+        pop.querySelector('[data-sw="round"]').click();
+        expect(e.cards.look === 'outline' && e.cards.round === 1, 'the look and the corners should keep');
+        q('.gogh-eb-cardsmore').click();
+        G.cards.pop().querySelector('[data-x="price"]').click();
+        expect(e.cards.extras.price === 1 && /gogh-cs-price/.test(e.wsrc), 'a price should switch on from the set’s •••');
+        var before = e.cards.items.length;
+        var gh = G.cards.ghost();
+        expect(!gh.hidden, 'the ghost card should sit after the last card');
+        gh.click();
+        expect(e.cards.items.length === before + 1, 'the ghost card should add one');
+        G.cards.act(s0, e, 'feat', 0);
+        var star = e.cards.items[0];
+        G.cards.act(s0, e, 'move', 0, 2);
+        expect(e.cards.items[2] === star && e.cards.feat === 2, 'a dragged card lands in its slot and stays featured');
+        var pic = s0.nodes[s0.els.indexOf(e)].querySelector('[data-cpic]');
+        G.cards.pic(s0, s0.els.indexOf(e), +pic.dataset.ck, pic);
+        expect(G.cards.pop() && /Picture/.test(G.cards.pop().textContent), 'a card’s picture should open its chooser beside it');
+      } finally {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      }
+      expect(!G.cards.pop(), 'Escape should close the popover');
+      return 'bar, layout, style, extras, ghost, move, picture';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;

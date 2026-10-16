@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.747
+# Knowledge-base audit — plugin v0.99.748
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 

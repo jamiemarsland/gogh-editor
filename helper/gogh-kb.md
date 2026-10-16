@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.747 · knowledge base ca83b07.
+Generated for plugin version 0.99.748 · knowledge base 7a88c46.
 
 ---
 
@@ -830,9 +830,11 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Cards: one bar, no trips to the sidebar (v0.99.748).** A chosen card set's bar is now Layout, Style, + Add card and •••. Layout opens a small panel of drawings of every layout: point at one to try it on the page, click to keep it. Style holds everything about how each card looks: the card look (Open, Panel, Outline, Raised), rounded corners, the picture shape, left or centred words, what each card ends with, and titles on or off. ••• holds the extras (a price, a name and role, one featured card), All cards as a list (the side panel), and Duplicate or Delete the set. The cards edit themselves: a dashed Add card sits after the last card, a card's handle has a grip to drag it to another place in the set, clicking a card's picture opens a picture chooser beside it (your newest pictures, Upload, the alt text, or no picture), and a card's ••• menu has Link, where you type an address or pick one of your pages. There is no Edit cards button any more.
+
 **The card designs are Cards now (v0.99.747).** Feature cards, Pricing and Testimonials, in every take, are now built from Cards sets instead of loose freeform boxes, so their cards always match: type on any card, + Add card adds one in the same design, and the side panel moves, duplicates or removes them. Pricing keeps its featured middle card (dark and a little taller, the others with outline buttons) and its prices; Testimonials are cards without titles, the words with the person's name under them. Cards gained what those designs needed: rounded corners (in Card look), a Titles switch (in Words), a Steps layout (each card a little lower than the last) and, for Rows with no picture, the first line on the left with the rest beside it. Rolling the die keeps your cards and changes only the design. An older section made from these designs, with freeform cards, turns into a set the first time you roll it, keeping its words. Profile, Job and Place card, and the designs with one card in them, are still freeform.
 
-**Cards: a set that shares one design (v0.99.746).** The + menu has a new piece, Cards: three cards (a picture, a title, a line or two, a link) that always match. Type straight on any card to change its words. "+ Add card" on the bar adds one; hover a card for its ••• menu (make it the featured card, duplicate, move, delete). Edit cards opens the side panel: the list of cards (drag to reorder, click one to change its picture or where it links), then one design for every card: Layout (3, 2 or 4 across, Rows, Zig-zag, On the photo, Slider, One big, Index, Small and centred), Card look (Open, Panel, Outline, Raised), Picture (Landscape, Square, Portrait, No picture) and Words (left or centred, ending with a link, a button or nothing). Extras switch on a price, a name and role, or one featured card (dark and a little taller). Point at a layout to try it; click to keep it. The set measures itself, so it folds to two cards a row and then one as it gets narrow, on phones too. It publishes as plain WordPress groups, images, headings and paragraphs, so the words and pictures stay if gogh is switched off. The older single Card (a box you drop pieces into) is still there for freeform designs.
+**Cards: a set that shares one design (v0.99.746).** The + menu has a new piece, Cards: three cards (a picture, a title, a line or two, a link) that always match. Type straight on any card to change its words. "+ Add card" on the bar adds one; hover a card for its ••• menu (make it the featured card, duplicate, move, delete). The set's bar (see v0.99.748) holds one design for every card: Layout (3, 2 or 4 across, Rows, Zig-zag, On the photo, Slider, One big, Index, Small and centred), Card look (Open, Panel, Outline, Raised), Picture (Landscape, Square, Portrait, No picture) and Words (left or centred, ending with a link, a button or nothing). Extras switch on a price, a name and role, or one featured card (dark and a little taller). Point at a layout to try it; click to keep it. The set measures itself, so it folds to two cards a row and then one as it gets narrow, on phones too. It publishes as plain WordPress groups, images, headings and paragraphs, so the words and pictures stay if gogh is switched off. The older single Card (a box you drop pieces into) is still there for freeform designs.
 
 **Empty shelves that read (v0.99.745).** A shop or posts piece with nothing to show yet (no posts, nothing on sale) now reads on a dark section: its note and link take the light ink, and on any coloured section a shop's names, prices and Add to cart buttons follow the section's colours too. Words drawn beside a shelf stay centred on it once it shrinks to its empty note, and never climb above it.
 
@@ -1103,11 +1105,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.747**
+- Plugin version: **0.99.748**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.747`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.748`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1380,6 +1382,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Button"
 - "Cancel"
 - "Card"
+- "Card options"
 - "Cards"
 - "Change your colours"
 - "Changes the colours and fonts across your site. Back puts it back."
@@ -1401,6 +1404,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Delete card"
 - "Delete saved section"
 - "Delete the selection"
+- "Delete the set"
 - "Delivery & returns"
 - "Desktop menu"
 - "Desktop view"
@@ -1408,9 +1412,11 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Done"
 - "Done — keep this look"
 - "Downloads the styles as a piece of site definition, to add to the blueprint"
+- "Drag to move this card"
 - "Duplicate"
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
+- "Duplicate the set"
 - "Edge to edge of the section"
 - "Embed"
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
@@ -1438,6 +1444,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "History — earlier published versions of this page"
 - "Home"
 - "Home page"
+- "How every card looks"
 - "Icon"
 - "Image"
 - "Imagine"
@@ -1467,6 +1474,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
 - "Mobile view"
+- "More for this set"
+- "More from the library"
 - "Most loved"
 - "Move down"
 - "Move down in the phone stack"
@@ -1482,6 +1491,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Name, email and a message — straight into your own site, no plugin"
 - "New in"
 - "No picture"
+- "No picture on this card"
 - "None"
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
@@ -1708,4 +1718,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`373` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`374` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

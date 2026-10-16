@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.747",
+    "plugin_version": "0.99.748",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.747-chrome"
+    "asset_version": "0.99.748-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -502,6 +502,7 @@
     "Button",
     "Cancel",
     "Card",
+    "Card options",
     "Cards",
     "Change your colours",
     "Changes the colours and fonts across your site. Back puts it back.",
@@ -523,6 +524,7 @@
     "Delete card",
     "Delete saved section",
     "Delete the selection",
+    "Delete the set",
     "Delivery & returns",
     "Desktop menu",
     "Desktop view",
@@ -530,9 +532,11 @@
     "Done",
     "Done — keep this look",
     "Downloads the styles as a piece of site definition, to add to the blueprint",
+    "Drag to move this card",
     "Duplicate",
     "Duplicate (or Alt-drag)",
     "Duplicate the selection",
+    "Duplicate the set",
     "Edge to edge of the section",
     "Embed",
     "Embed a link — a map, a post, a playlist, anything WordPress can show",
@@ -560,6 +564,7 @@
     "History — earlier published versions of this page",
     "Home",
     "Home page",
+    "How every card looks",
     "Icon",
     "Image",
     "Imagine",
@@ -589,6 +594,8 @@
     "Manage products ↗",
     "Manage this menu — reorder, nest, swap menus",
     "Mobile view",
+    "More for this set",
+    "More from the library",
     "Most loved",
     "Move down",
     "Move down in the phone stack",
@@ -604,6 +611,7 @@
     "Name, email and a message — straight into your own site, no plugin",
     "New in",
     "No picture",
+    "No picture on this card",
     "None",
     "On sale",
     "One product, hero-sized — a card with a real add-to-cart button",
@@ -1592,5 +1600,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 373
+  "test_count": 374
 }

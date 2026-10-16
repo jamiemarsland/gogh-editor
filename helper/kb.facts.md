@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.747**
+- Plugin version: **0.99.748**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.747`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.748`). Quote the plugin header version.
 
 ## Design constants
 
@@ -281,6 +281,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Button"
 - "Cancel"
 - "Card"
+- "Card options"
 - "Cards"
 - "Change your colours"
 - "Changes the colours and fonts across your site. Back puts it back."
@@ -302,6 +303,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Delete card"
 - "Delete saved section"
 - "Delete the selection"
+- "Delete the set"
 - "Delivery & returns"
 - "Desktop menu"
 - "Desktop view"
@@ -309,9 +311,11 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Done"
 - "Done — keep this look"
 - "Downloads the styles as a piece of site definition, to add to the blueprint"
+- "Drag to move this card"
 - "Duplicate"
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
+- "Duplicate the set"
 - "Edge to edge of the section"
 - "Embed"
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
@@ -339,6 +343,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "History — earlier published versions of this page"
 - "Home"
 - "Home page"
+- "How every card looks"
 - "Icon"
 - "Image"
 - "Imagine"
@@ -368,6 +373,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
 - "Mobile view"
+- "More for this set"
+- "More from the library"
 - "Most loved"
 - "Move down"
 - "Move down in the phone stack"
@@ -383,6 +390,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Name, email and a message — straight into your own site, no plugin"
 - "New in"
 - "No picture"
+- "No picture on this card"
 - "None"
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
@@ -609,5 +617,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`373` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`374` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
