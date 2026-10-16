@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.746
+# Knowledge-base audit — plugin v0.99.747
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (104)
+## MISSING (103)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -105,7 +105,6 @@ The source has something the prose never explains. The bot knows the name from t
 - template `Shop the look` exists in source but is never mentioned in the prose
 - template `Profile card` exists in source but is never mentioned in the prose
 - template `Job card` exists in source but is never mentioned in the prose
-- template `Place card` exists in source but is never mentioned in the prose
 - template `Tabs` exists in source but is never mentioned in the prose
 - template `Portfolio` exists in source but is never mentioned in the prose
 - divider `dunes` exists in source but is never mentioned in the prose
@@ -146,3 +145,9 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.746 → 0.99.747

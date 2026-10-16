@@ -3900,6 +3900,53 @@
       return G.cards.layouts.length + ' layouts × 4 looks';
     });
 
+    test('Cards: the shelf’s card sets are Cards in every take (Feature cards, Pricing, Testimonials)', function () {
+      var bad = [];
+      ['Feature cards', 'Pricing', 'Testimonials'].forEach(function (fam) {
+        var takes = [G.templates().filter(function (t) { return t.name === fam; })[0]].concat(G.variants()[fam] || []);
+        takes.forEach(function (t, k) {
+          var sets = t.els.filter(function (e) { return e.cards; });
+          var boxes = t.els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; });
+          if (sets.length !== 1 || boxes.length) bad.push(fam + ' take ' + k + ': ' + sets.length + ' sets, ' + boxes.length + ' freeform cards');
+          if (sets[0] && !sets[0].cards.items.every(function (it) { return (it.t || it.d); })) bad.push(fam + ' take ' + k + ' has an empty card');
+        });
+      });
+      expect(!bad.length, bad.join('; '));
+      var price = G.templates().filter(function (t) { return t.name === 'Pricing'; })[0].els.filter(function (e) { return e.cards; })[0].cards;
+      expect(price.feat === 1 && price.extras.price && price.act === 'button', 'Pricing should keep its featured middle card, prices and buttons');
+      return '12 takes';
+    });
+    test('Cards: a site definition’s items fill the set (two prices, three kind words)', function () {
+      var p = G.fillTake({ take: 'Pricing', heading: 'Plans', items: [{ title: 'Small', text: 'For one', price: '£10/mo', button: 'Pick small', link: '/small' }, { title: 'Big', text: 'For many', price: '£90', button: 'Pick big' }] });
+      var set = p.els.filter(function (e) { return e.cards; })[0];
+      expect(set && set.cards.items.length === 2, 'two items should make two cards');
+      var a = set.cards.items[0];
+      expect(a.t === 'Small' && a.price === '£10' && a.per === 'a month' && a.link === 'Pick small' && a.href === '/small', 'the first card should carry its words: ' + JSON.stringify(a));
+      expect(/Pick big/.test(set.wsrc) && set.cards.feat < 2, 'the set should be composed, its featured card inside it');
+      var t = G.fillTake({ take: 'Testimonials', heading: 'Said', items: [{ quote: 'Lovely work', name: 'Ann · Ann Co' }] });
+      var ts = t.els.filter(function (e) { return e.cards; })[0];
+      expect(ts.cards.items[0].d === 'Lovely work' && ts.cards.items[0].role === 'Ann · Ann Co', 'a quote and a name should fill a kind-words card: ' + JSON.stringify(ts.cards.items[0]));
+      return 'pricing + testimonials filled';
+    });
+    test('Cards: an older row of freeform cards becomes a set on its first roll, words kept all the way home', function () {
+      var box = function (x, t, d) {
+        return { type: 'box', x: x, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, transparent)',
+          kids: [{ type: 'heading', x: 28, y: 32, w: 264, h: 28, text: t }, { type: 'para', x: 28, y: 72, w: 264, h: 68, text: d }] };
+      };
+      G.addSection({ name: 'Feature cards', minH: 480, els: [{ type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'What we do', align: 'center' },
+        box(100, 'Mine one', 'My words'), box(440, 'Mine two', 'More of mine'), box(780, 'Mine three', 'Last of mine')] }, 0);
+      var s0 = contentSecs()[0], idx = G.sections().indexOf(s0);
+      expect(s0.els.filter(function (e) { return e.kids; }).length === 3, 'the older section should start as three freeform cards');
+      G.rollSection(idx);
+      var set = s0.els.filter(function (e) { return e.cards; })[0];
+      expect(set && !s0.els.some(function (e) { return e.type === 'box'; }), 'after a roll the row should be one set, no boxes left');
+      expect(set.cards.items.map(function (it) { return it.t; }).join('|') === 'Mine one|Mine two|Mine three', 'the cards should keep their words: ' + set.cards.items.map(function (it) { return it.t; }).join('|'));
+      for (var k = 0; k < 3; k++) G.rollSection(idx);
+      var home = s0.els.filter(function (e) { return e.cards; })[0];
+      expect(home && home.cards.items[2].d === 'Last of mine', 'four rolls should bring the words home');
+      return 'boxes → set, words kept';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
@@ -6601,12 +6648,14 @@
       // content and choices in, a take from the shelf out — never geometry
       var fc = G.fillTake({ take: 'Feature cards', heading: 'What we grow', items: [{ title: 'Peonies', text: 'In May.' }, { title: 'Dahlias', text: 'Late summer.' }] });
       expect(fc && fc.name === 'Feature cards', 'Feature cards should come off the shelf');
-      var cards = fc.els.filter(function (e) { return e.type === 'box' && e.kids; });
+      // the card designs are sets (Cards): items are the set's cards
+      var fset = fc.els.filter(function (e) { return e.cards; })[0];
+      var cards = fset ? fset.cards.items : [];
       expect(fc.els[0].text === 'What we grow' && cards.length === 2, 'two items should leave two cards under the heading, got ' + cards.length);
-      expect(cards[1].kids[0].text === 'Dahlias' && cards[1].kids[1].text === 'Late summer.', 'card words should land by role');
+      expect(cards[1].t === 'Dahlias' && cards[1].d === 'Late summer.', 'card words should land by role');
       var tm = G.fillTake({ take: 'Testimonials', items: [{ quote: 'Lovely people.', name: 'Ann · Bath' }] });
-      var tcard = tm.els.filter(function (e) { return e.type === 'box' && e.kids; })[0];
-      expect(tcard.kids[0].text === 'Lovely people.' && tcard.kids[1].text === 'Ann · Bath', 'a quote and a name should fill a testimonial');
+      var tcard = tm.els.filter(function (e) { return e.cards; })[0].cards.items[0];
+      expect(tcard.d === 'Lovely people.' && tcard.role === 'Ann · Bath', 'a quote and a name should fill a testimonial');
       var cv = G.fillTake({ take: 'Cover', heading: 'Flowers that mean it', image: '/x/peonies.jpg', button: 'See the shop' });
       expect(cv.bgImage === '/x/peonies.jpg' && cv.els.some(function (e) { return e.type === 'heading' && e.text === 'Flowers that mean it'; }) && cv.els.some(function (e) { return e.type === 'button' && e.text === 'See the shop'; }), 'a cover should take the picture behind and the words in front');
       var team = G.fillTake({ take: 'Team', heading: 'Four people', items: [{ name: 'Nell', role: 'Founder', image: '/x/nell.jpg' }] });
@@ -6655,11 +6704,11 @@
       var story = G.fillTake({ take: 'Story', heading: 'One paragraph only', text: 'Just the one.' });
       expect(story.els.filter(function (e) { return e.type === 'para' && !(e.tf && e.tf.tt === 'uppercase'); }).length === 1, 'a second paragraph nobody wrote should not appear');
       var card = G.fillTake({ take: 'Pricing', heading: 'Plans', items: [{ title: 'Simple', text: 'One rate.', price: '£40' }] });
-      var chosen = card.els.filter(function (e) { return e.type === 'box' && e.kids; })[0];
-      expect(!chosen.kids.some(function (k) { return /Most popular|Book a sprint/.test(String(k.text || '')); }), 'a card keeps no stranger’s badge or button either');
+      var chosen = card.els.filter(function (e) { return e.cards; })[0];
+      expect(chosen.cards.items.length === 1 && !/Most popular|Book a sprint/.test(chosen.wsrc), 'a card keeps no stranger’s badge or button either');
       if (!GOGH.hasAccordion) {
         var faq = G.fillTake({ take: 'FAQ', heading: 'Questions', items: [{ q: 'Do you deliver?', a: 'Within Bath, yes.' }] });
-        expect(faq && faq.name === 'Feature cards' && faq.els.some(function (e) { return e.kids && e.kids[0].text === 'Do you deliver?'; }), 'without the accordion block, FAQ words should become cards');
+        expect(faq && faq.name === 'Feature cards' && faq.els.some(function (e) { return e.cards && e.cards.items[0].t === 'Do you deliver?'; }), 'without the accordion block, FAQ words should become cards');
       }
       return 'takes filled by role; surplus dropped; the odd one out says so';
     });
@@ -9998,9 +10047,8 @@
       q('.gogh-panel .gogh-askgo').click();
       expect(contentSecs().length === count + 1, 'no section arrived');
       var born = lastSec();
-      var quotes = born.els.filter(function (e) {
-        return e.type === 'box' && (e.kids || []).some(function (k) { return k.type === 'para'; });
-      });
+      // the testimonials design is a set of cards (Cards): its quotes are the set's cards
+      var quotes = born.els.filter(function (e) { return e.cards; }).reduce(function (a, e) { return a.concat(e.cards.items.filter(function (it) { return it.d; })); }, []);
       expect(quotes.length === 3, 'expected 3 quote cards, got ' + quotes.length);
       // a fresh section arrives SELECTED — the birth glow is the selection
       expect(born.sectionEl.classList.contains('gogh-selsec'), 'the new section did not arrive selected');

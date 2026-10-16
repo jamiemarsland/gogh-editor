@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.746
+ * Version: 0.99.747
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.746' );
+define( 'GOGH_VERSION', '0.99.747' );
 
 // what an agent may ask of the site, through WordPress's Abilities API (6.9+)
 require_once __DIR__ . '/gogh-abilities.php';
@@ -30,7 +30,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.746-chrome',
+		'0.99.747-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -574,9 +574,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.746-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.746-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.746-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.747-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.747-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.747-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -594,7 +594,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		// fresh scope on every insert
 		'breakTpl' => (string) file_get_contents( __DIR__ . '/gogh-break.html' ),
 	) );
-	// the admin bar stays in the writing room (v0.99.746): the same place to
+	// the admin bar stays in the writing room (v0.99.747): the same place to
 	// publish and the same way out as every other room (James)
 } );
 
@@ -2500,7 +2500,7 @@ function gogh_shop_empty_state( $block ) {
 	}
 	return $out . '</div>';
 }
-// the Lookbook and the Index (v0.99.746): styles for the page and the
+// the Lookbook and the Index (v0.99.747): styles for the page and the
 // editor's sketch alike; the script only where a grid wears one of them
 function gogh_shop_looks_enqueue( $with_script ) {
 	wp_enqueue_style( 'gogh-shop-looks', plugins_url( 'gogh-shop-looks.css', __FILE__ ), array(), GOGH_VERSION );
@@ -4546,7 +4546,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.746-chrome' );
+			return array( 'build' => '0.99.747-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -5611,8 +5611,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.746-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.746-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.747-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.747-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -6817,6 +6817,9 @@ function gogh_cards_css() {
 		'.gogh-cs-link a::after { content: " \2192"; }' .
 		'.gogh-cs-link a:hover, .gogh-cs-link a:focus-visible { text-decoration: underline; text-underline-offset: 0.2em; }' .
 		'.gogh-cs-btns { margin-top: auto !important; padding-top: 8px; }' .
+		// beside a featured card the others wear outline buttons (the theme's
+		// own outline style where it has one; this where it does not)
+		'.gogh-cs-btns .wp-block-button.is-style-outline > .wp-block-button__link:not(.has-background) { background: transparent; color: inherit; border: 1.5px solid currentColor; }' .
 		// the looks: what every card sits on
 		'.gogh-cardset-look-panel > .gogh-cs-card { background: color-mix(in srgb, currentColor 6%, transparent); border-radius: 4px; }' .
 		'.gogh-cardset-look-outline > .gogh-cs-card { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 4px; }' .
@@ -6827,6 +6830,13 @@ function gogh_cards_css() {
 		'.gogh-cs-card.is-featured .gogh-cs-body { padding: 28px 26px 30px !important; }' .
 		'.gogh-cs-card.is-featured .wp-block-button__link { background: var(--wp--preset--color--base, #fff) !important; color: var(--wp--preset--color--contrast, #111) !important; }' .
 		'.gogh-cardset-feat:is(.gogh-cardset-g2, .gogh-cardset-g3, .gogh-cardset-g4) > .gogh-cs-card:not(.is-featured) { margin-block: 28px !important; }' .
+		// rounded corners, for every look that draws a card
+		'.gogh-cardset-round:not(.gogh-cardset-index) > .gogh-cs-card { border-radius: 18px; }' .
+		'.gogh-cardset-round.gogh-cardset-look-open:not(.gogh-cardset-over) .gogh-cs-pic img { border-radius: 14px; }' .
+		// steps: three across, each a little lower than the last
+		'.gogh-cardset-steps { align-items: start; }' .
+		'.gogh-cardset-steps > .gogh-cs-card:nth-child(3n+2) { margin-top: 56px !important; }' .
+		'.gogh-cardset-steps > .gogh-cs-card:nth-child(3n) { margin-top: 112px !important; }' .
 		// words centred
 		'.gogh-cardset-al-center .gogh-cs-body { text-align: center; align-items: center; }' .
 		'.gogh-cardset-al-center .gogh-cs-price { justify-content: center; align-self: stretch; }' .
@@ -6841,6 +6851,14 @@ function gogh_cards_css() {
 		'.gogh-cardset-zig > .gogh-cs-card:nth-child(even) .gogh-cs-body { padding: 8px 36px 8px 0 !important; }' .
 		'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig):is(.gogh-cardset-look-panel, .gogh-cardset-look-outline, .gogh-cardset-look-raised) .gogh-cs-body, .gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) .is-featured .gogh-cs-body { padding: 28px 36px !important; }' .
 		'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) .gogh-cs-link { margin-top: 6px !important; }' .
+		// a row with no picture: the first line on the left, the rest beside it
+		'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); column-gap: 40px; row-gap: 0; align-items: start; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-body > :not(:first-child) ~ :not(:first-child) { margin-top: 10px !important; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none.gogh-cardset-notitle .gogh-cs-body { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); align-items: baseline; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-body > :first-child { grid-column: 1; grid-row: 1 / span 6; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-body > :not(:first-child) { grid-column: 2; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none.gogh-cardset-look-open .gogh-cs-body { padding: 18px 0 !important; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-price { margin-top: 0 !important; }' .
 		// on the photo: the words sit on the picture, over a scrim
 		'.gogh-cardset-over > .gogh-cs-card { justify-content: flex-end; aspect-ratio: 4 / 3; color: #fff; background: #222; border: 0; border-radius: 6px; }' .
 		'.gogh-cardset-over.gogh-cardset-pic-square > .gogh-cs-card { aspect-ratio: 1; }' .
@@ -6881,10 +6899,13 @@ function gogh_cards_css() {
 		'@container (max-width: 760px) {' .
 			'.gogh-cardset:is(.gogh-cardset-g3, .gogh-cardset-g4, .gogh-cardset-big, .gogh-cardset-small) { grid-template-columns: repeat(2, minmax(0, 1fr)); }' .
 			'.gogh-cardset-big > .gogh-cs-card:first-child { grid-column: 1 / -1; grid-row: auto; }' .
+			'.gogh-cardset-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }' .
+			'.gogh-cardset-steps > .gogh-cs-card { margin-top: 0 !important; }' .
 			'.gogh-cardset-index .gogh-cs-pic { display: none; }' .
 		'}' .
 		'@container (max-width: 540px) {' .
-			'.gogh-cardset:is(.gogh-cardset-g2, .gogh-cardset-g3, .gogh-cardset-g4, .gogh-cardset-big, .gogh-cardset-over) { grid-template-columns: minmax(0, 1fr); }' .
+			'.gogh-cardset:is(.gogh-cardset-g2, .gogh-cardset-g3, .gogh-cardset-g4, .gogh-cardset-steps, .gogh-cardset-big, .gogh-cardset-over) { grid-template-columns: minmax(0, 1fr); }' .
+			'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-body { display: flex; }' .
 			'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) > .gogh-cs-card, .gogh-cardset-zig > .gogh-cs-card:nth-child(even) { flex-direction: column; align-items: stretch; }' .
 			'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) .gogh-cs-pic { flex-basis: auto; }' .
 			'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) > .gogh-cs-card .gogh-cs-body { padding: 20px 0 0 !important; }' .
@@ -7321,7 +7342,7 @@ add_action( 'wp_head', function () {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.746-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.747-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	// the reading looks dress single posts; the blog looks dress lists of
 	// posts (the posts page, archives, a page carrying a posts rail); motion
@@ -7367,10 +7388,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.746-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.747-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.746-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.747-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -7686,12 +7707,12 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.746-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.746-chrome', true );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.747-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.747-chrome', true );
 	if ( class_exists( 'WooCommerce' ) ) {
 		gogh_shop_looks_enqueue( false ); // the editor sketches the Lookbook and the Index with the same styles
 	}
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.746-chrome' );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.747-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -7703,7 +7724,7 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.746-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.747-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
@@ -7713,13 +7734,13 @@ add_action( 'wp_enqueue_scripts', function () {
 		// check every section gogh publishes with the editor's validation
 		wp_enqueue_script( 'wp-block-library' );
 		wp_enqueue_script( 'gogh-block' );
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.746-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.747-chrome', true );
 	}
 	// the user-test walk: /?gogh-edit=1&gogh-walk=1 on a DISPOSABLE Yellow
 	// House (it publishes) — editors only, never shipped in the zip
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle for capability-checked editors.
 	if ( isset( $_GET['gogh-walk'] ) ) {
-		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.746-chrome', true );
+		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.747-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -7746,7 +7767,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'canHome'    => current_user_can( 'manage_options' ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.746-chrome',
+		'build'    => '0.99.747-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,

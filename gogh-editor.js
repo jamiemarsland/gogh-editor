@@ -1210,6 +1210,7 @@
         // vanished), and a raised card keeps its own paper's button
         sec + ' .gogh-widget .gogh-cs-card.is-featured { background: ' + ghostInkCss(opts) + ' !important; color: ' + opts.bg + ' !important; } ' +
         sec + ' .gogh-widget .gogh-cs-card.is-featured .wp-block-button__link { background: ' + opts.bg + ' !important; color: ' + ghostInkCss(opts) + ' !important; } ' +
+        sec + ' .gogh-widget .gogh-cs-btns .is-style-outline > .wp-block-button__link { background: transparent !important; color: ' + ghostInkCss(opts) + ' !important; border: 1.5px solid currentColor; } ' +
         sec + ' .gogh-widget .gogh-cardset-look-raised > .gogh-cs-card:not(.is-featured) .wp-block-button__link { background: var(--wp--preset--color--contrast, #111) !important; color: var(--wp--preset--color--base, #fff) !important; }' : '',
       sec + ' .gogh-embed .wp-block-embed__wrapper { height: 100%; }',
       '',
@@ -2525,7 +2526,7 @@
     var scopeOf = function (e) { var h2 = holders.filter(function (H) { return H.inner.indexOf(e) !== -1; })[0]; return h2 ? h2.inner : null; };
     // shop rails, questions and tabs draw their real height once they render
     sec.els.forEach(function (e, i) {
-      if (e.type !== 'widget' || !(e.rails || e.faq || e.tabs || e.wall || e.slides) || !sec.nodes[i]) return;
+      if (e.type !== 'widget' || !(e.rails || e.faq || e.tabs || e.wall || e.slides || e.cards) || !sec.nodes[i]) return;
       var inner = sec.nodes[i].firstElementChild;
       if (!inner) return;
       var h = Math.round(inner.getBoundingClientRect().height / s);
@@ -6812,7 +6813,7 @@
   function cardsOptName(list, v) { return (list.filter(function (o) { return o[0] === v; })[0] || ['', ''])[1]; }
   function cardsWordsName(c) {
     var al = c.layout === 'small' || c.align === 'center' ? 'Centred' : 'Left';
-    return al + (c.act === 'button' ? ', with a button' : c.act === 'link' ? ', with a link' : '');
+    return al + (c.titles ? '' : ', no titles') + (c.act === 'button' ? ', with a button' : c.act === 'link' ? ', with a link' : '');
   }
   // the set redrawn from its model, the set's own height kept true, the
   // selection kept on it
@@ -6857,7 +6858,7 @@
   function openCardMenu(anchor, sec, e, k) {
     closeCardMenu();
     var c = e.cards, n = c.items.length;
-    var horiz = /^(g2|g3|g4|big|small|slider)$/.test(c.layout);
+    var horiz = /^(g2|g3|g4|steps|big|small|slider)$/.test(c.layout);
     cardMenu = document.createElement('div');
     cardMenu.className = 'gogh-cardmenu';
     cardMenu.setAttribute('role', 'menu');
@@ -6891,6 +6892,10 @@
         closeCardMenu();
       }, true);
     }, 0);
+  }
+  function cardsSwitch(key, label, on) {
+    return '<div class="gogh-hstickyrow gogh-cards-extra"><span>' + label + '</span>' +
+      '<button type="button" class="gogh-hswitch' + (on ? ' is-on' : '') + '" role="switch" aria-checked="' + on + '" data-set="' + key + '" aria-label="' + label + '"><span class="gogh-hswitch-knob"></span></button></div>';
   }
   function buildCardsPanel(sec, i, view) {
     var e = sec.els[i];
@@ -6960,7 +6965,8 @@
       html += '<div class="gogh-panel-hint">Point at one to try it on the page; click to keep it. The cards’ words never change.</div>' + opts(CARD_LAYOUTS, c.layout, true);
     } else if (view === 'look') {
       if (titleEl) titleEl.textContent = 'Card look';
-      html += '<div class="gogh-panel-hint">What every card sits on.</div>' + opts(CARD_LOOKS, c.look);
+      html += '<div class="gogh-panel-hint">What every card sits on.</div>' + opts(CARD_LOOKS, c.look) +
+        cardsSwitch('round', 'Rounded corners', !!c.round);
     } else if (view === 'pic') {
       if (titleEl) titleEl.textContent = 'Picture';
       html += '<div class="gogh-panel-hint">One shape for every card’s picture.</div>' + opts(CARD_PICS, c.pic);
@@ -6971,7 +6977,8 @@
           return '<button type="button" class="gogh-hpreset' + (o[0] === c.align ? ' is-active' : '') + '" data-v="' + o[0] + '">' + o[1] + '</button>';
         }).join('') + '</div>' +
         (c.layout === 'small' ? '<div class="gogh-panel-hint">Small and centred always centres its words.</div>' : '') +
-        '<div class="gogh-swlab">Each card ends with</div>' + opts(CARD_ACTS, c.act);
+        '<div class="gogh-swlab">Each card ends with</div>' + opts(CARD_ACTS, c.act) +
+        cardsSwitch('titles', 'Titles', !!c.titles);
     } else {
       var it = c.items[view];
       if (titleEl) titleEl.textContent = it.t || 'This card';
@@ -6988,6 +6995,15 @@
         '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>';
     }
     pane.innerHTML = html;
+    pane.querySelectorAll('.gogh-hswitch[data-set]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var k2 = b.dataset.set;
+        c[k2] = c[k2] ? 0 : 1;
+        b.classList.toggle('is-on', !!c[k2]);
+        b.setAttribute('aria-checked', c[k2] ? 'true' : 'false');
+        cardsApply(sec, e);
+      });
+    });
     var go = function (v) { cardsView = v; paintCardsPanel(sec, e); pane.scrollTop = 0; };
     var up = pane.querySelector('.gogh-cards-up');
     if (up) up.addEventListener('click', function () { go(null); });
@@ -10486,24 +10502,7 @@
     ] },
     { starter: true, intent: 'sell', name: 'Feature cards', minH: 480, els: [
       { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'What we do', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-      { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
-        ] },
-      { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
-        ] },
-      { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
-        ] },
+      { type: 'widget', x: 100, y: 194, w: 1000, h: 172, cards: { items: [{ t: 'Brand identity', d: 'A name, a voice and a look that hold together everywhere — from the sign above the door to the invoice footer.' }, { t: 'Websites', d: 'Fast, honest sites that read beautifully on a phone at a bus stop — which is where your customers are.' }, { t: 'Art direction', d: 'Photography, illustration and the thousand small calls that make everything feel intentional.' }], layout: 'g3', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 0 }, feat: -1 } },
     ] },
     { starter: true, intent: 'sell', name: 'Pricing', minH: 696, els: [
       // three prices is the common shape (James), so it is the BASE face —
@@ -10512,24 +10511,7 @@
       { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing',
         tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Three ways to work with us', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-      { type: 'box', x: 72, y: 226, w: 340, h: 316, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-        { type: 'heading', x: 28, y: 32, w: 284, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 28, y: 72, w: 284, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'One focused week. A sharp brief in, a finished thing out.' },
-        { type: 'heading', x: 28, y: 158, w: 284, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
-        { type: 'button', x: 28, y: 232, w: 284, h: 52, text: 'Book a sprint', ghost: true },
-      ] },
-      { type: 'box', x: 430, y: 190, w: 340, h: 388, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
-        { type: 'heading', x: 28, y: 68, w: 284, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 28, y: 108, w: 284, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-        { type: 'heading', x: 28, y: 194, w: 284, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'button', x: 28, y: 266, w: 284, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-      ] },
-      { type: 'box', x: 788, y: 226, w: 340, h: 316, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-        { type: 'heading', x: 28, y: 32, w: 284, h: 28, text: 'Ongoing care', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 28, y: 72, w: 284, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
-        { type: 'heading', x: 28, y: 158, w: 284, h: 34, text: '\u00a3600/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
-        { type: 'button', x: 28, y: 232, w: 284, h: 52, text: 'Stay with us', ghost: true },
-      ] },
+      { type: 'widget', x: 72, y: 190, w: 1056, h: 388, cards: { items: [{ t: 'The Sprint', d: 'One focused week. A sharp brief in, a finished thing out.', price: '£3,500', per: '', link: 'Book a sprint' }, { t: 'The Partnership', d: 'A standing team beside yours — design, build and everything between.', price: '£4,000', per: 'a month', link: 'Start together' }, { t: 'Ongoing care', d: 'Quiet upkeep after launch: updates, tweaks and a person who answers.', price: '£600', per: 'a month', link: 'Stay with us' }], layout: 'g3', look: 'panel', pic: 'none', align: 'left', act: 'button', round: 1, extras: { price: 1, role: 0 }, feat: 1 } },
     ] },
     { starter: true, intent: 'sell', name: 'Quote', minH: 432, els: [
       { type: 'heading', x: 76, y: 96, w: 180, h: 98, tf: { lh: 0.62 }, text: '\u201c', fs: '__disp-l' },
@@ -10539,27 +10521,7 @@
     ] },
     { starter: true, intent: 'sell', name: 'Testimonials', minH: 480, els: [
       { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'Kind words', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-      { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '“They understood us in the first meeting. The site feels like walking into our shop.”', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Hanna · Hanna & Co',
-            tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-      { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Dev · Marlow Bikes',
-            tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-      { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Ruth · The Corner Bakery',
-            tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
+      { type: 'widget', x: 100, y: 194, w: 1000, h: 172, cards: { items: [{ t: '', d: '“They understood us in the first meeting. The site feels like walking into our shop.”', role: 'Hanna · Hanna & Co' }, { t: '', d: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', role: 'Dev · Marlow Bikes' }, { t: '', d: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', role: 'Ruth · The Corner Bakery' }], layout: 'g3', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 1 }, feat: -1, titles: 0 } },
     ] },
     { starter: true, intent: 'sell', name: 'Call to action', minH: 360,
       bg: 'var(--wp--preset--color--contrast, #16181c)',
@@ -10847,6 +10809,7 @@
     ['g3', '3 across', 'Even cards in one row.'],
     ['g2', '2 across', 'Two wide cards a row.'],
     ['g4', '4 across', 'Four smaller cards a row.'],
+    ['steps', 'Steps', 'Each card a little lower than the last.'],
     ['rows', 'Rows', 'Picture beside the words, one under another.'],
     ['zig', 'Zig-zag', 'Pictures swap sides down the page.'],
     ['over', 'On the photo', 'Words over the picture.'],
@@ -10889,6 +10852,9 @@
     c.extras = c.extras || {};
     c.extras.price = c.extras.price ? 1 : 0;
     c.extras.role = c.extras.role ? 1 : 0;
+    c.round = c.round ? 1 : 0;
+    // a set can go without titles (words and a name: testimonials)
+    c.titles = c.titles === 0 || c.titles === false ? 0 : 1;
     c.feat = typeof c.feat === 'number' && c.feat >= 0 && c.feat < c.items.length ? c.feat : -1;
     return c;
   }
@@ -10903,7 +10869,8 @@
     // small and centred always centres; the index is words only
     var align = c.layout === 'small' ? 'center' : c.align;
     return 'gogh-cardset gogh-cardset-' + c.layout + ' gogh-cardset-look-' + c.look + ' gogh-cardset-pic-' + c.pic +
-      ' gogh-cardset-al-' + align + (c.feat >= 0 ? ' gogh-cardset-feat' : '');
+      ' gogh-cardset-al-' + align + (c.feat >= 0 ? ' gogh-cardset-feat' : '') +
+      (c.round ? ' gogh-cardset-round' : '') + (c.titles ? '' : ' gogh-cardset-notitle');
   }
   // forEditor: the canvas copy — no block comments, every editable word
   // marked with its card and field, empty fields shown as soft prompts
@@ -10932,29 +10899,33 @@
           '</figure>' + cm(false, 'image');
       }
       out += cm(true, 'group', { className: 'gogh-cs-body' }) + '<div class="wp-block-group gogh-cs-body">';
-      if (it.t || forEditor) {
+      if (c.titles && (it.t || forEditor)) {
         out += cm(true, 'heading', { level: 3, className: 'gogh-cs-t' }) +
           '<h3 class="wp-block-heading gogh-cs-t">' + field(k, 't', it.t || '', 'Title') + '</h3>' + cm(false, 'heading');
       }
-      if (c.extras.role && (it.role || forEditor)) {
-        out += cm(true, 'paragraph', { className: 'gogh-cs-role' }) +
-          '<p class="gogh-cs-role">' + field(k, 'role', it.role || '', 'Role') + '</p>' + cm(false, 'paragraph');
-      }
-      if (c.layout !== 'index' && (it.d || forEditor)) {
+      // the name and role sit under a title; with no titles (a set of
+      // kind words) they sign off under the words instead
+      var role = c.extras.role && (it.role || forEditor) ? cm(true, 'paragraph', { className: 'gogh-cs-role' }) +
+          '<p class="gogh-cs-role">' + field(k, 'role', it.role || '', 'Name and role') + '</p>' + cm(false, 'paragraph') : '';
+      if (c.titles) out += role;
+      if ((c.layout !== 'index' || !c.titles) && (it.d || forEditor)) {
         out += cm(true, 'paragraph', { className: 'gogh-cs-d' }) +
-          '<p class="gogh-cs-d">' + field(k, 'd', it.d || '', 'A line or two about it') + '</p>' + cm(false, 'paragraph');
+          '<p class="gogh-cs-d">' + field(k, 'd', it.d || '', c.titles ? 'A line or two about it' : 'What they said') + '</p>' + cm(false, 'paragraph');
       }
+      if (!c.titles) out += role;
       if (c.extras.price && (it.price || it.per || forEditor)) {
         out += cm(true, 'paragraph', { className: 'gogh-cs-price' }) +
           '<p class="gogh-cs-price"><strong>' + field(k, 'price', it.price || '', 'Price') + '</strong> ' +
-          '<span class="gogh-cs-per">' + field(k, 'per', it.per || '', 'a month') + '</span></p>' + cm(false, 'paragraph');
+          '<span class="gogh-cs-per">' + field(k, 'per', it.per || '', 'per\u2026') + '</span></p>' + cm(false, 'paragraph');
       }
       var href = cardsHref(it.href);
       if (c.act !== 'none' && (it.link || forEditor)) {
         var hrefAttr = ' href="' + escAttr(href || '#') + '"';
         if (c.act === 'button' && c.layout !== 'index') {
+          // beside a featured card the others' buttons step back to outlines
+          var quiet = c.feat >= 0 && !feat;
           out += cm(true, 'buttons', { className: 'gogh-cs-btns' }) + '<div class="wp-block-buttons gogh-cs-btns">' +
-            cm(true, 'button') + '<div class="wp-block-button"><a class="wp-block-button__link wp-element-button"' + hrefAttr + '>' +
+            cm(true, 'button', quiet ? { className: 'is-style-outline' } : null) + '<div class="wp-block-button' + (quiet ? ' is-style-outline' : '') + '"><a class="wp-block-button__link wp-element-button"' + hrefAttr + '>' +
             field(k, 'link', it.link || '', 'Button') + '</a></div>' + cm(false, 'button') +
             '</div>' + cm(false, 'buttons');
         } else {
@@ -10973,6 +10944,52 @@
     e.cards = cardsNorm(e.cards);
     e.wsrc = composeCards(e.cards, false);
     e.whtml = composeCards(e.cards, true);
+  }
+  // "£4,000/mo" reads as a price and a period
+  function cardsPriceSplit(v) {
+    var m = String(v == null ? '' : v).match(/^(.*?)(?:\s*\/\s*(mo|month|yr|year|wk|week))$/i);
+    if (!m) return { price: String(v == null ? '' : v), per: '' };
+    var per = { mo: 'a month', month: 'a month', yr: 'a year', year: 'a year', wk: 'a week', week: 'a week' }[m[2].toLowerCase()];
+    return { price: m[1], per: per };
+  }
+  // a row of freeform cards (one box per card, the same pieces in each)
+  // read as a set's cards: what the shelf's card designs were before they
+  // became Cards, so a section drawn then keeps its words
+  function cardsFromBoxes(boxes) {
+    var up = function (k) { return !!(k.tf && k.tf.tt === 'uppercase'); };
+    var bgs = boxes.map(function (b) { return String(b.boxBg || ''); });
+    var common = bgs.filter(function (g) { return bgs.filter(function (h) { return h === g; }).length > 1; })[0];
+    var hs = boxes.map(function (b) { return b.h; }), tall = Math.max.apply(null, hs);
+    var feat = common ? bgs.findIndex(function (g) { return g !== common; })
+      : (bgs.some(function (g) { return g !== bgs[0]; }) && hs.filter(function (h) { return h === tall; }).length === 1 ? hs.indexOf(tall) : -1);
+    var items = boxes.map(function (b) {
+      var of = function (f) { return b.kids.filter(f); };
+      var H = of(function (k) { return k.type === 'heading'; }), P = of(function (k) { return k.type === 'para' && !up(k); });
+      var U = of(function (k) { return k.type === 'para' && up(k); }), B = of(function (k) { return k.type === 'button'; });
+      var I = of(function (k) { return k.type === 'image' && k.src; });
+      var it = { t: H[0] ? String(H[0].text || '') : '', d: P[0] ? String(P[0].text || '') : '' };
+      if (H[1]) { var ps = cardsPriceSplit(H[1].text); it.price = ps.price; it.per = ps.per; }
+      if (U[0]) it.role = String(U[0].text || '');
+      if (B[0]) { it.link = String(B[0].text || ''); if (B[0].href) it.href = String(B[0].href); }
+      if (I[0]) { it.img = I[0].src; it.alt = I[0].alt || ''; }
+      return it;
+    });
+    return { items: items, feat: feat };
+  }
+  // a definition's items, in the same few names fillWords reads
+  function cardsFromDefItems(list, c) {
+    return list.map(function (it) {
+      it = it || {};
+      var named = it.title != null ? it.title : it.heading;
+      var ps = it.price != null ? cardsPriceSplit(it.price) : { price: '', per: '' };
+      return {
+        t: String(named != null ? named : (c.titles ? (it.name || '') : '')),
+        d: String(it.text != null ? it.text : (it.quote != null ? it.quote : '')),
+        role: String(it.role != null ? it.role : (it.eyebrow != null ? it.eyebrow : (!c.titles && it.name != null ? it.name : ''))),
+        price: ps.price, per: it.per != null ? String(it.per) : ps.per,
+        link: String(it.button != null ? it.button : ''), href: it.link ? String(it.link) : '',
+        img: it.image ? String(it.image) : '', alt: it.alt ? String(it.alt) : '' };
+    });
   }
   // ---------- their photos, not our placeholders ----------
   // starters populate from the site's OWN media library: shelf previews and
@@ -11585,48 +11602,15 @@
     'Feature cards': [
       { name: 'Feature cards', take: 'The ink deck', minH: 480, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'What we do', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        ] },
-        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        ] },
-        { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        ] },
+        { type: 'widget', x: 100, y: 194, w: 1000, h: 172, cards: { items: [{ t: 'Brand identity', d: 'A name, a voice and a look that hold together everywhere — from the sign above the door to the invoice footer.' }, { t: 'Websites', d: 'Fast, honest sites that read beautifully on a phone at a bus stop — which is where your customers are.' }, { t: 'Art direction', d: 'Photography, illustration and the thousand small calls that make everything feel intentional.' }], layout: 'g3', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 0 }, feat: -1 } },
       ] },
       { name: 'Feature cards', take: 'The ladder', minH: 600, els: [
         { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'What we do', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
-        ] },
-        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
-        ] },
-        { type: 'box', x: 780, y: 312, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
-        ] },
+        { type: 'widget', x: 100, y: 194, w: 1000, h: 290, cards: { items: [{ t: 'Brand identity', d: 'A name, a voice and a look that hold together everywhere — from the sign above the door to the invoice footer.' }, { t: 'Websites', d: 'Fast, honest sites that read beautifully on a phone at a bus stop — which is where your customers are.' }, { t: 'Art direction', d: 'Photography, illustration and the thousand small calls that make everything feel intentional.' }], layout: 'steps', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 0 }, feat: -1 } },
       ] },
       { name: 'Feature cards', take: 'The rows', minH: 672, els: [
         { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'What we do', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'box', x: 72, y: 194, w: 1056, h: 110, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 300, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 370, y: 32, w: 650, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
-        ] },
-        { type: 'box', x: 72, y: 328, w: 1056, h: 110, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 300, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 370, y: 32, w: 650, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
-        ] },
-        { type: 'box', x: 72, y: 462, w: 1056, h: 110, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 300, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 370, y: 32, w: 650, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
-        ] },
+        { type: 'widget', x: 72, y: 194, w: 1056, h: 378, cards: { items: [{ t: 'Brand identity', d: 'A name, a voice and a look that hold together everywhere — from the sign above the door to the invoice footer.' }, { t: 'Websites', d: 'Fast, honest sites that read beautifully on a phone at a bus stop — which is where your customers are.' }, { t: 'Art direction', d: 'Photography, illustration and the thousand small calls that make everything feel intentional.' }], layout: 'rows', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 0 }, feat: -1 } },
       ] },
     ],
 
@@ -11634,50 +11618,17 @@
       { name: 'Pricing', take: 'The pair', minH: 672, els: [
         { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Two ways to work with us', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-        { type: 'box', x: 230, y: 226, w: 350, h: 318, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 32, y: 32, w: 286, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 32, y: 72, w: 286, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'One focused week. A sharp brief in, a finished thing out.' },
-          { type: 'heading', x: 32, y: 158, w: 286, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
-          { type: 'button', x: 32, y: 232, w: 286, h: 54, text: 'Book a sprint', ghost: true },
-        ] },
-        { type: 'box', x: 620, y: 214, w: 350, h: 342, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
-          { type: 'heading', x: 32, y: 44, w: 240, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 84, w: 286, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-          { type: 'heading', x: 32, y: 170, w: 286, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 32, y: 244, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        ] },
+        { type: 'widget', x: 230, y: 214, w: 740, h: 342, cards: { items: [{ t: 'The Sprint', d: 'One focused week. A sharp brief in, a finished thing out.', price: '£3,500', per: '', link: 'Book a sprint' }, { t: 'The Partnership', d: 'A standing team beside yours — design, build and everything between.', price: '£4,000', per: 'a month', link: 'Start together' }], layout: 'g2', look: 'panel', pic: 'none', align: 'left', act: 'button', round: 1, extras: { price: 1, role: 0 }, feat: 1 } },
       ] },
       { name: 'Pricing', take: 'The shelves', minH: 720, els: [
         { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Two ways to work with us', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-        { type: 'box', x: 150, y: 226, w: 900, h: 150, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 32, y: 32, w: 280, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 32, y: 72, w: 380, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'One focused week. A sharp brief in, a finished thing out.' },
-          { type: 'heading', x: 470, y: 32, w: 190, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
-          { type: 'button', x: 668, y: 32, w: 200, h: 54, text: 'Book a sprint', ghost: true },
-        ] },
-        { type: 'box', x: 150, y: 424, w: 900, h: 192, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
-          { type: 'heading', x: 32, y: 32, w: 300, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 72, w: 380, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-          { type: 'heading', x: 470, y: 32, w: 230, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 668, y: 106, w: 200, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        ] },
+        { type: 'widget', x: 150, y: 226, w: 900, h: 390, cards: { items: [{ t: 'The Sprint', d: 'One focused week. A sharp brief in, a finished thing out.', price: '£3,500', per: '', link: 'Book a sprint' }, { t: 'The Partnership', d: 'A standing team beside yours — design, build and everything between.', price: '£4,000', per: 'a month', link: 'Start together' }], layout: 'rows', look: 'panel', pic: 'none', align: 'left', act: 'button', round: 1, extras: { price: 1, role: 0 }, feat: 1 } },
       ] },
       { name: 'Pricing', take: 'The ink stage', minH: 672, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Two ways to work with us', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 230, y: 226, w: 350, h: 318, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 32, y: 32, w: 286, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 72, w: 286, h: 46, text: 'One focused week. A sharp brief in, a finished thing out.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-          { type: 'heading', x: 32, y: 158, w: 286, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 32, y: 232, w: 286, h: 54, text: 'Book a sprint', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        ] },
-        { type: 'box', x: 620, y: 214, w: 350, h: 342, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 16%, transparent)', kids: [
-          { type: 'heading', x: 32, y: 44, w: 240, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 84, w: 286, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-          { type: 'heading', x: 32, y: 170, w: 286, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 32, y: 244, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        ] },
+        { type: 'widget', x: 230, y: 214, w: 740, h: 342, cards: { items: [{ t: 'The Sprint', d: 'One focused week. A sharp brief in, a finished thing out.', price: '£3,500', per: '', link: 'Book a sprint' }, { t: 'The Partnership', d: 'A standing team beside yours — design, build and everything between.', price: '£4,000', per: 'a month', link: 'Start together' }], layout: 'g2', look: 'panel', pic: 'none', align: 'left', act: 'button', round: 1, extras: { price: 1, role: 0 }, feat: 1 } },
       ] },
     ],
     'Quote': [
@@ -11702,48 +11653,15 @@
     'Testimonials': [
       { name: 'Testimonials', take: 'The ink wall', minH: 480, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'Kind words', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Hanna \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        ] },
-        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Dev \u00b7 Marlow Bikes', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        ] },
-        { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        ] },
+        { type: 'widget', x: 100, y: 194, w: 1000, h: 172, cards: { items: [{ t: '', d: '“They understood us in the first meeting. The site feels like walking into our shop.”', role: 'Hanna · Hanna & Co' }, { t: '', d: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', role: 'Dev · Marlow Bikes' }, { t: '', d: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', role: 'Ruth · The Corner Bakery' }], layout: 'g3', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 1 }, feat: -1, titles: 0 } },
       ] },
       { name: 'Testimonials', take: 'The ladder', minH: 624, els: [
         { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'Kind words', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Hanna \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Dev \u00b7 Marlow Bikes', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-        { type: 'box', x: 780, y: 336, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
+        { type: 'widget', x: 100, y: 194, w: 1000, h: 314, cards: { items: [{ t: '', d: '“They understood us in the first meeting. The site feels like walking into our shop.”', role: 'Hanna · Hanna & Co' }, { t: '', d: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', role: 'Dev · Marlow Bikes' }, { t: '', d: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', role: 'Ruth · The Corner Bakery' }], layout: 'steps', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 1 }, feat: -1, titles: 0 } },
       ] },
       { name: 'Testimonials', take: 'The voices', minH: 648, els: [
         { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'Kind words', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'box', x: 72, y: 194, w: 1056, h: 88, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 680, h: 24, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 760, y: 32, w: 260, h: 16, text: 'Hanna \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-        { type: 'box', x: 72, y: 306, w: 1056, h: 88, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 680, h: 24, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 760, y: 32, w: 260, h: 16, text: 'Dev \u00b7 Marlow Bikes', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-        { type: 'box', x: 72, y: 442, w: 1056, h: 88, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 680, h: 24, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 760, y: 32, w: 260, h: 16, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
+        { type: 'widget', x: 72, y: 194, w: 1056, h: 336, cards: { items: [{ t: '', d: '“They understood us in the first meeting. The site feels like walking into our shop.”', role: 'Hanna · Hanna & Co' }, { t: '', d: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', role: 'Dev · Marlow Bikes' }, { t: '', d: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', role: 'Ruth · The Corner Bakery' }], layout: 'rows', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 1 }, feat: -1, titles: 0 } },
       ] },
     ],
     'Call to action': [
@@ -12189,16 +12107,38 @@
   function diceWidgetKinds(els) {
     return diceFlatten(els).filter(function (e) { return e.type === 'widget'; }).map(diceWidgetKind).sort();
   }
+  // a row of matching freeform cards, read as the set it would become
+  // (cardsAdoptBoxes makes it one on the first roll); null when there is none
+  function cardsVirtual(els) {
+    if (els.some(function (e) { return e.cards; })) return null;
+    var sig = function (b) { return b.kids.map(function (k) { return k.type; }).join(','); };
+    var boxes = els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; });
+    if (boxes.length < 2 || !boxes.every(function (b) { return sig(b) === sig(boxes[0]); })) return null;
+    var x = Math.min.apply(null, boxes.map(function (b) { return b.x; })), y = Math.min.apply(null, boxes.map(function (b) { return b.y; }));
+    var set = { type: 'widget', x: x, y: y, w: Math.max.apply(null, boxes.map(function (b) { return b.x + b.w; })) - x,
+      h: Math.max.apply(null, boxes.map(function (b) { return b.y + b.h; })) - y, cards: cardsFromBoxes(boxes) };
+    var out = els.filter(function (e) { return boxes.indexOf(e) === -1; });
+    out.splice(els.indexOf(boxes[0]), 0, set);
+    return out;
+  }
+  // what a set's cards hold (titles, words, a name, a price, a link)
+  function cardsShape(c) {
+    var has = function (f) { return (c.items || []).some(function (it) { return !!it[f]; }); };
+    return ['t', 'd', 'role', 'price', 'link'].map(has);
+  }
   function diceInferFamily(sec) {
     if (!sec || !sec.els || !sec.els.length) return null;
     if (sec.els.some(function (e) { return e.type === 'exp'; })) return null;
-    var want = diceByRole(sec.els);
+    // a row of freeform cards is weighed as the set it would roll into
+    var els0 = cardsVirtual(sec.els) || sec.els;
+    var want = diceByRole(els0);
     var wantKeys = Object.keys(want);
     if (!want.heading) return null;
-    var wantKinds = diceWidgetKinds(sec.els).join(',');
+    var wantKinds = diceWidgetKinds(els0).join(',');
+    var wantSet = els0.filter(function (e) { return e.cards; })[0];
     // cards match cards: a three-card paste rolls within a three-card family
     var cardsOf = function (els) { return els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; }).length; };
-    var wantCards = cardsOf(sec.els);
+    var wantCards = cardsOf(els0);
     var best = null, bestScore = 0;
     Object.keys(VARIANTS).forEach(function (fam) {
       var faces = diceFaces(fam);
@@ -12217,11 +12157,11 @@
       // roll'). One stray is a rider the eye forgives; more makes a section
       // of its own kind, and the die leaves it be
       var decoOf = function (els) { return els.filter(function (e) { return !diceRole(e) && !(e.type === 'box' && e.kids && e.kids.length); }).length; };
-      if (decoOf(sec.els) > decoOf(baseEls) + 1) return;
+      if (decoOf(els0) > decoOf(baseEls) + 1) return;
       // ...counted at the top level only: a card's kids ride with their
       // card, so three priced cards with a label each are still three cards
       var topCount = function (els) { var m = {}; els.forEach(function (e) { var r = diceRole(e); if (r) m[r] = (m[r] || 0) + 1; }); return m; };
-      var tw = topCount(sec.els), th = topCount(baseEls);
+      var tw = topCount(els0), th = topCount(baseEls);
       if (Object.keys(tw).some(function (r) { return tw[r] > (th[r] || 0) + 1; })) return;
       var hit = 0, total = 0;
       Object.keys(have).forEach(function (r) {
@@ -12229,6 +12169,13 @@
         hit += Math.min(a, b); total += Math.max(a, b);
       });
       var score = total ? hit / total : 0;
+      // two sets weigh what their cards hold: prices find Pricing, a name
+      // under kind words finds Testimonials
+      var baseSet = baseEls.filter(function (e) { return e.cards; })[0];
+      if (wantSet && baseSet) {
+        var a1 = cardsShape(wantSet.cards), b1 = cardsShape(cardsNorm(JSON.parse(JSON.stringify(baseSet.cards))));
+        score = score * (0.5 + 0.5 * a1.filter(function (v, k) { return v === b1[k]; }).length / a1.length);
+      }
       // the words must FIT the family's drawing, not just its roles: a
       // photographer's hero (eyebrow, big headline, two lines) counted as a
       // Quote by roles alone, and every take poured a 28-character display
@@ -12515,12 +12462,38 @@
       bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
       bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null };
   }
+  // a section drawn from a card design before the designs became Cards
+  // still holds a row of freeform boxes: on its first roll into a family
+  // whose takes are sets, the row becomes the set (its words, its order,
+  // its featured card), so the next take carries them like any set's
+  function cardsAdoptBoxes(sec, faces) {
+    if (sec.els.some(function (e) { return e.cards; })) return;
+    var model = null;
+    faces.some(function (f) { return (f.els || []).some(function (e) { if (e.cards) { model = e; return true; } return false; }); });
+    if (!model) return;
+    var sig = function (b) { return b.kids.map(function (k) { return k.type; }).join(','); };
+    var boxes = sec.els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; });
+    if (boxes.length < 2 || !boxes.every(function (b) { return sig(b) === sig(boxes[0]); })) return;
+    var got = cardsFromBoxes(boxes);
+    var x = Math.min.apply(null, boxes.map(function (b) { return b.x; })), y = Math.min.apply(null, boxes.map(function (b) { return b.y; }));
+    var r = Math.max.apply(null, boxes.map(function (b) { return b.x + b.w; })), bot = Math.max.apply(null, boxes.map(function (b) { return b.y + b.h; }));
+    var c = JSON.parse(JSON.stringify(model.cards));
+    c.items = got.items;
+    c.feat = got.feat;
+    var set = { type: 'widget', x: x, y: y, w: r - x, h: bot - y, cards: c };
+    if (boxes[0].id) set.id = boxes[0].id;
+    composeCardsData(set);
+    var at = sec.els.indexOf(boxes[0]);
+    sec.els = sec.els.filter(function (e) { return boxes.indexOf(e) === -1; });
+    sec.els.splice(Math.min(at, sec.els.length), 0, set);
+  }
   function rollSection(idx, opts) {
     var quiet = !!(opts && opts.quiet); // the Layouts panel's previews: no undo step, no toast, no fetches
     var sec = S[idx];
     var fam = diceFamilyOf(sec);
     var faces = fam ? diceFaces(fam) : null;
     if (!faces) return null;
+    cardsAdoptBoxes(sec, faces);
     diceEnsureIds(sec.els);
     var m = sec.m || {};
     // an inferred family is adopted on the first roll: from here the
@@ -12860,6 +12833,8 @@
           if (d.wdata.tabs && e.tabs) e.tabs = d.wdata.tabs;
           if (d.wdata.pics && e.slides) e.slides = d.wdata.pics;
           else if (d.wdata.pics && e.wall) e.wall = d.wdata.pics;
+          // a set's cards travel; its layout, look and featured card are the take's
+          if (d.wdata.cards && e.cards) e.cards.items = JSON.parse(JSON.stringify(d.wdata.cards));
           if (d.wdata.shop && e.shop) {
             // the shop's data is the shop's: category, order, count and
             // what to show travel; layout, picture and spacing belong to the take
@@ -14482,6 +14457,12 @@
         else if (w.tabs) w.tabs = items.map(function (it, k) { return Object.assign({}, w.tabs[k] || w.tabs[0] || {}, { label: String(it.label || it.title || ''), body: String(it.body || it.text || '') }); });
         else if (w.wall) w.wall = items.map(function (it) { return { img: String(it.image || it.img || ''), cap: String(it.caption || it.cap || '') }; });
         else if (w.slides) w.slides = items.map(function (it) { return { img: String(it.image || it.img || ''), cap: String(it.caption || it.cap || '') }; });
+        else if (w.cards) {
+          w.cards = cardsNorm(w.cards);
+          w.cards.items = cardsFromDefItems(items, w.cards);
+          w.cards = cardsNorm(w.cards); // a featured slot past the items goes
+          composeCardsData(w);
+        }
       }
     }
     if (sc.mood) clone.els.forEach(function (e) { if (e.type === 'box' && e.kids && e.kids.length) e.mood = sc.mood; });
