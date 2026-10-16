@@ -4578,34 +4578,31 @@
       return 'a video rides the die like a picture';
     });
 
-    test('+ Section opens a gap where the section will go, and a hovered choice is drawn in it', function () {
-      G.addSection({ title: 'SEAMBELOW', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Below the seam' } ] }, G.sections().length);
+    test('+ Section opens the chooser at the seam: it names the spot, shows the neighbours, adds there', function () {
+      G.addSection({ title: 'SEAMTOP', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Above the seam' } ] }, G.sections().length);
+      G.addSection({ title: 'SEAMBOT', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Below the seam' } ] }, G.sections().length);
       var c = contentSecs();
-      var below = c[c.length - 1];
+      var above = c[c.length - 2], below = c[c.length - 1];
       var idx = G.sections().indexOf(below);
       var n0 = G.sections().length;
-      G.openSeamAsk(idx, below.wrapEl);
-      var gap = q('.gogh-seamgap');
-      var panel = q('.gogh-panel');
-      expect(gap && !panel.hidden, 'the gap and the ask should open');
-      expect(gap.nextElementSibling === below.wrapEl, 'the gap should sit right above the section it goes before');
-      expect(panel.classList.contains('gogh-panel-strip') && gap.contains(panel), 'the ask should be a strip inside the gap');
-      expect(!document.documentElement.classList.contains('gogh-zoomed'), 'the page should not zoom');
-      var chip = [].filter.call(panel.querySelectorAll('.gogh-askchip'), function (x) { return !x.classList.contains('gogh-askmore') && (x.dataset.tpl != null || x.dataset.say); })[0];
-      expect(chip, 'no choice to hover');
-      chip.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-      var pv = gap.querySelector('.gogh-seamprev');
-      expect(pv && gap.classList.contains('is-previewing') && pv.querySelector('.gogh-section'), 'hovering a choice should draw that section in the gap');
-      expect(pv.hasAttribute('inert'), 'the drawn section is only a look');
-      expect(G.sections().length === n0, 'a look adds nothing to the page');
-      chip.click();
-      expect(!q('.gogh-seamgap') && !q('.gogh-seamprev') && panel.hidden && panel.parentNode === document.body, 'choosing should close the gap and send the panel home');
+      G.openPicker(idx, below.wrapEl, { seam: true });
+      var pk = q('.gogh-picker');
+      expect(pk && !pk.hidden, 'the chooser should open');
+      var between = pk.querySelector('.gogh-picker-between');
+      expect(between && /Above the seam/.test(between.textContent) && /Below the seam/.test(between.textContent), 'the header should name both neighbours, got ' + (between && between.textContent));
+      var mk = q('.gogh-seammark');
+      expect(mk && mk.nextElementSibling === below.wrapEl, 'the page should mark the spot, right above the section below');
+      var card = [].filter.call(pk.querySelectorAll('.gogh-card[data-tpl]'), function (b) { return b.style.display !== 'none'; })[0];
+      expect(card && card.querySelector('.gogh-nb-top') && card.querySelector('.gogh-nb-bot') && card.querySelector('.gogh-card-add'), 'each card should show its neighbours and Add here');
+      card.click();
       expect(G.sections().length === n0 + 1, 'choosing should add one section');
       var born = G.sections()[idx];
-      expect(born !== below && born.wrapEl.nextElementSibling === below.wrapEl, 'the new section should land where the gap was');
+      expect(born !== below && born.wrapEl.nextElementSibling === below.wrapEl, 'it should land at the seam');
+      expect(!q('.gogh-seammark'), 'the mark should go');
+      G.deleteSection(G.sections().indexOf(born));
       G.deleteSection(G.sections().indexOf(below));
-      G.deleteSection(idx);
-      return 'gap, look, landed in place';
+      G.deleteSection(G.sections().indexOf(above));
+      return 'named, neighboured, landed';
     });
 
     test('a hovered section shows a ring; its background docks in the sidebar', function () {
@@ -6352,15 +6349,15 @@
       var input = pnl.querySelector('.gogh-askin');
       var labels = function () { return [].slice.call(pnl.querySelectorAll('.gogh-askchips .gogh-askchip')).map(function (b) { return b.textContent.trim(); }); };
       var before = labels();
-      expect(before.length >= 4 && pnl.querySelector('.gogh-strip-browse'), 'the usual chips, with Browse all beside them, to begin with');
+      expect(before.length >= 4 && before[before.length - 1].indexOf('Browse them all') === 0, 'the usual chips and Browse them all to begin with');
       input.value = 'carou'; input.dispatchEvent(new Event('input', { bubbles: true }));
       var now = labels();
       expect(now[0] === 'Carousel', 'typing “carou” should surface Carousel first, got ' + now.join(' · '));
-      expect(pnl.querySelector('.gogh-strip-browse'), 'Browse all stays');
+      expect(now[now.length - 1].indexOf('Browse them all') === 0, 'Browse them all stays');
       input.value = 'pric'; input.dispatchEvent(new Event('input', { bubbles: true }));
       expect(labels()[0] === 'Pricing', 'typing “pric” should surface Pricing, got ' + labels().join(' · '));
       input.value = 'zzqx'; input.dispatchEvent(new Event('input', { bubbles: true }));
-      expect(!!pnl.querySelector('.gogh-askempty') && labels().length === 0, 'nonsense leaves no choices, with a word saying so');
+      expect(!!pnl.querySelector('.gogh-askempty') && labels().length === 1, 'nonsense leaves only Browse them all, with a word saying so');
       input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true }));
       expect(labels().join() === before.join(), 'clearing the box brings the usual chips back');
       input.value = 'carousel';

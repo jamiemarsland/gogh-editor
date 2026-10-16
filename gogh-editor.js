@@ -5626,7 +5626,7 @@
   // a docked sidebar is already where it belongs: re-placing it by its piece
   // floated it into the page (James: 'we seem to have a modal after clicking
   // shop the look? this should be sidebar')
-  function reclampPanel() { if (!panel.hidden && panelAnchor && !panel.classList.contains('gogh-panel-sidebar') && !panel.classList.contains('gogh-panel-strip')) placePanelNear(panelAnchor); }
+  function reclampPanel() { if (!panel.hidden && panelAnchor && !panel.classList.contains('gogh-panel-sidebar')) placePanelNear(panelAnchor); }
   function openPanel(sec, i) {
     var e = sec.els[i];
     panel.classList.remove('gogh-panel-wide');
@@ -12632,6 +12632,7 @@
   var pickerCloseT = null;
   function closePicker() {
     clearTimeout(pickerCloseT);
+    [].forEach.call(document.querySelectorAll('.gogh-seammark'), function (n) { n.remove(); });
     if (picker.__io) { picker.__io.disconnect(); picker.__io = null; }
     picker.classList.remove('is-open');
     if (/gogh-test/.test(location.search)) {
@@ -12649,11 +12650,46 @@
   function fitCardStage(pv, st) {
     // show the WHOLE design: shrink tall sections to fit, centre the rest
     var h = st.scrollHeight || 1;
-    var scale = Math.min(pv.clientWidth / 1200, (pv.clientHeight || 1) / h);
+    // opened at a seam, a card shows a slice of the section above and below,
+    // hugging the design, so it reads 'this goes between these two'
+    var nb = pv.classList.contains('gogh-card-nb') ? 12 : 0;
+    var room = (pv.clientHeight || 1) - nb * 2;
+    var scale = Math.min(pv.clientWidth / 1200, room / h);
     if (!isFinite(scale) || scale <= 0) scale = pv.clientWidth / 1200;
     st.style.transform = 'scale(' + scale + ')';
     st.style.left = Math.max(0, Math.round((pv.clientWidth - 1200 * scale) / 2)) + 'px';
-    st.style.top = Math.max(0, Math.round(((pv.clientHeight || 0) - h * scale) / 2)) + 'px';
+    var top = nb + Math.max(0, Math.round((room - h * scale) / 2));
+    st.style.top = top + 'px';
+    if (nb) {
+      var up = pv.querySelector('.gogh-nb-top'), down = pv.querySelector('.gogh-nb-bot');
+      if (up) up.style.top = (top - nb) + 'px';
+      if (down) down.style.top = Math.round(top + h * scale) + 'px';
+    }
+  }
+  // the two sections either side of a seam, as a person would name them
+  function seamNeighbours(idx, before) {
+    var anchor = insertAnchorFor(idx, before);
+    var isBlock = function (n) { return n && n.nodeType === 1 && n.tagName !== 'STYLE' && n.tagName !== 'SCRIPT' && !n.classList.contains('gogh-seammark'); };
+    var next = isBlock(anchor) ? anchor : null;
+    var prev = anchor ? anchor.previousSibling : null;
+    while (prev && !isBlock(prev)) prev = prev.previousSibling;
+    var describe = function (node, fallback) {
+      if (!node) return null;
+      var sec = S.filter(function (x) { return x.wrapEl === node; })[0];
+      var txt = '';
+      if (sec) {
+        var h = diceFlatten(sec.els || []).filter(function (e) { return e.type === 'heading' && e.text; })[0];
+        txt = h ? String(h.text).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '') : '';
+      }
+      if (!txt) { var hn = node.querySelector('h1, h2, h3'); txt = hn ? hn.textContent : ''; }
+      txt = txt.replace(/&nbsp;|\s+/g, ' ').replace(/&amp;/g, '&').trim();
+      if (txt.length > 34) txt = txt.slice(0, 32).replace(/\s+\S*$/, '') + '\u2026';
+      var paintEl = sec ? sec.sectionEl : node;
+      var bg = getComputedStyle(paintEl).backgroundColor;
+      if (!bg || /rgba\(0, 0, 0, 0\)|transparent/.test(bg)) bg = getComputedStyle(document.body).backgroundColor || '#fff';
+      return { name: txt || fallback, bg: bg };
+    };
+    return { prev: describe(prev, 'the section above'), next: describe(next, 'the section below') };
   }
   // one taxonomy for everything in the picker \u2014 starters and theme patterns
   // share these buckets, so the chips are the only navigation concept
@@ -12672,9 +12708,29 @@
     'Menu': 'text', 'Team': 'contact photos',
     'Latest posts': 'cards', 'Featured post': 'cards featured', 'Titles and dates': 'text',
   };
-  function openPicker(idx, before) {
+  function openPicker(idx, before, opts) {
     pickerIdx = idx;
     pickerBefore = (before && before.isConnected) ? before : null;
+    // opened from + Section between two sections (James: 'build b', after
+    // Squarespace): the header names where it goes, every card shows its
+    // neighbours either side, and the page marks the spot
+    var atSeam = !!(opts && opts.seam);
+    var nbrs = atSeam ? seamNeighbours(idx, pickerBefore) : null;
+    [].forEach.call(document.querySelectorAll('.gogh-seammark'), function (n) { n.remove(); });
+    if (atSeam) {
+      var mk = document.createElement('div');
+      mk.className = 'gogh-seammark alignfull';
+      mk.setAttribute('aria-hidden', 'true');
+      mk.innerHTML = '<span>New section goes here</span>';
+      pageParent.insertBefore(mk, insertAnchorFor(idx, pickerBefore));
+    }
+    var seamChip = function (n) {
+      return '<span class="gogh-seamchip"><i style="background:' + escAttr(n.bg) + '"></i>' + esc(n.name) + '</span>';
+    };
+    var nbBand = function (where) {
+      var n = nbrs && nbrs[where === 'top' ? 'prev' : 'next'];
+      return n ? '<span class="gogh-nb gogh-nb-' + (where === 'top' ? 'top' : 'bot') + '" style="background:' + escAttr(n.bg) + '"></span>' : '';
+    };
     try { picker.style.setProperty('--gogh-body-ff', getComputedStyle(document.body).fontFamily); } catch (err) {}
     var tplCardHTML = function (tpl, t, popular, si) {
       var els = tplEls(tpl);
@@ -12683,8 +12739,10 @@
       var inner = els.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
       return '<button type="button" class="gogh-card" data-tpl="' + t + '" data-si="' + (si || 0) + '"' +
         ' data-cats="' + (STARTER_CATS[tpl.name] || '') + '"' + (tpl.keywords ? ' data-kw="' + escAttr(tpl.keywords) + '"' : '') + '>' +
-        '<span class="gogh-card-prev"><style>' + css + '</style>' +
+        '<span class="gogh-card-prev' + (atSeam ? ' gogh-card-nb' : '') + '"><style>' + css + '</style>' +
+        (atSeam ? nbBand('top') : '') +
         '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
+        (atSeam ? nbBand('bot') + '<span class="gogh-card-add">Add here</span>' : '') +
         '</span>' +
         '<span class="gogh-card-name">' + (tpl.label || tpl.name) +
         (popular ? '<span class="gogh-pop">🔥 Popular</span>' : '') + '</span>' +
@@ -12753,7 +12811,10 @@
       '<div class="gogh-picker-inner">' +
       '<div class="gogh-picker-head">' +
       '<span class="gogh-picker-headings"><span class="gogh-picker-title">Add a section</span>' +
-      '<span class="gogh-picker-sub">Choose a layout to get started. You can customise everything.</span></span>' +
+      (atSeam && nbrs ? '<span class="gogh-picker-sub gogh-picker-between">Goes ' +
+        (nbrs.prev && nbrs.next ? 'between ' + seamChip(nbrs.prev) + ' and ' + seamChip(nbrs.next)
+          : nbrs.next ? 'above ' + seamChip(nbrs.next) : nbrs.prev ? 'below ' + seamChip(nbrs.prev) : 'here') + '</span></span>'
+        : '<span class="gogh-picker-sub">Choose a layout to get started. You can customise everything.</span></span>') +
       '<span class="gogh-picker-tools">' +
       '<label class="gogh-picker-search">' +
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>' +
@@ -12954,6 +13015,16 @@
     searchIn.addEventListener('input', function () {
       query = this.value.trim().toLowerCase();
       applyFilter();
+    });
+    // Enter takes the first design showing; words no card matches ('a map
+    // and opening hours') still go through the seam's vocabulary
+    searchIn.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter') return;
+      ev.preventDefault();
+      var first = [].filter.call(cardsBox.querySelectorAll('.gogh-card'), function (b) { return b.style.display !== 'none' && (b.dataset.tpl != null || b.dataset.dtpl != null); })[0];
+      if (query && first) { first.click(); return; }
+      var m = query ? askSeamMatch(this.value) : null;
+      if (m) { var i0 = pickerIdx, b0 = pickerBefore; closePicker(); askSeamInsert(m, i0, b0); }
     });
     // cap the first screen NOW — pattern loading used to be the only
     // early applyFilter trigger, so a 9th starter leaked past the cap
@@ -15559,103 +15630,24 @@
     if (cfg.canExp && cfg.expAI) out.push({ label: 'Experience', say: 'an interactive experience' });
     return out;
   }
-  // ---------- the seam opens: where the new section goes, made plain ----------
-  // (James, after Albers: 'i quite like the way this adds sections so folks
-  // know exactly where the section is going'). The page parts at the seam: a
-  // dashed gap holds the ask, the sections above and below stay in view, and
-  // hovering a choice draws that very section in the gap, real size, in the
-  // site's own look, before anything is added. Esc, ✕ or a choice closes it
-  var seamPrevSeq = 0;
-  function openSeamGap(idx, before) {
-    var gap = document.createElement('div');
-    gap.className = 'gogh-seamgap alignfull';
-    gap.innerHTML = '<div class="gogh-seamgap-stage" aria-hidden="true"><span class="gogh-seamgap-hint">Your new section goes here. Hover a choice to see it in place, full size.</span></div>';
-    pageParent.insertBefore(gap, insertAnchorFor(idx, before));
-    var stage = gap.firstChild, hint = stage.firstChild;
-    var prev = null, prevKey = null, clearT = null;
-    hideHbar(); // the seam's height line steps aside while the gap is open
-    hideSecBar();
-    // the ask is a slim strip at the top of the gap, sticking under the bar
-    // while you scroll through what it shows (James, after the zoom: 'i kinda
-    // lose context'): nothing jumps, nothing shrinks, the page never moves
-    // on its own — only the gap grows
-    gap.insertBefore(panel, stage);
-    panel.classList.add('gogh-panel-strip');
-    panel.style.left = panel.style.right = panel.style.bottom = panel.style.width = panel.style.maxHeight = '';
-    panel.style.top = (barBottom() + 8) + 'px';
-    panel.hidden = false;
-    panelAnchor = gap;
-    var api = {
-      el: gap,
-      preview: function (match, chip) {
-        clearTimeout(clearT);
-        if (!match || !match.tpl) {
-          // a short grace, so moving from one choice to the next doesn't blink
-          clearT = setTimeout(function () { api.preview.clear(); }, 140);
-          return;
-        }
-        var key = (match.tpl.name || '') + '|' + (match.heading || '');
-        if (key === prevKey && prev) return;
-        api.preview.clear();
-        var tpl = JSON.parse(JSON.stringify(match.tpl));
-        var sec = newSectionShell('gogh-seamprev-' + (++seamPrevSeq));
-        dressFromTpl(sec, tpl);
-        if (match.heading) {
-          var done = false;
-          var rewrite = function (e) { if (done) return; if (e.type === 'heading') { e.text = match.heading; done = true; return; } (e.kids || []).forEach(rewrite); };
-          sec.els.forEach(rewrite);
-        }
-        sec.wrapEl.classList.add('gogh-seamprev');
-        sec.wrapEl.setAttribute('inert', '');
-        stage.appendChild(sec.wrapEl);
-        renderSection(sec);
-        sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
-        hint.hidden = true;
-        gap.classList.add('is-previewing');
-        prev = sec; prevKey = key;
-        if (chip) chip.classList.add('is-previewed');
-      },
-    };
-    api.preview.clear = function () {
-      clearTimeout(clearT);
-      if (prev) { prev.wrapEl.remove(); prev = null; prevKey = null; }
-      hint.hidden = false;
-      gap.classList.remove('is-previewing');
-      panel.querySelectorAll('.gogh-askchip.is-previewed').forEach(function (c) { c.classList.remove('is-previewed'); });
-    };
-    panelCleanup = function () {
-      clearTimeout(clearT);
-      panel.classList.remove('gogh-panel-strip');
-      panel.style.top = '';
-      document.body.appendChild(panel); // home again, for every other panel
-      gap.remove();
-    };
-    // only when the seam sits under the bar (a click right at the top edge)
-    // does the page make room: never otherwise
-    var gr = gap.getBoundingClientRect();
-    if (gr.top < barBottom() + 8) window.scrollBy(0, gr.top - barBottom() - 24);
-    return api;
-  }
   function openSeamAsk(idx, before) {
-    // the likeliest few fit the one row; typing finds the rest
-    var chips = askSeamChips().slice(0, 6);
+    var chips = askSeamChips();
     panel.innerHTML =
-      '<div class="gogh-strip-row">' +
-      '<span class="gogh-strip-title">What should go here?</span>' +
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">What should go here?</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">✕</button></div>' +
+      '<div class="gogh-askrow">' +
+      '<input type="text" class="gogh-input gogh-askin" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-askgo">Add</button></div>' +
       '<div class="gogh-askchips">' +
       chips.map(function (c) {
         return '<button type="button" class="gogh-askchip" data-say="' + escAttr(c.say) + '">' + esc(c.label) + '</button>';
       }).join('') +
-      '</div>' +
-      '<label class="gogh-strip-ask"><span class="gogh-sr">Or describe it</span><input type="text" class="gogh-input gogh-askin" /></label>' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-askgo">Add</button>' +
-      '<button type="button" class="gogh-askchip gogh-askmore gogh-strip-browse">Browse all \u2192</button>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close" aria-label="Close">\u2715</button>' +
-      '</div>' +
+      '<button type="button" class="gogh-askchip gogh-askmore">Browse them all →</button></div>' +
       '<div class="gogh-askmiss" hidden></div>';
+    var anchorRect = inserter.getBoundingClientRect();
+    placePanelNear({ getBoundingClientRect: function () { return anchorRect; } });
     panelOpen = true;
     panelSticky = true;
-    var gap = openSeamGap(idx, before);
     var input = panel.querySelector('.gogh-askin');
     var missRow = panel.querySelector('.gogh-askmiss');
     var k0 = Math.floor(Math.random() * SEAM_EXAMPLES.length);
@@ -15702,10 +15694,10 @@
         ? '<button type="button" class="gogh-askchip" data-tpl="' + c.tpl + '">' + esc(c.label) + '</button>'
         : '<button type="button" class="gogh-askchip" data-say="' + escAttr(c.say) + '">' + esc(c.label) + '</button>';
     };
-    var browseBtn = '';
+    var browseBtn = '<button type="button" class="gogh-askchip gogh-askmore">Browse them all \u2192</button>';
     var renderChips = function (list) {
       if (list === null) { chipsBox.innerHTML = chips.map(chipHTML).join('') + browseBtn; return; }
-      chipsBox.innerHTML = (list.length ? list.slice(0, 6).map(chipHTML).join('') : '<span class="gogh-askempty">Nothing here matches.</span>') + browseBtn;
+      chipsBox.innerHTML = (list.length ? list.map(chipHTML).join('') : '<span class="gogh-askempty">Nothing here matches.</span>') + browseBtn;
     };
     input.addEventListener('input', function () { missRow.hidden = true; renderChips(seamMatches(input.value)); });
     var go = function (text) {
@@ -15748,28 +15740,10 @@
       askSeamInsert(m, idx, before);
     };
     panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
-    panel.querySelector('.gogh-strip-browse').addEventListener('click', function () { closePanel(); openPicker(idx == null ? S.length : idx, before); });
     panel.querySelector('.gogh-askgo').addEventListener('click', function () { go(input.value); });
     input.addEventListener('keydown', function (ev) {
       if (ev.key === 'Enter') { ev.preventDefault(); go(input.value); }
     });
-    // hovering a choice draws that very section in the gap, in the site's
-    // own fonts and colours, between its real neighbours
-    var tplForChip = function (ch) {
-      if (!ch || ch.classList.contains('gogh-askmore')) return null;
-      if (ch.dataset.tpl != null) return { tpl: TEMPLATES[+ch.dataset.tpl] };
-      return ch.dataset.say ? askSeamMatch(ch.dataset.say) : null;
-    };
-    var previewChip = function (ev) {
-      var ch = ev.target.closest ? ev.target.closest('.gogh-askchip') : null;
-      if (ch) gap.preview(tplForChip(ch), ch);
-    };
-    chipsBox.addEventListener('mouseover', previewChip);
-    chipsBox.addEventListener('focusin', previewChip);
-    // the look stays while the hand is anywhere in the gap: scrolling through
-    // a tall section moves the strip up under the bar, and the hand ends up
-    // over the drawing (it used to vanish right then). Leaving the gap clears it
-    gap.el.addEventListener('mouseleave', function () { gap.preview(null); });
     // one listener for every chip, since the row is redrawn as you type
     chipsBox.addEventListener('click', function (ev) {
       var ch = ev.target.closest ? ev.target.closest('.gogh-askchip') : null;
@@ -16874,10 +16848,12 @@
   // touch identically (tap ground = select, tap away = deselect). The old
   // coarse-pointer summoning is gone with the rest of hover's empire.
   inserter.addEventListener('click', function () {
-    // the seam asks WHAT, not WHICH — the full shelf stays one chip away.
-    // Open BEFORE hiding: the panel anchors to the button's live rect
-    openSeamAsk(insertIdx, insertBefore);
+    // the chooser, Squarespace-style: real designs in the site's own look,
+    // each shown between the sections either side, and the header naming
+    // the spot (James chose this over the ask, the gap and the strip)
     inserter.hidden = true;
+    hideHbar();
+    openPicker(insertIdx, insertBefore, { seam: true });
   });
 
   // ---------- dragging with ghost (no cursor drift) ----------
