@@ -811,6 +811,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**See where a new section goes (v0.99.736).** Click **+ Section** between two sections and the page now opens a dashed gap at that exact spot, with "What should go here?" inside it and the sections above and below still in view, so there's no doubt where the new one will land. Hover a choice, such as Testimonials or Contact form, and that section is drawn in the gap at full size, in your site's own fonts and colours, before anything is added; move away and it goes. Click a choice to add it there, or press Esc or ✕ to close the gap. Browse them all still opens the full shelf.
+
 **No bins in Layouts (v0.99.735).** The Layouts panel no longer puts a bin on every piece. To take something out while the panel is open, click it in the section and press Delete (or use the bin in its own toolbar): it leaves that layout and every other layout of the design too, so switching layouts never brings it back. **Restore removed** brings it back.
 
 **No name pill on hover (v0.99.734).** The section hover keeps its thin outline but no longer shows the section's name in a pill, and the ring round a section in Section background is labelled "Section background".

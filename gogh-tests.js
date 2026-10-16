@@ -4578,6 +4578,35 @@
       return 'a video rides the die like a picture';
     });
 
+    test('+ Section opens a gap where the section will go, and a hovered choice is drawn in it', function () {
+      G.addSection({ title: 'SEAMBELOW', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Below the seam' } ] }, G.sections().length);
+      var c = contentSecs();
+      var below = c[c.length - 1];
+      var idx = G.sections().indexOf(below);
+      var n0 = G.sections().length;
+      G.openSeamAsk(idx, below.wrapEl);
+      var gap = q('.gogh-seamgap');
+      var panel = q('.gogh-panel');
+      expect(gap && !panel.hidden, 'the gap and the ask should open');
+      expect(gap.nextElementSibling === below.wrapEl, 'the gap should sit right above the section it goes before');
+      expect(panel.classList.contains('gogh-panel-seam'), 'the ask should ride in the gap');
+      var chip = [].filter.call(panel.querySelectorAll('.gogh-askchip'), function (x) { return !x.classList.contains('gogh-askmore') && (x.dataset.tpl != null || x.dataset.say); })[0];
+      expect(chip, 'no choice to hover');
+      chip.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      var pv = gap.querySelector('.gogh-seamprev');
+      expect(pv && gap.classList.contains('is-previewing') && pv.querySelector('.gogh-section'), 'hovering a choice should draw that section in the gap');
+      expect(pv.hasAttribute('inert'), 'the drawn section is only a look');
+      expect(G.sections().length === n0, 'a look adds nothing to the page');
+      chip.click();
+      expect(!q('.gogh-seamgap') && !q('.gogh-seamprev') && panel.hidden, 'choosing should close the gap');
+      expect(G.sections().length === n0 + 1, 'choosing should add one section');
+      var born = G.sections()[idx];
+      expect(born !== below && born.wrapEl.nextElementSibling === below.wrapEl, 'the new section should land where the gap was');
+      G.deleteSection(G.sections().indexOf(below));
+      G.deleteSection(idx);
+      return 'gap, look, landed in place';
+    });
+
     test('a hovered section shows a ring; its background docks in the sidebar', function () {
       G.addSection({ title: 'HOVERDOCK', minH: 300, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Ring and name' } ] }, G.sections().length);
       var c = contentSecs();

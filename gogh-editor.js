@@ -13228,14 +13228,11 @@
     });
   }
 
-  function addSection(tpl, idx, before) {
-    if (idx == null) idx = S.length;
-    idx = clampInsertIdx(idx);
-    var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
+  // a template is a whole look: picture, tint, fill and effect ride along
+  function dressFromTpl(sec, tpl) {
     sec.els = tplEls(tpl);
     sec.minH = tpl.minH || null;
     sec.bg = tpl.bg || null;
-    // a template is a whole look: picture, tint, fill and effect ride along
     sec.bgImage = tplBgFor(tpl);
     sec.bgA = tpl.bgA != null ? tpl.bgA : null;
     // a loop behind the words rides along too (a site definition's 'video');
@@ -13244,11 +13241,24 @@
     // a design's own class for the section rides in m, which every path keeps
     if (userCls(tpl.cls)) sec.m = Object.assign({}, sec.m || {}, { cls: userCls(tpl.cls) });
     sec.fill = !!tpl.fill;
+    sec.fx = tpl.fx ? JSON.parse(JSON.stringify(tpl.fx)) : null;
+  }
+  // where a new section would land: the DOM node it goes in front of
+  function insertAnchorFor(idx, before) {
+    if (before && before.isConnected) return before;
+    idx = clampInsertIdx(idx == null ? S.length : idx);
+    for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) return S[ni].wrapEl; }
+    return endMarker;
+  }
+  function addSection(tpl, idx, before) {
+    if (idx == null) idx = S.length;
+    idx = clampInsertIdx(idx);
+    var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
+    dressFromTpl(sec, tpl);
     // a section can be a DESTINATION: its anchor becomes the element's id,
     // which is the whole trick behind a one-page site's menu
     sec.anchor = cleanAnchor(tpl.anchor);
     if (sec.anchor) sec.sectionEl.id = sec.anchor;
-    sec.fx = tpl.fx ? JSON.parse(JSON.stringify(tpl.fx)) : null;
     // a starter with hidden takes remembers its family -- the die must
     // know which drawer to reach into, today and after a reload (m rides
     // in the saved model, so the memory survives publish)
@@ -15549,6 +15559,93 @@
     if (cfg.canExp && cfg.expAI) out.push({ label: 'Experience', say: 'an interactive experience' });
     return out;
   }
+  // ---------- the seam opens: where the new section goes, made plain ----------
+  // (James, after Albers: 'i quite like the way this adds sections so folks
+  // know exactly where the section is going'). The page parts at the seam: a
+  // dashed gap holds the ask, the sections above and below stay in view, and
+  // hovering a choice draws that very section in the gap, real size, in the
+  // site's own look, before anything is added. Esc, ✕ or a choice closes it
+  var seamPrevSeq = 0;
+  function openSeamGap(idx, before) {
+    var gap = document.createElement('div');
+    gap.className = 'gogh-seamgap alignfull';
+    gap.setAttribute('aria-hidden', 'true');
+    gap.innerHTML = '<div class="gogh-seamgap-room"></div><div class="gogh-seamgap-stage"><span class="gogh-seamgap-hint">Your new section goes here</span></div>';
+    pageParent.insertBefore(gap, insertAnchorFor(idx, before));
+    var room = gap.firstChild, stage = gap.lastChild, hint = stage.firstChild;
+    var prev = null, prevKey = null, clearT = null;
+    hideHbar(); // the seam's height line steps aside while the gap is open
+    hideSecBar();
+    panel.classList.add('gogh-panel-seam');
+    panel.hidden = false;
+    panelAnchor = room;
+    // the ask rides in the gap's room, following it through scrolling and
+    // every redraw (the panel stays the one panel, so Esc and ✕ work as ever)
+    var raf = 0;
+    var place = function () {
+      raf = 0;
+      if (!gap.isConnected || panel.hidden) return;
+      var pw = panel.offsetWidth || 380, ph = panel.offsetHeight || 200;
+      var want = ph + 48 + 'px';
+      if (room.style.height !== want) room.style.height = want;
+      var r = room.getBoundingClientRect();
+      panel.style.left = Math.round(r.left + (r.width - pw) / 2) + 'px';
+      panel.style.top = Math.round(r.top + 24) + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      raf = requestAnimationFrame(place);
+    };
+    var api = {
+      el: gap,
+      preview: function (match, chip) {
+        clearTimeout(clearT);
+        if (!match || !match.tpl) {
+          // a short grace, so moving from one choice to the next doesn't blink
+          clearT = setTimeout(function () { api.preview.clear(); }, 140);
+          return;
+        }
+        var key = (match.tpl.name || '') + '|' + (match.heading || '');
+        if (key === prevKey && prev) return;
+        api.preview.clear();
+        var tpl = JSON.parse(JSON.stringify(match.tpl));
+        var sec = newSectionShell('gogh-seamprev-' + (++seamPrevSeq));
+        dressFromTpl(sec, tpl);
+        if (match.heading) {
+          var done = false;
+          var rewrite = function (e) { if (done) return; if (e.type === 'heading') { e.text = match.heading; done = true; return; } (e.kids || []).forEach(rewrite); };
+          sec.els.forEach(rewrite);
+        }
+        sec.wrapEl.classList.add('gogh-seamprev');
+        sec.wrapEl.setAttribute('inert', '');
+        stage.appendChild(sec.wrapEl);
+        renderSection(sec);
+        sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
+        hint.hidden = true;
+        gap.classList.add('is-previewing');
+        prev = sec; prevKey = key;
+        if (chip) chip.classList.add('is-previewed');
+      },
+    };
+    api.preview.clear = function () {
+      clearTimeout(clearT);
+      if (prev) { prev.wrapEl.remove(); prev = null; prevKey = null; }
+      hint.hidden = false;
+      gap.classList.remove('is-previewing');
+      panel.querySelectorAll('.gogh-askchip.is-previewed').forEach(function (c) { c.classList.remove('is-previewed'); });
+    };
+    panelCleanup = function () {
+      if (raf) cancelAnimationFrame(raf);
+      clearTimeout(clearT);
+      gap.remove();
+      panel.classList.remove('gogh-panel-seam');
+      panel.style.left = panel.style.top = panel.style.right = panel.style.bottom = '';
+    };
+    place();
+    // the seam in view: the gap a little below the top, its neighbour above peeking in
+    var gr = gap.getBoundingClientRect();
+    if (gr.top < barBottom() + 60 || gr.top > window.innerHeight * 0.55) window.scrollBy({ top: gr.top - Math.max(barBottom() + 120, window.innerHeight * 0.22), behavior: 'smooth' });
+    return api;
+  }
   function openSeamAsk(idx, before) {
     var chips = askSeamChips();
     panel.innerHTML =
@@ -15563,10 +15660,9 @@
       }).join('') +
       '<button type="button" class="gogh-askchip gogh-askmore">Browse them all →</button></div>' +
       '<div class="gogh-askmiss" hidden></div>';
-    var anchorRect = inserter.getBoundingClientRect();
-    placePanelNear({ getBoundingClientRect: function () { return anchorRect; } });
     panelOpen = true;
     panelSticky = true;
+    var gap = openSeamGap(idx, before);
     var input = panel.querySelector('.gogh-askin');
     var missRow = panel.querySelector('.gogh-askmiss');
     var k0 = Math.floor(Math.random() * SEAM_EXAMPLES.length);
@@ -15663,6 +15759,20 @@
     input.addEventListener('keydown', function (ev) {
       if (ev.key === 'Enter') { ev.preventDefault(); go(input.value); }
     });
+    // hovering a choice draws that very section in the gap, in the site's
+    // own fonts and colours, between its real neighbours
+    var tplForChip = function (ch) {
+      if (!ch || ch.classList.contains('gogh-askmore')) return null;
+      if (ch.dataset.tpl != null) return { tpl: TEMPLATES[+ch.dataset.tpl] };
+      return ch.dataset.say ? askSeamMatch(ch.dataset.say) : null;
+    };
+    var previewChip = function (ev) {
+      var ch = ev.target.closest ? ev.target.closest('.gogh-askchip') : null;
+      if (ch) gap.preview(tplForChip(ch), ch);
+    };
+    chipsBox.addEventListener('mouseover', previewChip);
+    chipsBox.addEventListener('focusin', previewChip);
+    chipsBox.addEventListener('mouseleave', function () { gap.preview(null); });
     // one listener for every chip, since the row is redrawn as you type
     chipsBox.addEventListener('click', function (ev) {
       var ch = ev.target.closest ? ev.target.closest('.gogh-askchip') : null;
@@ -16670,6 +16780,7 @@
     requestAnimationFrame(function () {
       insertRaf = false;
       if (hDrag) return;
+      if (panelOpen) return; // a frame queued just before a click must not bring the seam's pills back over an open panel (the seam gap)
       // approach corridor: the section toolbar lives NEAR the boundary
       // band, so the path to it used to flip into boundary mode and hide
       // it mid-flight (James: "tricky to focus on"). While the pointer is
@@ -22170,6 +22281,7 @@
     mergeContent: mergeContent,
     closePanel: closePanel,
     showSecBar: function (i) { showSecBar(i); }, hideSecBar: function () { hideSecBar(); },
+    openSeamAsk: openSeamAsk,
     addElementAt: addElementAtViewport,
     addElementToSection: addElementToSection,
     composeFeaturedProduct: composeFeaturedProduct,
