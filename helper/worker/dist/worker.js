@@ -380,7 +380,7 @@ const UT_INTRO = `<!doctype html>
 <h1>Thank you for helping make gogh better</h1>
 <p>You are about to get a real WordPress website in your browser, already set up, with a small card of things to try. Nobody is watching. There are no wrong answers.</p>
 <div class="card"><h2>Who you are while you try it</h2>
-<p>You are Elliot Smith, a photographer a few months into running your own business. Customers keep asking whether you have a website. You want something simple: a bit about you, some of your work, and a way for people to get in touch. You are proud of your work, and the site should look like it.</p>
+<p>You are Elliot Grey, a photographer a few months into running your own business. Customers keep asking whether you have a website. You want something simple: a bit about you, some of your work, and a way for people to get in touch. You are proud of your work, and the site should look like it.</p>
 <p class="soft" style="margin:0">The site you get is a start someone made for you. Make it yours.</p></div>
 <div class="card"><h2>How it goes</h2>
 <ol><li>Press Start. Give it a minute to build.</li><li>A card on the right lists seven things to try. Do each one your own way, then press Done. If you can’t, press Couldn’t do it. Both are useful.</li><li>At the end there are four quick questions.</li></ol></div>
