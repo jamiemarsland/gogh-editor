@@ -3812,6 +3812,94 @@
       return 'previews are not edits; choices are';
     });
 
+    // ---- Cards: a set of cards that share one design ----
+    var cardsIn = function (e) { return (e.wsrc.match(/<!-- wp:group \{"className":"gogh-cs-card/g) || []).length; };
+    test('Cards: the + menu makes a set of three cards in one design, saved as core blocks', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+      expect(e.type === 'widget' && e.cards && e.cards.items.length === 3, 'a new set should hold three cards');
+      expect(cardsIn(e) === 3, 'the saved blocks should hold three cards, got ' + cardsIn(e));
+      // groups inside groups: every block that opens closes, and the only
+      // things between blocks are the blocks' own wrappers (the block
+      // editor's own parse of this markup is checked by hand: all valid)
+      var opens = (e.wsrc.match(/<!-- wp:[a-z\/-]+[^>]*?[^\/]-->/g) || []).length, closes = (e.wsrc.match(/<!-- \/wp:/g) || []).length;
+      expect(opens === closes && opens > 0, 'every block should close: ' + opens + ' open, ' + closes + ' closed');
+      var loose = e.wsrc.replace(/<!--[\s\S]*?-->/g, '\u0000').split('\u0000').filter(function (bit) {
+        return bit.replace(/<\/?(div|figure)[^>]*>|<img[^>]*>|<h3[^>]*>[\s\S]*?<\/h3>|<p[^>]*>[\s\S]*?<\/p>|\s/g, '') !== '';
+      });
+      expect(!loose.length, 'loose markup between blocks: ' + (loose[0] || '').slice(0, 80));
+      if (window.wp && wp.blocks && wp.blocks.getBlockType && wp.blocks.getBlockType('core/group')) {
+        var invalid = [];
+        (function walk(bs) { bs.forEach(function (b) { if (!b.isValid) invalid.push(b.name); walk(b.innerBlocks || []); }); })(wp.blocks.parse(e.wsrc));
+        expect(!invalid.length, 'invalid blocks: ' + invalid.join(', '));
+      }
+      expect(!/data-c[fk]/.test(e.wsrc), 'the canvas marks must never reach the saved page');
+      var n = s0.nodes[s0.els.indexOf(e)];
+      expect(n.querySelectorAll('[data-cf="t"]').length === 3, 'every card title should be typable on the canvas');
+      expect(typeof G.elDefaults().cards === 'function', 'the + menu should offer Cards');
+      return cardsIn(e) + ' cards, valid blocks';
+    });
+    test('Cards: typing on a card writes that card, and only it', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      var leaf = n.querySelectorAll('[data-cf="t"]')[1];
+      var r = leaf.getBoundingClientRect();
+      pev('pointerdown', leaf, r.x + 4, r.y + 4); pev('pointerup', leaf, r.x + 4, r.y + 4);
+      expect(leaf.isContentEditable, 'a second press on a card title should give it the caret');
+      leaf.textContent = 'Lamp light, all evening';
+      leaf.dispatchEvent(new Event('input', { bubbles: true }));
+      leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(!leaf.isContentEditable, 'Enter should finish the words');
+      expect(e.cards.items[1].t === 'Lamp light, all evening', 'the second card should keep the words: ' + e.cards.items[1].t);
+      expect(e.cards.items[0].t !== 'Lamp light, all evening' && e.cards.items[2].t !== 'Lamp light, all evening', 'no other card should change');
+      expect(e.wsrc.indexOf('Lamp light, all evening') !== -1, 'the saved blocks should carry the new words');
+      return 'card 2 rewritten';
+    });
+    test('Cards: adding, moving and deleting cards keeps the featured card with its card, and the set grows to fit', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+      var h0 = e.h;
+      G.cards.act(s0, e, 'feat', 1);
+      var star = e.cards.items[1];
+      G.cards.act(s0, e, 'add');
+      expect(e.cards.items.length === 4 && cardsIn(e) === 4, 'Add card should make a fourth card');
+      expect(e.h > h0 + 40, 'a fourth card wraps to a new row, so the set should grow: ' + h0 + ' -> ' + e.h);
+      G.cards.act(s0, e, 'up', 1);
+      expect(e.cards.items[0] === star && e.cards.feat === 0, 'moving the featured card should keep it featured');
+      G.cards.act(s0, e, 'dup', 0);
+      expect(e.cards.items.length === 5 && e.cards.feat === 0, 'a duplicate is not featured');
+      G.cards.act(s0, e, 'del', 0);
+      expect(e.cards.items.length === 4 && e.cards.feat === -1, 'deleting the featured card leaves none featured');
+      expect(/is-featured/.test(e.wsrc) === false, 'no card should be marked featured after');
+      var one = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+      one.cards.items.splice(1);
+      G.cards.act(s0, one, 'del', 0);
+      expect(one.cards.items.length === 1, 'a set keeps at least one card');
+      return '3 → 4 cards, ' + h0 + ' → ' + e.h + ' tall';
+    });
+    test('Cards: every layout, look and picture keeps every word, and no link can run script', function () {
+      var c = G.cards.norm(null);
+      c.items = [{ t: 'Alpha one', d: 'First words', link: 'Go', href: 'javascript:alert(1)', price: '£9', per: 'each', role: 'Founder', img: '/x.jpg' },
+        { t: 'Beta two', d: 'Second words', link: 'Go', href: 'example.com/b' }];
+      c.extras = { price: 1, role: 1 };
+      var miss = [];
+      G.cards.layouts.forEach(function (L) {
+        ['open', 'panel', 'outline', 'raised'].forEach(function (look) {
+          c.layout = L[0]; c.look = look;
+          var out = G.cards.compose(JSON.parse(JSON.stringify(c)), false);
+          ['Alpha one', 'Beta two', '£9', 'Founder'].forEach(function (w) { if (out.indexOf(w) === -1) miss.push(L[0] + '/' + look + ': ' + w); });
+          if (/javascript:/i.test(out)) miss.push(L[0] + ' let a script link through');
+          if (out.indexOf('href="https://example.com/b"') === -1) miss.push(L[0] + ' lost a plain link');
+        });
+      });
+      expect(!miss.length, miss.slice(0, 4).join('; '));
+      var odd = G.cards.norm({ items: [{ t: 5 }], layout: 'nope', look: 'nope', feat: 9 });
+      expect(odd.layout === 'g3' && odd.look === 'panel' && odd.feat === -1 && odd.items[0].t === '5', 'a set from elsewhere should come out whole');
+      return G.cards.layouts.length + ' layouts × 4 looks';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;

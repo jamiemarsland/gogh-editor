@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.745**
+- Plugin version: **0.99.746**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.745`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.746`). Quote the plugin header version.
 
 ## Design constants
 
@@ -51,7 +51,7 @@ Divider shapes (plus "None"): `curve` (Curve), `sweep` (Sweep), `dunes` (Dunes),
 
 Element types that survive a publish: `heading`, `para`, `button`, `image`, `video`, `embed`, `icon`, `rule`, `badge`, `box`, `widget`, `exp`. Anything else added from the block editor is lost on the next Gogh publish.
 
-"Add element" palette items: `badge`, `button`, `card`, `embed`, `exp`, `form`, `heading`, `icon`, `image`, `list`, `para`, `posts`, `products`, `rule`, `video`, `write`.
+"Add element" palette items: `badge`, `button`, `card`, `cards`, `embed`, `exp`, `form`, `heading`, `icon`, `image`, `list`, `para`, `posts`, `products`, `rule`, `video`, `write`.
 
 ## WebMCP tools
 
@@ -237,14 +237,18 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "+ Page"
 - "A card — drop pieces inside and they stay together, even on mobile"
 - "A line — a thin rule between things"
+- "A set keeps at least one card"
+- "A set of cards that share one design — type on any card, add more in a click"
 - "A video — upload one, or paste a YouTube or Vimeo link"
 - "AG"
 - "Aa"
 - "Add"
+- "Add a card"
 - "Add a category ↗"
 - "Add a page to this menu"
 - "Add a picture or video"
 - "Add a product ↗"
+- "Add card"
 - "Add link"
 - "Add or change categories in WordPress ↗"
 - "Add or change products in WordPress ↗"
@@ -277,6 +281,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Button"
 - "Cancel"
 - "Card"
+- "Cards"
 - "Change your colours"
 - "Changes the colours and fonts across your site. Back puts it back."
 - "Choose a style"
@@ -294,6 +299,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Dark page"
 - "Delete"
 - "Delete (Del)"
+- "Delete card"
 - "Delete saved section"
 - "Delete the selection"
 - "Delivery & returns"
@@ -345,6 +351,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Keep this"
 - "Keep this brand"
 - "Keep this layout (updates every page)"
+- "Layout for every card"
 - "Left"
 - "Light"
 - "Light page"
@@ -375,6 +382,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "My sections"
 - "Name, email and a message — straight into your own site, no plugin"
 - "New in"
+- "No picture"
 - "None"
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
@@ -388,6 +396,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Phone menu"
 - "Pick a custom colour for this section"
 - "Pick any colour for this ' + noun.toLowerCase() + '"
+- "Picture and link"
 - "Posts"
 - "Products"
 - "Publish"
@@ -442,6 +451,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Text alignment"
 - "Text colour"
 - "Text size: choose from every size"
+- "The featured card"
 - "The gogh build this tab is running"
 - "The header rides along as visitors scroll"
 - "The look before this one"
@@ -473,6 +483,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "pick from the shelf"
 - "re-centre"
 - "×"
+- "‹ All cards"
 - "← All layouts"
 - "↕ Spacing…"
 - "↶ Back"
@@ -598,5 +609,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`366` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`370` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

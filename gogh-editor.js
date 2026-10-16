@@ -1205,7 +1205,12 @@
       opts.bg && !/gradient\(/.test(String(opts.bg)) ? sec + ' .gogh-widget { color: ' + ghostInkCss(opts) + '; } ' +
         sec + ' .gogh-widget :is(.wp-block-post-title, .wp-block-post-title a, .wc-block-components-product-price, .wc-block-grid__product-price, .gogh-shopprev-price, .gogh-shopprev-body h3, .gogh-shopprev-emptycard a) { color: inherit; } ' +
         // and its buttons turn over: the ink becomes the button, the section's colour its words
-        sec + ' .gogh-widget :is(.wc-block-components-product-button__button, .gogh-postsprev-btn, .wp-block-button__link) { background: ' + ghostInkCss(opts) + ' !important; color: ' + opts.bg + ' !important; }' : '',
+        sec + ' .gogh-widget :is(.wc-block-components-product-button__button, .gogh-postsprev-btn, .wp-block-button__link) { background: ' + ghostInkCss(opts) + ' !important; color: ' + opts.bg + ' !important; } ' +
+        // a card set's featured card turns over too (dark on a dark band
+        // vanished), and a raised card keeps its own paper's button
+        sec + ' .gogh-widget .gogh-cs-card.is-featured { background: ' + ghostInkCss(opts) + ' !important; color: ' + opts.bg + ' !important; } ' +
+        sec + ' .gogh-widget .gogh-cs-card.is-featured .wp-block-button__link { background: ' + opts.bg + ' !important; color: ' + ghostInkCss(opts) + ' !important; } ' +
+        sec + ' .gogh-widget .gogh-cardset-look-raised > .gogh-cs-card:not(.is-featured) .wp-block-button__link { background: var(--wp--preset--color--contrast, #111) !important; color: var(--wp--preset--color--base, #fff) !important; }' : '',
       sec + ' .gogh-embed .wp-block-embed__wrapper { height: 100%; }',
       '',
       '@container (max-width: 700px) {',
@@ -1564,6 +1569,7 @@
       mood: e.mood || null,
       faq: e.faq || null, tabs: e.tabs || null, slides: e.slides || null, copt: e.copt || null,
       wall: e.wall || null, wopt: e.wopt || null,
+      cards: e.cards || null,
       ph: e.ph || null,
       expId: e.expId || null, expUrl: e.expUrl || null,
       m: (e.m && Object.keys(e.m).length) ? e.m : null, // sparse mobile overrides (hidden, …)
@@ -2265,7 +2271,7 @@
     if (!editing || !img || img.tagName !== 'IMG') return;
     var sec = S.filter(function (s2) { return s2.sectionEl && s2.sectionEl.contains(img); })[0];
     if (!sec) return;
-    setTimeout(function () { measureTextHeights(sec); resolveAndApply(sec); }, 60);
+    setTimeout(function () { fitCards(sec); measureTextHeights(sec); resolveAndApply(sec); }, 60);
   }, true);
   // a RICH background (photo, effect layer, gradient composition) cannot
   // be represented by a flat divider band — the transition must be carved
@@ -2408,6 +2414,7 @@
         }
       });
     }
+    fitCards(sec);
     measureTextHeights(sec);
     resolveAndApply(sec);
   }
@@ -2973,6 +2980,7 @@
     '<button type="button" class="gogh-sitem" data-add="rule" title="A line — a thin rule between things"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12h18"/></svg>Line</button>' +
     '<button type="button" class="gogh-sitem" data-add="write" title="Start writing — a reading column, cursor ready"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Write</button>' +
     '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop pieces inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
+    '<button type="button" class="gogh-sitem" data-add="cards" title="A set of cards that share one design \u2014 type on any card, add more in a click"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="5" width="5.5" height="14" rx="1.5"/><rect x="9.25" y="5" width="5.5" height="14" rx="1.5"/><rect x="16" y="5" width="5.5" height="14" rx="1.5"/></svg>Cards</button>' +
     '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
     (cfg.canExp ? '<button type="button" class="gogh-sitem" data-add="exp" title="Upload a self-contained HTML experience — it runs sandboxed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/></svg>Experience</button>' : '') +
     '<button type="button" class="gogh-sitem" data-add="form" title="Name, email and a message — straight into your own site, no plugin"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/><rect x="14" y="15" width="4" height="2.5" rx="1"/></svg>Form</button>' +
@@ -3798,6 +3806,9 @@
     '<button type="button" class="gogh-eb gogh-eb-look" title="Choose a style"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
+    // a card set's two everyday doors: its layout, and one more card
+    '<button type="button" class="gogh-eb gogh-eb-cardslayout" title="Layout for every card" style="display:none"></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-addcard" title="Add a card" style="display:none"><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>Add card</button>' +
     // text size, the way Canva and Docs do it: a step smaller, the size by
     // name (a click opens every size), a step bigger
     // one small pill, [ − 85 + ]: a number needs no explaining (James:
@@ -3881,6 +3892,15 @@
   var lstBtn = elbar.querySelector('.gogh-eb-lst');
   var LIST_ICON = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>';
   var LIST_ICON_OL = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 5.5l1.5-1v4M3 11.5c0-1 2-1.4 2 0 0 .8-2 1.6-2 2.5h2.2M3 16.5h2c1 0 1 2-.4 2 1.4 0 1.4 2 0 2H3" stroke-width="1.8"/></svg>';
+  elbar.querySelector('.gogh-eb-cardslayout').addEventListener('click', function () {
+    if (!sel || !sel.sec.els[sel.i].cards) return;
+    cardsOpenAt = 'layout';
+    openPanel(sel.sec, sel.i);
+  });
+  elbar.querySelector('.gogh-eb-addcard').addEventListener('click', function () {
+    if (!sel || !sel.sec.els[sel.i].cards) return;
+    cardsDo(sel.sec, sel.sec.els[sel.i], 'add');
+  });
   elbar.querySelector('.gogh-eb-manage').addEventListener('click', function () {
     if (!sel) return;
     var e2 = sel.sec.els[sel.i];
@@ -4701,7 +4721,7 @@
       return '';
     };
     grey(mbar.querySelector('.gogh-mb-card'),
-      els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
+      els.some(function (e) { return e.type === 'box' || e.rails || e.cards || e.type === 'exp' || e.type === 'embed'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
       'Make these one card — it holds together on phones');
     mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
       grey(b, judge(alignPlan(els, b.dataset.how), ALIGN_DONE[b.dataset.how]), ALIGN_WORD[b.dataset.how]);
@@ -4730,7 +4750,7 @@
     if (!multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
     var members = idxs.map(function (j) { return sec.els[j]; });
-    if (members.length < 2 || members.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; })) return;
+    if (members.length < 2 || members.some(function (e) { return e.type === 'box' || e.rails || e.cards || e.type === 'exp' || e.type === 'embed'; })) return;
     var bb = bboxOf(members), pad = 24;
     var box = { type: 'box', x: Math.max(0, bb.x - pad), y: Math.max(0, bb.y - pad), radius: 12, kids: [] };
     box.w = Math.min(W - box.x, bb.x + bb.w + pad - box.x);
@@ -4818,6 +4838,7 @@
   }
   function hideHandles() {
     grip.hidden = selBox.hidden = true;
+    if (cardChip) cardChip.hidden = true;
     goghFadeOut(elbar);
   }
   function hideGuides() { guideV.hidden = guideH.hidden = true; }
@@ -4877,7 +4898,7 @@
       // a photo wall, carousel, questions or tabs: an Edit in words, so it
       // is plain how to change what is inside (James: 'we should have a
       // little edit option on it so its clear to users how to change')
-      var what = e.wall ? 'Edit photos' : e.slides ? 'Edit slides' : e.faq ? 'Edit questions' : e.tabs ? 'Edit tabs' : 'Edit';
+      var what = e.cards ? 'Edit cards' : e.wall ? 'Edit photos' : e.slides ? 'Edit slides' : e.faq ? 'Edit questions' : e.tabs ? 'Edit tabs' : 'Edit';
       ctxBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>' + what + '</span>';
       ctxBtn.title = what;
       ctxBtn.style.display = '';
@@ -4890,6 +4911,10 @@
     if (!isCardSel) { elbar.querySelector('.gogh-elbar-more').hidden = true; elbar.classList.remove('gogh-elbar-open'); }
     else refreshCardLineup(sec, i);
     var railsEl = !!(e.rails && (e.shop || e.posts));
+    var cardsLay = elbar.querySelector('.gogh-eb-cardslayout'), cardsAdd = elbar.querySelector('.gogh-eb-addcard');
+    cardsLay.style.display = cardsAdd.style.display = e.cards ? '' : 'none';
+    if (e.cards) cardsLay.innerHTML = esc(cardsOptName(CARD_LAYOUTS, cardsNorm(e.cards).layout)) +
+      '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
     var manageBtn = elbar.querySelector('.gogh-eb-manage');
     // the bar is about the design on the page (James: 'i don't think we need
     // manage products so prominent here (or at all)'): the way to the
@@ -5031,9 +5056,73 @@
     clearTimeout(textTimer);
     textTimer = setTimeout(pushState, 800);
   }
+  // a card's words: the leaf under the pointer that carries a card field
+  function cardsLeafAt(sec, i, ev) {
+    var node = sec.nodes && sec.nodes[i];
+    if (!node || !ev) return null;
+    var at = (ev.target instanceof Element && node.contains(ev.target)) ? ev.target : document.elementFromPoint(ev.clientX, ev.clientY);
+    if (!at || !node.contains(at)) return null;
+    var leaf = at.closest('[data-cf]');
+    if (!leaf) {
+      // a click in the line's own box (the heading's padding, a price's
+      // gap) still lands on the words it holds
+      var holder = at.closest('.gogh-cs-t, .gogh-cs-d, .gogh-cs-role, .gogh-cs-link, .gogh-cs-price, .wp-block-button__link');
+      leaf = holder && holder.querySelector('[data-cf]');
+    }
+    return leaf && node.contains(leaf) ? leaf : null;
+  }
+  // typing on a card writes the card's field and the set's saved blocks;
+  // the canvas is already showing the words, so nothing redraws mid-word
+  function syncCardsEdit(done) {
+    var te = textEditing;
+    if (!te || !te.card) return;
+    var e = te.sec.els[te.i], leaf = te.target;
+    if (!e || !e.cards) return;
+    var it = e.cards.items[+leaf.dataset.ck], f = leaf.dataset.cf;
+    if (!it || CARD_FIELDS.indexOf(f) === -1) return;
+    var v = leaf.textContent.replace(/[\r\n]+/g, ' ');
+    it[f] = done === true ? v.replace(/\s+/g, ' ').trim() : v;
+    e.wsrc = composeCards(e.cards, false);
+    e.whtml = composeCards(e.cards, true);
+    if (fitCards(te.sec)) resolveAndApply(te.sec);
+    clearTimeout(textTimer);
+    if (done === true) pushState(); else textTimer = setTimeout(pushState, 800);
+  }
+  function cardsEditKey(ev) {
+    // one line per field: Enter (and Escape) finish the words
+    if (ev.key === 'Enter' || ev.key === 'Escape') {
+      ev.preventDefault();
+      var te = textEditing;
+      exitTextEdit();
+      if (te && sel && sel.sec === te.sec) placeHandles(te.sec, sel.i);
+    }
+  }
+  // a set's height is its cards': measured, and what sits below it moves
+  // with it (never on the phone view, where the set is drawn narrower)
+  function fitCards(sec) {
+    if (!sec || !sec.nodes || deviceMode === 'phone') return false;
+    var s = measureScaleOf(sec);
+    if (!(s > 0.2)) return false;
+    var moved = false;
+    sec.els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
+      if (e.type !== 'widget' || !e.cards) return;
+      var node = sec.nodes[sec.els.indexOf(e)];
+      var inner = node && node.querySelector('.gogh-cardset');
+      if (!inner || !node.offsetParent) return;
+      var h = Math.round(inner.offsetHeight / s);
+      if (!(h > 24) || Math.abs(h - e.h) <= 2) return;
+      var oldH = e.h;
+      e.h = h;
+      reflowPush(sec, e, oldH);
+      moved = true;
+    });
+    return moved;
+  }
   function enterTextEdit(sec, i, ev) {
-    var widgetLeaf = widgetEditableLeaf(sec, i, ev);
-    var t = widgetLeaf || editableTarget(sec, i);
+    var cardLeaf = sec.els[i] && sec.els[i].cards ? cardsLeafAt(sec, i, ev) : null;
+    if (sec.els[i] && sec.els[i].cards && !cardLeaf) return;
+    var widgetLeaf = cardLeaf ? null : widgetEditableLeaf(sec, i, ev);
+    var t = cardLeaf || widgetLeaf || editableTarget(sec, i);
     if (!t) return;
     exitTextEdit();
     var e = sec.els[i];
@@ -5042,7 +5131,7 @@
     // writing wants a CLEAN page: the selection box and handles fade out
     // while the caret is live (the floating toolbar stays)
     document.documentElement.classList.add('gogh-textediting');
-    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t, widget: !!widgetLeaf, at: Date.now() };
+    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t, widget: !!widgetLeaf, card: !!cardLeaf, at: Date.now() };
     // the click that opened the edit is often the second of two, and a third
     // lands while the words are already live: the browser's triple-click
     // then selects the whole paragraph and the next keystroke replaces it
@@ -5051,6 +5140,13 @@
     // click keeps the caret where it is; a deliberate double-click on a word
     // later still selects the word.
     t.addEventListener('mousedown', guardEntryClicks);
+    if (cardLeaf) {
+      t.addEventListener('input', syncCardsEdit);
+      t.addEventListener('keydown', cardsEditKey);
+      var clk = t.closest('a');
+      textEditing.link = clk;
+      if (clk) clk.addEventListener('click', preventNav);
+    }
     if (widgetLeaf) {
       t.addEventListener('input', syncWidgetEdit);
       var lk = t.closest('a');
@@ -5074,6 +5170,12 @@
     if (textEditing.widget) {
       syncWidgetEdit();
       t.removeEventListener('input', syncWidgetEdit);
+      if (textEditing.link) textEditing.link.removeEventListener('click', preventNav);
+    }
+    if (textEditing.card) {
+      syncCardsEdit(true);
+      t.removeEventListener('input', syncCardsEdit);
+      t.removeEventListener('keydown', cardsEditKey);
       if (textEditing.link) textEditing.link.removeEventListener('click', preventNav);
     }
     t.removeEventListener('mousedown', guardEntryClicks);
@@ -5107,7 +5209,18 @@
     node.addEventListener('pointerdown', function (ev) {
       if (!editing || drag || resize) return;
       if (designMode()) return; // birds-eye = arrange sections, not edit elements
-      if (textEditing && textEditing.node === node) return; // native caret/selection
+      if (textEditing && textEditing.node === node) {
+        // in a card set the caret lives in one card's words: a press on
+        // other words moves it there, a press on a picture opens that card
+        if (textEditing.card && !textEditing.target.contains(ev.target)) {
+          var nextLeaf = cardsLeafAt(sec, i, ev);
+          var picHit = ev.target.closest && ev.target.closest('[data-cpic]');
+          exitTextEdit();
+          if (nextLeaf) enterTextEdit(sec, i, ev);
+          else if (picHit) { cardsOpenAt = +picHit.dataset.ck; openPanel(sec, i); }
+        }
+        return; // native caret/selection
+      }
       if (textEditing) exitTextEdit();
       if (ev.shiftKey && !ev.metaKey && !ev.ctrlKey) {
         // shift-click gathers a group (and shift-clicking again drops one)
@@ -5169,6 +5282,15 @@
       // FAQ/Tabs have no in-place caret — the second click (the "let me
       // edit the words" gesture) opens their form instead of dead-ending
       if (pe && pe.type === 'widget' && ((pe.faq && pe.faq.length) || (pe.tabs && pe.tabs.length) || (pe.slides && pe.slides.length) || (pe.wall && pe.wall.length))) {
+        openPanel(pd.sec, pd.i);
+        return;
+      }
+      // a card set: words take the caret, a picture opens that card's page
+      // of the panel, anything else the panel itself
+      if (pe && pe.cards) {
+        if (cardsLeafAt(pd.sec, pd.i, ev)) { enterTextEdit(pd.sec, pd.i, ev); return; }
+        var picAt = ev.target && ev.target.closest && ev.target.closest('[data-cpic]');
+        cardsOpenAt = picAt ? +picAt.dataset.ck : undefined;
         openPanel(pd.sec, pd.i);
         return;
       }
@@ -5894,7 +6016,7 @@
     }
     panelOpen = true;
     // the Q&A editors are typing surfaces — outside clicks pass through
-    if (e.type === 'widget' && ((e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length))) panelSticky = true;
+    if (e.type === 'widget' && (e.cards || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length))) panelSticky = true;
   }
   // a panel of many rows (a product grid, category tiles, posts, an FAQ)
   // docks down the left side and the page steps over beside it (James: 'do
@@ -5908,7 +6030,7 @@
     return lp.i < 0 ? (lp.sec.sectionEl || lp.sec.wrapEl) : lp.sec.nodes[lp.i];
   }
   function isLongPanel(e) {
-    return !!(e && e.type === 'widget' && (e.shop || e.posts || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length)));
+    return !!(e && e.type === 'widget' && (e.shop || e.posts || e.cards || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length)));
   }
   function dockLongPanel(sec, i) {
     var own = panel.querySelector('.gogh-panel-title');
@@ -6650,8 +6772,352 @@
         });
       });
   }
+  // ---------- a card's own handle on the canvas ----------
+  // over a chosen set, the card under the pointer wears a small ••• that
+  // opens its menu (featured, duplicate, move, delete)
+  var cardChip = document.createElement('button');
+  cardChip.type = 'button';
+  cardChip.className = 'gogh-cardchip';
+  cardChip.setAttribute('aria-label', 'Card options');
+  cardChip.textContent = '\u2022\u2022\u2022';
+  cardChip.hidden = true;
+  document.body.appendChild(cardChip);
+  var cardChipFor = null;
+  cardChip.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); ev.preventDefault(); });
+  cardChip.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    if (!cardChipFor) return;
+    var f = cardChipFor, e = f.sec.els[f.i];
+    if (e && e.cards) openCardMenu(cardChip, f.sec, e, f.k);
+  });
+  document.addEventListener('pointermove', function (ev) {
+    if (!editing || drag || resize || ev.pointerType === 'touch') return;
+    if (ev.target === cardChip || (cardMenu && cardMenu.contains(ev.target))) return;
+    var e = sel && sel.sec.els[sel.i];
+    var node = e && e.cards && sel.sec.nodes ? sel.sec.nodes[sel.i] : null;
+    var card = node && ev.target instanceof Element && node.contains(ev.target) ? ev.target.closest('.gogh-cs-card[data-ck]') : null;
+    if (!card) { if (!cardMenu) { cardChip.hidden = true; cardChipFor = null; } return; }
+    var r = card.getBoundingClientRect();
+    cardChip.style.left = (r.left + window.scrollX + 8) + 'px';
+    cardChip.style.top = (r.top + window.scrollY + 8) + 'px';
+    cardChip.hidden = false;
+    cardChipFor = { sec: sel.sec, i: sel.i, k: +card.dataset.ck };
+  });
+  // ---------- the Cards panel ----------
+  // one list (add, move, remove) and one design for every card. The pages
+  // of the panel (the list, Layout, Card look, Picture, Words, one card)
+  // paint into one pane under the docked head, whose Back steps up a page
+  var cardsView = null, cardsOpenAt;
+  var CARDS_CHEV = '<svg class="gogh-siterow-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+  function cardsOptName(list, v) { return (list.filter(function (o) { return o[0] === v; })[0] || ['', ''])[1]; }
+  function cardsWordsName(c) {
+    var al = c.layout === 'small' || c.align === 'center' ? 'Centred' : 'Left';
+    return al + (c.act === 'button' ? ', with a button' : c.act === 'link' ? ', with a link' : '');
+  }
+  // the set redrawn from its model, the set's own height kept true, the
+  // selection kept on it
+  function cardsApply(sec, e, push) {
+    composeCardsData(e);
+    renderSection(sec);
+    var i = sec.els.indexOf(e);
+    if (i !== -1 && sel && sel.sec === sec && sel.i === i) placeHandles(sec, i);
+    if (push !== false) pushState();
+  }
+  function cardsDo(sec, e, op, k) {
+    var c = e.cards = cardsNorm(e.cards), items = c.items;
+    if (op === 'add') {
+      var last = items[items.length - 1] || {};
+      items.push({ t: 'A new card', d: 'Say what this one is about.', link: last.link ? 'Find out more' : '',
+        img: cardsSamplePic(items.length), alt: '', href: '', price: last.price || '', per: last.per || '', role: '' });
+    } else if (op === 'dup') {
+      items.splice(k + 1, 0, JSON.parse(JSON.stringify(items[k])));
+      if (c.feat > k) c.feat++;
+    } else if (op === 'del') {
+      if (items.length < 2) return;
+      items.splice(k, 1);
+      if (c.feat === k) c.feat = -1; else if (c.feat > k) c.feat--;
+    } else if (op === 'up' || op === 'down') {
+      var to = k + (op === 'up' ? -1 : 1);
+      if (to < 0 || to >= items.length) return;
+      var moved = items.splice(k, 1)[0];
+      items.splice(to, 0, moved);
+      if (c.feat === k) c.feat = to; else if (c.feat === to) c.feat = k;
+    } else if (op === 'feat') {
+      c.feat = c.feat === k ? -1 : k;
+    }
+    cardsApply(sec, e);
+    // the set stays the chosen thing after any change to its cards
+    var at = sec.els.indexOf(e);
+    if (at !== -1 && !(sel && sel.sec === sec && sel.i === at)) placeHandles(sec, at);
+    if (longPanelFor && longPanelFor.sec === sec && longPanelFor.i === at) paintCardsPanel(sec, e);
+  }
+  // a card's own small menu, on the canvas and in the list alike
+  var cardMenu = null;
+  function closeCardMenu() { if (cardMenu) { cardMenu.remove(); cardMenu = null; } }
+  function openCardMenu(anchor, sec, e, k) {
+    closeCardMenu();
+    var c = e.cards, n = c.items.length;
+    var horiz = /^(g2|g3|g4|big|small|slider)$/.test(c.layout);
+    cardMenu = document.createElement('div');
+    cardMenu.className = 'gogh-cardmenu';
+    cardMenu.setAttribute('role', 'menu');
+    cardMenu.innerHTML =
+      '<button type="button" role="menuitemcheckbox" aria-checked="' + (c.feat === k) + '" data-op="feat" class="' + (c.feat === k ? 'is-on' : '') + '">The featured card</button>' +
+      '<button type="button" role="menuitem" data-op="dup">Duplicate</button>' +
+      '<button type="button" role="menuitem" data-op="up"' + (k === 0 ? ' disabled' : '') + '>' + (horiz ? 'Move left' : 'Move up') + '</button>' +
+      '<button type="button" role="menuitem" data-op="down"' + (k >= n - 1 ? ' disabled' : '') + '>' + (horiz ? 'Move right' : 'Move down') + '</button>' +
+      '<hr>' +
+      '<button type="button" role="menuitem" data-op="del" class="is-danger"' + (n < 2 ? ' disabled title="A set keeps at least one card"' : '') + '>Delete card</button>';
+    document.body.appendChild(cardMenu);
+    // a press in the menu is not a press on the page (it kept the set chosen)
+    cardMenu.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
+    var r = anchor.getBoundingClientRect();
+    var mw = cardMenu.offsetWidth, mh = cardMenu.offsetHeight;
+    var left = Math.min(window.innerWidth - mw - 8, Math.max(8, r.left));
+    var top = r.bottom + 6 + mh > window.innerHeight ? Math.max(8, r.top - mh - 6) : r.bottom + 6;
+    cardMenu.style.left = (left + window.scrollX) + 'px';
+    cardMenu.style.top = (top + window.scrollY) + 'px';
+    cardMenu.querySelectorAll('button[data-op]').forEach(function (b) {
+      b.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        closeCardMenu();
+        cardsDo(sec, e, b.dataset.op, k);
+      });
+    });
+    setTimeout(function () {
+      document.addEventListener('pointerdown', function away(ev) {
+        if (cardMenu && cardMenu.contains(ev.target)) return;
+        document.removeEventListener('pointerdown', away, true);
+        closeCardMenu();
+      }, true);
+    }, 0);
+  }
+  function buildCardsPanel(sec, i, view) {
+    var e = sec.els[i];
+    e.cards = cardsNorm(e.cards);
+    cardsView = view !== undefined ? view : cardsOpenAt !== undefined ? cardsOpenAt : null;
+    cardsOpenAt = undefined;
+    panel.innerHTML = '<div class="gogh-panel-title">Cards</div><div class="gogh-cards-pane"></div>';
+    paintCardsPanel(sec, e);
+  }
+  function paintCardsPanel(sec, e) {
+    var pane = panel.querySelector('.gogh-cards-pane');
+    if (!pane) return;
+    var c = e.cards = cardsNorm(e.cards);
+    var view = cardsView;
+    if (typeof view === 'number' && !c.items[view]) view = cardsView = null;
+    var titleEl = panel.querySelector('.gogh-panel-title');
+    var back = panel.querySelector('.gogh-panel-x');
+    // the docked head's Back steps up a page before it closes the panel
+    if (back && !back.__cardsBack) {
+      back.__cardsBack = true;
+      back.addEventListener('click', function (ev) {
+        if (cardsView === null || !panel.querySelector('.gogh-cards-pane')) return;
+        ev.stopImmediatePropagation();
+        cardsView = null;
+        var lp = longPanelFor;
+        if (lp && lp.sec.els[lp.i] && lp.sec.els[lp.i].cards) paintCardsPanel(lp.sec, lp.sec.els[lp.i]);
+      }, true);
+    }
+    var inBack = back ? '' : (view !== null ? '<button type="button" class="gogh-btn gogh-btn-small gogh-cards-up">‹ All cards</button>' : '');
+    var opts = function (list, cur, descs) {
+      return '<div class="gogh-hoptlist gogh-cards-opts">' + list.map(function (o) {
+        return '<button type="button" class="gogh-hopt' + (o[0] === cur ? ' is-active' : '') + '" data-v="' + o[0] + '">' +
+          '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(o[1]) +
+          (descs && o[2] ? '<span class="gogh-hopt-desc">' + esc(o[2]) + '</span>' : '') + '</span></button>';
+      }).join('') + '</div>';
+    };
+    var html = inBack;
+    if (view === null) {
+      if (titleEl) titleEl.textContent = 'Cards';
+      html += '<div class="gogh-panel-hint">' + (c.items.length === 1 ? 'One card' : c.items.length + ' cards') + ', one design. Type on any card to change its words; this list adds and moves them.</div>' +
+        '<div class="gogh-cardlist">' + c.items.map(function (it, k) {
+          return '<div class="gogh-cardrow' + (c.feat === k ? ' is-featured' : '') + '" draggable="true" data-k="' + k + '">' +
+            '<span class="gogh-cardrow-grip" aria-hidden="true"></span>' +
+            '<button type="button" class="gogh-cardrow-open" data-k="' + k + '" title="Picture and link">' +
+            '<span class="gogh-cardrow-pic"' + (it.img ? ' style="background-image:url(\'' + escAttr(it.img) + '\')"' : '') + '></span>' +
+            '<span class="gogh-cardrow-tx"><span class="gogh-cardrow-t">' + esc(it.t || 'Untitled card') + '</span>' +
+            '<span class="gogh-cardrow-s">' + esc(c.feat === k ? 'The featured card' : (it.d || it.link || '')) + '</span></span></button>' +
+            '<button type="button" class="gogh-cardrow-more" data-k="' + k + '" aria-label="Card options">•••</button>' +
+            '</div>';
+        }).join('') + '</div>' +
+        '<button type="button" class="gogh-btn gogh-btn-primary gogh-cards-add">Add card</button>' +
+        '<div class="gogh-swlab">One design for every card</div>' +
+        '<div class="gogh-siterows">' +
+        '<button type="button" class="gogh-siterow" data-view="layout"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">Layout</span><span class="gogh-siterow-sub">' + esc(cardsOptName(CARD_LAYOUTS, c.layout)) + '</span></span><span class="gogh-siterow-val"></span>' + CARDS_CHEV + '</button>' +
+        '<button type="button" class="gogh-siterow" data-view="look"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">Card look</span><span class="gogh-siterow-sub">' + esc(cardsOptName(CARD_LOOKS, c.look)) + '</span></span><span class="gogh-siterow-val"></span>' + CARDS_CHEV + '</button>' +
+        '<button type="button" class="gogh-siterow" data-view="pic"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">Picture</span><span class="gogh-siterow-sub">' + esc(cardsOptName(CARD_PICS, c.pic)) + '</span></span><span class="gogh-siterow-val"></span>' + CARDS_CHEV + '</button>' +
+        '<button type="button" class="gogh-siterow" data-view="words"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">Words</span><span class="gogh-siterow-sub">' + esc(cardsWordsName(c)) + '</span></span><span class="gogh-siterow-val"></span>' + CARDS_CHEV + '</button>' +
+        '</div>' +
+        '<div class="gogh-swlab">Extras on every card</div>' +
+        [['price', 'A price'], ['role', 'A name and role'], ['feat', 'One featured card']].map(function (x) {
+          var on = x[0] === 'feat' ? c.feat >= 0 : !!c.extras[x[0]];
+          return '<div class="gogh-hstickyrow gogh-cards-extra"><span>' + x[1] + '</span>' +
+            '<button type="button" class="gogh-hswitch' + (on ? ' is-on' : '') + '" role="switch" aria-checked="' + on + '" data-x="' + x[0] + '" aria-label="' + x[1] + '"><span class="gogh-hswitch-knob"></span></button></div>';
+        }).join('');
+    } else if (view === 'layout') {
+      if (titleEl) titleEl.textContent = 'Layout';
+      html += '<div class="gogh-panel-hint">Point at one to try it on the page; click to keep it. The cards’ words never change.</div>' + opts(CARD_LAYOUTS, c.layout, true);
+    } else if (view === 'look') {
+      if (titleEl) titleEl.textContent = 'Card look';
+      html += '<div class="gogh-panel-hint">What every card sits on.</div>' + opts(CARD_LOOKS, c.look);
+    } else if (view === 'pic') {
+      if (titleEl) titleEl.textContent = 'Picture';
+      html += '<div class="gogh-panel-hint">One shape for every card’s picture.</div>' + opts(CARD_PICS, c.pic);
+    } else if (view === 'words') {
+      if (titleEl) titleEl.textContent = 'Words';
+      html += '<div class="gogh-swlab">Line up</div>' +
+        '<div class="gogh-hpresets gogh-cards-align">' + [['left', 'Left'], ['center', 'Centred']].map(function (o) {
+          return '<button type="button" class="gogh-hpreset' + (o[0] === c.align ? ' is-active' : '') + '" data-v="' + o[0] + '">' + o[1] + '</button>';
+        }).join('') + '</div>' +
+        (c.layout === 'small' ? '<div class="gogh-panel-hint">Small and centred always centres its words.</div>' : '') +
+        '<div class="gogh-swlab">Each card ends with</div>' + opts(CARD_ACTS, c.act);
+    } else {
+      var it = c.items[view];
+      if (titleEl) titleEl.textContent = it.t || 'This card';
+      html += '<div class="gogh-swlab">Where it goes</div>' +
+        '<div class="gogh-panel-row"><input type="url" class="gogh-input gogh-card-href" placeholder="https://… or /a-page" value="' + escAttr(it.href || '') + '" /></div>' +
+        '<div class="gogh-panel-hint">' + (c.act === 'none' ? 'This set ends without a link (Words, at the top, changes that).' : 'Its link or button opens this.') + '</div>' +
+        '<div class="gogh-swlab">Picture</div>' +
+        (it.img ? '<div class="gogh-cardpic-now" style="background-image:url(\'' + escAttr(it.img) + '\')"></div>' : '') +
+        '<div class="gogh-panel-row"><input type="text" class="gogh-input gogh-card-alt" placeholder="Describe the picture (alt text)" value="' + escAttr(it.alt || '') + '" /></div>' +
+        '<div class="gogh-panel-row gogh-panel-actions">' +
+        (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
+        (it.img ? '<button type="button" class="gogh-btn gogh-btn-small gogh-card-nopicbtn">No picture</button>' : '') +
+        '</div>' +
+        '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>';
+    }
+    pane.innerHTML = html;
+    var go = function (v) { cardsView = v; paintCardsPanel(sec, e); pane.scrollTop = 0; };
+    var up = pane.querySelector('.gogh-cards-up');
+    if (up) up.addEventListener('click', function () { go(null); });
+    if (view === null) {
+      pane.querySelector('.gogh-cards-add').addEventListener('click', function () { cardsDo(sec, e, 'add'); });
+      pane.querySelectorAll('.gogh-cardrow-open').forEach(function (b) { b.addEventListener('click', function () { go(+b.dataset.k); }); });
+      pane.querySelectorAll('.gogh-cardrow-more').forEach(function (b) {
+        b.addEventListener('click', function (ev) { ev.stopPropagation(); openCardMenu(b, sec, e, +b.dataset.k); });
+      });
+      pane.querySelectorAll('.gogh-siterow[data-view]').forEach(function (b) { b.addEventListener('click', function () { go(b.dataset.view); }); });
+      pane.querySelectorAll('.gogh-hswitch[data-x]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var x = b.dataset.x;
+          if (x === 'feat') c.feat = c.feat >= 0 ? -1 : Math.min(1, c.items.length - 1);
+          else c.extras[x] = c.extras[x] ? 0 : 1;
+          if (x === 'price' && c.extras.price) c.items.forEach(function (it2, k2) { if (!it2.price) { it2.price = '£' + (20 + 10 * k2); it2.per = it2.per || 'each'; } });
+          if (x === 'role' && c.extras.role) c.items.forEach(function (it2) { if (!it2.role) it2.role = 'Their role'; });
+          cardsApply(sec, e);
+          paintCardsPanel(sec, e);
+        });
+      });
+      // drag a row to move the card
+      var dragK = -1;
+      pane.querySelectorAll('.gogh-cardrow').forEach(function (row) {
+        row.addEventListener('dragstart', function (ev) { dragK = +row.dataset.k; row.classList.add('is-dragging'); try { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', String(dragK)); } catch (err) {} });
+        row.addEventListener('dragend', function () { row.classList.remove('is-dragging'); pane.querySelectorAll('.gogh-cardrow').forEach(function (r2) { r2.classList.remove('is-before', 'is-after'); }); });
+        row.addEventListener('dragover', function (ev) {
+          if (dragK < 0) return;
+          ev.preventDefault();
+          var r = row.getBoundingClientRect(), after = ev.clientY > r.top + r.height / 2;
+          pane.querySelectorAll('.gogh-cardrow').forEach(function (r2) { r2.classList.remove('is-before', 'is-after'); });
+          row.classList.add(after ? 'is-after' : 'is-before');
+        });
+        row.addEventListener('drop', function (ev) {
+          ev.preventDefault();
+          if (dragK < 0) return;
+          var k = +row.dataset.k, r = row.getBoundingClientRect(), after = ev.clientY > r.top + r.height / 2;
+          var to = k + (after ? 1 : 0);
+          if (to > dragK) to--;
+          var from = dragK;
+          dragK = -1;
+          if (to === from) return;
+          var items = c.items, featIt = c.feat >= 0 ? items[c.feat] : null;
+          items.splice(to, 0, items.splice(from, 1)[0]);
+          c.feat = featIt ? items.indexOf(featIt) : -1;
+          cardsApply(sec, e);
+          paintCardsPanel(sec, e);
+        });
+      });
+    } else if (view === 'layout' || view === 'look' || view === 'pic' || view === 'words') {
+      var key = view === 'words' ? 'act' : view;
+      var list = pane.querySelector('.gogh-cards-opts');
+      // AUDITION on hover, keep on click — the panel's way everywhere
+      // a hover only DRESSES the canvas: the model (and what a save would
+      // keep) changes on click
+      var wear = function (v) {
+        var trial = JSON.parse(JSON.stringify(c));
+        trial[key] = v;
+        e.whtml = composeCards(trial, true);
+        renderSection(sec);
+        var i2 = sec.els.indexOf(e);
+        if (sel && sel.sec === sec && sel.i === i2) placeHandles(sec, i2);
+      };
+      list.querySelectorAll('.gogh-hopt').forEach(function (b) {
+        b.addEventListener('mouseenter', function () { wear(b.dataset.v); });
+        b.addEventListener('click', function () {
+          c[key] = b.dataset.v;
+          list.querySelectorAll('.gogh-hopt').forEach(function (o) { o.classList.toggle('is-active', o === b); });
+          cardsApply(sec, e);
+        });
+      });
+      list.addEventListener('mouseleave', function () { wear(c[key]); });
+      pane.querySelectorAll('.gogh-cards-align .gogh-hpreset').forEach(function (b) {
+        b.addEventListener('click', function () {
+          c.align = b.dataset.v;
+          pane.querySelectorAll('.gogh-cards-align .gogh-hpreset').forEach(function (o) { o.classList.toggle('is-active', o === b); });
+          cardsApply(sec, e);
+        });
+      });
+    } else {
+      var k = view, it2 = c.items[k];
+      var hrefIn = pane.querySelector('.gogh-card-href');
+      hrefIn.addEventListener('change', function () { it2.href = cardsHref(hrefIn.value); hrefIn.value = it2.href; cardsApply(sec, e); });
+      var altIn = pane.querySelector('.gogh-card-alt');
+      altIn.addEventListener('change', function () { it2.alt = altIn.value.trim(); cardsApply(sec, e); });
+      var setPic = function (url, id, alt) {
+        it2.img = url || '';
+        if (id) it2.mediaId = id; else delete it2.mediaId;
+        if (alt != null && !it2.alt) it2.alt = alt;
+        cardsApply(sec, e);
+        paintCardsPanel(sec, e);
+      };
+      var nop = pane.querySelector('.gogh-card-nopicbtn');
+      if (nop) nop.addEventListener('click', function () { setPic('', null); });
+      var file = pane.querySelector('input[type="file"]');
+      if (file) file.addEventListener('change', function () {
+        if (!file.files.length) return;
+        var fd = new FormData();
+        fd.append('file', file.files[0]);
+        var label = pane.querySelector('.gogh-upload');
+        label.firstChild.textContent = 'Uploading…';
+        fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd })
+          .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+          .then(function (item) { setPic(item.source_url, item.id, item.alt_text || ''); })
+          .catch(function (err) { label.firstChild.textContent = 'Upload failed'; console.error('gogh upload failed:', err); });
+      });
+      var box = pane.querySelector('.gogh-media');
+      fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+        .then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
+          if (!box || panel.hidden || !pane.contains(box)) return;
+          box.innerHTML = '';
+          if (!items.length) { box.innerHTML = '<span class="gogh-media-loading">No images in the media library yet.</span>'; return; }
+          items.forEach(function (item) {
+            var th = item.media_details && item.media_details.sizes && (item.media_details.sizes.thumbnail || item.media_details.sizes.medium);
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'gogh-thumb' + (it2.img === item.source_url ? ' is-active' : '');
+            b.title = (item.title && item.title.rendered) || '';
+            b.style.backgroundImage = 'url("' + (th ? th.source_url : item.source_url) + '")';
+            b.addEventListener('click', function () { setPic(item.source_url, item.id, item.alt_text || ''); });
+            box.appendChild(b);
+          });
+          reclampPanel();
+        });
+    }
+    reclampPanel();
+  }
   function buildWidgetPanel(sec, i) {
     var e = sec.els[i];
+    if (e.cards) return buildCardsPanel(sec, i);
     if (e.rails && e.shop) return buildShopPanel(sec, i);
     if (e.rails && e.posts) return buildPostsPanel(sec, i);
     if ((e.faq && e.faq.length) || (e.tabs && e.tabs.length)) return buildQnaPanel(sec, i);
@@ -7883,6 +8349,12 @@
       // the rail shares the heading's column and the grid sits centred
       return { type: 'widget', rails: true, posts: posts, x: 100, y: 72, w: 1000, h: 432, wsrc: composePosts(posts),
         whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>' };
+    },
+    cards: function () {
+      // a set of cards that share one design (see composeCards)
+      var e = { type: 'widget', cards: cardsDefaults(), x: 100, y: 72, w: 1000, h: 456 };
+      composeCardsData(e);
+      return e;
     },
     products: function () {
       // THE RAILS ELEMENT (design note: Gogh Shop — "the canvas is for your
@@ -10356,10 +10828,151 @@
     return { wsrc: wsrc, whtml: whtml };
   }
   function composeWidgetData(e) {
+    if (e.cards) { composeCardsData(e); return; }
     if (e.faq && e.faq.length) { var c = composeFaq(e.faq); e.wsrc = c.wsrc; e.whtml = c.whtml; }
     else if (e.tabs && e.tabs.length) { var c2 = composeTabs(e.tabs); e.wsrc = c2.wsrc; e.whtml = c2.whtml; }
     else if (e.slides && e.slides.length) { var c3 = composeCarousel(e.slides, e.copt); e.wsrc = c3.wsrc; e.whtml = c3.whtml; }
     else if (e.wall && e.wall.length) { var c4 = composeWall(e.wall, e.wopt); e.wsrc = c4.wsrc; e.whtml = c4.whtml; }
+  }
+  // ---------- Cards: a set of cards that share one design ----------
+  // (James: 'folks struggle with cards ... make them like products so an
+  // editable component'). The cards are a LIST (picture, title, words, a
+  // link; a price and a name-and-role as extras) and the design is ONE
+  // choice worn by every card: a layout, a look, a picture shape. People
+  // type straight on a card; the panel only adds, moves and removes. It
+  // publishes as plain core blocks (groups, an image, a heading,
+  // paragraphs, a button) wearing gogh-card classes, so the set keeps its
+  // words and pictures with gogh switched off.
+  var CARD_LAYOUTS = [
+    ['g3', '3 across', 'Even cards in one row.'],
+    ['g2', '2 across', 'Two wide cards a row.'],
+    ['g4', '4 across', 'Four smaller cards a row.'],
+    ['rows', 'Rows', 'Picture beside the words, one under another.'],
+    ['zig', 'Zig-zag', 'Pictures swap sides down the page.'],
+    ['over', 'On the photo', 'Words over the picture.'],
+    ['slider', 'Slider', 'A row that scrolls sideways.'],
+    ['big', 'One big', 'The first card leads, the rest sit beside it.'],
+    ['index', 'Index', 'Just the titles, ruled.'],
+    ['small', 'Small and centred', 'Round pictures, centred words.'],
+  ];
+  var CARD_LOOKS = [['open', 'Open'], ['panel', 'Panel'], ['outline', 'Outline'], ['raised', 'Raised']];
+  var CARD_PICS = [['wide', 'Landscape'], ['square', 'Square'], ['tall', 'Portrait'], ['none', 'No picture']];
+  var CARD_ACTS = [['link', 'A link'], ['button', 'A button'], ['none', 'Nothing']];
+  var CARD_FIELDS = ['t', 'd', 'link', 'price', 'per', 'role'];
+  function cardsSamplePic(k) {
+    var mine = poolPick(mediaPool.imgs, 'gogh-cards', k);
+    return mine || '/wp-content/plugins/gogh/demo-assets/arles-' + (1 + (k % 7)) + '.jpg';
+  }
+  function cardsDefaults() {
+    var items = [
+      { t: 'Made by hand', d: 'Every piece starts on our bench and ends in your hands.', link: 'See how', role: 'Founder', price: '£24', per: 'each' },
+      { t: 'Sent with care', d: 'Wrapped in paper, posted in two days, tracked all the way.', link: 'Delivery', role: 'Studio manager', price: '£38', per: 'each' },
+      { t: 'Here to help', d: 'Write to us any time and a real person answers within a day.', link: 'Get in touch', role: 'Maker', price: '£52', per: 'each' },
+    ];
+    items.forEach(function (it, k) { it.img = cardsSamplePic(k); it.alt = ''; it.href = ''; });
+    return { items: items, layout: 'g3', look: 'panel', pic: 'wide', align: 'left', act: 'link', extras: { price: 0, role: 0 }, feat: -1 };
+  }
+  // the one shape every set is read through: a set from an older or newer
+  // gogh, or one an agent wrote by hand, comes out whole
+  function cardsNorm(c) {
+    c = c || {};
+    var pick = function (v, list, d) { return list.some(function (o) { return o[0] === v; }) ? v : d; };
+    c.items = Array.isArray(c.items) ? c.items.filter(function (it) { return it && typeof it === 'object'; }) : [];
+    c.items.forEach(function (it) {
+      CARD_FIELDS.forEach(function (f) { if (it[f] != null && typeof it[f] !== 'string') it[f] = String(it[f]); });
+    });
+    c.layout = pick(c.layout, CARD_LAYOUTS, 'g3');
+    c.look = pick(c.look, CARD_LOOKS, 'panel');
+    c.pic = pick(c.pic, CARD_PICS, 'wide');
+    c.act = pick(c.act, CARD_ACTS, 'link');
+    c.align = c.align === 'center' ? 'center' : 'left';
+    c.extras = c.extras || {};
+    c.extras.price = c.extras.price ? 1 : 0;
+    c.extras.role = c.extras.role ? 1 : 0;
+    c.feat = typeof c.feat === 'number' && c.feat >= 0 && c.feat < c.items.length ? c.feat : -1;
+    return c;
+  }
+  function cardsHref(u) {
+    u = String(u || '').trim();
+    if (!u) return '';
+    if (/^(https?:|mailto:|tel:)/i.test(u) || u[0] === '/' || u[0] === '#') return u;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(u)) return ''; // javascript: and friends never land
+    return 'https://' + u;
+  }
+  function cardsClass(c) {
+    // small and centred always centres; the index is words only
+    var align = c.layout === 'small' ? 'center' : c.align;
+    return 'gogh-cardset gogh-cardset-' + c.layout + ' gogh-cardset-look-' + c.look + ' gogh-cardset-pic-' + c.pic +
+      ' gogh-cardset-al-' + align + (c.feat >= 0 ? ' gogh-cardset-feat' : '');
+  }
+  // forEditor: the canvas copy — no block comments, every editable word
+  // marked with its card and field, empty fields shown as soft prompts
+  function composeCards(c, forEditor) {
+    c = cardsNorm(c);
+    var parts = [];
+    var cm = function (open, name, attrs) {
+      if (forEditor) return '';
+      return open ? '<!-- wp:' + name + (attrs ? ' ' + JSON.stringify(attrs) : '') + ' -->\n' : '\n<!-- /wp:' + name + ' -->';
+    };
+    var field = function (k, f, val, ph) {
+      if (!forEditor) return esc(val);
+      return '<span data-ck="' + k + '" data-cf="' + f + '"' + (val ? '' : ' data-ph="' + escAttr(ph) + '"') + '>' + esc(val) + '</span>';
+    };
+    var cards = c.items.map(function (it, k) {
+      var feat = c.feat === k;
+      var cls = 'gogh-cs-card' + (feat ? ' is-featured' : '');
+      var out = cm(true, 'group', { className: cls }) + '<div class="wp-block-group ' + cls + '"' + (forEditor ? ' data-ck="' + k + '"' : '') + '>';
+      if (c.pic !== 'none' && (it.img || forEditor)) {
+        var ia = { sizeSlug: 'large', className: 'gogh-cs-pic' };
+        if (it.mediaId) ia = { id: +it.mediaId, sizeSlug: 'large', className: 'gogh-cs-pic' };
+        out += cm(true, 'image', ia) +
+          '<figure class="wp-block-image size-large gogh-cs-pic"' + (forEditor ? ' data-ck="' + k + '" data-cpic="1"' : '') + '>' +
+          (it.img ? '<img src="' + escAttr(it.img) + '" alt="' + escAttr(it.alt || '') + '"' + (it.mediaId ? ' class="wp-image-' + (+it.mediaId) + '"' : '') + '/>'
+            : '<span class="gogh-cs-nopic">Choose a picture</span>') +
+          '</figure>' + cm(false, 'image');
+      }
+      out += cm(true, 'group', { className: 'gogh-cs-body' }) + '<div class="wp-block-group gogh-cs-body">';
+      if (it.t || forEditor) {
+        out += cm(true, 'heading', { level: 3, className: 'gogh-cs-t' }) +
+          '<h3 class="wp-block-heading gogh-cs-t">' + field(k, 't', it.t || '', 'Title') + '</h3>' + cm(false, 'heading');
+      }
+      if (c.extras.role && (it.role || forEditor)) {
+        out += cm(true, 'paragraph', { className: 'gogh-cs-role' }) +
+          '<p class="gogh-cs-role">' + field(k, 'role', it.role || '', 'Role') + '</p>' + cm(false, 'paragraph');
+      }
+      if (c.layout !== 'index' && (it.d || forEditor)) {
+        out += cm(true, 'paragraph', { className: 'gogh-cs-d' }) +
+          '<p class="gogh-cs-d">' + field(k, 'd', it.d || '', 'A line or two about it') + '</p>' + cm(false, 'paragraph');
+      }
+      if (c.extras.price && (it.price || it.per || forEditor)) {
+        out += cm(true, 'paragraph', { className: 'gogh-cs-price' }) +
+          '<p class="gogh-cs-price"><strong>' + field(k, 'price', it.price || '', 'Price') + '</strong> ' +
+          '<span class="gogh-cs-per">' + field(k, 'per', it.per || '', 'a month') + '</span></p>' + cm(false, 'paragraph');
+      }
+      var href = cardsHref(it.href);
+      if (c.act !== 'none' && (it.link || forEditor)) {
+        var hrefAttr = ' href="' + escAttr(href || '#') + '"';
+        if (c.act === 'button' && c.layout !== 'index') {
+          out += cm(true, 'buttons', { className: 'gogh-cs-btns' }) + '<div class="wp-block-buttons gogh-cs-btns">' +
+            cm(true, 'button') + '<div class="wp-block-button"><a class="wp-block-button__link wp-element-button"' + hrefAttr + '>' +
+            field(k, 'link', it.link || '', 'Button') + '</a></div>' + cm(false, 'button') +
+            '</div>' + cm(false, 'buttons');
+        } else {
+          out += cm(true, 'paragraph', { className: 'gogh-cs-link' }) +
+            '<p class="gogh-cs-link"><a' + hrefAttr + '>' + field(k, 'link', it.link || '', 'Link') + '</a></p>' + cm(false, 'paragraph');
+        }
+      }
+      out += '</div>' + cm(false, 'group') + '</div>' + cm(false, 'group');
+      return out;
+    });
+    var outer = cardsClass(c);
+    parts.push(cm(true, 'group', { className: outer }) + '<div class="wp-block-group ' + outer + '">' + cards.join('') + '</div>' + cm(false, 'group'));
+    return parts.join('');
+  }
+  function composeCardsData(e) {
+    e.cards = cardsNorm(e.cards);
+    e.wsrc = composeCards(e.cards, false);
+    e.whtml = composeCards(e.cards, true);
   }
   // ---------- their photos, not our placeholders ----------
   // starters populate from the site's OWN media library: shelf previews and
@@ -11563,6 +12176,7 @@
   // what KIND of widget a piece is — a wall only ever rolls into a wall,
   // a shop rail into a shop family; the substance must have a slot to land in
   function diceWidgetKind(e) {
+    if (e.cards) return 'cards';
     if (e.posts) return 'posts';
     if (e.rails || e.shop) return 'shop';
     if (e.faq) return 'faq';
@@ -11663,7 +12277,7 @@
   // a widget's SUBSTANCE (the questions, the pictures) — the part a roll
   // must never lose; copt/wopt are clothes and belong to each take
   function diceWidgetData(e) {
-    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null, posts: e.posts || null });
+    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null, posts: e.posts || null, cards: e.cards ? e.cards.items : null });
   }
   function diceByRole(els) {
     var map = {};
@@ -11771,7 +12385,7 @@
   // and the homecoming composes it again
   function diceRecomposable(e) {
     return e.type === 'widget' && !!((e.rails && e.shop) || (e.rails && e.posts) || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) ||
-      (e.slides && e.slides.length) || (e.wall && e.wall.length));
+      (e.slides && e.slides.length) || (e.wall && e.wall.length) || !!e.cards);
   }
   function diceRecompose(els) {
     diceFlatten(els).forEach(function (e) {
@@ -17205,7 +17819,7 @@
   }
   function cardJoinTarget(sec, i) {
     var e = sec.els[i];
-    if (!e || e.rails) return -1; // rails never enter a card: cards stack by different rules on phones
+    if (!e || e.rails || e.cards) return -1; // rails never enter a card: cards stack by different rules on phones
     // a plain shape may join as decoration — a circle behind a number, a
     // stripe along the top — but only as a LEAF: a box with kids of its own
     // never joins (cards stay one level deep), and nothing can join a kid
@@ -22365,6 +22979,7 @@
     composeTabs: composeTabs,
     composeCarousel: composeCarousel,
     composeWall: composeWall,
+    cards: { compose: composeCards, norm: cardsNorm, act: cardsDo, fit: fitCards, menu: openCardMenu, layouts: CARD_LAYOUTS },
     mediaPool: mediaPool,
     tplEls: tplEls,
     elDefaults: function () { return DEFAULTS; },
