@@ -4843,7 +4843,10 @@ html.gogh-editing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-gogh-account
 .gogh-lay-stage > .gogh-wrap { margin: 0 !important; width: 100% !important; max-width: none !important; }
 .gogh-lay-name { font: 600 12.5px/1.25 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1e1e1e; }
 .gogh-lay-take.is-active .gogh-lay-name { color: #2f4bb3; }
-button.gogh-sb-take { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+/* the take count is the bar's own small type, never the theme's body text
+   (font: inherit here made it 'so big' on a serif theme, James) */
+button.gogh-sb-take { border: 0; background: none; padding: 4px 2px; font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: rgba(20, 21, 25, 0.6); letter-spacing: 0.02em; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+button.gogh-sb-take:hover { color: #1d1d20; }
 .gogh-panel .gogh-lay-done { background: #3858e9; border-color: #3858e9; color: #fff; }
 .gogh-panel .gogh-lay-done:hover { background: #2c49c9; }
 .gogh-panel .gogh-panel-head .gogh-lay-reset { margin-left: auto; }

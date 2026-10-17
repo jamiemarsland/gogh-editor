@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.752 · knowledge base f8916e4.
+Generated for plugin version 0.99.753 · knowledge base b711393.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The take count reads small again (v0.99.753).** The "1/4" beside the die on a section's bar now uses the bar's own small type; on some themes it had picked up the site's large body text.
+
 **Adding a card, and clearer doors (v0.99.752).** "+ Add card" on a set's bar adds a new card right after the chosen card (or at the end when only the set is chosen); it arrives chosen, with the caret in its title and its other parts asking to be filled, never a copy of another card's words (Duplicate in a card's ••• copies one). Point at the gap between two cards of a chosen set and a line with a + appears: press it to put a card exactly there. In a grid whose last row has room, a dashed Add card fills the next empty slot. The bar's doors now say what they change and what it is: "Layout · 3 across" and "Style · Panel", with no ▾ (they open the sidebar, not a dropdown) and pressed while their page is open. A card set has no turn handle.
 
 **Layout and Style beside the page (v0.99.751).** A card set's Layout and Style now open in the sidebar on the left, and the page shrinks beside it, so the whole set stays in view while you point at choices to try them. Layout and Style sit as two tabs at the top of the sidebar, so you can move between them without closing it; Back closes it. The ••• menu, a card's picture chooser and its link bar still open right beside what they change.
@@ -1113,11 +1115,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.752**
+- Plugin version: **0.99.753**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.752`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.753`). Quote the plugin header version.
 
 ## Design constants
 
