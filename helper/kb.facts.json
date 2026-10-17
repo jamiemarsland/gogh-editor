@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.751",
+    "plugin_version": "0.99.752",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.751-chrome"
+    "asset_version": "0.99.752-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -465,6 +465,7 @@
     "Aa",
     "Add",
     "Add a card",
+    "Add a card here",
     "Add a category ↗",
     "Add a page to this menu",
     "Add a picture or video",
@@ -1603,5 +1604,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 376
+  "test_count": 377
 }

@@ -3912,7 +3912,8 @@
   });
   elbar.querySelector('.gogh-eb-addcard').addEventListener('click', function () {
     if (!sel || !sel.sec.els[sel.i].cards) return;
-    cardsDo(sel.sec, sel.sec.els[sel.i], 'add');
+    // after the chosen card, or at the end of the set
+    cardsDo(sel.sec, sel.sec.els[sel.i], 'add', cardFocusOn(sel.sec, sel.i) ? cardFocus.k + 1 : -1);
   });
   elbar.querySelector('.gogh-eb-manage').addEventListener('click', function () {
     if (!sel) return;
@@ -4853,6 +4854,7 @@
     grip.hidden = selBox.hidden = true;
     if (cardChip) cardChip.hidden = true;
     if (cardGhost) cardGhost.hidden = true;
+    if (cardSeam) cardSeam.hidden = true;
     closeCardPop();
     if (cardFocus) unfocusCard();
     goghFadeOut(elbar);
@@ -4937,12 +4939,18 @@
     var cardsLay = elbar.querySelector('.gogh-eb-cardslayout'), cardsAdd = elbar.querySelector('.gogh-eb-addcard');
     var cardsSty = elbar.querySelector('.gogh-eb-cardsstyle'), cardsMore = elbar.querySelector('.gogh-eb-cardsmore');
     cardsLay.style.display = cardsAdd.style.display = cardsSty.style.display = cardsMore.style.display = e.cards ? '' : 'none';
+    // a set never turns (its cards line up with the page); its Add card
+    // pill sits where the turn handle would
+    rotGrip.style.display = e.cards ? 'none' : '';
     ['.gogh-eb-bck', '.gogh-eb-fwd', '.gogh-eb-dup', '.gogh-eb-del'].forEach(function (q2) { elbar.querySelector(q2).style.display = e.cards ? 'none' : ''; });
     if (e.cards) {
       ctxBtn.style.display = 'none';
       var lay0 = cardsNorm(e.cards).layout;
-      cardsLay.innerHTML = '<span class="gogh-cldraw gogh-cldraw-mini" aria-hidden="true">' + CARD_LAYOUT_DRAW[lay0] + '</span>' + esc(cardsOptName(CARD_LAYOUTS, lay0)) +
-        '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+      // what each door changes, and what it is now; no \u25be, which
+      // promises a dropdown (they open the sidebar, and stay pressed while
+      // it is open)
+      cardsLay.innerHTML = '<span class="gogh-eb-k">Layout</span><span class="gogh-eb-v">\u00b7 ' + esc(cardsOptName(CARD_LAYOUTS, lay0)) + '</span>';
+      cardsSty.innerHTML = '<span class="gogh-eb-k">Style</span><span class="gogh-eb-v">\u00b7 ' + esc(cardsOptName(CARD_LOOKS, cardsNorm(e.cards).look)) + '</span>';
       cardsLay.setAttribute('aria-haspopup', 'dialog');
       placeCardGhost(sec, i);
       if (cardFocus && !cardFocusOn(sec, i)) unfocusCard();
@@ -6986,7 +6994,7 @@
   cardGhost.addEventListener('click', function (ev) {
     ev.stopPropagation();
     var f = cardGhostFor, e = f && f.sec.els[f.i];
-    if (e && e.cards) cardsDo(f.sec, e, 'add');
+    if (e && e.cards) cardsDo(f.sec, e, 'add', -1);
   });
   function hideCardGhost() { cardGhost.hidden = true; cardGhostFor = null; }
   // beside the last card when the row has room, else a strip under the set
@@ -6994,24 +7002,82 @@
     var e = sec && sec.els[i], node = e && e.cards && sec.nodes ? sec.nodes[i] : null;
     var cards = node ? node.querySelectorAll('.gogh-cs-card[data-ck]') : [];
     if (!node || !cards.length || deviceMode === 'phone') { hideCardGhost(); return; }
-    var last = cards[cards.length - 1].getBoundingClientRect();
-    var set = node.getBoundingClientRect(), room = sec.sectionEl.getBoundingClientRect();
-    var beside = e.cards.layout !== 'slider' && last.right + 12 + 52 <= room.right - 4 && last.width < set.width * 0.7;
-    cardGhost.classList.toggle('is-strip', !beside);
-    if (beside) {
-      cardGhost.style.left = (last.right + window.scrollX + 12) + 'px';
-      cardGhost.style.top = (last.top + window.scrollY) + 'px';
-      cardGhost.style.width = '52px';
-      cardGhost.style.height = Math.max(96, last.height) + 'px';
-    } else {
-      cardGhost.style.left = (set.left + window.scrollX) + 'px';
-      cardGhost.style.top = (set.bottom + window.scrollY + 12) + 'px';
-      cardGhost.style.width = Math.min(220, set.width) + 'px';
-      cardGhost.style.height = '44px';
-    }
+    // only in the slot a part-filled grid row leaves empty, exactly where
+    // the card will land; never a row of its own (the bar and the + in the
+    // gaps do the rest: the Add a card paper, 2026-10-17)
+    if (!/^(g2|g3|g4|steps|small|big)$/.test(e.cards.layout)) { hideCardGhost(); return; }
+    var grid = node.querySelector('.gogh-cardset');
+    var cols = (getComputedStyle(grid).gridTemplateColumns || '').split(' ').filter(Boolean).length;
+    var lastEl = cards[cards.length - 1], last = lastEl.getBoundingClientRect();
+    var setR = grid.getBoundingClientRect();
+    var gapPx = parseFloat(getComputedStyle(grid).columnGap) || 20;
+    if (cols < 2 || last.right + gapPx + last.width > setR.right + 2) { hideCardGhost(); return; }
+    cardGhost.classList.remove('is-strip');
+    cardGhost.style.left = (last.right + gapPx + window.scrollX) + 'px';
+    cardGhost.style.top = (last.top + window.scrollY) + 'px';
+    cardGhost.style.width = last.width + 'px';
+    cardGhost.style.height = last.height + 'px';
     cardGhost.hidden = false;
     cardGhostFor = { sec: sec, i: i };
   }
+  // ---------- a + in the gap: a card goes in exactly there ----------
+  // pointing at the gap between two cards of the chosen set shows a line
+  // and a +, the same gesture as the + between sections
+  var cardSeam = document.createElement('div');
+  cardSeam.className = 'gogh-cardseam';
+  cardSeam.innerHTML = '<span class="gogh-cardseam-line"></span><button type="button" class="gogh-cardseam-add" aria-label="Add a card here" title="Add a card here">+</button>';
+  cardSeam.hidden = true;
+  document.body.appendChild(cardSeam);
+  var cardSeamAt = null;
+  cardSeam.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); ev.preventDefault(); });
+  cardSeam.querySelector('.gogh-cardseam-add').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var f = cardSeamAt, e = f && f.sec.els[f.i];
+    cardSeam.hidden = true;
+    if (e && e.cards) cardsDo(f.sec, e, 'add', f.k);
+  });
+  function cardSeamsOf(node) {
+    var cards = [].slice.call(node.querySelectorAll('.gogh-cs-card[data-ck]'));
+    var rs = cards.map(function (c) { return c.getBoundingClientRect(); }), out = [];
+    for (var k = 0; k + 1 < rs.length; k++) {
+      var a = rs[k], b = rs[k + 1];
+      if (Math.abs(a.top - b.top) < 30 && b.left > a.right - 2) {
+        out.push({ vert: true, x: (a.right + b.left) / 2, y1: Math.max(a.top, b.top), y2: Math.min(a.bottom, b.bottom), k: k + 1 });
+      } else if (Math.abs(a.left - b.left) < 4 && b.top > a.bottom - 2) {
+        out.push({ vert: false, y: (a.bottom + b.top) / 2, x1: Math.max(a.left, b.left), x2: Math.min(a.right, b.right), k: k + 1 });
+      }
+    }
+    return out;
+  }
+  document.addEventListener('pointermove', function (ev) {
+    if (!editing || drag || resize || cardDrag || textEditing || ev.pointerType === 'touch') { cardSeam.hidden = true; return; }
+    if (cardSeam.contains(ev.target)) return;
+    var e = sel && sel.sec.els[sel.i];
+    var node = e && e.cards && sel.sec.nodes ? sel.sec.nodes[sel.i] : null;
+    if (!node || cardPop || cardMenu) { cardSeam.hidden = true; return; }
+    var best = null;
+    cardSeamsOf(node).forEach(function (sm) {
+      var d = sm.vert ? (ev.clientY >= sm.y1 && ev.clientY <= sm.y2 ? Math.abs(ev.clientX - sm.x) : Infinity)
+        : (ev.clientX >= sm.x1 && ev.clientX <= sm.x2 ? Math.abs(ev.clientY - sm.y) : Infinity);
+      if (d < 18 && (!best || d < best.d)) best = { sm: sm, d: d };
+    });
+    if (!best) { cardSeam.hidden = true; cardSeamAt = null; return; }
+    var sm = best.sm;
+    cardSeam.classList.toggle('is-vert', sm.vert);
+    if (sm.vert) {
+      cardSeam.style.left = (sm.x + window.scrollX - 14) + 'px';
+      cardSeam.style.top = (sm.y1 + window.scrollY) + 'px';
+      cardSeam.style.width = '28px';
+      cardSeam.style.height = (sm.y2 - sm.y1) + 'px';
+    } else {
+      cardSeam.style.left = (sm.x1 + window.scrollX) + 'px';
+      cardSeam.style.top = (sm.y + window.scrollY - 14) + 'px';
+      cardSeam.style.width = (sm.x2 - sm.x1) + 'px';
+      cardSeam.style.height = '28px';
+    }
+    cardSeam.hidden = false;
+    cardSeamAt = { sec: sel.sec, i: sel.i, k: sm.k };
+  }, true);
   // ---------- the set's own popovers: Layout, Style, its •••, a picture ----------
   var cardPop = null;
   function closeCardPop() {
@@ -7422,12 +7488,17 @@
     if (i !== -1 && sel && sel.sec === sec && sel.i === i) placeHandles(sec, i);
     if (push !== false) pushState();
   }
+  var cardsAddedAt = null;
   function cardsDo(sec, e, op, k, to) {
     var c = e.cards = cardsNorm(e.cards), items = c.items;
     if (op === 'add') {
-      var last = items[items.length - 1] || {};
-      items.push({ t: 'A new card', d: 'Say what this one is about.', link: last.link ? 'Find out more' : '',
-        img: cardsSamplePic(items.length), alt: '', href: '', price: last.price || '', per: last.per || '', role: '' });
+      // a new card has its neighbours' parts, empty and asking (never a copy
+      // of another card's words, which could slip onto the live page);
+      // k is where it goes (after the chosen card, or the end)
+      var at2 = k == null || k < 0 || k > items.length ? items.length : k;
+      items.splice(at2, 0, { t: '', d: '', link: '', img: '', alt: '', href: '', price: '', per: '', role: '' });
+      if (c.feat >= at2) c.feat++;
+      cardsAddedAt = at2;
     } else if (op === 'dup') {
       items.splice(k + 1, 0, JSON.parse(JSON.stringify(items[k])));
       if (c.feat > k) c.feat++;
@@ -7461,6 +7532,21 @@
     // the set stays the chosen thing after any change to its cards
     var at = sec.els.indexOf(e);
     if (at !== -1 && !(sel && sel.sec === sec && sel.i === at)) placeHandles(sec, at);
+    if (op === 'add' && at !== -1 && cardsAddedAt != null) {
+      var newK = cardsAddedAt;
+      cardsAddedAt = null;
+      focusCard(sec, at, newK);
+      var leafT = sec.nodes[at] && sec.nodes[at].querySelector('[data-ck="' + newK + '"][data-cf="t"]');
+      var cardN = sec.nodes[at] && sec.nodes[at].querySelector('.gogh-cs-card[data-ck="' + newK + '"]');
+      if (cardN) {
+        var rr = cardN.getBoundingClientRect();
+        if (rr.top < 60 || rr.bottom > window.innerHeight - 20) cardN.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+      if (leafT && e.cards.titles) {
+        var lr = leafT.getBoundingClientRect();
+        enterTextEdit(sec, at, { target: leafT, clientX: lr.left + 2, clientY: lr.top + lr.height / 2 });
+      }
+    }
     if (longPanelFor && longPanelFor.sec === sec && longPanelFor.i === at) paintCardsPanel(sec, e);
   }
   // a card's own small menu, on the canvas and in the list alike
@@ -23595,7 +23681,7 @@
     composeCarousel: composeCarousel,
     composeWall: composeWall,
     cards: { compose: composeCards, norm: cardsNorm, act: cardsDo, fit: fitCards, menu: openCardMenu, layouts: CARD_LAYOUTS,
-      pop: function () { return cardPop; }, focus: function () { return cardFocus; }, drop: function () { sel = null; hideHandles(); }, nowhere: function () { return cardLinksWithoutAddress(); }, ghost: function () { return cardGhost; }, chip: function () { return cardChip; }, pic: openCardPicPop },
+      pop: function () { return cardPop; }, seam: function () { return cardSeam; }, seams: function (n) { return cardSeamsOf(n); }, focus: function () { return cardFocus; }, drop: function () { sel = null; hideHandles(); }, nowhere: function () { return cardLinksWithoutAddress(); }, ghost: function () { return cardGhost; }, chip: function () { return cardChip; }, pic: openCardPicPop },
     mediaPool: mediaPool,
     tplEls: tplEls,
     elDefaults: function () { return DEFAULTS; },

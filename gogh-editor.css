@@ -5015,20 +5015,20 @@ html.gogh-editing:has(.gogh-cs-card.is-lifting) { cursor: grabbing; user-select:
 .gogh-cardghost {
   all: unset; position: absolute; z-index: 100001; box-sizing: border-box; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  border: 2px dashed #b9c3f2; border-radius: 8px; background: rgba(255, 255, 255, 0.75); color: #2743c4;
-  font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  border: 2px dashed #9aaaf2; border-radius: 12px; background: rgba(56, 88, 233, 0.05); color: #2743c4;
+  font: 600 14px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 .gogh-cardghost[hidden] { display: none; }
 .gogh-cardghost:hover { border-color: #3858e9; background: #f2f4fe; }
 .gogh-cardghost:focus-visible { outline: 2px solid #3858e9; outline-offset: 2px; }
 .gogh-cardghost-plus { width: 30px; height: 30px; border-radius: 50%; background: #eef1fd; display: grid; place-items: center; flex: none; }
-.gogh-cardghost-tx { writing-mode: vertical-rl; }
-.gogh-cardghost.is-strip { flex-direction: row; }
-.gogh-cardghost.is-strip .gogh-cardghost-tx { writing-mode: horizontal-tb; }
-.gogh-cardghost.is-strip .gogh-cardghost-plus { width: 24px; height: 24px; }
 /* the set's popovers under the bar */
 .gogh-eb-cardsstyle, .gogh-eb-cardsmore { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; padding: 0 10px; white-space: nowrap; }
-.gogh-eb-cardslayout.is-open, .gogh-eb-cardsstyle.is-open, .gogh-eb-cardsmore.is-open { background: #eef1fd; color: #2743c4; }
+.gogh-eb-cardsmore.is-open { background: #eef1fd; color: #2743c4; }
+/* Layout and Style open the sidebar: no chevron, pressed while their page is open */
+.gogh-eb-cardslayout.is-open, .gogh-eb-cardsstyle.is-open { background: #1d1d20; color: #fff; }
+.gogh-eb-cardslayout .gogh-eb-k, .gogh-eb-cardsstyle .gogh-eb-k { font-weight: 600; }
+.gogh-eb-cardslayout .gogh-eb-v, .gogh-eb-cardsstyle .gogh-eb-v { font-weight: 500; opacity: 0.62; }
 .gogh-cardpop {
   position: absolute; z-index: 100003; box-sizing: border-box; background: #fff; color: #1d1d20; border-radius: 14px; padding: 16px;
   box-shadow: 0 18px 48px rgba(20, 16, 40, 0.24), 0 0 0 1px rgba(20, 16, 40, 0.06);
@@ -5234,3 +5234,12 @@ html.gogh-editing .gogh-cs-link a, html.gogh-editing .gogh-cs-btns .wp-block-but
 .gogh-cardside-tabs button { all: unset; flex: 1; text-align: center; cursor: pointer; padding: 7px 10px; border-radius: 7px; font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #4a4560; }
 .gogh-cardside-tabs button.is-on { background: #fff; color: #1d1d20; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
 .gogh-cardside-tabs button:focus-visible { outline: 2px solid #3858e9; outline-offset: 1px; }
+/* a + in the gap between two cards */
+.gogh-cardseam { position: absolute; z-index: 100002; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.gogh-cardseam[hidden] { display: none; }
+.gogh-cardseam-line { position: absolute; background: #3858e9; border-radius: 2px; }
+.gogh-cardseam.is-vert .gogh-cardseam-line { left: 13px; top: 0; bottom: 0; width: 2px; }
+.gogh-cardseam:not(.is-vert) .gogh-cardseam-line { top: 13px; left: 0; right: 0; height: 2px; }
+.gogh-cardseam-add { all: unset; pointer-events: auto; position: relative; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; background: #3858e9; color: #fff; display: grid; place-items: center; font: 600 18px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-shadow: 0 2px 8px rgba(56, 88, 233, 0.4); }
+.gogh-cardseam-add:hover { background: #2c49c9; }
+.gogh-cardseam-add:focus-visible { outline: 2px solid #3858e9; outline-offset: 2px; }

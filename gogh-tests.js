@@ -4037,6 +4037,26 @@
       return 'link bar, address kept, ' + G.cards.nowhere().length + ' still to fill';
     });
 
+    test('Cards: a + in each gap and Add card after the chosen card; the ghost only fills an empty slot', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      expect(G.cards.ghost().hidden, 'a full row of three should show no ghost card');
+      var seams = G.cards.seams(n);
+      expect(seams.length === 2 && seams.every(function (sm) { return sm.vert; }), 'three cards in a row should have two gaps to add in: ' + seams.length);
+      G.cards.act(s0, e, 'add', seams[0].k);
+      expect(e.cards.items.length === 4 && !e.cards.items[1].t && G.cards.focus() && G.cards.focus().k === 1, 'a card added in the first gap should land second, empty and chosen');
+      expect(/A line or two|Title/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'its empty parts should ask to be filled');
+      G.cards.act(s0, e, 'add', 1);
+      expect(e.cards.items.length === 5 && !e.cards.items[1].t && !e.cards.items[2].t, 'Add card after the chosen card goes right after it');
+      G.placeHandles(s0, s0.els.indexOf(e));
+      expect(!G.cards.ghost().hidden, 'five cards in rows of three leave a slot for the ghost');
+      var lay = q('.gogh-eb-cardslayout');
+      expect(/Layout/.test(lay.textContent) && /3 across/.test(lay.textContent) && !lay.querySelector('svg path[d^="M2 3.5"]'), 'the bar should say Layout \u00b7 3 across, with no dropdown chevron');
+      return 'gap +, insert after, ghost in the empty slot';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
