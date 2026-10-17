@@ -1,0 +1,49 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"landingPage": "/?gogh-edit=1",
+	"preferredVersions": {
+		"php": "8.2",
+		"wp": "latest"
+	},
+	"features": {
+		"networking": true
+	},
+	"login": true,
+	"steps": [
+		{
+			"step": "installTheme",
+			"themeData": {
+				"resource": "wordpress.org/themes",
+				"slug": "twentytwentyfive"
+			},
+			"options": {
+				"activate": true
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "wordpress.org/plugins",
+				"slug": "woocommerce"
+			},
+			"options": {
+				"activate": true
+			}
+		},
+		{
+			"step": "activatePlugin",
+			"pluginPath": "gogh/gogh.php"
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php require '/wordpress/wp-load.php'; define( 'GOGH_DEMO_STARTER', 'ceramics' ); define( 'GOGH_DEMO_HEADER', 'gogh-header-classic' ); define( 'GOGH_DEMO_TITLE', 'Hollowell' );  require '/wordpress/wp-content/plugins/gogh/demo-boot.php';"
+		},
+		{
+			"step": "setSiteOptions",
+			"options": {
+				"blogname": "Hollowell",
+				"blogdescription": "Stoneware from Bristol"
+			}
+		}
+	]
+}
