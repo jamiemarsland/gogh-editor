@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.760 · knowledge base b310828.
+Generated for plugin version 0.99.761 · knowledge base 58ef64d.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Rounded corners works on every set, and a calmer picture chooser (v0.99.761).** On a set made from freeform cards, Rounded corners did nothing because the cards kept their own corners. Now the cards' own corners show while it is on, and turning it off makes them square. In a card's picture chooser, Upload and Library are two matching buttons on one line, and "Remove picture" is a quiet link rather than red words.
+
 **Card titles that were plain lines keep their face (v0.99.760).** When a set is made from freeform cards or columns whose titles were paragraphs (a schedule's talks, "01 — Listen first"), the titles keep the body typeface instead of switching to the theme's heading face. Ledger rows from the blueprints sit closer together, nearer their original spacing.
 
 **Team and Photo cards are Cards, and "Make these a set" (v0.99.759).** On the shelf, Team is a set of people in all four takes: 3 across with square pictures, the list as Rows, the ink studio, and the offset as Steps. Photo cards are a set On the photo, with white words and white buttons over the picture, in all four takes. Their pictures come from your own media like any design's, and a site definition's people or places fill the set. Choose two or more matching freeform cards together (Shift-click, or drag a box around them) and the selection bar leads with **Make these a set**. It turns them into one Cards set, keeping their words, type, colour and corners, and Undo puts them back.
@@ -1129,11 +1131,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.760**
+- Plugin version: **0.99.761**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.760`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.761`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1385,6 +1387,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Align the pieces to each other"
 - "Align ▾"
 - "All options"
+- "All the pictures in your media library"
 - "An icon — a simple line drawing in your text colour"
 - "Apply"
 - "As placed"
@@ -1485,6 +1488,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Keep this layout (updates every page)"
 - "Layout for every card"
 - "Left"
+- "Library"
 - "Light"
 - "Light page"
 - "Line"
@@ -1503,7 +1507,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Manage this menu — reorder, nest, swap menus"
 - "Mobile view"
 - "More for this set"
-- "More from the library"
 - "Most loved"
 - "Move down"
 - "Move down in the phone stack"
@@ -1519,7 +1522,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Name, email and a message — straight into your own site, no plugin"
 - "New in"
 - "No picture"
-- "No picture on this card"
 - "None"
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
@@ -1548,6 +1550,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove from menu"
 - "Remove image"
 - "Remove link (keep the text)"
+- "Remove picture"
 - "Remove poster"
 - "Remove the address"
 - "Remove this ' + labels.one + '"

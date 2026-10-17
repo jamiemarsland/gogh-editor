@@ -4083,6 +4083,11 @@
       var css = s0.styleEl.textContent;
       expect(/\.gogh-cs-t \{[^}]*font-size: var\(--wp--preset--font-size--large\)/.test(css) && /font-weight: 500/.test(css), 'the section CSS should dress the title in its carried size and weight');
       expect(/\.gogh-cs-body \{ padding: max\(16px, [\d.]+cqw\) !important/.test(css), 'the padding should grow with the set');
+      var setEl = s0.els.filter(function (e) { return e.cards; }).pop(), cardEl = s0.nodes[s0.els.indexOf(setEl)].querySelector('.gogh-cs-card');
+      expect(parseFloat(getComputedStyle(cardEl).borderTopLeftRadius) === 12, 'the carried corners should show while Rounded corners is on');
+      setEl.cards.round = 0; G.renderSection(s0);
+      cardEl = s0.nodes[s0.els.indexOf(setEl)].querySelector('.gogh-cs-card');
+      expect(parseFloat(getComputedStyle(cardEl).borderTopLeftRadius) === 0, 'Rounded corners off should square them, carried corners or not');
       return 'k/t/d/link, type, box, featured, h2';
     });
 

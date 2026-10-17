@@ -798,7 +798,10 @@
     var b = c.box;
     if (b && b.look === c.look) {
       if (b.bg) out.push(base + ' .gogh-cs-card:not(.is-featured) { background: ' + b.bg + ' !important; }');
-      if (b.radius != null) out.push(base + ' .gogh-cardset:not(.gogh-cardset-index):not(.gogh-cardset-ledger) > .gogh-cs-card { border-radius: ' + b.radius + 'px !important; }');
+      // the carried corners hold while Rounded corners is on; off is square
+      // (James: 'dont think rounded corners does anthing')
+      if (b.radius != null && c.round) out.push(base + ' .gogh-cardset:not(.gogh-cardset-index):not(.gogh-cardset-ledger) > .gogh-cs-card { border-radius: ' + b.radius + 'px !important; }');
+      else if (b.radius != null) out.push(base + ' .gogh-cardset:not(.gogh-cardset-index):not(.gogh-cardset-ledger) > .gogh-cs-card, ' + base + ' .gogh-cs-pic img { border-radius: 0 !important; }');
       // padding and spacing grow with the set, as the freeform card's did
       // (its pieces sat in section units), with a floor for phones
       var cq = function (v) { return (v * 100 / Math.max(80, e.w)).toFixed(2) + 'cqw'; };
@@ -7520,10 +7523,10 @@
     p.innerHTML = '<div class="gogh-cardpop-head"><b>Picture</b><span>This card only</span></div>' +
       '<div class="gogh-cardpop-thumbs"><span class="gogh-media-loading">Loading your pictures…</span></div>' +
       '<div class="gogh-cardpop-btns">' +
-      (cfg.canUpload ? '<label class="gogh-cardpop-btn is-primary">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
-      '<button type="button" class="gogh-cardpop-btn" data-act="more">More from the library</button></div>' +
+      (cfg.canUpload ? '<label class="gogh-cardpop-btn">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
+      '<button type="button" class="gogh-cardpop-btn" data-act="more" title="All the pictures in your media library">Library</button></div>' +
       '<label class="gogh-cardpop-field">Describe it, for people who can’t see it<input type="text" class="gogh-input" value="' + escAttr(it.alt || '') + '" /></label>' +
-      (it.img ? '<button type="button" class="gogh-cardpop-link is-danger" data-act="none">No picture on this card</button>' : '');
+      (it.img ? '<button type="button" class="gogh-cardpop-link is-quiet" data-act="none">Remove picture</button>' : '');
     var setPic = function (url, id, alt) {
       it.img = url || '';
       if (id) it.mediaId = id; else delete it.mediaId;

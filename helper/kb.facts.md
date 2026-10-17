@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.760**
+- Plugin version: **0.99.761**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.760`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.761`). Quote the plugin header version.
 
 ## Design constants
 
@@ -260,6 +260,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Align the pieces to each other"
 - "Align ▾"
 - "All options"
+- "All the pictures in your media library"
 - "An icon — a simple line drawing in your text colour"
 - "Apply"
 - "As placed"
@@ -360,6 +361,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Keep this layout (updates every page)"
 - "Layout for every card"
 - "Left"
+- "Library"
 - "Light"
 - "Light page"
 - "Line"
@@ -378,7 +380,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Manage this menu — reorder, nest, swap menus"
 - "Mobile view"
 - "More for this set"
-- "More from the library"
 - "Most loved"
 - "Move down"
 - "Move down in the phone stack"
@@ -394,7 +395,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Name, email and a message — straight into your own site, no plugin"
 - "New in"
 - "No picture"
-- "No picture on this card"
 - "None"
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
@@ -423,6 +423,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove from menu"
 - "Remove image"
 - "Remove link (keep the text)"
+- "Remove picture"
 - "Remove poster"
 - "Remove the address"
 - "Remove this ' + labels.one + '"
