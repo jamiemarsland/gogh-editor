@@ -3947,7 +3947,7 @@
       return 'boxes → set, words kept';
     });
 
-    test('Cards: the set’s bar is Layout, Style, Add card and •••; its popovers try on hover and keep on click', function () {
+    test('Cards: the set’s bar is Layout, Style, Add card and •••; Layout and Style try on hover and keep on click', function () {
       var s0 = sec();
       var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
       var n = s0.nodes[i];
@@ -3956,19 +3956,22 @@
       expect(shown('.gogh-eb-cardslayout') && shown('.gogh-eb-cardsstyle') && shown('.gogh-eb-addcard') && shown('.gogh-eb-cardsmore'), 'the set’s bar should show Layout, Style, Add card and •••');
       expect(!shown('.gogh-eb-ctx') && !shown('.gogh-eb-dup') && !shown('.gogh-eb-del'), 'no Edit door, and copy and bin live in the set’s •••');
       try {
+        // Layout and Style open their pages of the docked sidebar (the set stays in view)
         q('.gogh-eb-cardslayout').click();
-        var pop = G.cards.pop();
-        expect(pop && pop.querySelectorAll('.gogh-cltile').length === G.cards.layouts.length, 'Layout should open its popover with every layout');
-        pop.querySelector('.gogh-cltile[data-v="rows"]').dispatchEvent(new MouseEvent('mouseenter'));
+        var side = q('.gogh-panel .gogh-cards-pane');
+        expect(side && side.querySelectorAll('.gogh-cltile').length === G.cards.layouts.length, 'Layout should open its sidebar page with every layout');
+        side.querySelector('.gogh-cltile[data-v="rows"]').dispatchEvent(new MouseEvent('mouseenter'));
         expect(e.cards.layout === 'g3' && /gogh-cardset-rows/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'pointing at Rows should dress the canvas, not the model');
-        pop.querySelector('.gogh-cltile[data-v="g2"]').click();
+        side.querySelector('.gogh-cltile[data-v="g2"]').click();
         expect(e.cards.layout === 'g2' && /gogh-cardset-g2/.test(e.wsrc), 'a click should keep 2 across');
-        q('.gogh-eb-cardsstyle').click();
-        pop = G.cards.pop();
-        expect(pop && /Style/.test(pop.textContent), 'Style should open its popover');
-        pop.querySelector('.gogh-cslook-outline').click();
-        pop.querySelector('[data-sw="round"]').click();
+        side.querySelector('.gogh-cardside-tabs [data-tab="style"]').click();
+        side = q('.gogh-panel .gogh-cards-pane');
+        expect(side.querySelector('.gogh-cslook-outline'), 'the Style tab should show the looks');
+        side.querySelector('.gogh-cslook-outline').click();
+        q('.gogh-panel [data-sw="round"]').click();
         expect(e.cards.look === 'outline' && e.cards.round === 1, 'the look and the corners should keep');
+        G.closePanel();
+        G.placeHandles(s0, s0.els.indexOf(e));
         q('.gogh-eb-cardsmore').click();
         G.cards.pop().querySelector('[data-x="price"]').click();
         expect(e.cards.extras.price === 1 && /gogh-cs-price/.test(e.wsrc), 'a price should switch on from the set’s •••');

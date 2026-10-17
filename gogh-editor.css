@@ -5224,3 +5224,13 @@ html.gogh-editing .gogh-cs-btns:has(a[data-nohref] [data-cf]:not(:empty)) { disp
 html.gogh-editing .gogh-cs-link a, html.gogh-editing .gogh-cs-btns .wp-block-button__link { cursor: pointer; }
 .gogh-cardpop .gogh-cardpop-field:focus-within { outline: none; }
 .gogh-cardpop .gogh-cardpop-field input:focus { outline: none; border-color: #3858e9; box-shadow: 0 0 0 1px #3858e9; }
+/* Layout and Style as pages of the docked sidebar */
+.gogh-cards-sidebox { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.gogh-cards-sidebox hr { border: 0; height: 1px; background: var(--gogh-ui-border, #ecebf1); margin: 4px 0; width: 100%; }
+.gogh-cards-sidelayout .gogh-cardpop-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.gogh-cards-sidebox .gogh-cardpop-row { min-height: 32px; }
+.gogh-cards-sidebox .gogh-cardpop-seg button { padding: 6px 9px; }
+.gogh-cardside-tabs { display: flex; background: #f1f0f5; border-radius: 9px; padding: 3px; margin: 0 0 12px; }
+.gogh-cardside-tabs button { all: unset; flex: 1; text-align: center; cursor: pointer; padding: 7px 10px; border-radius: 7px; font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #4a4560; }
+.gogh-cardside-tabs button.is-on { background: #fff; color: #1d1d20; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.gogh-cardside-tabs button:focus-visible { outline: 2px solid #3858e9; outline-offset: 1px; }
