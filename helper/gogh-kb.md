@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.761 · knowledge base 58ef64d.
+Generated for plugin version 0.99.762 · knowledge base e6a9bf3.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A set's bar is Add card · Edit design (v0.99.762).** The bar for a set of cards now matches a shop's (Manage products · Edit design): **+ Add card**, **Edit design** and **•••**. Edit design opens the sidebar on Layout, with Style one tab away, and stays pressed while the sidebar is open; press it again to put the sidebar away. The separate "Layout · 3 across" and "Style · Panel" chips are gone, since both opened the same sidebar.
+
 **Rounded corners works on every set, and a calmer picture chooser (v0.99.761).** On a set made from freeform cards, Rounded corners did nothing because the cards kept their own corners. Now the cards' own corners show while it is on, and turning it off makes them square. In a card's picture chooser, Upload and Library are two matching buttons on one line, and "Remove picture" is a quiet link rather than red words.
 
 **Card titles that were plain lines keep their face (v0.99.760).** When a set is made from freeform cards or columns whose titles were paragraphs (a schedule's talks, "01 — Listen first"), the titles keep the body typeface instead of switching to the theme's heading face. Ledger rows from the blueprints sit closer together, nearer their original spacing.
@@ -1131,11 +1133,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.761**
+- Plugin version: **0.99.762**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.761`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.762`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1447,6 +1449,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate the selection"
 - "Duplicate the set"
 - "Edge to edge of the section"
+- "Edit design"
 - "Embed"
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
 - "Equal gaps top to bottom"
@@ -1473,7 +1476,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "History — earlier published versions of this page"
 - "Home"
 - "Home page"
-- "How every card looks"
 - "Icon"
 - "Image"
 - "Imagine"
@@ -1486,7 +1488,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Keep this"
 - "Keep this brand"
 - "Keep this layout (updates every page)"
-- "Layout for every card"
+- "Layout and style for every card"
 - "Left"
 - "Library"
 - "Light"

@@ -3883,10 +3883,12 @@
     '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
     // inside a set: where you are, and the way back out to the set
     '<button type="button" class="gogh-eb gogh-eb-cardstrail" title="Back to the whole set (Esc)" style="display:none"></button>' +
-    // a card set's two everyday doors: its layout, and one more card
-    '<button type="button" class="gogh-eb gogh-eb-cardslayout" title="Layout for every card" style="display:none"></button>' +
-    '<button type="button" class="gogh-eb gogh-eb-cardsstyle" title="How every card looks" aria-haspopup="dialog" aria-expanded="false" style="display:none"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg>Style<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>' +
+    // a card set's two everyday doors, as a shelf's are (Manage products ·
+    // Edit design): one more card, and the design of every card, its
+    // layout and style in the sidebar (James: 'should we just have edit
+    // design for the card layout, like we do for products?')
     '<button type="button" class="gogh-eb gogh-eb-addcard" title="Add a card" style="display:none"><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>Add card</button>' +
+    '<button type="button" class="gogh-eb gogh-eb-cardslayout" title="Layout and style for every card" aria-haspopup="dialog" aria-expanded="false" style="display:none">Edit design</button>' +
     // text size, the way Canva and Docs do it: a step smaller, the size by
     // name (a click opens every size), a step bigger
     // one small pill, [ − 85 + ]: a number needs no explaining (James:
@@ -3973,12 +3975,10 @@
   var LIST_ICON_OL = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 5.5l1.5-1v4M3 11.5c0-1 2-1.4 2 0 0 .8-2 1.6-2 2.5h2.2M3 16.5h2c1 0 1 2-.4 2 1.4 0 1.4 2 0 2H3" stroke-width="1.8"/></svg>';
   elbar.querySelector('.gogh-eb-cardstrail').addEventListener('click', function () { unfocusCard(); });
   elbar.querySelector('.gogh-eb-cardslayout').addEventListener('click', function () {
+    // a second press puts the sidebar away
+    if (panelOpen && panel.querySelector('.gogh-cards-pane')) { closePanel(); return; }
     if (!sel || !sel.sec.els[sel.i].cards) return;
     openCardsSide(sel.sec, sel.i, 'layout');
-  });
-  elbar.querySelector('.gogh-eb-cardsstyle').addEventListener('click', function () {
-    if (!sel || !sel.sec.els[sel.i].cards) return;
-    openCardsSide(sel.sec, sel.i, 'style');
   });
   elbar.querySelector('.gogh-eb-cardsmore').addEventListener('click', function () {
     if (!sel || !sel.sec.els[sel.i].cards) return;
@@ -5041,21 +5041,16 @@
     // its words are typed on the cards, so there is no Edit door (James:
     // 'do you think it makes sense to have edit cards, and 2 across?')
     var cardsLay = elbar.querySelector('.gogh-eb-cardslayout'), cardsAdd = elbar.querySelector('.gogh-eb-addcard');
-    var cardsSty = elbar.querySelector('.gogh-eb-cardsstyle'), cardsMore = elbar.querySelector('.gogh-eb-cardsmore');
-    cardsLay.style.display = cardsAdd.style.display = cardsSty.style.display = cardsMore.style.display = e.cards ? '' : 'none';
+    var cardsMore = elbar.querySelector('.gogh-eb-cardsmore');
+    cardsLay.style.display = cardsAdd.style.display = cardsMore.style.display = e.cards ? '' : 'none';
     // a set never turns (its cards line up with the page); its Add card
     // pill sits where the turn handle would
     rotGrip.style.display = e.cards ? 'none' : '';
     ['.gogh-eb-bck', '.gogh-eb-fwd', '.gogh-eb-dup', '.gogh-eb-del'].forEach(function (q2) { elbar.querySelector(q2).style.display = e.cards ? 'none' : ''; });
     if (e.cards) {
       ctxBtn.style.display = 'none';
-      var lay0 = cardsNorm(e.cards).layout;
-      // what each door changes, and what it is now; no \u25be, which
-      // promises a dropdown (they open the sidebar, and stay pressed while
-      // it is open)
-      cardsLay.innerHTML = '<span class="gogh-eb-k">Layout</span><span class="gogh-eb-v">\u00b7 ' + esc(cardsOptName(CARD_LAYOUTS, lay0)) + '</span>';
-      cardsSty.innerHTML = '<span class="gogh-eb-k">Style</span><span class="gogh-eb-v">\u00b7 ' + esc(cardsOptName(CARD_LOOKS, cardsNorm(e.cards).look)) + '</span>';
-      cardsLay.setAttribute('aria-haspopup', 'dialog');
+      // no \u25be, which promises a dropdown: Edit design opens the
+      // sidebar, and stays pressed while it is open
       placeCardGhost(sec, i);
       if (cardFocus && !cardFocusOn(sec, i)) unfocusCard();
       placeCardFocus();
@@ -6042,6 +6037,7 @@
     panel.style.top = ''; panel.style.right = ''; panel.style.bottom = ''; panel.style.left = '';
     panel.style.width = ''; // a hand-resized width belongs to that panel only
     panelOpen = false;
+    dressCardsChips(); // Edit design lets go when its sidebar goes
     // a style audition must never outlive its panel
     if (typeof clearVariationPreview === 'function') clearVariationPreview();
     // an ACTIVE cycle owns its preview — defensive closePanel calls from
@@ -7347,14 +7343,13 @@
     cardsOpenAt = view;
     cardsFromBarNext = true;
     openPanel(sec, i);
+    dressCardsChips();
   }
   function dressCardsChips() {
     var open = panelOpen && !!panel.querySelector('.gogh-cards-pane');
-    var lay = elbar.querySelector('.gogh-eb-cardslayout'), sty = elbar.querySelector('.gogh-eb-cardsstyle');
-    lay.classList.toggle('is-open', open && cardsView === 'layout');
-    sty.classList.toggle('is-open', open && cardsView === 'style');
-    lay.setAttribute('aria-expanded', open && cardsView === 'layout' ? 'true' : 'false');
-    sty.setAttribute('aria-expanded', open && cardsView === 'style' ? 'true' : 'false');
+    var lay = elbar.querySelector('.gogh-eb-cardslayout');
+    lay.classList.toggle('is-open', open);
+    lay.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
   function openCardsMorePop(sec, i, btn) {
     var e = sec.els[i];
@@ -7824,10 +7819,10 @@
             '<button type="button" class="gogh-hswitch' + (on ? ' is-on' : '') + '" role="switch" aria-checked="' + on + '" data-x="' + x[0] + '" aria-label="' + x[1] + '"><span class="gogh-hswitch-knob"></span></button></div>';
         }).join('');
     } else if (view === 'layout') {
-      if (titleEl) titleEl.textContent = 'Layout';
+      if (titleEl) titleEl.textContent = 'Edit design'; // the bar's door, both tabs
       html += '<div class="gogh-panel-hint">Point at one to try it on the page; click to keep it. The cards\u2019 words never change.</div><div class="gogh-cards-sidebox gogh-cards-sidelayout"></div>';
     } else if (view === 'style') {
-      if (titleEl) titleEl.textContent = 'Style';
+      if (titleEl) titleEl.textContent = 'Edit design'; // the bar's door, both tabs
       html += '<div class="gogh-panel-hint">Worn by every card. Point at a look to try it on the page; click to keep it.</div><div class="gogh-cards-sidebox gogh-cards-sidestyle"></div>';
     } else {
       var it = c.items[view];

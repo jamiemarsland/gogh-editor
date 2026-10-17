@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.761",
+    "plugin_version": "0.99.762",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.761-chrome"
+    "asset_version": "0.99.762-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -541,6 +541,7 @@
     "Duplicate the selection",
     "Duplicate the set",
     "Edge to edge of the section",
+    "Edit design",
     "Embed",
     "Embed a link — a map, a post, a playlist, anything WordPress can show",
     "Equal gaps top to bottom",
@@ -567,7 +568,6 @@
     "History — earlier published versions of this page",
     "Home",
     "Home page",
-    "How every card looks",
     "Icon",
     "Image",
     "Imagine",
@@ -580,7 +580,7 @@
     "Keep this",
     "Keep this brand",
     "Keep this layout (updates every page)",
-    "Layout for every card",
+    "Layout and style for every card",
     "Left",
     "Library",
     "Light",

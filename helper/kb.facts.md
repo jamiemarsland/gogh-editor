@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.761**
+- Plugin version: **0.99.762**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.761`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.762`). Quote the plugin header version.
 
 ## Design constants
 
@@ -320,6 +320,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate the selection"
 - "Duplicate the set"
 - "Edge to edge of the section"
+- "Edit design"
 - "Embed"
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
 - "Equal gaps top to bottom"
@@ -346,7 +347,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "History — earlier published versions of this page"
 - "Home"
 - "Home page"
-- "How every card looks"
 - "Icon"
 - "Image"
 - "Imagine"
@@ -359,7 +359,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Keep this"
 - "Keep this brand"
 - "Keep this layout (updates every page)"
-- "Layout for every card"
+- "Layout and style for every card"
 - "Left"
 - "Library"
 - "Light"

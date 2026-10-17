@@ -3947,19 +3947,22 @@
       return 'boxes → set, words kept';
     });
 
-    test('Cards: the set’s bar is Layout, Style, Add card and •••; Layout and Style try on hover and keep on click', function () {
+    test('Cards: the set’s bar is Add card, Edit design and •••; the design sidebar tries on hover and keeps on click', function () {
       var s0 = sec();
       var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
       var n = s0.nodes[i];
       pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
       var shown = function (c) { var b = q('.gogh-elbar ' + c); return !!b && getComputedStyle(b).display !== 'none'; };
-      expect(shown('.gogh-eb-cardslayout') && shown('.gogh-eb-cardsstyle') && shown('.gogh-eb-addcard') && shown('.gogh-eb-cardsmore'), 'the set’s bar should show Layout, Style, Add card and •••');
+      expect(shown('.gogh-eb-addcard') && shown('.gogh-eb-cardslayout') && shown('.gogh-eb-cardsmore') && !q('.gogh-eb-cardsstyle'), 'the set’s bar should show Add card, Edit design and •••');
+      var ed = q('.gogh-eb-cardslayout'), ad = q('.gogh-eb-addcard');
+      expect(ed.textContent === 'Edit design' && (ad.compareDocumentPosition(ed) & Node.DOCUMENT_POSITION_FOLLOWING), 'Edit design should follow Add card, as Edit design follows Manage products');
       expect(!shown('.gogh-eb-ctx') && !shown('.gogh-eb-dup') && !shown('.gogh-eb-del'), 'no Edit door, and copy and bin live in the set’s •••');
       try {
-        // Layout and Style open their pages of the docked sidebar (the set stays in view)
+        // Edit design opens the docked sidebar on Layout (the set stays in view)
         q('.gogh-eb-cardslayout').click();
         var side = q('.gogh-panel .gogh-cards-pane');
-        expect(side && side.querySelectorAll('.gogh-cltile').length === G.cards.layouts.length, 'Layout should open its sidebar page with every layout');
+        expect(side && side.querySelectorAll('.gogh-cltile').length === G.cards.layouts.length, 'Edit design should open the sidebar on Layout, every layout shown');
+        expect(q('.gogh-eb-cardslayout').classList.contains('is-open'), 'Edit design should stay pressed while the sidebar is open');
         side.querySelector('.gogh-cltile[data-v="rows"]').dispatchEvent(new MouseEvent('mouseenter'));
         expect(e.cards.layout === 'g3' && /gogh-cardset-rows/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'pointing at Rows should dress the canvas, not the model');
         side.querySelector('.gogh-cltile[data-v="g2"]').click();
@@ -3970,6 +3973,9 @@
         side.querySelector('.gogh-cslook-outline').click();
         q('.gogh-panel [data-sw="round"]').click();
         expect(e.cards.look === 'outline' && e.cards.round === 1, 'the look and the corners should keep');
+        expect(q('.gogh-eb-cardslayout').classList.contains('is-open'), 'Edit design should stay pressed on the Style tab too');
+        q('.gogh-eb-cardslayout').click();
+        expect(q('.gogh-panel').hidden && !q('.gogh-eb-cardslayout').classList.contains('is-open'), 'a second press on Edit design should put the sidebar away');
         G.closePanel();
         G.placeHandles(s0, s0.els.indexOf(e));
         q('.gogh-eb-cardsmore').click();
@@ -3991,7 +3997,7 @@
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       }
       expect(!G.cards.pop(), 'Escape should close the popover');
-      return 'bar, layout, style, extras, ghost, move, picture';
+      return 'bar, edit design, style, extras, ghost, move, picture';
     });
 
     test('Cards: pointing names the set, the first press chooses it, a second goes into a card, Esc steps out', function () {
@@ -4053,7 +4059,7 @@
       G.placeHandles(s0, s0.els.indexOf(e));
       expect(!G.cards.ghost().hidden, 'five cards in rows of three leave a slot for the ghost');
       var lay = q('.gogh-eb-cardslayout');
-      expect(/Layout/.test(lay.textContent) && /3 across/.test(lay.textContent) && !lay.querySelector('svg path[d^="M2 3.5"]'), 'the bar should say Layout \u00b7 3 across, with no dropdown chevron');
+      expect(lay.textContent === 'Edit design' && !lay.querySelector('svg'), 'the bar should say Edit design, with no dropdown chevron');
       return 'gap +, insert after, ghost in the empty slot';
     });
 
