@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.748",
+    "plugin_version": "0.99.749",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.748-chrome"
+    "asset_version": "0.99.749-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -489,6 +489,7 @@
     "Back to Site styles",
     "Back to my page",
     "Back to the Site cards",
+    "Back to the whole set (Esc)",
     "Background & look",
     "Badge",
     "Bigger text",
@@ -1600,5 +1601,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 374
+  "test_count": 375
 }

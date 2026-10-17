@@ -3807,6 +3807,8 @@
     '<button type="button" class="gogh-eb gogh-eb-look" title="Choose a style"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
+    // inside a set: where you are, and the way back out to the set
+    '<button type="button" class="gogh-eb gogh-eb-cardstrail" title="Back to the whole set (Esc)" style="display:none"></button>' +
     // a card set's two everyday doors: its layout, and one more card
     '<button type="button" class="gogh-eb gogh-eb-cardslayout" title="Layout for every card" style="display:none"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-cardsstyle" title="How every card looks" aria-haspopup="dialog" aria-expanded="false" style="display:none"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg>Style<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>' +
@@ -3895,6 +3897,7 @@
   var lstBtn = elbar.querySelector('.gogh-eb-lst');
   var LIST_ICON = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>';
   var LIST_ICON_OL = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 5.5l1.5-1v4M3 11.5c0-1 2-1.4 2 0 0 .8-2 1.6-2 2.5h2.2M3 16.5h2c1 0 1 2-.4 2 1.4 0 1.4 2 0 2H3" stroke-width="1.8"/></svg>';
+  elbar.querySelector('.gogh-eb-cardstrail').addEventListener('click', function () { unfocusCard(); });
   elbar.querySelector('.gogh-eb-cardslayout').addEventListener('click', function () {
     if (!sel || !sel.sec.els[sel.i].cards) return;
     if (panelOpen) closePanel();
@@ -4853,6 +4856,7 @@
     if (cardChip) cardChip.hidden = true;
     if (cardGhost) cardGhost.hidden = true;
     closeCardPop();
+    if (cardFocus) unfocusCard();
     goghFadeOut(elbar);
   }
   function hideGuides() { guideV.hidden = guideH.hidden = true; }
@@ -4891,8 +4895,11 @@
     // huge purple circle over the card whenever it was chosen (James: "these
     // card styles ... are kinda weird")
     var isCardSel = !!(e.type === 'box' && e.kids && e.kids.length);
-    selTag.textContent = isCardSel ? 'Card' : '';
-    selTag.hidden = !isCardSel;
+    // a set says what it is too, and how many cards it holds
+    var setCount = e.cards && e.cards.items ? e.cards.items.length : 0;
+    selTag.textContent = isCardSel ? 'Card' : e.cards ? 'Cards \u00b7 ' + setCount : '';
+    selTag.hidden = !isCardSel && !e.cards;
+    selTag.classList.toggle('is-set', !!e.cards);
     selBox.hidden = false;
     grip.style.left = (bx - 26) + 'px';
     grip.style.top = (byy - 26) + 'px';
@@ -4940,10 +4947,15 @@
         '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
       cardsLay.setAttribute('aria-haspopup', 'dialog');
       placeCardGhost(sec, i);
+      if (cardFocus && !cardFocusOn(sec, i)) unfocusCard();
+      placeCardFocus();
+      dressCardsTrail();
+      setHover.hidden = true;
       if (cardPop && cardPop.__anchor && elbar.contains(cardPop.__anchor)) placeCardPop();
     } else {
       hideCardGhost();
       closeCardPop();
+      if (cardFocus) unfocusCard();
     }
     var manageBtn = elbar.querySelector('.gogh-eb-manage');
     // the bar is about the design on the page (James: 'i don't think we need
@@ -5115,13 +5127,16 @@
     e.wsrc = composeCards(e.cards, false);
     e.whtml = composeCards(e.cards, true);
     if (fitCards(te.sec)) resolveAndApply(te.sec);
+    if (cardFocus) placeCardFocus();
     clearTimeout(textTimer);
     if (done === true) pushState(); else textTimer = setTimeout(pushState, 800);
   }
   function cardsEditKey(ev) {
-    // one line per field: Enter (and Escape) finish the words
+    // one line per field: Enter (and Escape) finish the words; the card
+    // stays chosen (the next Esc steps out to the set)
     if (ev.key === 'Enter' || ev.key === 'Escape') {
       ev.preventDefault();
+      ev.stopPropagation();
       var te = textEditing;
       exitTextEdit();
       if (te && sel && sel.sec === te.sec) placeHandles(te.sec, sel.i);
@@ -5245,7 +5260,9 @@
         if (textEditing.card && !textEditing.target.contains(ev.target)) {
           var nextLeaf = cardsLeafAt(sec, i, ev);
           var picHit = ev.target.closest && ev.target.closest('[data-cpic]');
+          var cardHit2 = ev.target.closest && ev.target.closest('.gogh-cs-card[data-ck]');
           exitTextEdit();
+          if (cardHit2) focusCard(sec, i, +cardHit2.dataset.ck); else unfocusCard();
           if (nextLeaf) enterTextEdit(sec, i, ev);
           else if (picHit) openCardPicPop(sec, i, +picHit.dataset.ck, picHit);
         }
@@ -5318,10 +5335,14 @@
       // a card set: words take the caret, a picture opens that card's page
       // of the panel, anything else the panel itself
       if (pe && pe.cards) {
+        // the second press goes into the card it lands on (the gap between
+        // cards steps back out to the set); a press on its words also puts
+        // the caret there, on its picture opens the picture chooser
+        var cardHit = ev.target && ev.target.closest ? ev.target.closest('.gogh-cs-card[data-ck]') : null;
+        if (!cardHit || !pd.node.contains(cardHit)) { unfocusCard(); return; }
+        focusCard(pd.sec, pd.i, +cardHit.dataset.ck);
         if (cardsLeafAt(pd.sec, pd.i, ev)) { enterTextEdit(pd.sec, pd.i, ev); return; }
-        // a picture opens its chooser beside it; anywhere else on a card
-        // keeps the set chosen (its doors are on the bar)
-        var picAt = ev.target && ev.target.closest && ev.target.closest('[data-cpic]');
+        var picAt = ev.target.closest('[data-cpic]');
         if (picAt) openCardPicPop(pd.sec, pd.i, +picAt.dataset.ck, picAt);
         return;
       }
@@ -6826,22 +6847,84 @@
     if (ev.button !== 0 || !cardChipFor) return;
     startCardDrag(ev, cardChipFor);
   });
+  // the handle sits on the chosen card's top-right corner, astride its
+  // ring, so it never covers the card's title
   function placeCardChip(card, f) {
     var r = card.getBoundingClientRect();
-    cardChip.style.left = (r.left + window.scrollX + 8) + 'px';
-    cardChip.style.top = (r.top + window.scrollY + 8) + 'px';
     cardChip.hidden = false;
+    cardChip.style.left = (r.right + window.scrollX - cardChip.offsetWidth - 12) + 'px';
+    cardChip.style.top = (r.top + window.scrollY - 15) + 'px';
     cardChipFor = f;
   }
+  // ---------- a set first, then one card in it ----------
+  // (James: 'its hard to select the card component - its easy to select
+  // individual cards'). Pointing at a set outlines the whole set and names
+  // it; the first press chooses the set; a second press goes into one card
+  // (a ring, its grip and •••, 'Cards › Card 2' on the bar); Esc steps out
+  // a level at a time: words, card, set
+  var cardFocus = null; // { sec, i, k }
+  var cardRing = document.createElement('div');
+  cardRing.className = 'gogh-cardring';
+  cardRing.hidden = true;
+  document.body.appendChild(cardRing);
+  var setHover = document.createElement('div');
+  setHover.className = 'gogh-sethover';
+  setHover.innerHTML = '<span class="gogh-sethover-tag"></span>';
+  setHover.hidden = true;
+  document.body.appendChild(setHover);
+  function cardFocusOn(sec, i) { return !!(cardFocus && cardFocus.sec === sec && cardFocus.i === i); }
+  function focusCard(sec, i, k) {
+    cardFocus = { sec: sec, i: i, k: k };
+    placeCardFocus();
+    dressCardsTrail();
+  }
+  function unfocusCard() {
+    cardFocus = null;
+    cardRing.hidden = true;
+    if (!cardMenu) { cardChip.hidden = true; cardChipFor = null; }
+    dressCardsTrail();
+  }
+  function placeCardFocus() {
+    var f = cardFocus;
+    if (!f) { cardRing.hidden = true; return; }
+    var e = f.sec.els[f.i], node = f.sec.nodes && f.sec.nodes[f.i];
+    var card = e && e.cards && node ? node.querySelector('.gogh-cs-card[data-ck="' + f.k + '"]') : null;
+    if (!card) { unfocusCard(); return; }
+    var r = card.getBoundingClientRect();
+    cardRing.style.left = (r.left + window.scrollX - 5) + 'px';
+    cardRing.style.top = (r.top + window.scrollY - 5) + 'px';
+    cardRing.style.width = (r.width + 10) + 'px';
+    cardRing.style.height = (r.height + 10) + 'px';
+    cardRing.hidden = false;
+    placeCardChip(card, { sec: f.sec, i: f.i, k: f.k });
+  }
+  function dressCardsTrail() {
+    var tr = elbar.querySelector('.gogh-eb-cardstrail');
+    if (!tr) return;
+    var on = !!(cardFocus && sel && sel.sec === cardFocus.sec && sel.i === cardFocus.i);
+    tr.style.display = on ? '' : 'none';
+    if (on) tr.innerHTML = '<span class="gogh-trail-set">Cards</span><span class="gogh-trail-sep" aria-hidden="true">\u203a</span><b>Card ' + (cardFocus.k + 1) + '</b>';
+  }
+  // pointing at a set that is not chosen: one outline round the whole set, named
+  var setHoverNode = null;
   document.addEventListener('pointermove', function (ev) {
-    if (!editing || drag || resize || cardDrag || ev.pointerType === 'touch') return;
-    if (cardChip.contains(ev.target) || (cardMenu && cardMenu.contains(ev.target))) return;
-    var e = sel && sel.sec.els[sel.i];
-    var node = e && e.cards && sel.sec.nodes ? sel.sec.nodes[sel.i] : null;
-    var card = node && ev.target instanceof Element && node.contains(ev.target) ? ev.target.closest('.gogh-cs-card[data-ck]') : null;
-    if (!card) { if (!cardMenu) { cardChip.hidden = true; cardChipFor = null; } return; }
-    placeCardChip(card, { sec: sel.sec, i: sel.i, k: +card.dataset.ck });
-  });
+    if (!editing || drag || resize || cardDrag || ev.pointerType === 'touch') { setHover.hidden = true; return; }
+    var t = ev.target instanceof Element ? ev.target : null;
+    var cs = t && t.closest('.gogh-cardset');
+    var node = cs && cs.parentElement && cs.parentElement.classList.contains('gogh-widget') ? cs.parentElement : null;
+    if (!node || (sel && sel.sec.nodes && sel.sec.nodes[sel.i] === node) || designMode()) { setHover.hidden = true; setHoverNode = null; return; }
+    if (setHoverNode !== node || setHover.hidden) {
+      var r = node.getBoundingClientRect();
+      setHover.style.left = (r.left + window.scrollX - 8) + 'px';
+      setHover.style.top = (r.top + window.scrollY - 8) + 'px';
+      setHover.style.width = (r.width + 16) + 'px';
+      setHover.style.height = (r.height + 16) + 'px';
+      var n = cs.querySelectorAll(':scope > .gogh-cs-card').length;
+      setHover.firstChild.textContent = 'Cards \u00b7 ' + n;
+      setHover.hidden = false;
+      setHoverNode = node;
+    }
+  }, true);
   // dragging a card: it lifts and follows the pointer, the slot it will
   // land in is marked, and on release the set is redrawn in the new order
   function startCardDrag(ev, f) {
@@ -6977,15 +7060,32 @@
     p.style.top = (top + window.scrollY) + 'px';
   }
   document.addEventListener('keydown', function (ev) {
-    if (ev.key !== 'Escape' || !(cardPop || cardMenu)) return;
+    if (ev.key !== 'Escape') return;
+    // a card's words, then the card, then the set: one level per Esc
+    if (!cardPop && !cardMenu && cardFocus && !textEditing) {
+      ev.stopPropagation();
+      ev.preventDefault();
+      unfocusCard();
+      return;
+    }
+    if (!(cardPop || cardMenu)) return;
     ev.stopPropagation();
     closeCardPop();
     closeCardMenu();
   }, true);
+  // the layouts drawn around pictures (round faces, words on the photo, one
+  // big leader) mean nothing on a set with Picture: None, so choosing one
+  // switches pictures on; a card with none shows a spot to choose one (James:
+  // 'small and centered doesnt seem to work' — it did, with no pictures)
+  var CARD_PIC_LAYOUTS = { small: 1, over: 1, big: 1 };
+  function cardsSetLayout(c, v) {
+    c.layout = v;
+    if (CARD_PIC_LAYOUTS[v] && c.pic === 'none') c.pic = 'wide';
+  }
   // a set's layout or look, worn for a moment by the canvas only
   function cardsWear(sec, e, key, v) {
     var trial = JSON.parse(JSON.stringify(e.cards));
-    trial[key] = v;
+    if (key === 'layout') cardsSetLayout(trial, v); else trial[key] = v;
     e.whtml = composeCards(trial, true);
     renderSection(sec);
     var i = sec.els.indexOf(e);
@@ -7018,7 +7118,7 @@
     grid.querySelectorAll('.gogh-cltile').forEach(function (b) {
       b.addEventListener('mouseenter', function () { cardsWear(sec, e, 'layout', b.dataset.v); });
       b.addEventListener('click', function () {
-        c.layout = b.dataset.v;
+        cardsSetLayout(c, b.dataset.v);
         grid.querySelectorAll('.gogh-cltile').forEach(function (o) { o.classList.toggle('is-active', o === b); o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
         cardsApply(sec, e);
         placeCardPop();
@@ -7237,6 +7337,13 @@
       c.feat = featIt ? items.indexOf(featIt) : -1;
     } else if (op === 'feat') {
       c.feat = c.feat === k ? -1 : k;
+    }
+    // the chosen card follows its card through a move; a deleted one lets go
+    if (cardFocusOn(sec, sec.els.indexOf(e))) {
+      if (op === 'del') unfocusCard();
+      else if (op === 'move') cardFocus.k = to;
+      else if (op === 'up' || op === 'down') cardFocus.k = Math.max(0, Math.min(items.length - 1, k + (op === 'up' ? -1 : 1)));
+      else if (op === 'dup') cardFocus.k = k + 1;
     }
     cardsApply(sec, e);
     // the set stays the chosen thing after any change to its cards
@@ -7498,7 +7605,7 @@
       // keep) changes on click
       var wear = function (v) {
         var trial = JSON.parse(JSON.stringify(c));
-        trial[key] = v;
+        if (key === 'layout') cardsSetLayout(trial, v); else trial[key] = v;
         e.whtml = composeCards(trial, true);
         renderSection(sec);
         var i2 = sec.els.indexOf(e);
@@ -7507,7 +7614,7 @@
       list.querySelectorAll('.gogh-hopt').forEach(function (b) {
         b.addEventListener('mouseenter', function () { wear(b.dataset.v); });
         b.addEventListener('click', function () {
-          c[key] = b.dataset.v;
+          if (key === 'layout') cardsSetLayout(c, b.dataset.v); else c[key] = b.dataset.v;
           list.querySelectorAll('.gogh-hopt').forEach(function (o) { o.classList.toggle('is-active', o === b); });
           cardsApply(sec, e);
         });
@@ -23398,7 +23505,7 @@
     composeCarousel: composeCarousel,
     composeWall: composeWall,
     cards: { compose: composeCards, norm: cardsNorm, act: cardsDo, fit: fitCards, menu: openCardMenu, layouts: CARD_LAYOUTS,
-      pop: function () { return cardPop; }, ghost: function () { return cardGhost; }, chip: function () { return cardChip; }, pic: openCardPicPop },
+      pop: function () { return cardPop; }, focus: function () { return cardFocus; }, drop: function () { sel = null; hideHandles(); }, ghost: function () { return cardGhost; }, chip: function () { return cardChip; }, pic: openCardPicPop },
     mediaPool: mediaPool,
     tplEls: tplEls,
     elDefaults: function () { return DEFAULTS; },

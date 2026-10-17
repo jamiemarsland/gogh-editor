@@ -3991,6 +3991,28 @@
       return 'bar, layout, style, extras, ghost, move, picture';
     });
 
+    test('Cards: pointing names the set, the first press chooses it, a second goes into a card, Esc steps out', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      G.cards.drop();
+      var card2 = n.querySelectorAll('.gogh-cs-card')[1];
+      var r = card2.getBoundingClientRect();
+      card2.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 5, clientY: r.y + 5 }));
+      var hov = q('.gogh-sethover');
+      expect(hov && !hov.hidden && /Cards · 3/.test(hov.textContent), 'pointing at a set should outline it and name it');
+      pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
+      expect(!G.cards.focus() && /Cards · 3/.test(q('.gogh-selbox-tag').textContent), 'the first press should choose the set, named on its frame');
+      pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
+      expect(G.cards.focus() && G.cards.focus().k === 1, 'a second press should go into card 2');
+      var trail = q('.gogh-eb-cardstrail');
+      expect(trail.style.display !== 'none' && /Card 2/.test(trail.textContent), 'the bar should say Cards › Card 2');
+      expect(!G.cards.chip().hidden, 'the chosen card should wear its handle');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(!G.cards.focus() && !q('.gogh-elbar').hidden, 'Esc should step out to the set, still chosen');
+      return 'point → set → card → set';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
