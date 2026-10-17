@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.758**
+- Plugin version: **0.99.759**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.758`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.759`). Quote the plugin header version.
 
 ## Design constants
 
@@ -369,6 +369,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "List"
 - "Make a card"
 - "Make it freeform"
+- "Make these a set"
+- "Make these cards one set: add, move and restyle them together"
 - "Make these one card — it holds together on phones"
 - "Make this wider"
 - "Manage products"
@@ -551,6 +553,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Mobile menu: "
 - "Name size saved."
 - "One card now — it holds together on phones. Click it for a background."
+- "One set now: add, move and restyle the cards together."
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
@@ -621,5 +624,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`381` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`382` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

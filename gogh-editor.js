@@ -4518,6 +4518,9 @@
   mbar.hidden = true;
   mbar.innerHTML =
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-card" title="Make these one card — it holds together on phones">Make a card</button>' +
+    // matching freeform cards become one Cards set (add, move and restyle
+    // them together); this leads instead of Make a card when it applies
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-set" hidden title="Make these cards one set: add, move and restyle them together">Make these a set</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-dup" title="Duplicate the selection">Duplicate</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-del" title="Delete the selection">Delete</button>' +
     // the one-click fix sits where it can be seen: Tidy up lines the rows up,
@@ -4799,6 +4802,9 @@
       if (planOverlaps(sec, idxs, plan)) return 'Would put words on words';
       return '';
     };
+    var setable = selectionAsSet(els);
+    mbar.querySelector('.gogh-mb-set').hidden = !setable;
+    mbar.querySelector('.gogh-mb-card').hidden = !!setable;
     grey(mbar.querySelector('.gogh-mb-card'),
       els.some(function (e) { return e.type === 'box' || e.rails || e.cards || e.type === 'exp' || e.type === 'embed'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
       'Make these one card — it holds together on phones');
@@ -4825,6 +4831,29 @@
   }
   var ARRANGE_SAID = { left: 'Lined up on the left.', center: 'Centred.', right: 'Lined up on the right.',
     top: 'Tops lined up.', middle: 'Middles lined up.', bottom: 'Bottoms lined up.', page: 'Centred on the page.' };
+  // the selection read as one set: two or more freeform cards, every one a
+  // card with the same pieces (null otherwise)
+  function selectionAsSet(els) {
+    if (els.length < 2 || !els.every(function (e) { return e.type === 'box' && e.kids && e.kids.length; })) return null;
+    var got = cardsSetFromEls(els);
+    return got && got.boxes.length === els.length ? got : null;
+  }
+  function makeSetFromSelection() {
+    if (!multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    var got = selectionAsSet(idxs.map(function (j) { return sec.els[j]; }));
+    if (!got) return;
+    clearMulti();
+    var at = Math.min.apply(null, idxs);
+    idxs.slice().sort(function (a, b) { return b - a; }).forEach(function (j) { sec.els.splice(j, 1); });
+    sec.els.splice(at, 0, got.set);
+    renderSection(sec);
+    fitCards(sec);
+    placeHandles(sec, sec.els.indexOf(got.set));
+    pushState();
+    toast('One set now: add, move and restyle the cards together.',
+      { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
   function makeCardFromSelection() {
     if (!multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
@@ -4861,6 +4890,7 @@
     pushState();
   }
   mbar.querySelector('.gogh-mb-card').addEventListener('click', makeCardFromSelection);
+  mbar.querySelector('.gogh-mb-set').addEventListener('click', makeSetFromSelection);
   mbar.querySelector('.gogh-mb-dup').addEventListener('click', duplicateSelection);
   mbar.querySelector('.gogh-mb-del').addEventListener('click', function () { deleteSelected(); });
   mbar.querySelector('.gogh-mb-more').addEventListener('click', function () {
@@ -11423,16 +11453,7 @@
       { type: 'button', x: 798, y: 600, w: 210, h: 48, text: 'See the archive', ghost: true },
     ] },
     { starter: true, intent: 'showcase', name: 'Photo cards', minH: 816, els: [
-      { type: 'image', x: 100, y: 96, w: 470, h: 624, cool: true },
-      { type: 'box', x: 100, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-      { type: 'heading', x: 136, y: 506, w: 340, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-      { type: 'para', x: 136, y: 546, w: 398, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-      { type: 'button', x: 136, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-      { type: 'image', x: 630, y: 96, w: 470, h: 624, cool: true },
-      { type: 'box', x: 630, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-      { type: 'heading', x: 666, y: 506, w: 340, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-      { type: 'para', x: 666, y: 546, w: 398, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-      { type: 'button', x: 666, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      { type: 'widget', x: 100, y: 96, w: 1000, h: 624, cards: { items: [{ t: 'Quiet mountain cabin', img: '', d: 'Wake up above the clouds. Two rooms, one stove, zero notifications — the good kind of nowhere.', link: 'Reserve now' }, { t: 'Coastal hideaway', img: '', d: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you’ve been meaning to finish.', link: 'Reserve now' }], layout: 'over', look: 'panel', pic: 'tall', align: 'left', act: 'button', titles: 1, round: 1, extras: { price: 0, role: 0, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: '#ffffff' } }, d: { tf: { fs2: 1.167, fsMin: 16, col: '#ffffff' } } }, box: { look: 'panel', radius: 20, cols: 2, ratio: 0.753 } } },
     ] },
     { starter: true, intent: 'showcase', name: 'Portfolio', minH: 672, els: [
       { type: 'box', x: 40, y: 144, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
@@ -11454,18 +11475,7 @@
       { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio',
         tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-      { type: 'image', x: 72, y: 226, w: 330, h: 288, cool: true },
-      { type: 'heading', x: 74, y: 538, w: 320, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 74, y: 582, w: 320, h: 16, text: 'Creative director',
-        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'image', x: 435, y: 226, w: 330, h: 288 },
-      { type: 'heading', x: 437, y: 538, w: 320, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 437, y: 582, w: 320, h: 16, text: 'Lead engineer',
-        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'image', x: 798, y: 226, w: 330, h: 288, cool: true },
-      { type: 'heading', x: 800, y: 538, w: 320, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 800, y: 582, w: 320, h: 16, text: 'Strategy',
-        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'widget', x: 72, y: 226, w: 1056, h: 372, cards: { items: [{ t: 'June Ashby', img: '', role: 'Creative director' }, { t: 'Marco Reyes', img: '', role: 'Lead engineer' }, { t: 'Priya Chandra', img: '', role: 'Strategy' }], layout: 'g3', look: 'open', pic: 'square', align: 'left', act: 'none', titles: 1, extras: { price: 0, role: 1, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, role: { tf: { fs2: 0.917, fsMin: 12, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } } }, box: { look: 'open', gap: 8 } } },
     ] },
   ];
 
@@ -11670,7 +11680,7 @@
       if (c.box.bg) { var bg = cardsSafeCss(c.box.bg); if (bg) bx.bg = bg; }
       ['radius', 'pad', 'gap', 'minH'].forEach(function (k) { var v = +c.box[k]; if (isFinite(v) && v >= 0 && v < 2000) bx[k] = Math.round(v); });
       // photo cards keep their columns and their shape; a button its width
-      var cols = Math.round(+c.box.cols); if (cols >= 2 && cols <= 4) bx.cols = cols;
+      var cols = Math.round(+c.box.cols); if (cols >= 1 && cols <= 4) bx.cols = cols;
       var ratio = +c.box.ratio; if (isFinite(ratio) && ratio >= 0.3 && ratio <= 4) bx.ratio = Math.round(ratio * 1000) / 1000;
       if (c.box.btnFull) bx.btnFull = 1;
       if (['k', 't', 'd', 'role', 'n', 'price'].indexOf(c.box.foot) >= 0) bx.foot = c.box.foot;
@@ -12076,6 +12086,12 @@
         // sample posts for the picker's card and the dice drawer; a section
         // made from it fetches the site's real posts straight away
         if (!e.whtml) e.whtml = postsPreviewHTML(e, samplePosts(tpl.name).slice(0, Math.max(1, Math.min(8, +e.posts.count || 3))));
+      }
+      // a set's empty pictures come from the site's own photos, like any
+      // picture in a design
+      if (e.cards && e.cards.pic !== 'none' && Array.isArray(e.cards.items)) {
+        e.cards.items.forEach(function (it) { if (it && !it.img) it.img = poolPick(mediaPool.imgs, tpl.name, ++k) || cardsSamplePic(k); });
+        e.whtml = e.wsrc = null;
       }
       composeWidgetData(e);
     });
@@ -12947,40 +12963,13 @@
     ],
     'Photo cards': [
       { name: 'Photo cards', take: 'The stack', minH: 864, els: [
-        { type: 'image', x: 72, y: 96, w: 1056, h: 312, cool: true },
-        { type: 'box', x: 72, y: 96, w: 1056, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 108, y: 250, w: 400, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 108, y: 290, w: 560, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 760, y: 250, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 72, y: 456, w: 1056, h: 312, cool: true },
-        { type: 'box', x: 72, y: 456, w: 1056, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 108, y: 610, w: 400, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 108, y: 650, w: 560, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 760, y: 610, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'widget', x: 72, y: 96, w: 1056, h: 672, cards: { items: [{ t: 'Quiet mountain cabin', img: '', d: 'Wake up above the clouds. Two rooms, one stove, zero notifications — the good kind of nowhere.', link: 'Reserve now' }, { t: 'Coastal hideaway', img: '', d: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you’ve been meaning to finish.', link: 'Reserve now' }], layout: 'over', look: 'panel', pic: 'wide', align: 'left', act: 'button', titles: 1, round: 1, extras: { price: 0, role: 0, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: '#ffffff' } }, d: { tf: { fs2: 1.167, fsMin: 16, col: '#ffffff' } } }, box: { look: 'panel', radius: 20, cols: 1, ratio: 3.385 } } },
       ] },
       { name: 'Photo cards', take: 'The offset', minH: 888, els: [
-        { type: 'image', x: 100, y: 96, w: 470, h: 624, cool: true },
-        { type: 'box', x: 100, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 136, y: 506, w: 340, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 136, y: 546, w: 398, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 136, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 630, y: 168, w: 470, h: 624, cool: true },
-        { type: 'box', x: 630, y: 456, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 666, y: 578, w: 340, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 666, y: 618, w: 398, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 666, y: 696, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'widget', x: 100, y: 96, w: 1000, h: 696, cards: { items: [{ t: 'Quiet mountain cabin', img: '', d: 'Wake up above the clouds. Two rooms, one stove, zero notifications — the good kind of nowhere.', link: 'Reserve now' }, { t: 'Coastal hideaway', img: '', d: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you’ve been meaning to finish.', link: 'Reserve now' }], layout: 'over', look: 'panel', pic: 'tall', align: 'left', act: 'button', titles: 1, round: 1, extras: { price: 0, role: 0, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: '#ffffff' } }, d: { tf: { fs2: 1.167, fsMin: 16, col: '#ffffff' } } }, box: { look: 'panel', radius: 20, cols: 2, ratio: 0.753 } } },
       ] },
       { name: 'Photo cards', take: 'The ink shelf', minH: 816, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'image', x: 100, y: 96, w: 470, h: 624, cool: true },
-        { type: 'box', x: 100, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 136, y: 506, w: 340, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 136, y: 546, w: 398, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 136, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 630, y: 96, w: 470, h: 624, cool: true },
-        { type: 'box', x: 630, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 666, y: 506, w: 340, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 666, y: 546, w: 398, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 666, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'widget', x: 100, y: 96, w: 1000, h: 624, cards: { items: [{ t: 'Quiet mountain cabin', img: '', d: 'Wake up above the clouds. Two rooms, one stove, zero notifications — the good kind of nowhere.', link: 'Reserve now' }, { t: 'Coastal hideaway', img: '', d: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you’ve been meaning to finish.', link: 'Reserve now' }], layout: 'over', look: 'panel', pic: 'tall', align: 'left', act: 'button', titles: 1, round: 1, extras: { price: 0, role: 0, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: '#ffffff' } }, d: { tf: { fs2: 1.167, fsMin: 16, col: '#ffffff' } } }, box: { look: 'panel', radius: 20, cols: 2, ratio: 0.753 } } },
       ] },
     ],
     'Portfolio': [
@@ -13034,41 +13023,17 @@
       { name: 'Team', take: 'The list', minH: 1008, els: [
         { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'image', x: 72, y: 226, w: 200, h: 192, cool: true },
-        { type: 'heading', x: 310, y: 274, w: 400, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 310, y: 318, w: 400, h: 16, text: 'Creative director', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 72, y: 466, w: 200, h: 192 },
-        { type: 'heading', x: 310, y: 514, w: 400, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 310, y: 558, w: 400, h: 16, text: 'Lead engineer', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 72, y: 706, w: 200, h: 192, cool: true },
-        { type: 'heading', x: 310, y: 754, w: 400, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 310, y: 798, w: 400, h: 16, text: 'Strategy', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'widget', x: 72, y: 226, w: 638, h: 672, cards: { items: [{ t: 'June Ashby', img: '', role: 'Creative director' }, { t: 'Marco Reyes', img: '', role: 'Lead engineer' }, { t: 'Priya Chandra', img: '', role: 'Strategy' }], layout: 'rows', look: 'open', pic: 'square', align: 'left', act: 'none', titles: 1, extras: { price: 0, role: 1, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, role: { tf: { fs2: 0.917, fsMin: 12, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } } }, box: { look: 'open', gap: 8 } } },
       ] },
       { name: 'Team', take: 'The ink studio', minH: 696, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'image', x: 72, y: 226, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 74, y: 538, w: 320, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 74, y: 582, w: 320, h: 16, text: 'Creative director', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'image', x: 435, y: 226, w: 330, h: 288 },
-        { type: 'heading', x: 437, y: 538, w: 320, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 437, y: 582, w: 320, h: 16, text: 'Lead engineer', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'image', x: 798, y: 226, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 800, y: 538, w: 320, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 800, y: 582, w: 320, h: 16, text: 'Strategy', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'widget', x: 72, y: 226, w: 1056, h: 372, cards: { items: [{ t: 'June Ashby', img: '', role: 'Creative director' }, { t: 'Marco Reyes', img: '', role: 'Lead engineer' }, { t: 'Priya Chandra', img: '', role: 'Strategy' }], layout: 'g3', look: 'open', pic: 'square', align: 'left', act: 'none', titles: 1, extras: { price: 0, role: 1, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: 'var(--wp--preset--color--base, #fff)' } }, role: { tf: { fs2: 0.917, fsMin: 12, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } } }, box: { look: 'open', gap: 8 } } },
       ] },
       { name: 'Team', take: 'The offset', minH: 792, els: [
         { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'image', x: 72, y: 226, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 74, y: 582, w: 320, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 74, y: 626, w: 320, h: 16, text: 'Creative director', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 435, y: 226, w: 330, h: 288 },
-        { type: 'heading', x: 437, y: 538, w: 320, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 437, y: 582, w: 320, h: 16, text: 'Lead engineer', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 798, y: 312, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 800, y: 624, w: 320, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 800, y: 668, w: 320, h: 16, text: 'Strategy', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'widget', x: 72, y: 226, w: 1056, h: 458, cards: { items: [{ t: 'June Ashby', img: '', role: 'Creative director' }, { t: 'Marco Reyes', img: '', role: 'Lead engineer' }, { t: 'Priya Chandra', img: '', role: 'Strategy' }], layout: 'steps', look: 'open', pic: 'square', align: 'left', act: 'none', titles: 1, extras: { price: 0, role: 1, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, role: { tf: { fs2: 0.917, fsMin: 12, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } } }, box: { look: 'open', gap: 8 } } },
       ] },
     ],
   };
@@ -15258,12 +15223,11 @@
     if (c.link && L.button[0]) L.button[0].href = String(c.link);
   }
   // takes whose items are not cards but repeated pieces in a row
+  // (Team, Menu and Photo cards are Cards sets since v0.99.758–759: their
+  // items fill the set, like Feature cards)
   var FLAT_TAKES = {
     'Numbers': { unit: { heading: 'value', para: 'label' }, head: {} },
-    'Team': { unit: { image: 'image', heading: 'name', eyebrow: 'role' }, head: { eyebrow: 1, heading: 1 } },
-    'Menu': { unit: { heading: 'name', para: 'price' }, head: { eyebrow: 1, heading: 1 }, tail: { para: 1 } },
     'Gallery': { unit: { image: 'image' }, head: { eyebrow: 1, heading: 1 }, tail: { button: 1 } },
-    'Photo cards': { unit: { image: 'image', heading: 'title', para: 'text', badge: ['badge', 'badge2'], button: 'button' }, head: {} },
   };
   function templateByName(name) {
     var found = null;

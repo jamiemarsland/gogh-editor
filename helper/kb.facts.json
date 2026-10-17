@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.758",
+    "plugin_version": "0.99.759",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.758-chrome"
+    "asset_version": "0.99.759-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -590,6 +590,8 @@
     "List",
     "Make a card",
     "Make it freeform",
+    "Make these a set",
+    "Make these cards one set: add, move and restyle them together",
     "Make these one card — it holds together on phones",
     "Make this wider",
     "Manage products",
@@ -771,6 +773,7 @@
     "Mobile menu: ",
     "Name size saved.",
     "One card now — it holds together on phones. Click it for a background.",
+    "One set now: add, move and restyle the cards together.",
     "Out of the card — it’s its own piece again.",
     "Publish failed: ",
     "Publish your changes first — changing the page style reloads the page.",
@@ -1604,5 +1607,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 381
+  "test_count": 382
 }

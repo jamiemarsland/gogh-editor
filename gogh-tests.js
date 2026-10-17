@@ -4137,6 +4137,35 @@
       return '4 takes, words kept';
     });
 
+    test('Cards: matching freeform cards chosen together offer Make these a set, which keeps their words and type', function () {
+      var s0 = sec(), n0 = s0.els.length;
+      var card = function (x, t, d) {
+        return { type: 'box', x: x, y: 640, w: 300, h: 200, radius: 16, boxBg: '#eeeeee',
+          kids: [{ type: 'heading', x: 24, y: 24, w: 252, h: 32, text: t, fs: 'large' }, { type: 'para', x: 24, y: 72, w: 252, h: 60, text: d }] };
+      };
+      s0.els.push(card(100, 'One', 'First words'), card(440, 'Two', 'Second words'));
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1]);
+      var bar = q('.gogh-mbar'), setBtn = bar.querySelector('.gogh-mb-set');
+      expect(setBtn && !setBtn.hidden && bar.querySelector('.gogh-mb-card').hidden, 'two matching cards should lead with Make these a set');
+      setBtn.click();
+      var set = s0.els.filter(function (e) { return e.cards; }).pop();
+      expect(set && s0.els.length === n0 + 1 && set.cards.items.map(function (it) { return it.t + ':' + it.d; }).join('|') === 'One:First words|Two:Second words', 'the two cards should become one set with their words');
+      expect(set.cards.type && set.cards.type.t && set.cards.type.t.fs === 'large' && set.cards.box && set.cards.box.bg === '#eeeeee' && set.cards.box.radius === 16, 'the set should keep their type, colour and corners');
+      var undoBtn = null;
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) { if (/One set now/.test(t.textContent) && t.querySelector('button')) undoBtn = t.querySelector('button'); });
+      expect(undoBtn, 'the toast should offer Undo');
+      undoBtn.click();
+      var s1 = sec(), bx = s1.els.map(function (e, j) { return e.type === 'box' && e.kids && /One|Two/.test(e.kids[0].text) ? j : -1; }).filter(function (j) { return j >= 0; });
+      expect(bx.length === 2 && !s1.els.some(function (e) { return e.cards && /One/.test(JSON.stringify(e.cards.items)); }), 'Undo should bring the freeform cards back');
+      var odd = s1.els.length;
+      s1.els.push({ type: 'para', x: 800, y: 640, w: 200, h: 40, text: 'Loose' }); G.renderSection(s1);
+      G.multi.set(s1, [bx[0], odd]);
+      expect(bar.querySelector('.gogh-mb-set').hidden, 'a card and a loose piece are not a set');
+      G.multi.clear();
+      return 'two cards → one set, undo';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
@@ -6849,8 +6878,10 @@
       var cv = G.fillTake({ take: 'Cover', heading: 'Flowers that mean it', image: '/x/peonies.jpg', button: 'See the shop' });
       expect(cv.bgImage === '/x/peonies.jpg' && cv.els.some(function (e) { return e.type === 'heading' && e.text === 'Flowers that mean it'; }) && cv.els.some(function (e) { return e.type === 'button' && e.text === 'See the shop'; }), 'a cover should take the picture behind and the words in front');
       var team = G.fillTake({ take: 'Team', heading: 'Four people', items: [{ name: 'Nell', role: 'Founder', image: '/x/nell.jpg' }] });
-      var th = team.els.filter(function (e) { return e.type === 'heading'; }), ti = team.els.filter(function (e) { return e.type === 'image'; });
-      expect(th[0].text === 'Four people' && th.length === 2 && th[1].text === 'Nell' && ti.length === 1 && ti[0].src === '/x/nell.jpg', 'a flat take should keep its heading, fill one unit and drop the rest: ' + th.map(function (h) { return h.text; }));
+      // Team is a set (v0.99.759): the heading stays, each person is a card
+      var th = team.els.filter(function (e) { return e.type === 'heading'; }), tset = team.els.filter(function (e) { return e.cards; })[0];
+      var tp = tset ? tset.cards.items : [];
+      expect(th[0].text === 'Four people' && tp.length === 1 && tp[0].t === 'Nell' && tp[0].role === 'Founder' && tp[0].img === '/x/nell.jpg', 'Team should keep its heading and fill one card per person: ' + JSON.stringify(tp));
       var nums = G.fillTake({ take: 'Numbers', items: [{ value: '312', label: 'Weddings' }, { value: '14', label: 'Growers' }] });
       var nh = nums.els.filter(function (e) { return e.type === 'heading'; });
       expect(nh.length === 2 && nh[0].text === '312' && nh[1].text === '14', 'numbers should fill by unit: ' + nh.map(function (h) { return h.text; }));
@@ -7829,14 +7860,11 @@
     test('photo cards contrast + mobile box policy + badge clip guard', function () {
       var tpl = G.templates().filter(function (t) { return t.name === 'Photo cards'; })[0];
       expect(tpl, 'Photo cards template missing');
-      var whiteTexts = tpl.els.filter(function (e) {
-        return (e.type === 'heading' || e.type === 'para') && e.tf && e.tf.col === '#ffffff';
-      });
-      expect(whiteTexts.length === 4, 'overlay text not literal white (' + whiteTexts.length + '/4)');
-      expect(tpl.els.filter(function (e) { return e.type === 'button'; })
-        .every(function (e) { return e.tf && e.tf.bg === '#ffffff'; }), 'buttons not theme-proof');
-      expect(tpl.els.some(function (e) { return e.type === 'box' && /0\.78\)/.test(e.boxBg || ''); }),
-        'scrim not deepened');
+      // Photo cards are a set on the photo (v0.99.759): white words over a
+      // veil, white buttons, whatever the theme
+      var pset = tpl.els.filter(function (e) { return e.cards; })[0];
+      expect(pset && pset.cards.layout === 'over' && pset.cards.act === 'button' && pset.cards.items.length === 2, 'Photo cards should be a set on the photo with buttons');
+      expect(pset.cards.type && pset.cards.type.t.tf.col === '#ffffff' && pset.cards.type.d.tf.col === '#ffffff', 'overlay words should stay literal white');
       // live CSS policies
       var s0 = sec();
       s0.els.push({ type: 'box', x: 10, y: 10, w: 400, h: 300 });
@@ -7849,7 +7877,7 @@
       expect(new RegExp('gogh-el-' + L + ' \\{ grid-area: auto; grid-column: 2; display: none;').test(css),
         'decorative shape not hidden on mobile');
       expect(css.indexOf('min-width: max-content') !== -1, 'badge clip guard missing');
-      return 'white overlays, deep scrim, panel/shape mobile split';
+      return 'white overlays on a set, panel/shape mobile split';
     });
 
     // ---- a11y: DOM order is READING order, not insertion order ----

@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.758 · knowledge base 264cdc3.
+Generated for plugin version 0.99.759 · knowledge base 8413f47.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Team and Photo cards are Cards, and "Make these a set" (v0.99.759).** On the shelf, Team is a set of people in all four takes: 3 across with square pictures, the list as Rows, the ink studio, and the offset as Steps. Photo cards are a set On the photo, with white words and white buttons over the picture, in all four takes. Their pictures come from your own media like any design's, and a site definition's people or places fill the set. Choose two or more matching freeform cards together (Shift-click, or drag a box around them) and the selection bar leads with **Make these a set**. It turns them into one Cards set, keeping their words, type, colour and corners, and Undo puts them back.
+
 **Menus, schedules and work lists are Ledgers (v0.99.758).** Fourteen ruled lists in the site-definition blueprints are now Cards sets in the Ledger layout, keeping their type and their rule colour. They are Cinder's menu and suppliers; Northern Blocks' Friday and Saturday schedules; Ferro & Lane's and Halloran's selected work and work pages; Seventy South's itineraries; and Rosa & Tom's day, story and places to stay. Adding a dish, a talk or a year is now Add card, with no rows to draw by hand. The shelf's Menu design is a Ledger in all four takes, and "The two tops" runs it in two columns. Misprint's workshops keep their own print styles and stay freeform.
 
 **Cards has a Ledger layout (v0.99.757).** Ledger lays a set out as ruled rows in columns, for menus, schedules, work lists and itineraries. From left to right: the line above the title (a time or a year) as a narrow lead column, the title, the words, and a value on the right (the price, or the name-and-role line when there is no price, such as a room or a place). Columns follow the parts that are switched on; a set with no words drops that column. Adding a row is Add card, and the + between rows works too. On a phone each row stacks: lead, title and value on one line, the words under them. Choose it from the set's Layout.
@@ -1125,11 +1127,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.758**
+- Plugin version: **0.99.759**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.758`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.759`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1490,6 +1492,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "List"
 - "Make a card"
 - "Make it freeform"
+- "Make these a set"
+- "Make these cards one set: add, move and restyle them together"
 - "Make these one card — it holds together on phones"
 - "Make this wider"
 - "Manage products"
@@ -1672,6 +1676,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Mobile menu: "
 - "Name size saved."
 - "One card now — it holds together on phones. Click it for a background."
+- "One set now: add, move and restyle the cards together."
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
@@ -1742,4 +1747,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`381` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`382` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
