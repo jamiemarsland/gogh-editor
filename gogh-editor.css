@@ -4992,6 +4992,7 @@ html.gogh-editing .gogh-cardset [data-cf]:empty::before { content: attr(data-ph)
 /* a price's period is optional (a one-off fee has none): its prompt waits
    for the chosen set, so previews and the page read as published */
 html.gogh-editing .gogh-widget:not(.gogh-selected) .gogh-cardset [data-cf="per"]:empty:not([contenteditable="plaintext-only"])::before { content: none; }
+html.gogh-editing .gogh-widget:not(.gogh-selected) .gogh-cardset-nod .gogh-cs-d { display: none; }
 html.gogh-editing .gogh-cardset [data-cf][contenteditable="plaintext-only"],
 html.gogh-editing .gogh-cardset [data-cf][contenteditable="true"] { outline: none; box-shadow: inset 0 -2px 0 #9aaaf2; cursor: text; }
 html.gogh-editing .gogh-cardset .gogh-cs-nopic { display: grid; place-items: center; width: 100%; aspect-ratio: 3 / 2; background: color-mix(in srgb, currentColor 7%, transparent); font: 600 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; opacity: 0.7; }

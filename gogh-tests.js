@@ -4057,6 +4057,35 @@
       return 'gap +, insert after, ghost in the empty slot';
     });
 
+    test('Cards: a row of freeform cards read as a set keeps each part’s words, type and the card itself', function () {
+      var tone = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, transparent)';
+      var box = function (x, k, t, d, href, bg, badge) {
+        var kids = [{ type: 'para', x: 28, y: 28, w: 276, h: 20, text: k, tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase' } },
+          { type: 'heading', x: 28, y: 60, w: 276, h: 44, text: t, fs: 'large', tf: { fw: 500 } },
+          { type: 'para', x: 28, y: 122, w: 276, h: 150, text: d },
+          { type: 'para', x: 28, y: 316, w: 276, h: 24, text: '<a href="' + href + '">Ask ↗</a>' }];
+        if (badge) kids.unshift({ type: 'badge', x: 90, y: 4, w: 150, h: 30, text: '★ Most popular' });
+        return { type: 'box', x: x, y: 196, w: 332, h: 380, radius: 12, boxBg: bg || tone, kids: kids };
+      };
+      var els = [box(82, 'People', 'Portraits', 'People as they are.', '/contact/'), box(434, 'Places', 'Spaces', 'Rooms people love.', '/places/', '#222', true),
+        box(786, 'Work', 'Commissions', 'Stories and brands.', '/work/')];
+      var got = G.cards.fromEls(els), c = got && got.set.cards;
+      expect(c && got.boxes.length === 3, 'three matching cards (a badge aside) should read as one set');
+      expect(c.layout === 'g3' && c.look === 'panel' && c.feat === 1 && c.act === 'link' && c.linkStyle === 'text', 'the set should be 3 across, panels, the odd one featured, ending in a plain link: ' + [c.layout, c.look, c.feat, c.act, c.linkStyle].join(' '));
+      expect(c.items.map(function (it) { return it.k + '/' + it.t + '/' + it.href; }).join('|') === 'People/Portraits//contact/|Places/Spaces//places/|Work/Commissions//work/', 'each card should keep its line above, title and address: ' + c.items.map(function (it) { return it.k + '/' + it.t + '/' + it.href; }).join('|'));
+      expect(c.extras.k === 1 && c.type.t.fs === 'large' && c.type.t.tag === 'h2' && c.type.t.tf.fw === 500 && c.type.k.tf.tt === 'uppercase', 'the title and the line above should keep their type');
+      expect(c.box.bg === tone && c.box.radius === 12 && c.box.pad === 28, 'the plain card’s colour, corners and padding should come along');
+      expect(!G.cards.fromEls([els[0], { type: 'box', x: 500, y: 196, w: 300, h: 200, kids: [{ type: 'heading', x: 20, y: 20, w: 200, h: 40, text: 'Odd' }] }]), 'cards with different pieces stay freeform');
+      var src = G.cards.compose(c, false);
+      expect(/<h2[^>]*class="[^"]*gogh-cs-t/.test(src) && /gogh-cs-k/.test(src) && /gogh-cardset-typed-t/.test(src) && /gogh-cardset-link-text/.test(src), 'the published set should carry an h2 title, the line above and its typed classes');
+      var s0 = sec(), idx = G.sections().indexOf(s0);
+      s0.els.push(got.set); G.renderSection(s0);
+      var css = s0.styleEl.textContent;
+      expect(/\.gogh-cs-t \{[^}]*font-size: var\(--wp--preset--font-size--large\)/.test(css) && /font-weight: 500/.test(css), 'the section CSS should dress the title in its carried size and weight');
+      expect(/\.gogh-cs-body \{ padding: max\(16px, [\d.]+cqw\) !important/.test(css), 'the padding should grow with the set');
+      return 'k/t/d/link, type, box, featured, h2';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;

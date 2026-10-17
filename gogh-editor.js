@@ -757,6 +757,62 @@
 
   // one element's scoped rules — shared by sections (.gogh-el-N) and the
   // kids inside a card (.gogh-k-N)
+  // a set's carried type and its own card, in the section's stylesheet:
+  // sizes in cqw are the section's, so inside the set (its own container)
+  // they scale by the set's share of the page
+  function cardsTypeDecls(spec, ew) {
+    var d = [], k = W / Math.max(80, ew || W), tf = spec.tf || {};
+    if (spec.fs) {
+      if (DISPLAY_FS[spec.fs]) d.push('font-size: ' + DISPLAY_FS[spec.fs].replace(/([\d.]+)cqw/, function (m0, n0) { return (n0 * k).toFixed(3) + 'cqw'; }) + ' !important');
+      else d.push('font-size: var(--wp--preset--font-size--' + spec.fs + ') !important');
+    }
+    if (tf.ff) d.push('font-family: ' + tf.ff);
+    if (tf.fs2) d.push('font-size: max(' + (tf.fs2 * k).toFixed(3) + 'cqw, ' + (tf.fsMin || Math.min(Math.round(tf.fs2 * 12), 15)) + 'px) !important');
+    else if (tf.fs) d.push('font-size: ' + tf.fs + 'px !important');
+    if (tf.fw) d.push('font-weight: ' + tf.fw);
+    if (tf.fst) d.push('font-style: ' + tf.fst);
+    if (tf.lh) d.push('line-height: ' + tf.lh + ' !important');
+    if (tf.ls2 != null) d.push('letter-spacing: ' + tf.ls2 + 'em');
+    else if (tf.ls) d.push('letter-spacing: ' + tf.ls + 'px');
+    if (tf.tt) d.push('text-transform: ' + tf.tt);
+    return d;
+  }
+  var CARD_FIELD_SEL = { k: '.gogh-cs-k', t: '.gogh-cs-t', d: '.gogh-cs-d', role: '.gogh-cs-role', n: '.gogh-cs-n', price: '.gogh-cs-price strong', link: '.gogh-cs-link' };
+  function cardsTypeCss(out, sec, clsSel, e) {
+    var c = e.cards, base = sec + clsSel;
+    if (!c) return;
+    if (c.type) Object.keys(c.type).forEach(function (f) {
+      var sp = c.type[f], sel = CARD_FIELD_SEL[f];
+      if (!sp || !sel) return;
+      var d = cardsTypeDecls(sp, e.w);
+      if (d.length) out.push(base + ' ' + sel + ' { ' + d.join('; ') + '; }');
+      // a carried colour is the plain cards'; the featured card keeps its own
+      if (sp.tf && sp.tf.col) out.push(base + ' .gogh-cs-card:not(.is-featured) ' + sel + ' { color: ' + sp.tf.col + ' !important; }');
+    });
+    var b = c.box;
+    if (b && b.look === c.look) {
+      if (b.bg) out.push(base + ' .gogh-cs-card:not(.is-featured) { background: ' + b.bg + ' !important; }');
+      if (b.radius != null) out.push(base + ' .gogh-cardset:not(.gogh-cardset-index) > .gogh-cs-card { border-radius: ' + b.radius + 'px !important; }');
+      // padding and spacing grow with the set, as the freeform card's did
+      // (its pieces sat in section units), with a floor for phones
+      var cq = function (v) { return (v * 100 / Math.max(80, e.w)).toFixed(2) + 'cqw'; };
+      if (b.pad != null) out.push(base + ' .gogh-cs-card .gogh-cs-body { padding: max(' + Math.min(b.pad, 16) + 'px, ' + cq(b.pad) + ') !important; }');
+      if (b.gap != null) out.push(base + ' .gogh-cs-body { gap: max(' + Math.min(b.gap, 6) + 'px, ' + cq(b.gap) + '); }');
+      if (b.minH && !(c.layout === 'over' && b.ratio)) out.push(base + ' .gogh-cardset > .gogh-cs-card { min-height: ' + (b.minH * 100 / Math.max(80, e.w)).toFixed(2) + 'cqw; }');
+      if (b.tight && b.gap != null) Object.keys(b.tight).forEach(function (f) {
+        var pre = f === 't' ? '.gogh-cs-k + .gogh-cs-t' : '.gogh-cs-role + .gogh-cs-n';
+        out.push(base + ' .gogh-cs-body > ' + pre + ' { margin-top: calc(' + cq(b.tight[f]) + ' - ' + cq(b.gap) + ') !important; }');
+      });
+      if (b.foot && CARD_FIELD_SEL[b.foot]) out.push(base + ' .gogh-cs-body > ' + CARD_FIELD_SEL[b.foot].split(' ')[0] + ' { margin-top: auto !important; }');
+      if (b.btnFull) out.push(base + ' .gogh-cs-btns > .wp-block-button { flex: 1 1 100%; width: 100% !important; display: block !important; } ' + base + ' .gogh-cs-btns .wp-block-button__link { display: block !important; width: 100% !important; box-sizing: border-box; text-align: center; }');
+    }
+    // photo cards (on the photo) read from freeform keep their columns and
+    // their shape while the set stays on the photo in the wide shape
+    if (b && c.layout === 'over') {
+      if (b.cols) out.push('@container (min-width: ' + (b.cols > 2 ? 761 : 541) + 'px) { ' + base + ' .gogh-cardset-over { grid-template-columns: repeat(' + b.cols + ', minmax(0, 1fr)); } }');
+      if (b.ratio && c.pic === 'wide') out.push(base + ' .gogh-cardset-over > .gogh-cs-card { aspect-ratio: ' + b.ratio + '; }');
+    }
+  }
   function emitElCSS(out, sec, clsSel, e, i, a) {
       var extra = TYPE_RULES[e.type];
       // fill-the-width text: the fitted size lives in cqw so it scales with
@@ -777,6 +833,7 @@
           ' text-box: trim-both cap ' + tbEdge + ';';
       }
       if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
+      if (e.type === 'widget' && e.cards) cardsTypeCss(out, sec, clsSel, e);
       if (e.type === 'icon') extra += iconMaskCss(e.icon);
       if (e.type === 'embed' && e.w > 0 && e.h > 0) extra += ' aspect-ratio: ' + e.w + ' / ' + e.h + ';';
       if (e.type === 'rule') {
@@ -5114,7 +5171,7 @@
     if (!leaf) {
       // a click in the line's own box (the heading's padding, a price's
       // gap) still lands on the words it holds
-      var holder = at.closest('.gogh-cs-t, .gogh-cs-d, .gogh-cs-role, .gogh-cs-link, .gogh-cs-price, .wp-block-button__link');
+      var holder = at.closest('.gogh-cs-t, .gogh-cs-d, .gogh-cs-role, .gogh-cs-k, .gogh-cs-n, .gogh-cs-link, .gogh-cs-price, .wp-block-button__link');
       leaf = holder && holder.querySelector('[data-cf]');
     }
     return leaf && node.contains(leaf) ? leaf : null;
@@ -7262,8 +7319,10 @@
     };
     var paint = function () {
       p.innerHTML = '<div class="gogh-cardpop-lab">On every card</div>' +
+        row('k', 'A line above the title', 'A small label: Step one, Spring', !!c.extras.k) +
         row('price', 'A price', 'With a period: £24 a month', !!c.extras.price) +
         row('role', 'A name and role', 'For a team, or under kind words', !!c.extras.role) +
+        row('n', 'A small note', 'Under the words: a date, a size, a place', !!c.extras.n) +
         row('feat', 'One featured card', 'Dark and a little taller', c.feat >= 0) +
         '<hr>' +
         '<button type="button" class="gogh-cardpop-item" data-act="list">All cards, as a list<small>' + c.items.length + (c.items.length === 1 ? ' card' : ' cards') + '</small></button>' +
@@ -11540,7 +11599,30 @@
   var CARD_LOOKS = [['open', 'Open'], ['panel', 'Panel'], ['outline', 'Outline'], ['raised', 'Raised']];
   var CARD_PICS = [['wide', 'Landscape'], ['square', 'Square'], ['tall', 'Portrait'], ['none', 'No picture']];
   var CARD_ACTS = [['link', 'A link'], ['button', 'A button'], ['none', 'Nothing']];
-  var CARD_FIELDS = ['t', 'd', 'link', 'price', 'per', 'role'];
+  // k: a short line above the title; n: a small note under the name
+  var CARD_FIELDS = ['t', 'd', 'link', 'price', 'per', 'role', 'k', 'n'];
+  // the parts a set can carry a type for (the type of the freeform cards it
+  // was made from: size, face, weight, case, colour)
+  var CARD_TYPED = ['k', 't', 'd', 'role', 'n', 'price', 'link'];
+  var CARD_TF_KEYS = ['fs', 'fs2', 'fsMin', 'fw', 'fst', 'lh', 'ls', 'ls2', 'tt', 'col', 'ff'];
+  function cardsSafeCss(v) { v = String(v == null ? '' : v); return /[;{}<>\\]/.test(v) || v.length > 160 ? '' : v; }
+  function cardsTypeNorm(spec) {
+    if (!spec || typeof spec !== 'object') return null;
+    var out = {};
+    if (spec.fs && /^[a-z0-9_-]{1,40}$/i.test(String(spec.fs))) out.fs = String(spec.fs);
+    if (spec.tag === 'h2') out.tag = 'h2';
+    if (spec.tf && typeof spec.tf === 'object') {
+      var tf = {};
+      CARD_TF_KEYS.forEach(function (k) {
+        var v = spec.tf[k];
+        if (v == null || v === '') return;
+        if (typeof v === 'number') { if (isFinite(v)) tf[k] = v; }
+        else { var sv = cardsSafeCss(v); if (sv) tf[k] = sv; }
+      });
+      if (Object.keys(tf).length) out.tf = tf;
+    }
+    return out;
+  }
   function cardsSamplePic(k) {
     var mine = poolPick(mediaPool.imgs, 'gogh-cards', k);
     return mine || '/wp-content/plugins/gogh/demo-assets/arles-' + (1 + (k % 7)) + '.jpg';
@@ -11571,7 +11653,28 @@
     c.extras = c.extras || {};
     c.extras.price = c.extras.price ? 1 : 0;
     c.extras.role = c.extras.role ? 1 : 0;
+    c.extras.k = c.extras.k ? 1 : 0;
+    c.extras.n = c.extras.n ? 1 : 0;
     c.round = c.round ? 1 : 0;
+    // the type and the card it was made from (both optional)
+    if (c.type && typeof c.type === 'object') {
+      var ty = {};
+      CARD_TYPED.forEach(function (f) { var t2 = cardsTypeNorm(c.type[f]); if (t2) ty[f] = t2; });
+      c.type = Object.keys(ty).length ? ty : null;
+    } else c.type = null;
+    if (c.box && typeof c.box === 'object') {
+      var bx = { look: CARD_LOOKS.some(function (o) { return o[0] === c.box.look; }) ? c.box.look : 'panel' };
+      if (c.box.bg) { var bg = cardsSafeCss(c.box.bg); if (bg) bx.bg = bg; }
+      ['radius', 'pad', 'gap', 'minH'].forEach(function (k) { var v = +c.box[k]; if (isFinite(v) && v >= 0 && v < 2000) bx[k] = Math.round(v); });
+      // photo cards keep their columns and their shape; a button its width
+      var cols = Math.round(+c.box.cols); if (cols >= 2 && cols <= 4) bx.cols = cols;
+      var ratio = +c.box.ratio; if (isFinite(ratio) && ratio >= 0.3 && ratio <= 4) bx.ratio = Math.round(ratio * 1000) / 1000;
+      if (c.box.btnFull) bx.btnFull = 1;
+      if (['k', 't', 'd', 'role', 'n', 'price'].indexOf(c.box.foot) >= 0) bx.foot = c.box.foot;
+      if (c.box.tight && typeof c.box.tight === 'object') ['t', 'n'].forEach(function (f) { var v = +c.box.tight[f]; if (isFinite(v) && v >= 0 && v < 200) { bx.tight = bx.tight || {}; bx.tight[f] = Math.round(v); } });
+      c.box = bx;
+    } else c.box = null;
+    c.linkStyle = c.linkStyle === 'text' ? 'text' : 'caps';
     // a set can go without titles (words and a name: testimonials)
     c.titles = c.titles === 0 || c.titles === false ? 0 : 1;
     c.feat = typeof c.feat === 'number' && c.feat >= 0 && c.feat < c.items.length ? c.feat : -1;
@@ -11589,7 +11692,13 @@
     var align = c.layout === 'small' ? 'center' : c.align;
     return 'gogh-cardset gogh-cardset-' + c.layout + ' gogh-cardset-look-' + c.look + ' gogh-cardset-pic-' + c.pic +
       ' gogh-cardset-al-' + align + (c.feat >= 0 ? ' gogh-cardset-feat' : '') +
-      (c.round ? ' gogh-cardset-round' : '') + (c.titles ? '' : ' gogh-cardset-notitle');
+      (c.round ? ' gogh-cardset-round' : '') + (c.titles ? '' : ' gogh-cardset-notitle') +
+      (c.linkStyle === 'text' ? ' gogh-cardset-link-text' : '') +
+      // a set with no words under its titles (photo cards): the canvas keeps
+      // the prompt for when the set is chosen
+      (c.titles && c.items.length && !c.items.some(function (it) { return it.d; }) ? ' gogh-cardset-nod' : '') +
+      // a part that carries its own type sets its defaults aside
+      (c.type ? Object.keys(c.type).map(function (f) { return ' gogh-cardset-typed-' + f; }).join('') : '');
   }
   // forEditor: the canvas copy — no block comments, every editable word
   // marked with its card and field, empty fields shown as soft prompts
@@ -11618,14 +11727,24 @@
           '</figure>' + cm(false, 'image');
       }
       out += cm(true, 'group', { className: 'gogh-cs-body' }) + '<div class="wp-block-group gogh-cs-body">';
+      // the short line above the title (a category, a time, stars)
+      if (c.extras.k && (it.k || forEditor)) {
+        out += cm(true, 'paragraph', { className: 'gogh-cs-k' }) +
+          '<p class="gogh-cs-k">' + field(k, 'k', it.k || '', 'A line above') + '</p>' + cm(false, 'paragraph');
+      }
       if (c.titles && (it.t || forEditor)) {
-        out += cm(true, 'heading', { level: 3, className: 'gogh-cs-t' }) +
-          '<h3 class="wp-block-heading gogh-cs-t">' + field(k, 't', it.t || '', 'Title') + '</h3>' + cm(false, 'heading');
+        // a title carried from a freeform card keeps its heading level
+        var h2 = c.type && c.type.t && c.type.t.tag === 'h2';
+        out += cm(true, 'heading', h2 ? { className: 'gogh-cs-t' } : { level: 3, className: 'gogh-cs-t' }) +
+          '<' + (h2 ? 'h2' : 'h3') + ' class="wp-block-heading gogh-cs-t">' + field(k, 't', it.t || '', 'Title') + '</' + (h2 ? 'h2' : 'h3') + '>' + cm(false, 'heading');
       }
       // the name and role sit under a title; with no titles (a set of
       // kind words) they sign off under the words instead
-      var role = c.extras.role && (it.role || forEditor) ? cm(true, 'paragraph', { className: 'gogh-cs-role' }) +
-          '<p class="gogh-cs-role">' + field(k, 'role', it.role || '', 'Name and role') + '</p>' + cm(false, 'paragraph') : '';
+      var role = (c.extras.role && (it.role || forEditor) ? cm(true, 'paragraph', { className: 'gogh-cs-role' }) +
+          '<p class="gogh-cs-role">' + field(k, 'role', it.role || '', 'Name and role') + '</p>' + cm(false, 'paragraph') : '') +
+        // and a small note under the name (where it was bought, a job title)
+        (c.extras.n && (it.n || forEditor) ? cm(true, 'paragraph', { className: 'gogh-cs-n' }) +
+          '<p class="gogh-cs-n">' + field(k, 'n', it.n || '', 'A small note') + '</p>' + cm(false, 'paragraph') : '');
       if (c.titles) out += role;
       if ((c.layout !== 'index' || !c.titles) && (it.d || forEditor)) {
         out += cm(true, 'paragraph', { className: 'gogh-cs-d' }) +
@@ -11671,6 +11790,153 @@
     if (!m) return { price: String(v == null ? '' : v), per: '' };
     var per = { mo: 'a month', month: 'a month', yr: 'a year', year: 'a year', wk: 'a week', week: 'a week' }[m[2].toLowerCase()];
     return { price: m[1], per: per };
+  }
+  // ---------- a row of freeform cards, read as a set ----------
+  // Each card's pieces map onto a card's parts by role and order: a short
+  // line before the title is the line above it, the first heading the
+  // title, a second heading (or one with a figure in it) the price, the
+  // first paragraph after the title the words, short lines after them the
+  // name and a small note, a paragraph that is only a link the link, a
+  // button the button. The type of each part comes from a plain (not
+  // featured) card, and so does the card itself: its colour, corners,
+  // padding, spacing and height. Badges go (James: no badges on starters).
+  function cardsPlainText(html) {
+    var d = document.createElement('textarea');
+    d.innerHTML = String(html == null ? '' : html).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '');
+    return d.value.replace(/\s+/g, ' ').trim();
+  }
+  function cardsKidSig(b) {
+    return (b.kids || []).filter(function (k) { return k.type !== 'badge'; }).map(function (k) {
+      return k.type === 'para' && /^\s*<a\b[^>]*>[\s\S]*<\/a>\s*$/i.test(k.text || '') ? 'link' : k.type;
+    }).join(',');
+  }
+  function cardsReadBoxes(boxes) {
+    var bgs = boxes.map(function (b) { return String(b.boxBg || ''); });
+    var common = bgs.filter(function (g) { return bgs.filter(function (h) { return h === g; }).length > 1; })[0];
+    var hs = boxes.map(function (b) { return b.h; }), tall = Math.max.apply(null, hs);
+    var feat = common != null ? bgs.findIndex(function (g) { return g !== common; })
+      : (bgs.some(function (g) { return g !== bgs[0]; }) && hs.filter(function (h) { return h === tall; }).length === 1 ? hs.indexOf(tall) : -1);
+    if (boxes.some(function (b) { return (b.kids || []).some(function (k) { return k.type === 'badge'; }); }) && feat < 0) {
+      feat = boxes.findIndex(function (b) { return (b.kids || []).some(function (k) { return k.type === 'badge'; }); });
+    }
+    var refK = boxes.findIndex(function (b, k) { return k !== feat; });
+    var ref = boxes[refK < 0 ? 0 : refK];
+    var type = {}, act = 'none', linkStyle = 'caps', anyImg = false, refMap = {};
+    var spec = function (kid, tag) {
+      var o = {};
+      if (kid.fs) o.fs = kid.fs;
+      if (kid.tf) o.tf = JSON.parse(JSON.stringify(kid.tf));
+      if (tag) o.tag = tag;
+      return o;
+    };
+    var items = boxes.map(function (b, bi) {
+      var kids = (b.kids || []).filter(function (k) { return k.type !== 'badge'; }).slice().sort(function (a, c) { return a.y - c.y || a.x - c.x; });
+      var it = { t: '', d: '', link: '', href: '', img: '', alt: '' }, map = {};
+      var isLinkPara = function (k) { return k.type === 'para' && /^\s*<a\b[^>]*>[\s\S]*<\/a>\s*$/i.test(k.text || ''); };
+      var img = kids.filter(function (k) { return k.type === 'image' && k.src; })[0];
+      if (img) { it.img = img.src; it.alt = img.alt || ''; if (img.mediaId) it.mediaId = img.mediaId; map.img = img; anyImg = true; }
+      else if (b.boxImg) { it.img = b.boxImg; anyImg = true; }
+      var btn = kids.filter(function (k) { return k.type === 'button'; })[0];
+      var lp = kids.filter(isLinkPara)[0];
+      if (btn) { it.link = cardsPlainText(btn.text); if (btn.href) it.href = btn.href; map.btn = btn; }
+      else if (lp) {
+        var m = /<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i.exec(lp.text || '');
+        it.link = cardsPlainText(m ? m[2] : lp.text); if (m && m[1]) it.href = m[1]; map.link = lp;
+      }
+      var H = kids.filter(function (k) { return k.type === 'heading'; });
+      var P = kids.filter(function (k) { return k.type === 'para' && !isLinkPara(k); });
+      var t = H[0] || null;
+      if (t) { it.t = cardsPlainText(t.text); map.t = t; }
+      var pr = H[1] || null;
+      if (pr) { var ps = cardsPriceSplit(cardsPlainText(pr.text)); it.price = ps.price; it.per = ps.per; map.price = pr; }
+      var before, after;
+      if (t) {
+        before = P.filter(function (k) { return k.y < t.y; });
+        after = P.filter(function (k) { return k.y >= t.y; });
+        if (after[0]) { it.d = cardsPlainText(after[0].text); map.d = after[0]; after = after.slice(1); }
+      } else {
+        var longest = P.slice().sort(function (a, c) { return cardsPlainText(c.text).length - cardsPlainText(a.text).length; })[0];
+        if (longest) { it.d = cardsPlainText(longest.text); map.d = longest; }
+        before = P.filter(function (k) { return longest && k.y < longest.y; });
+        after = P.filter(function (k) { return longest && k.y > longest.y; });
+      }
+      if (before[0]) { it.k = cardsPlainText(before[0].text); map.k = before[0]; }
+      if (after[0]) { it.role = cardsPlainText(after[0].text); map.role = after[0]; }
+      if (after[1]) { it.n = cardsPlainText(after[1].text); map.n = after[1]; }
+      if (b === ref) {
+        refMap = map;
+        ['k', 't', 'd', 'role', 'n', 'price'].forEach(function (f) { if (map[f]) type[f] = spec(map[f], f === 't' ? 'h2' : null); });
+        if (map.link) type.link = spec(map.link);
+      }
+      if (map.btn) act = 'button';
+      else if (map.link) { act = act === 'button' ? 'button' : 'link'; linkStyle = 'text'; }
+      return it;
+    });
+    // the layout from where the boxes sit
+    var xs = []; boxes.forEach(function (b) { if (!xs.some(function (x) { return Math.abs(x - b.x) < 8; })) xs.push(b.x); });
+    var ys = boxes.map(function (b) { return b.y; });
+    var climbing = xs.length > 1 && ys.every(function (v, k) { return k === 0 || v >= ys[k - 1]; }) && ys[ys.length - 1] - ys[0] > 60 && xs.length === boxes.length;
+    var over = boxes.every(function (b) { return b.boxImg && !(b.kids || []).some(function (k) { return k.type === 'image'; }); });
+    var layout = over ? 'over' : xs.length === 1 ? 'rows' : climbing ? 'steps' : xs.length >= 4 ? 'g4' : xs.length === 3 ? 'g3' : 'g2';
+    var pic = 'none';
+    if (anyImg && !over) {
+      var im = (ref.kids || []).filter(function (k) { return k.type === 'image'; })[0];
+      var ratio = im && im.h ? im.w / im.h : 1.5;
+      pic = ratio >= 1.25 ? 'wide' : ratio >= 0.85 ? 'square' : 'tall';
+    } else if (over) pic = 'wide';
+    // the card itself, from the plain card
+    var rk = (ref.kids || []).filter(function (k) { return k.type !== 'badge'; }).slice().sort(function (a, c) { return a.y - c.y; });
+    var pad = rk.length ? Math.max(0, Math.min(80, Math.min.apply(null, rk.map(function (k) { return k.x; })))) : 24;
+    var gaps = [];
+    for (var g = 1; g < rk.length; g++) { var gp = rk[g].y - (rk[g - 1].y + rk[g - 1].h); if (gp > 0) gaps.push(gp); }
+    gaps.sort(function (a, c) { return a - c; });
+    var gap = gaps.length ? Math.max(4, Math.min(48, gaps[Math.floor(gaps.length / 2)])) : 10;
+    var centred = rk.length && rk.filter(function (k) { return k.align === 'center'; }).length > rk.length / 2;
+    var bg = common != null ? common : bgs[refK < 0 ? 0 : refK];
+    var look = bg ? 'panel' : 'open';
+    var box = { look: look, gap: gap, minH: ref.h };
+    // a pair that hugs (a line above its title, a note under the name)
+    // keeps hugging rather than taking the card's usual spacing
+    var hug = function (a, c2) { return a && c2 ? c2.y - (a.y + a.h) : null; };
+    var tight = { t: hug(refMap.k, refMap.t), n: hug(refMap.role, refMap.n) };
+    Object.keys(tight).forEach(function (f) { if (tight[f] != null && tight[f] < gap - 3) { box.tight = box.tight || {}; box.tight[f] = Math.max(0, tight[f]); } });
+    // the pieces after the widest gap sat at the card's foot (a name under
+    // a quote): they keep to the foot
+    var wide = -1, wideAt = -1;
+    for (var g2 = 1; g2 < rk.length; g2++) { var gp2 = rk[g2].y - (rk[g2 - 1].y + rk[g2 - 1].h); if (gp2 > wide) { wide = gp2; wideAt = g2; } }
+    var lastK = rk[rk.length - 1];
+    // (kind words: the name signs off at the foot whenever it sat low)
+    var kind = !items.some(function (it) { return it.t; });
+    if (kind && refMap.role && refMap.d) { wideAt = rk.indexOf(refMap.role); wide = Math.max(wide, gap * 2 + 1); }
+    if (wideAt > 0 && wide > gap * 2 && lastK && (kind || lastK.y + lastK.h >= ref.h - pad - 24)) {
+      var footF = Object.keys(refMap).filter(function (f) { return refMap[f] === rk[wideAt]; })[0];
+      if (footF && footF !== 'link' && footF !== 'btn' && footF !== 'img') box.foot = footF;
+    }
+    if (over) { box.cols = Math.max(2, Math.min(4, xs.length)); box.ratio = Math.round(ref.w / Math.max(1, ref.h) * 1000) / 1000; }
+    var rb = (ref.kids || []).filter(function (k) { return k.type === 'button'; })[0];
+    if (rb && rb.w >= (ref.w - 2 * pad) * 0.9) box.btnFull = 1;
+    if (bg) box.bg = bg;
+    if (bg || over) { box.radius = ref.radius || 0; box.pad = pad; }
+    var has = function (f) { return items.some(function (it) { return !!it[f]; }); };
+    return {
+      items: items, feat: feat, layout: layout, look: over ? 'panel' : look, pic: pic, act: act, linkStyle: linkStyle,
+      align: centred || over ? 'center' : 'left', round: (ref.radius || 0) >= 8 ? 1 : 0, titles: has('t') ? 1 : 0,
+      extras: { price: has('price') ? 1 : 0, role: has('role') ? 1 : 0, k: has('k') ? 1 : 0, n: has('n') ? 1 : 0 },
+      type: Object.keys(type).length ? type : null, box: box,
+    };
+  }
+  // the row of matching freeform cards in a section, read as one set (null
+  // when there is none): the set piece, and the boxes it replaces
+  function cardsSetFromEls(els) {
+    var boxes = els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; });
+    if (boxes.length < 2) return null;
+    var sig = cardsKidSig(boxes[0]);
+    if (!sig || !boxes.every(function (b) { return cardsKidSig(b) === sig; })) return null;
+    var x = Math.min.apply(null, boxes.map(function (b) { return b.x; })), y = Math.min.apply(null, boxes.map(function (b) { return b.y; }));
+    var r = Math.max.apply(null, boxes.map(function (b) { return b.x + b.w; })), bot = Math.max.apply(null, boxes.map(function (b) { return b.y + b.h; }));
+    var set = { type: 'widget', x: x, y: y, w: r - x, h: bot - y, cards: cardsReadBoxes(boxes) };
+    composeCardsData(set);
+    return { set: set, boxes: boxes };
   }
   // a row of freeform cards (one box per card, the same pieces in each)
   // read as a set's cards: what the shelf's card designs were before they
@@ -23681,7 +23947,7 @@
     composeCarousel: composeCarousel,
     composeWall: composeWall,
     cards: { compose: composeCards, norm: cardsNorm, act: cardsDo, fit: fitCards, menu: openCardMenu, layouts: CARD_LAYOUTS,
-      pop: function () { return cardPop; }, seam: function () { return cardSeam; }, seams: function (n) { return cardSeamsOf(n); }, focus: function () { return cardFocus; }, drop: function () { sel = null; hideHandles(); }, nowhere: function () { return cardLinksWithoutAddress(); }, ghost: function () { return cardGhost; }, chip: function () { return cardChip; }, pic: openCardPicPop },
+      pop: function () { return cardPop; }, seam: function () { return cardSeam; }, seams: function (n) { return cardSeamsOf(n); }, focus: function () { return cardFocus; }, drop: function () { sel = null; hideHandles(); }, read: cardsReadBoxes, fromEls: cardsSetFromEls, nowhere: function () { return cardLinksWithoutAddress(); }, ghost: function () { return cardGhost; }, chip: function () { return cardChip; }, pic: openCardPicPop },
     mediaPool: mediaPool,
     tplEls: tplEls,
     elDefaults: function () { return DEFAULTS; },
