@@ -806,12 +806,16 @@
         out.push(base + ' .gogh-cs-body > ' + pre + ' { margin-top: calc(' + cq(b.tight[f]) + ' - ' + cq(b.gap) + ') !important; }');
       });
       if (b.foot && CARD_FIELD_SEL[b.foot]) out.push(base + ' .gogh-cs-body > ' + CARD_FIELD_SEL[b.foot].split(' ')[0] + ' { margin-top: auto !important; }');
+      // a ledger's rules in the colour its rows were drawn with
+      if (b.ruleCol && c.layout === 'ledger') out.push(base + ' .gogh-cardset-ledger, ' + base + ' .gogh-cardset-ledger > .gogh-cs-card { border-color: ' + b.ruleCol + ' !important; }');
       if (b.rule) out.push(base + ' .gogh-cardset > .gogh-cs-card { border-top: 1px solid ' + (b.ruleCol || 'color-mix(in srgb, currentColor 18%, transparent)') + ' !important; } ' +
         base + ' .gogh-cardset > .gogh-cs-card > .gogh-cs-body { padding-top: max(10px, ' + cq(b.rule) + ') !important; }');
       if (b.btnFull) out.push(base + ' .gogh-cs-btns > .wp-block-button { flex: 1 1 100%; width: 100% !important; display: block !important; } ' + base + ' .gogh-cs-btns .wp-block-button__link { display: block !important; width: 100% !important; box-sizing: border-box; text-align: center; }');
     }
     // photo cards (on the photo) read from freeform keep their columns and
     // their shape while the set stays on the photo in the wide shape
+    // (a ledger can run in two columns side by side, a menu's two tops)
+    if (b && c.layout === 'ledger' && b.cols) out.push('@container (min-width: 761px) { ' + base + ' .gogh-cardset-ledger { grid-template-columns: repeat(' + b.cols + ', minmax(0, 1fr)); column-gap: 6cqw; } }');
     if (b && c.layout === 'over') {
       if (b.cols) out.push('@container (min-width: ' + (b.cols > 2 ? 761 : 541) + 'px) { ' + base + ' .gogh-cardset-over { grid-template-columns: repeat(' + b.cols + ', minmax(0, 1fr)); } }');
       if (b.ratio && c.pic === 'wide') out.push(base + ' .gogh-cardset-over > .gogh-cs-card { aspect-ratio: ' + b.ratio + '; }');
@@ -11443,14 +11447,7 @@
       { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Served all day',
         tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       { type: 'heading', x: 300, y: 128, w: 600, h: 42, text: 'Small plates', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-      { type: 'heading', x: 280, y: 194, w: 520, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 850, y: 194, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-      { type: 'heading', x: 280, y: 234, w: 520, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 850, y: 234, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-      { type: 'heading', x: 280, y: 274, w: 520, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 850, y: 274, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-      { type: 'heading', x: 280, y: 314, w: 520, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 850, y: 314, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+      { type: 'widget', x: 280, y: 194, w: 640, h: 148, cards: { items: [{ t: 'Sourdough, cultured butter', price: '£6' }, { t: 'Burrata, blood orange, mint', price: '£11' }, { t: 'Wood-roast leeks, romesco', price: '£9' }, { t: 'Anchovy toast, soft egg', price: '£8' }], layout: 'ledger', look: 'open', pic: 'none', align: 'left', act: 'none', extras: { price: 1, role: 0, k: 0, n: 0 }, feat: -1, titles: 1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, price: { tf: { fs2: 1.167, fsMin: 16 } } }, box: { look: 'open', pad: 6, gap: 4 } } },
       { type: 'para', x: 280, y: 354, w: 640, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
     ] },
     { starter: true, intent: 'showcase', name: 'Team', minH: 696, els: [
@@ -11679,7 +11676,7 @@
       if (['k', 't', 'd', 'role', 'n', 'price'].indexOf(c.box.foot) >= 0) bx.foot = c.box.foot;
       // a hairline over each card, and the space under it
       var rule = +c.box.rule; if (isFinite(rule) && rule > 0 && rule < 200) bx.rule = Math.round(rule);
-      if (bx.rule && c.box.ruleCol) { var rc = cardsSafeCss(c.box.ruleCol); if (rc) bx.ruleCol = rc; }
+      if (c.box.ruleCol) { var rc = cardsSafeCss(c.box.ruleCol); if (rc) bx.ruleCol = rc; }
       if (c.box.tight && typeof c.box.tight === 'object') ['t', 'n'].forEach(function (f) { var v = +c.box.tight[f]; if (isFinite(v) && v >= 0 && v < 200) { bx.tight = bx.tight || {}; bx.tight[f] = Math.round(v); } });
       c.box = bx;
     } else c.box = null;
@@ -13016,41 +13013,20 @@
       { name: 'Menu', take: 'The two tops', minH: 408, els: [
         { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Served all day', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 300, y: 128, w: 600, h: 42, text: 'Small plates', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-        { type: 'heading', x: 72, y: 194, w: 400, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 500, y: 194, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 72, y: 234, w: 400, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 500, y: 234, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 640, y: 194, w: 400, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 1058, y: 194, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 640, y: 234, w: 400, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 1058, y: 234, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'widget', x: 72, y: 194, w: 1056, h: 68, cards: { items: [{ t: 'Sourdough, cultured butter', price: '£6' }, { t: 'Burrata, blood orange, mint', price: '£11' }, { t: 'Wood-roast leeks, romesco', price: '£9' }, { t: 'Anchovy toast, soft egg', price: '£8' }], layout: 'ledger', look: 'open', pic: 'none', align: 'left', act: 'none', extras: { price: 1, role: 0, k: 0, n: 0 }, feat: -1, titles: 1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, price: { tf: { fs2: 1.167, fsMin: 16 } } }, box: { look: 'open', pad: 6, gap: 4, cols: 2 } } },
         { type: 'para', x: 280, y: 274, w: 640, h: 24, align: 'center', text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       ] },
       { name: 'Menu', take: 'The card', minH: 576, els: [
         { type: 'box', x: 150, y: 96, w: 900, h: 370, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
         { type: 'para', x: 400, y: 136, w: 400, h: 16, align: 'center', text: 'Served all day', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 300, y: 168, w: 600, h: 42, text: 'Small plates', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-        { type: 'heading', x: 300, y: 234, w: 420, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 790, y: 234, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 300, y: 274, w: 420, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 790, y: 274, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 300, y: 314, w: 420, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 790, y: 314, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 300, y: 354, w: 420, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 790, y: 354, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'widget', x: 300, y: 234, w: 560, h: 148, cards: { items: [{ t: 'Sourdough, cultured butter', price: '£6' }, { t: 'Burrata, blood orange, mint', price: '£11' }, { t: 'Wood-roast leeks, romesco', price: '£9' }, { t: 'Anchovy toast, soft egg', price: '£8' }], layout: 'ledger', look: 'open', pic: 'none', align: 'left', act: 'none', extras: { price: 1, role: 0, k: 0, n: 0 }, feat: -1, titles: 1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, price: { tf: { fs2: 1.167, fsMin: 16 } } }, box: { look: 'open', pad: 6, gap: 4 } } },
         { type: 'para', x: 300, y: 394, w: 560, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       ] },
       { name: 'Menu', take: 'The board', minH: 480, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Served all day', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         { type: 'heading', x: 300, y: 128, w: 600, h: 42, text: 'Small plates', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 194, w: 520, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 194, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 234, w: 520, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 234, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 274, w: 520, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 274, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 314, w: 520, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 314, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'widget', x: 280, y: 194, w: 640, h: 148, cards: { items: [{ t: 'Sourdough, cultured butter', price: '£6' }, { t: 'Burrata, blood orange, mint', price: '£11' }, { t: 'Wood-roast leeks, romesco', price: '£9' }, { t: 'Anchovy toast, soft egg', price: '£8' }], layout: 'ledger', look: 'open', pic: 'none', align: 'left', act: 'none', extras: { price: 1, role: 0, k: 0, n: 0 }, feat: -1, titles: 1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: 'var(--wp--preset--color--base, #fff)' } }, price: { tf: { fs2: 1.167, fsMin: 16, col: 'var(--wp--preset--color--base, #fff)' } } }, box: { look: 'open', pad: 6, gap: 4 } } },
         { type: 'para', x: 280, y: 354, w: 640, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
       ] },
     ],

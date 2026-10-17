@@ -142,232 +142,76 @@
        }
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 168,
        "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 192,
-       "w": 400,
-       "h": 24,
-       "text": "Flatbread from the oven",
-       "tf": {
-        "fs": 17,
-        "fw": 500
+       "h": 384,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Flatbread from the oven",
+          "d": "Whipped cod’s roe, dill oil",
+          "price": "7"
+         },
+         {
+          "t": "Charred leeks",
+          "d": "Hazelnut, brown butter, sheep’s curd",
+          "price": "9"
+         },
+         {
+          "t": "Lamb chop",
+          "d": "Anchovy, salsa verde, burnt lemon",
+          "price": "16"
+         },
+         {
+          "t": "Hake over the embers",
+          "d": "Mussels, cider, sea herbs",
+          "price": "22"
+         },
+         {
+          "t": "Burnt honey tart",
+          "d": "Crème fraîche, thyme",
+          "price": "8"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 500
+          }
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 24,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 192,
-       "w": 460,
-       "h": 24,
-       "text": "Whipped cod’s roe, dill oil",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 192,
-       "w": 120,
-       "h": 24,
-       "text": "7",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 240,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 264,
-       "w": 400,
-       "h": 24,
-       "text": "Charred leeks",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 264,
-       "w": 460,
-       "h": 24,
-       "text": "Hazelnut, brown butter, sheep’s curd",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 264,
-       "w": 120,
-       "h": 24,
-       "text": "9",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 312,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 336,
-       "w": 400,
-       "h": 24,
-       "text": "Lamb chop",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 336,
-       "w": 460,
-       "h": 24,
-       "text": "Anchovy, salsa verde, burnt lemon",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 336,
-       "w": 120,
-       "h": 24,
-       "text": "16",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 384,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 408,
-       "w": 400,
-       "h": 24,
-       "text": "Hake over the embers",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 408,
-       "w": 460,
-       "h": 24,
-       "text": "Mussels, cider, sea herbs",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 408,
-       "w": 120,
-       "h": 24,
-       "text": "22",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 456,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 480,
-       "w": 400,
-       "h": 24,
-       "text": "Burnt honey tart",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 480,
-       "w": 460,
-       "h": 24,
-       "text": "Crème fraîche, thyme",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 480,
-       "w": 120,
-       "h": 24,
-       "text": "8",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 528,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
       },
       {
        "type": "para",
@@ -1748,252 +1592,77 @@
        }
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 168,
        "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 192,
-       "w": 320,
-       "h": 24,
-       "text": "Howgill Farm",
-       "tf": {
-        "fs": 16,
-        "fw": 500
+       "h": 384,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Howgill Farm",
+          "d": "Lamb and mutton",
+          "role": "Cumbria"
+         },
+         {
+          "t": "The day boats",
+          "d": "Hake, mackerel, mussels",
+          "role": "Brixham"
+         },
+         {
+          "t": "Birch Moss Growers",
+          "d": "Leeks, greens, roots",
+          "role": "Cheshire"
+         },
+         {
+          "t": "Stoneground Mill",
+          "d": "Flour for the bread",
+          "role": "Yorkshire"
+         },
+         {
+          "t": "Ribble Dairy",
+          "d": "Butter and cheese",
+          "role": "Lancashire"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 16,
+           "fw": 500
+          }
+         },
+         "d": {
+          "tf": {
+           "fs": 16,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 14,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 24,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 424,
-       "y": 192,
-       "w": 416,
-       "h": 24,
-       "text": "Lamb and mutton",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 192,
-       "w": 280,
-       "h": 24,
-       "text": "Cumbria",
-       "tf": {
-        "fs": 14,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 240,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 264,
-       "w": 320,
-       "h": 24,
-       "text": "The day boats",
-       "tf": {
-        "fs": 16,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 424,
-       "y": 264,
-       "w": 416,
-       "h": 24,
-       "text": "Hake, mackerel, mussels",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 264,
-       "w": 280,
-       "h": 24,
-       "text": "Brixham",
-       "tf": {
-        "fs": 14,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 312,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 336,
-       "w": 320,
-       "h": 24,
-       "text": "Birch Moss Growers",
-       "tf": {
-        "fs": 16,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 424,
-       "y": 336,
-       "w": 416,
-       "h": 24,
-       "text": "Leeks, greens, roots",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 336,
-       "w": 280,
-       "h": 24,
-       "text": "Cheshire",
-       "tf": {
-        "fs": 14,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 384,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 408,
-       "w": 320,
-       "h": 24,
-       "text": "Stoneground Mill",
-       "tf": {
-        "fs": 16,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 424,
-       "y": 408,
-       "w": 416,
-       "h": 24,
-       "text": "Flour for the bread",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 408,
-       "w": 280,
-       "h": 24,
-       "text": "Yorkshire",
-       "tf": {
-        "fs": 14,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 456,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 480,
-       "w": 320,
-       "h": 24,
-       "text": "Ribble Dairy",
-       "tf": {
-        "fs": 16,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 424,
-       "y": 480,
-       "w": 416,
-       "h": 24,
-       "text": "Butter and cheese",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 480,
-       "w": 280,
-       "h": 24,
-       "text": "Lancashire",
-       "tf": {
-        "fs": 14,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 528,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
       }
      ]
     },

@@ -4122,6 +4122,21 @@
       return 'ledger grid';
     });
 
+    test('Cards: the shelf’s Menu is a Ledger in every take, its dishes kept through the rolls', function () {
+      var t = G.templates().filter(function (x) { return x.name === 'Menu' && x.starter; })[0];
+      G.addSection(JSON.parse(JSON.stringify(t)), 0);
+      var s0 = contentSecs()[0], idx = G.sections().indexOf(s0), seen = [];
+      for (var k = 0; k < 4; k++) {
+        var w = s0.els.filter(function (e) { return e.cards; })[0];
+        expect(w && w.cards.layout === 'ledger' && w.cards.items.length === 4, 'take ' + k + ' should be a ledger of four dishes');
+        if (k === 0) w.cards.items[0].t = 'My own dish';
+        seen.push(w.cards.items[0].t);
+        G.rollSection(idx);
+      }
+      expect(seen.every(function (x, k) { return k === 0 || x === 'My own dish'; }), 'a dish typed in should ride every roll: ' + seen.join(' | '));
+      return '4 takes, words kept';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
