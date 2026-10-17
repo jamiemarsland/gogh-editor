@@ -160,193 +160,86 @@
        "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 120,
-       "w": 320,
+       "w": 1040,
        "h": 552,
-       "boxBg": "var(--wp--preset--color--accent-6)",
-       "radius": 6,
-       "kids": [
-        {
-         "type": "image",
-         "x": 0,
-         "y": 0,
-         "w": 320,
-         "h": 220,
-         "src": "https://images.unsplash.com/photo-1455496231601-e6195da1f841?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHwxfHxleHBlZGl0aW9uJTIwdGVudCUyMGNhbXAlMjBzbm93fGVufDF8MHx8fDE3ODkyNzQxMDF8MA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
-         "alt": "Nunatak Camp"
+       "cards": {
+        "items": [
+         {
+          "t": "Nunatak Camp",
+          "d": "Our first camp, on rare exposed rock beside freshwater lakes. Warm, quiet, and the easiest walk to the ice.",
+          "link": "Learn more",
+          "href": "/enquire/",
+          "img": "https://images.unsplash.com/photo-1455496231601-e6195da1f841?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHwxfHxleHBlZGl0aW9uJTIwdGVudCUyMGNhbXAlMjBzbm93fGVufDF8MHx8fDE3ODkyNzQxMDF8MA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
+          "alt": "Nunatak Camp",
+          "k": "70° 48′ S · 11° 23′ E"
+         },
+         {
+          "t": "Halo Base",
+          "d": "Six pods on a white plain, built for people who wanted to see what leaving Earth might feel like.",
+          "link": "Learn more",
+          "href": "/enquire/",
+          "img": "https://images.unsplash.com/photo-1627499202567-21fae02ac26e?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHw0fHxleHBlZGl0aW9uJTIwdGVudCUyMGNhbXAlMjBzbm93fGVufDF8MHx8fDE3ODkyNzQxMDF8MA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
+          "alt": "Halo Base",
+          "k": "71° 32′ S · 8° 50′ E"
+         },
+         {
+          "t": "Ridge Camp",
+          "d": "Chalet-style rooms under a granite ridge. True to how we started: a tent, a stove and the view.",
+          "link": "Learn more",
+          "href": "/enquire/",
+          "img": "https://images.unsplash.com/photo-1610786466444-678292a9debd?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHwzfHxhbnRhcmN0aWNhJTIwaWNlJTIwbGFuZHNjYXBlJTIwYWVyaWFsfGVufDF8MHx8fDE3ODkyNzQwOTl8MA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
+          "alt": "Ridge Camp",
+          "k": "71° 31′ S · 8° 51′ E"
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "panel",
+        "pic": "wide",
+        "act": "button",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 0,
+        "titles": 1,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 1,
+         "n": 0
         },
-        {
-         "type": "para",
-         "x": 22,
-         "y": 242,
-         "w": 276,
-         "h": 18,
-         "text": "70° 48′ S · 11° 23′ E",
-         "tf": {
-          "fs": 10.5,
-          "fw": 400,
-          "ls2": 0.14,
-          "tt": "uppercase"
+        "type": {
+         "k": {
+          "tf": {
+           "fs": 10.5,
+           "fw": 400,
+           "ls2": 0.14,
+           "tt": "uppercase"
+          }
+         },
+         "t": {
+          "tag": "h2"
+         },
+         "d": {
+          "tf": {
+           "fs": 14.5
+          }
          }
         },
-        {
-         "type": "heading",
-         "x": 22,
-         "y": 268,
-         "w": 276,
-         "h": 40,
-         "text": "Nunatak Camp",
-         "align": "left"
-        },
-        {
-         "type": "para",
-         "x": 22,
-         "y": 318,
-         "w": 276,
-         "h": 110,
-         "text": "Our first camp, on rare exposed rock beside freshwater lakes. Warm, quiet, and the easiest walk to the ice.",
-         "tf": {
-          "fs": 14.5
-         }
-        },
-        {
-         "type": "button",
-         "x": 22,
-         "y": 452,
-         "w": 150,
-         "h": 44,
-         "text": "Learn more",
-         "href": "/enquire/"
+        "box": {
+         "look": "panel",
+         "gap": 22,
+         "minH": 552,
+         "tight": {
+          "t": 8
+         },
+         "bg": "var(--wp--preset--color--accent-6)",
+         "radius": 6,
+         "pad": 22
         }
-       ]
-      },
-      {
-       "type": "box",
-       "x": 440,
-       "y": 120,
-       "w": 320,
-       "h": 552,
-       "boxBg": "var(--wp--preset--color--accent-6)",
-       "radius": 6,
-       "kids": [
-        {
-         "type": "image",
-         "x": 0,
-         "y": 0,
-         "w": 320,
-         "h": 220,
-         "src": "https://images.unsplash.com/photo-1627499202567-21fae02ac26e?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHw0fHxleHBlZGl0aW9uJTIwdGVudCUyMGNhbXAlMjBzbm93fGVufDF8MHx8fDE3ODkyNzQxMDF8MA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
-         "alt": "Halo Base"
-        },
-        {
-         "type": "para",
-         "x": 22,
-         "y": 242,
-         "w": 276,
-         "h": 18,
-         "text": "71° 32′ S · 8° 50′ E",
-         "tf": {
-          "fs": 10.5,
-          "fw": 400,
-          "ls2": 0.14,
-          "tt": "uppercase"
-         }
-        },
-        {
-         "type": "heading",
-         "x": 22,
-         "y": 268,
-         "w": 276,
-         "h": 40,
-         "text": "Halo Base",
-         "align": "left"
-        },
-        {
-         "type": "para",
-         "x": 22,
-         "y": 318,
-         "w": 276,
-         "h": 110,
-         "text": "Six pods on a white plain, built for people who wanted to see what leaving Earth might feel like.",
-         "tf": {
-          "fs": 14.5
-         }
-        },
-        {
-         "type": "button",
-         "x": 22,
-         "y": 452,
-         "w": 150,
-         "h": 44,
-         "text": "Learn more",
-         "href": "/enquire/"
-        }
-       ]
-      },
-      {
-       "type": "box",
-       "x": 800,
-       "y": 120,
-       "w": 320,
-       "h": 552,
-       "boxBg": "var(--wp--preset--color--accent-6)",
-       "radius": 6,
-       "kids": [
-        {
-         "type": "image",
-         "x": 0,
-         "y": 0,
-         "w": 320,
-         "h": 220,
-         "src": "https://images.unsplash.com/photo-1610786466444-678292a9debd?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHwzfHxhbnRhcmN0aWNhJTIwaWNlJTIwbGFuZHNjYXBlJTIwYWVyaWFsfGVufDF8MHx8fDE3ODkyNzQwOTl8MA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
-         "alt": "Ridge Camp"
-        },
-        {
-         "type": "para",
-         "x": 22,
-         "y": 242,
-         "w": 276,
-         "h": 18,
-         "text": "71° 31′ S · 8° 51′ E",
-         "tf": {
-          "fs": 10.5,
-          "fw": 400,
-          "ls2": 0.14,
-          "tt": "uppercase"
-         }
-        },
-        {
-         "type": "heading",
-         "x": 22,
-         "y": 268,
-         "w": 276,
-         "h": 40,
-         "text": "Ridge Camp",
-         "align": "left"
-        },
-        {
-         "type": "para",
-         "x": 22,
-         "y": 318,
-         "w": 276,
-         "h": 110,
-         "text": "Chalet-style rooms under a granite ridge. True to how we started: a tent, a stove and the view.",
-         "tf": {
-          "fs": 14.5
-         }
-        },
-        {
-         "type": "button",
-         "x": 22,
-         "y": 452,
-         "w": 150,
-         "h": 44,
-         "text": "Learn more",
-         "href": "/enquire/"
-        }
-       ]
+       }
       }
      ],
      "minH": 720

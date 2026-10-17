@@ -804,6 +804,8 @@
         out.push(base + ' .gogh-cs-body > ' + pre + ' { margin-top: calc(' + cq(b.tight[f]) + ' - ' + cq(b.gap) + ') !important; }');
       });
       if (b.foot && CARD_FIELD_SEL[b.foot]) out.push(base + ' .gogh-cs-body > ' + CARD_FIELD_SEL[b.foot].split(' ')[0] + ' { margin-top: auto !important; }');
+      if (b.rule) out.push(base + ' .gogh-cardset > .gogh-cs-card { border-top: 1px solid ' + (b.ruleCol || 'color-mix(in srgb, currentColor 18%, transparent)') + ' !important; } ' +
+        base + ' .gogh-cardset > .gogh-cs-card > .gogh-cs-body { padding-top: max(10px, ' + cq(b.rule) + ') !important; }');
       if (b.btnFull) out.push(base + ' .gogh-cs-btns > .wp-block-button { flex: 1 1 100%; width: 100% !important; display: block !important; } ' + base + ' .gogh-cs-btns .wp-block-button__link { display: block !important; width: 100% !important; box-sizing: border-box; text-align: center; }');
     }
     // photo cards (on the photo) read from freeform keep their columns and
@@ -11671,6 +11673,9 @@
       var ratio = +c.box.ratio; if (isFinite(ratio) && ratio >= 0.3 && ratio <= 4) bx.ratio = Math.round(ratio * 1000) / 1000;
       if (c.box.btnFull) bx.btnFull = 1;
       if (['k', 't', 'd', 'role', 'n', 'price'].indexOf(c.box.foot) >= 0) bx.foot = c.box.foot;
+      // a hairline over each card, and the space under it
+      var rule = +c.box.rule; if (isFinite(rule) && rule > 0 && rule < 200) bx.rule = Math.round(rule);
+      if (bx.rule && c.box.ruleCol) { var rc = cardsSafeCss(c.box.ruleCol); if (rc) bx.ruleCol = rc; }
       if (c.box.tight && typeof c.box.tight === 'object') ['t', 'n'].forEach(function (f) { var v = +c.box.tight[f]; if (isFinite(v) && v >= 0 && v < 200) { bx.tight = bx.tight || {}; bx.tight[f] = Math.round(v); } });
       c.box = bx;
     } else c.box = null;
@@ -11821,7 +11826,7 @@
     }
     var refK = boxes.findIndex(function (b, k) { return k !== feat; });
     var ref = boxes[refK < 0 ? 0 : refK];
-    var type = {}, act = 'none', linkStyle = 'caps', anyImg = false, refMap = {};
+    var type = {}, act = 'none', linkStyle = 'caps', anyImg = false, refMap = {}, roleFirst = false;
     var spec = function (kid, tag) {
       var o = {};
       if (kid.fs) o.fs = kid.fs;
@@ -11846,6 +11851,14 @@
       var H = kids.filter(function (k) { return k.type === 'heading'; });
       var P = kids.filter(function (k) { return k.type === 'para' && !isLinkPara(k); });
       var t = H[0] || null;
+      // no heading: a short bold line above the words is the title (a
+      // column drawn as "01 — Listen first" over its words)
+      if (!t && P.length >= 2) {
+        var lens = P.map(function (k) { return cardsPlainText(k.text).length; });
+        var di = lens.indexOf(Math.max.apply(null, lens));
+        var lead = P.slice(0, di).filter(function (k) { return +((k.tf && k.tf.fw) || 0) >= 600; })[0] || null;
+        if (lead && cardsPlainText(lead.text).length < 80) { t = lead; P = P.filter(function (k) { return k !== lead; }); }
+      }
       if (t) { it.t = cardsPlainText(t.text); map.t = t; }
       var pr = H[1] || null;
       if (pr) { var ps = cardsPriceSplit(cardsPlainText(pr.text)); it.price = ps.price; it.per = ps.per; map.price = pr; }
@@ -11853,6 +11866,11 @@
       if (t) {
         before = P.filter(function (k) { return k.y < t.y; });
         after = P.filter(function (k) { return k.y >= t.y; });
+        // a short line between the title and longer words is who or what
+        // it is (a speaker's job, then their talk)
+        if (after.length >= 2 && cardsPlainText(after[0].text).length < cardsPlainText(after[1].text).length && cardsPlainText(after[0].text).length < 60) {
+          it.role = cardsPlainText(after[0].text); map.role = after[0]; after = [after[1]].concat(after.slice(2)); roleFirst = true;
+        }
         if (after[0]) { it.d = cardsPlainText(after[0].text); map.d = after[0]; after = after.slice(1); }
       } else {
         var longest = P.slice().sort(function (a, c) { return cardsPlainText(c.text).length - cardsPlainText(a.text).length; })[0];
@@ -11861,11 +11879,14 @@
         after = P.filter(function (k) { return longest && k.y > longest.y; });
       }
       if (before[0]) { it.k = cardsPlainText(before[0].text); map.k = before[0]; }
-      if (after[0]) { it.role = cardsPlainText(after[0].text); map.role = after[0]; }
-      if (after[1]) { it.n = cardsPlainText(after[1].text); map.n = after[1]; }
+      if (map.role) { if (after[0]) { it.n = cardsPlainText(after[0].text); map.n = after[0]; } }
+      else {
+        if (after[0]) { it.role = cardsPlainText(after[0].text); map.role = after[0]; }
+        if (after[1]) { it.n = cardsPlainText(after[1].text); map.n = after[1]; }
+      }
       if (b === ref) {
         refMap = map;
-        ['k', 't', 'd', 'role', 'n', 'price'].forEach(function (f) { if (map[f]) type[f] = spec(map[f], f === 't' ? 'h2' : null); });
+        ['k', 't', 'd', 'role', 'n', 'price'].forEach(function (f) { if (map[f]) type[f] = spec(map[f], f === 't' && map[f].type === 'heading' ? 'h2' : null); });
         if (map.link) type.link = spec(map.link);
       }
       if (map.btn) act = 'button';
@@ -11886,7 +11907,9 @@
     } else if (over) pic = 'wide';
     // the card itself, from the plain card
     var rk = (ref.kids || []).filter(function (k) { return k.type !== 'badge'; }).slice().sort(function (a, c) { return a.y - c.y; });
-    var pad = rk.length ? Math.max(0, Math.min(80, Math.min.apply(null, rk.map(function (k) { return k.x; })))) : 24;
+    // (a picture runs to the card's edge; the padding is the words')
+    var rkw = rk.filter(function (k) { return k.type !== 'image'; });
+    var pad = rkw.length ? Math.max(0, Math.min(80, Math.min.apply(null, rkw.map(function (k) { return k.x; })))) : 24;
     var gaps = [];
     for (var g = 1; g < rk.length; g++) { var gp = rk[g].y - (rk[g - 1].y + rk[g - 1].h); if (gp > 0) gaps.push(gp); }
     gaps.sort(function (a, c) { return a - c; });
@@ -15317,6 +15340,28 @@
       sp.w = Math.max(200, Math.min(W - sp.x, Math.round(+e.w || sp.w))); sp.h = Math.max(160, Math.round(+e.h || sp.h));
       sp.wsrc = composeShop(sp.shop);
       return sp;
+    }
+    // a set of cards, named directly: its items in the set's own words
+    // (t, d, k, role, n, price, per, link, href, img, alt) or in a
+    // definition's friendlier ones (title, text, image, button, link, name,
+    // role, price, above, note), and the set's design beside them
+    if (e && e.type === 'cards' && e.cards && Array.isArray(e.cards.items) && e.cards.items.length) {
+      var cs = JSON.parse(JSON.stringify(e.cards));
+      var own = cs.items.some(function (it) { return it && (it.t != null || it.d != null); });
+      if (!own) {
+        var friendly = cs.items;
+        cs.items = cardsFromDefItems(friendly, { titles: cs.titles == null ? 1 : cs.titles });
+        cs.items.forEach(function (it, k) {
+          var f = friendly[k] || {};
+          if (f.above != null) it.k = String(f.above);
+          if (f.note != null) it.n = String(f.note);
+        });
+      }
+      var cw = { type: 'widget', cards: cs };
+      cw.x = Math.max(0, Math.round(+e.x || 0)); cw.y = Math.max(0, Math.round(+e.y || 0));
+      cw.w = Math.max(200, Math.min(W - cw.x, Math.round(+e.w || 1000))); cw.h = Math.max(80, Math.round(+e.h || 400));
+      composeCardsData(cw);
+      return cw;
     }
     if (!e || !GEN_TYPES[e.type]) return null;
     var out = { type: e.type };

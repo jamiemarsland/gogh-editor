@@ -1372,75 +1372,60 @@
        }
       },
       {
-       "type": "para",
+       "type": "cards",
        "x": 80,
        "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "What to wear",
-       "tf": {
-        "fs": 17,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 216,
-       "w": 320,
-       "h": 120,
-       "text": "Summer best. It is a farm, so leave the stilettos at home and bring a layer for after dark.",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "Food and drink",
-       "tf": {
-        "fs": 17,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 216,
-       "w": 320,
-       "h": 120,
-       "text": "Three courses at the long table, all from farms nearby. Tell us what you cannot eat when you reply.",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "Gifts",
-       "tf": {
-        "fs": 17,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 216,
-       "w": 320,
-       "h": 120,
-       "text": "You coming is the gift. If you would like to, there is a jar on the bar for our honeymoon in Norway.",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       "w": 1040,
+       "h": 168,
+       "cards": {
+        "items": [
+         {
+          "t": "What to wear",
+          "d": "Summer best. It is a farm, so leave the stilettos at home and bring a layer for after dark."
+         },
+         {
+          "t": "Food and drink",
+          "d": "Three courses at the long table, all from farms nearby. Tell us what you cannot eat when you reply."
+         },
+         {
+          "t": "Gifts",
+          "d": "You coming is the gift. If you would like to, there is a jar on the bar for our honeymoon in Norway."
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 0,
+        "titles": 1,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          }
+         },
+         "d": {
+          "tf": {
+           "fs": 16,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "gap": 24,
+         "minH": 168
+        }
        }
       }
      ]

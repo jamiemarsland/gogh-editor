@@ -552,75 +552,60 @@
        }
       },
       {
-       "type": "para",
+       "type": "cards",
        "x": 80,
        "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "01 — Listen first",
-       "tf": {
-        "fs": 15,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 216,
-       "w": 320,
-       "h": 96,
-       "text": "We spend the first month in your rooms, not at our desks. The brief is written after we have seen how you live.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "02 — Draw by hand",
-       "tf": {
-        "fs": 15,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 216,
-       "w": 320,
-       "h": 96,
-       "text": "Every scheme begins as a pencil section. Computers come later, once the idea can survive a bad drawing.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "03 — Build it once",
-       "tf": {
-        "fs": 15,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 216,
-       "w": 320,
-       "h": 96,
-       "text": "We stay on site through the build. Details are decided with the builder, in the room, at full size.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+       "w": 1040,
+       "h": 144,
+       "cards": {
+        "items": [
+         {
+          "t": "01 — Listen first",
+          "d": "We spend the first month in your rooms, not at our desks. The brief is written after we have seen how you live."
+         },
+         {
+          "t": "02 — Draw by hand",
+          "d": "Every scheme begins as a pencil section. Computers come later, once the idea can survive a bad drawing."
+         },
+         {
+          "t": "03 — Build it once",
+          "d": "We stay on site through the build. Details are decided with the builder, in the room, at full size."
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 0,
+        "titles": 1,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "gap": 24,
+         "minH": 144
+        }
        }
       },
       {
@@ -1306,45 +1291,52 @@
        }
       },
       {
-       "type": "image",
+       "type": "cards",
        "x": 80,
        "y": 480,
-       "w": 300,
-       "h": 264,
-       "src": "https://images.unsplash.com/photo-1517462964-21fdcec3f25b?w=1600&q=80&fm=jpg&fit=max",
-       "alt": "Ruth Ferro"
-      },
-      {
-       "type": "image",
-       "x": 420,
-       "y": 480,
-       "w": 300,
-       "h": 264,
-       "src": "https://images.unsplash.com/photo-1614010966237-74489a16848b?w=1600&q=80&fm=jpg&fit=max",
-       "alt": "Sam Lane"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 768,
-       "w": 300,
-       "h": 24,
-       "text": "Ruth Ferro — partner",
-       "tf": {
-        "fs": 14,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 420,
-       "y": 768,
-       "w": 300,
-       "h": 24,
-       "text": "Sam Lane — partner",
-       "tf": {
-        "fs": 14,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+       "w": 640,
+       "h": 312,
+       "cards": {
+        "items": [
+         {
+          "d": "Ruth Ferro — partner",
+          "img": "https://images.unsplash.com/photo-1517462964-21fdcec3f25b?w=1600&q=80&fm=jpg&fit=max",
+          "alt": "Ruth Ferro"
+         },
+         {
+          "d": "Sam Lane — partner",
+          "img": "https://images.unsplash.com/photo-1614010966237-74489a16848b?w=1600&q=80&fm=jpg&fit=max",
+          "alt": "Sam Lane"
+         }
+        ],
+        "feat": -1,
+        "layout": "g2",
+        "look": "open",
+        "pic": "square",
+        "act": "none",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 1,
+        "titles": 0,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "d": {
+          "tf": {
+           "fs": 14,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "gap": 24,
+         "minH": 312
+        }
        }
       },
       {
@@ -1378,75 +1370,60 @@
        }
       },
       {
-       "type": "para",
+       "type": "cards",
        "x": 80,
        "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "Rooms before facades",
-       "tf": {
-        "fs": 15,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 216,
-       "w": 320,
-       "h": 96,
-       "text": "A building is remembered from the inside. We design the afternoon light first and the elevation last.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "Fewer materials, better",
-       "tf": {
-        "fs": 15,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 216,
-       "w": 320,
-       "h": 96,
-       "text": "Three materials, used honestly, outlast twelve used cleverly. Most of ours are timber, brick and lime.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "Old buildings are a gift",
-       "tf": {
-        "fs": 15,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 216,
-       "w": 320,
-       "h": 96,
-       "text": "Half our work is a chapel, a barn or a coach house asking to be lived in again. We say yes.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+       "w": 1040,
+       "h": 144,
+       "cards": {
+        "items": [
+         {
+          "t": "Rooms before facades",
+          "d": "A building is remembered from the inside. We design the afternoon light first and the elevation last."
+         },
+         {
+          "t": "Fewer materials, better",
+          "d": "Three materials, used honestly, outlast twelve used cleverly. Most of ours are timber, brick and lime."
+         },
+         {
+          "t": "Old buildings are a gift",
+          "d": "Half our work is a chapel, a barn or a coach house asking to be lived in again. We say yes."
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 0,
+        "titles": 1,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "gap": 24,
+         "minH": 144
+        }
        }
       }
      ]

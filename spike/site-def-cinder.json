@@ -2258,75 +2258,60 @@
        }
       },
       {
-       "type": "para",
+       "type": "cards",
        "x": 80,
        "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "By tram",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 216,
-       "w": 320,
-       "h": 72,
-       "text": "New Islington stop, then five minutes along the canal.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "On foot",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 216,
-       "w": 320,
-       "h": 72,
-       "text": "Ten minutes from Piccadilly station, up Great Ancoats Street.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "Step-free",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 216,
-       "w": 320,
-       "h": 72,
-       "text": "One level from the street door to the table, and a step-free loo.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
+       "w": 1040,
+       "h": 120,
+       "cards": {
+        "items": [
+         {
+          "t": "By tram",
+          "d": "New Islington stop, then five minutes along the canal."
+         },
+         {
+          "t": "On foot",
+          "d": "Ten minutes from Piccadilly station, up Great Ancoats Street."
+         },
+         {
+          "t": "Step-free",
+          "d": "One level from the street door to the table, and a step-free loo."
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 0,
+        "titles": 1,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 16,
+           "fw": 600
+          }
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "gap": 24,
+         "minH": 120
+        }
        }
       }
      ]

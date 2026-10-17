@@ -4086,6 +4086,26 @@
       return 'k/t/d/link, type, box, featured, h2';
     });
 
+    test('Cards: a site definition can name a set directly, in its own words or a definition’s, with a rule over each card', function () {
+      var made = G.fillTake({ name: 'Steps', els: [
+        { type: 'para', x: 80, y: 96, w: 600, h: 24, text: 'How it works' },
+        { type: 'cards', x: 80, y: 168, w: 1040, h: 200, cards: { layout: 'g3', look: 'open', pic: 'none', items: [
+          { title: 'Pour', text: 'Slowly.', above: 'Step one' }, { title: 'Cure', text: 'Two weeks.', above: 'Step two' }, { title: 'Trim', text: 'By hand.', above: 'Step three' }],
+          extras: { k: 1 }, box: { look: 'open', rule: 36, gap: 10 } } }] });
+      var set = made && made.els.filter(function (e) { return e.cards; })[0];
+      expect(set && set.type === 'widget' && set.cards.items.length === 3, 'the definition’s cards piece should arrive as one set of three');
+      expect(set.cards.items.map(function (it) { return it.k + ':' + it.t + ':' + it.d; }).join('|') === 'Step one:Pour:Slowly.|Step two:Cure:Two weeks.|Step three:Trim:By hand.', 'friendly words should map onto the parts: ' + set.cards.items.map(function (it) { return it.k + ':' + it.t; }).join('|'));
+      expect(/gogh-cs-k/.test(set.wsrc) && /gogh-cardset-g3/.test(set.wsrc), 'the set should be composed, ready to publish');
+      var own = G.fillTake({ els: [{ type: 'cards', x: 80, y: 100, w: 700, h: 300, cards: { layout: 'g2', items: [{ t: 'A', d: 'a', role: 'one' }, { t: 'B', d: 'b', role: 'two' }], extras: { role: 1 } } }] });
+      var set2 = own.els[0];
+      expect(set2.cards.items[1].role === 'two' && set2.cards.layout === 'g2', 'a set in its own words keeps them');
+      G.addSection(made, 0);
+      var s0 = contentSecs()[0];
+      expect(/border-top: 1px solid/.test(s0.styleEl.textContent), 'a rule over each card should reach the section CSS');
+      expect(!G.fillTake({ els: [{ type: 'cards', x: 0, y: 0, w: 400, h: 200, cards: { items: [] } }] }), 'a cards piece with no items draws nothing');
+      return 'friendly + own words, rule';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;

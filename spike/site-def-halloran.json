@@ -364,75 +364,60 @@
        }
       },
       {
-       "type": "para",
+       "type": "cards",
        "x": 80,
        "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "01 — Read it first",
-       "tf": {
-        "fs": 15,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 216,
-       "w": 320,
-       "h": 96,
-       "text": "Every book is read before it is set. The design comes from the text, not from a template.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "02 — One typeface, used well",
-       "tf": {
-        "fs": 15,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 216,
-       "w": 320,
-       "h": 96,
-       "text": "Most books need one family and a lot of patience. Ornament is the last resort, not the first.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "03 — Proofs on paper",
-       "tf": {
-        "fs": 15,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 216,
-       "w": 320,
-       "h": 96,
-       "text": "Nothing is signed off on a screen. The final proof is printed, held, and read in a chair.",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+       "w": 1040,
+       "h": 144,
+       "cards": {
+        "items": [
+         {
+          "t": "01 — Read it first",
+          "d": "Every book is read before it is set. The design comes from the text, not from a template."
+         },
+         {
+          "t": "02 — One typeface, used well",
+          "d": "Most books need one family and a lot of patience. Ornament is the last resort, not the first."
+         },
+         {
+          "t": "03 — Proofs on paper",
+          "d": "Nothing is signed off on a screen. The final proof is printed, held, and read in a chair."
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 0,
+        "titles": 1,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "gap": 24,
+         "minH": 144
+        }
        }
       }
      ]
