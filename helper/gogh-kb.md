@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.756 · knowledge base 4204f31.
+Generated for plugin version 0.99.757 · knowledge base efc6325.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Cards has a Ledger layout (v0.99.757).** Ledger lays a set out as ruled rows in columns, for menus, schedules, work lists and itineraries. From left to right: the line above the title (a time or a year) as a narrow lead column, the title, the words, and a value on the right (the price, or the name-and-role line when there is no price, such as a room or a place). Columns follow the parts that are switched on; a set with no words drops that column. Adding a row is Add card, and the + between rows works too. On a phone each row stacks: lead, title and value on one line, the words under them. Choose it from the set's Layout.
+
 **Blueprints use Cards, and a site definition can name a set (v0.99.756).** Twelve sections in the site-definition blueprints are now Cards sets: Northern Blocks' speakers, tickets and "Good to know"; Seventy South's camps; Ferro & Lane's approach, beliefs and partners; Halloran's approach; The Violet Hour's candle steps; Cinder's "Getting here"; and Rosa & Tom's "Good to know". A definition names a set as a piece `{ "type": "cards", "x", "y", "w", "h", "cards": { "layout", "look", "pic", "items": [...] } }`. Items can use the set's own words (`t`, `d`, `k`, `role`, `n`, `price`, `link`, `href`, `img`) or friendlier ones (`title`, `text`, `above`, `name`, `role`, `note`, `price`, `button`, `link`, `image`). A set can also carry a hairline over each card (`box.rule`). Misprint's rack (its riso print styles), Verditer's swatches and Plinth's contributors stay freeform for now.
 
 **The starters use Cards (v0.99.755).** The card rows in the starter sites are now Cards sets rather than separate freeform boxes: Elliot Grey's "What I make", the cake shop's prices and kind words, the ceramics reviews, Halcyon's portfolio and testimonials, and the life coach's topics, stories, kind words and prices. They look as before, but you can add, move and restyle the cards as one set. The ceramics "Seconds Saturday / Kiln notes" pair stays freeform because its two cards are different.
@@ -1121,11 +1123,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.756**
+- Plugin version: **0.99.757**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.756`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.757`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1738,4 +1740,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`379` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`380` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

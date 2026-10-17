@@ -5084,6 +5084,12 @@ html.gogh-editing:has(.gogh-cs-card.is-lifting) { cursor: grabbing; user-select:
 .gogh-cldraw .cl-rule:last-child { border-bottom: 1px solid #cfc8e1; }
 .gogh-cldraw .cl-index .cl-w1 { width: 52%; height: 4px; background: #9f97b8; }
 .gogh-cldraw .cl-arrow { font-size: 8px; color: #6b6380; line-height: 1; }
+.gogh-cldraw .cl-ledger .cl-rule { justify-content: flex-start; gap: 4px; }
+.gogh-cldraw .cl-ledger .cl-lead { width: 10%; height: 4px; background: #6b6380; border-radius: 2px; }
+.gogh-cldraw .cl-ledger .cl-w1 { width: 30%; }
+.gogh-cldraw .cl-ledger .cl-w2 { width: 30%; height: 3px; background: #cfc8e1; border-radius: 2px; }
+.gogh-cldraw .cl-ledger .cl-val { width: 10%; height: 4px; margin-left: auto; background: #9f97b8; border-radius: 2px; }
+.gogh-cldraw-mini .cl-ledger .cl-lead, .gogh-cldraw-mini .cl-ledger .cl-val { display: none; }
 .gogh-cldraw .cl-small { justify-content: space-around; align-items: center; }
 .gogh-cldraw .cl-dot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .gogh-cldraw .cl-dot .cl-pic { width: 22px; height: 22px; border-radius: 50%; }

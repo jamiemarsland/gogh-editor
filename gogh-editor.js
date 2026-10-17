@@ -792,11 +792,13 @@
     var b = c.box;
     if (b && b.look === c.look) {
       if (b.bg) out.push(base + ' .gogh-cs-card:not(.is-featured) { background: ' + b.bg + ' !important; }');
-      if (b.radius != null) out.push(base + ' .gogh-cardset:not(.gogh-cardset-index) > .gogh-cs-card { border-radius: ' + b.radius + 'px !important; }');
+      if (b.radius != null) out.push(base + ' .gogh-cardset:not(.gogh-cardset-index):not(.gogh-cardset-ledger) > .gogh-cs-card { border-radius: ' + b.radius + 'px !important; }');
       // padding and spacing grow with the set, as the freeform card's did
       // (its pieces sat in section units), with a floor for phones
       var cq = function (v) { return (v * 100 / Math.max(80, e.w)).toFixed(2) + 'cqw'; };
-      if (b.pad != null) out.push(base + ' .gogh-cs-card .gogh-cs-body { padding: max(' + Math.min(b.pad, 16) + 'px, ' + cq(b.pad) + ') !important; }');
+      // (a ledger's padding is the space above and below each row)
+      if (b.pad != null && c.layout === 'ledger') out.push(base + ' .gogh-cardset-ledger > .gogh-cs-card { padding: 0 !important; } ' + base + ' .gogh-cardset-ledger .gogh-cs-body { padding: max(8px, ' + cq(b.pad) + ') 0 !important; }');
+      else if (b.pad != null) out.push(base + ' .gogh-cs-card .gogh-cs-body { padding: max(' + Math.min(b.pad, 16) + 'px, ' + cq(b.pad) + ') !important; }');
       if (b.gap != null) out.push(base + ' .gogh-cs-body { gap: max(' + Math.min(b.gap, 6) + 'px, ' + cq(b.gap) + '); }');
       if (b.minH && !(c.layout === 'over' && b.ratio)) out.push(base + ' .gogh-cardset > .gogh-cs-card { min-height: ' + (b.minH * 100 / Math.max(80, e.w)).toFixed(2) + 'cqw; }');
       if (b.tight && b.gap != null) Object.keys(b.tight).forEach(function (f) {
@@ -7229,6 +7231,7 @@
     slider: '<i class="cl-row cl-slide">' + '<i class="cl-card"></i>'.repeat(4) + '<i class="cl-next">›</i></i>',
     big: '<i class="cl-big"><i class="cl-pic"></i><i class="cl-card"></i><i class="cl-card"></i></i>',
     index: '<i class="cl-col cl-index">' + '<i class="cl-rule"><i class="cl-w1"></i><i class="cl-arrow">→</i></i>'.repeat(3) + '</i>',
+    ledger: '<i class="cl-col cl-index cl-ledger">' + '<i class="cl-rule"><i class="cl-lead"></i><i class="cl-w1"></i><i class="cl-w2"></i><i class="cl-val"></i></i>'.repeat(3) + '</i>',
     small: '<i class="cl-row cl-small">' + '<i class="cl-dot"><i class="cl-pic"></i><i class="cl-w1"></i></i>'.repeat(3) + '</i>',
   };
   // Layout and Style are pages of the docked sidebar, the page shrunk
@@ -11596,6 +11599,7 @@
     ['slider', 'Slider', 'A row that scrolls sideways.'],
     ['big', 'One big', 'The first card leads, the rest sit beside it.'],
     ['index', 'Index', 'Just the titles, ruled.'],
+    ['ledger', 'Ledger', 'Ruled rows in columns: a time or year, a title, words, a price or place.'],
     ['small', 'Small and centred', 'Round pictures, centred words.'],
   ];
   var CARD_LOOKS = [['open', 'Open'], ['panel', 'Panel'], ['outline', 'Outline'], ['raised', 'Raised']];
@@ -11699,6 +11703,8 @@
       ' gogh-cardset-al-' + align + (c.feat >= 0 ? ' gogh-cardset-feat' : '') +
       (c.round ? ' gogh-cardset-round' : '') + (c.titles ? '' : ' gogh-cardset-notitle') +
       (c.linkStyle === 'text' ? ' gogh-cardset-link-text' : '') +
+      // which extras are on (the ledger sets its columns by them)
+      ['k', 'price', 'role', 'n'].map(function (x) { return c.extras[x] ? ' gogh-cardset-x-' + x : ''; }).join('') +
       // a set with no words under its titles (photo cards): the canvas keeps
       // the prompt for when the set is chosen
       (c.titles && c.items.length && !c.items.some(function (it) { return it.d; }) ? ' gogh-cardset-nod' : '') +

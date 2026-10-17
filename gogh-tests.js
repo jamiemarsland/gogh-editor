@@ -4106,6 +4106,22 @@
       return 'friendly + own words, rule';
     });
 
+    test('Cards: the Ledger lays a set out as ruled rows in columns, by the parts that are on', function () {
+      var made = G.fillTake({ els: [{ type: 'cards', x: 80, y: 120, w: 1040, h: 240, cards: { layout: 'ledger', look: 'open', pic: 'none', extras: { k: 1, role: 1 },
+        items: [{ k: '09:30', t: 'Doors', d: 'Coffee', role: 'Foyer' }, { k: '10:00', t: 'A talk', d: 'Maya Reid', role: 'Main hall' }] } }] });
+      var set = made.els[0];
+      expect(/gogh-cardset-ledger/.test(set.wsrc) && /gogh-cardset-x-k/.test(set.wsrc) && /gogh-cardset-x-role/.test(set.wsrc), 'the set should carry the ledger and its extras as classes');
+      expect(G.cards.layouts.some(function (L) { return L[0] === 'ledger'; }), 'Ledger should be one of the layouts to choose');
+      G.addSection(made, 0);
+      var s0 = contentSecs()[0], n = s0.nodes[s0.els.findIndex(function (e) { return e.cards; })];
+      var body = n.querySelector('.gogh-cs-body'), st = getComputedStyle(body);
+      expect(st.display === 'grid' && /k/.test(st.gridTemplateAreas) && /v/.test(st.gridTemplateAreas), 'each row should be a grid of lead, title, words and value: ' + st.gridTemplateAreas);
+      var role = n.querySelector('.gogh-cs-role'), t = n.querySelector('.gogh-cs-t');
+      expect(role.getBoundingClientRect().right > t.getBoundingClientRect().right + 100, 'the room should sit at the right of its row');
+      expect(Math.abs(role.getBoundingClientRect().top - t.getBoundingClientRect().top) < 12, 'the room should sit on the title’s line');
+      return 'ledger grid';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
