@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.754 · knowledge base 703bb9e.
+Generated for plugin version 0.99.755 · knowledge base b8f80b1.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The starters use Cards (v0.99.755).** The card rows in the starter sites are now Cards sets rather than separate freeform boxes: Elliot Grey's "What I make", the cake shop's prices and kind words, the ceramics reviews, Halcyon's portfolio and testimonials, and the life coach's topics, stories, kind words and prices. They look as before, but you can add, move and restyle the cards as one set. The ceramics "Seconds Saturday / Kiln notes" pair stays freeform because its two cards are different.
+
 **Cards keep the type of the cards they are made from (v0.99.754).** When a row of matching freeform cards becomes a Cards set, each part keeps its look: the title's size, weight and face, the words, the name and its note, the price, the link. The card keeps its colour, corners, padding and height, buttons keep their full width, photo cards keep their columns and shape, and a name under a quote stays at the foot. A card can now carry two more parts, switched on from the set's ••• menu: "A line above the title" (a small label like "Spring" or "Step one") and "A small note" (a date, a size, a place). Badges are not carried over.
 
 **The take count reads small again (v0.99.753).** The "1/4" beside the die on a section's bar now uses the bar's own small type; on some themes it had picked up the site's large body text.
@@ -1117,11 +1119,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.754**
+- Plugin version: **0.99.755**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.754`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.755`). Quote the plugin header version.
 
 ## Design constants
 
