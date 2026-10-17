@@ -5263,7 +5263,9 @@
           var cardHit2 = ev.target.closest && ev.target.closest('.gogh-cs-card[data-ck]');
           exitTextEdit();
           if (cardHit2) focusCard(sec, i, +cardHit2.dataset.ck); else unfocusCard();
-          if (nextLeaf) enterTextEdit(sec, i, ev);
+          var linkHit2 = ev.target.closest && ev.target.closest('.gogh-cs-link a, .gogh-cs-btns .wp-block-button__link');
+          if (linkHit2 && cardHit2) openCardLinkBar(sec, i, +cardHit2.dataset.ck, linkHit2);
+          else if (nextLeaf) enterTextEdit(sec, i, ev);
           else if (picHit) openCardPicPop(sec, i, +picHit.dataset.ck, picHit);
         }
         return; // native caret/selection
@@ -5341,6 +5343,8 @@
         var cardHit = ev.target && ev.target.closest ? ev.target.closest('.gogh-cs-card[data-ck]') : null;
         if (!cardHit || !pd.node.contains(cardHit)) { unfocusCard(); return; }
         focusCard(pd.sec, pd.i, +cardHit.dataset.ck);
+        var linkHit = ev.target.closest('.gogh-cs-link a, .gogh-cs-btns .wp-block-button__link');
+        if (linkHit && cardHit.contains(linkHit)) { openCardLinkBar(pd.sec, pd.i, +cardHit.dataset.ck, linkHit); return; }
         if (cardsLeafAt(pd.sec, pd.i, ev)) { enterTextEdit(pd.sec, pd.i, ev); return; }
         var picAt = ev.target.closest('[data-cpic]');
         if (picAt) openCardPicPop(pd.sec, pd.i, +picAt.dataset.ck, picAt);
@@ -7228,6 +7232,115 @@
       placeCardPop();
     };
     paint();
+  }
+  // ---------- a card's link, where the link is ----------
+  // (James: 'its impossible to add links to the link'): a press on a card's
+  // link or button opens a bar right under it with its words, where it
+  // goes, and the site's pages to pick from
+  var cardPagesCache = null;
+  function cardSitePages() {
+    if (cardPagesCache) return cardPagesCache;
+    cardPagesCache = fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/pages?per_page=12&orderby=menu_order&order=asc&_fields=title,link', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (list) {
+        return (list || []).map(function (pg) {
+          var path = '/';
+          try { path = new URL(pg.link).pathname; } catch (err) {}
+          return { name: plainTitle((pg.title && pg.title.rendered) || 'Untitled'), path: path };
+        });
+      });
+    return cardPagesCache;
+  }
+  function cardHrefShown(h) {
+    h = String(h || '');
+    try { var u = new URL(h, location.href); if (u.origin === location.origin) return u.pathname + u.search + u.hash; } catch (err) {}
+    return h.replace(/^https?:\/\//, '');
+  }
+  function openCardLinkBar(sec, i, k, anchor) {
+    var e = sec.els[i], c = e.cards = cardsNorm(e.cards), it = c.items[k];
+    if (!it) return;
+    var isBtn = c.act === 'button';
+    var p = openCardPop(anchor, 'gogh-cardpop-linkbar', isBtn ? 'This card\u2019s button' : 'This card\u2019s link');
+    p.innerHTML = '<div class="gogh-cardpop-head"><b>' + (isBtn ? 'Button' : 'Link') + '</b><span>This card only</span></div>' +
+      '<label class="gogh-cardpop-field">Words<input type="text" class="gogh-input gogh-lb-words" value="' + escAttr(it.link || '') + '" placeholder="' + (isBtn ? 'Book a session' : 'Find out more') + '" /></label>' +
+      '<label class="gogh-cardpop-field">Goes to<input type="text" class="gogh-input gogh-lb-href" value="' + escAttr(it.href || '') + '" placeholder="https://\u2026 or /a-page" /></label>' +
+      '<div class="gogh-cardpop-pages"><span class="gogh-cardpop-lab">Your pages</span></div>' +
+      (it.href ? '<button type="button" class="gogh-cardpop-link is-danger" data-act="unlink">Remove the address</button>' : '');
+    var words = p.querySelector('.gogh-lb-words'), href = p.querySelector('.gogh-lb-href');
+    var leaf = function () { var n = sec.nodes && sec.nodes[sec.els.indexOf(e)]; return n && n.querySelector('[data-ck="' + k + '"][data-cf="link"]'); };
+    var keepWords = function () {
+      var v = words.value.replace(/\s+/g, ' ').trim();
+      if (v === (it.link || '')) return;
+      it.link = v;
+      cardsApply(sec, e);
+    };
+    var keepHref = function (v) {
+      var h = cardsHref(v);
+      if (h === (it.href || '')) return;
+      it.href = h;
+      href.value = h;
+      // an address with no words would be invisible: it gets a few
+      if (h && !it.link) { it.link = isBtn ? 'Find out more' : 'Find out more'; words.value = it.link; }
+      cardsApply(sec, e);
+      toast(h ? 'This card now goes to ' + cardHrefShown(h) : 'The address is gone; the words stay.');
+    };
+    words.addEventListener('input', function () { var l = leaf(); if (l) { l.textContent = words.value; l.removeAttribute('data-ph'); } });
+    words.addEventListener('change', keepWords);
+    words.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); keepWords(); href.focus(); } });
+    href.addEventListener('change', function () { keepHref(href.value); });
+    href.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); keepHref(href.value); closeCardPop(); } });
+    var un = p.querySelector('[data-act="unlink"]');
+    if (un) un.addEventListener('click', function () { keepHref(''); closeCardPop(); });
+    var pages = p.querySelector('.gogh-cardpop-pages');
+    cardSitePages().then(function (list) {
+      if (cardPop !== p) return;
+      if (!list.length) { pages.remove(); return; }
+      list.forEach(function (pg) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-cardpop-page' + (cardsHref(it.href) === pg.path ? ' is-on' : '');
+        b.innerHTML = '<span>' + esc(pg.name) + '</span><small>' + esc(pg.path) + '</small>';
+        b.addEventListener('click', function () { keepWords(); keepHref(pg.path); closeCardPop(); });
+        pages.appendChild(b);
+      });
+      placeCardPop();
+    });
+    p.__onClose = function () { keepWords(); };
+    placeCardPop();
+    setTimeout(function () { (it.link ? href : words).focus(); }, 0);
+  }
+  // pointing at a card's link says where it goes, before anyone presses it
+  var cardTip = document.createElement('div');
+  cardTip.className = 'gogh-cardtip';
+  cardTip.hidden = true;
+  document.body.appendChild(cardTip);
+  document.addEventListener('pointermove', function (ev) {
+    if (!editing || drag || resize || cardDrag) { cardTip.hidden = true; return; }
+    var t = ev.target instanceof Element ? ev.target : null;
+    var a = t && t.closest('.gogh-cs-link a, .gogh-cs-btns .wp-block-button__link');
+    var card = a && a.closest('.gogh-cs-card[data-ck]');
+    var node = card && card.closest('.gogh-widget');
+    if (!node || (cardPop && cardPop.classList.contains('gogh-cardpop-linkbar'))) { cardTip.hidden = true; return; }
+    var at = null;
+    S.some(function (s2) { var j = s2.nodes ? s2.nodes.indexOf(node) : -1; if (j !== -1) { at = { sec: s2, i: j }; return true; } return false; });
+    var e = at && at.sec.els[at.i], it = e && e.cards && e.cards.items[+card.dataset.ck];
+    if (!it) { cardTip.hidden = true; return; }
+    cardTip.textContent = it.href ? '\u2192 ' + cardHrefShown(it.href) : 'No address yet \u2014 press it to add one';
+    cardTip.classList.toggle('is-empty', !it.href);
+    var r = a.getBoundingClientRect();
+    cardTip.hidden = false;
+    cardTip.style.left = (r.left + window.scrollX) + 'px';
+    cardTip.style.top = (r.top + window.scrollY - cardTip.offsetHeight - 8) + 'px';
+  }, true);
+  // card links that go nowhere, named for the publish toast
+  function cardLinksWithoutAddress() {
+    var out = [];
+    S.forEach(function (s2) {
+      (s2.els || []).forEach(function (e) {
+        if (!e.cards || !e.cards.items || e.cards.act === 'none') return;
+        e.cards.items.forEach(function (it, k) { if (it && it.link && !cardsHref(it.href)) out.push(it.t || ('card ' + (k + 1))); });
+      });
+    });
+    return out;
   }
   // a card's picture, chosen beside it: the library's newest, an upload,
   // the words that describe it, or none at all
@@ -11464,17 +11577,18 @@
       }
       var href = cardsHref(it.href);
       if (c.act !== 'none' && (it.link || forEditor)) {
-        var hrefAttr = ' href="' + escAttr(href || '#') + '"';
+        // (on the canvas a link with no address says so: see the CSS)
+        var hrefAttr = ' href="' + escAttr(href || '#') + '"' + (forEditor && !href ? ' data-nohref="1"' : '');
         if (c.act === 'button' && c.layout !== 'index') {
           // beside a featured card the others' buttons step back to outlines
           var quiet = c.feat >= 0 && !feat;
           out += cm(true, 'buttons', { className: 'gogh-cs-btns' }) + '<div class="wp-block-buttons gogh-cs-btns">' +
             cm(true, 'button', quiet ? { className: 'is-style-outline' } : null) + '<div class="wp-block-button' + (quiet ? ' is-style-outline' : '') + '"><a class="wp-block-button__link wp-element-button"' + hrefAttr + '>' +
-            field(k, 'link', it.link || '', 'Button') + '</a></div>' + cm(false, 'button') +
+            field(k, 'link', it.link || '', 'Add a button') + '</a></div>' + cm(false, 'button') +
             '</div>' + cm(false, 'buttons');
         } else {
           out += cm(true, 'paragraph', { className: 'gogh-cs-link' }) +
-            '<p class="gogh-cs-link"><a' + hrefAttr + '>' + field(k, 'link', it.link || '', 'Link') + '</a></p>' + cm(false, 'paragraph');
+            '<p class="gogh-cs-link"><a' + hrefAttr + '>' + field(k, 'link', it.link || '', 'Add a link') + '</a></p>' + cm(false, 'paragraph');
         }
       }
       out += '</div>' + cm(false, 'group') + '</div>' + cm(false, 'group');
@@ -23505,7 +23619,7 @@
     composeCarousel: composeCarousel,
     composeWall: composeWall,
     cards: { compose: composeCards, norm: cardsNorm, act: cardsDo, fit: fitCards, menu: openCardMenu, layouts: CARD_LAYOUTS,
-      pop: function () { return cardPop; }, focus: function () { return cardFocus; }, drop: function () { sel = null; hideHandles(); }, ghost: function () { return cardGhost; }, chip: function () { return cardChip; }, pic: openCardPicPop },
+      pop: function () { return cardPop; }, focus: function () { return cardFocus; }, drop: function () { sel = null; hideHandles(); }, nowhere: function () { return cardLinksWithoutAddress(); }, ghost: function () { return cardGhost; }, chip: function () { return cardChip; }, pic: openCardPicPop },
     mediaPool: mediaPool,
     tplEls: tplEls,
     elDefaults: function () { return DEFAULTS; },
@@ -24853,6 +24967,13 @@
       // (James); it lives in the SEO panel, which explains it
       setChip('clean', '');
       chipTimer = setTimeout(refreshChip, 2600);
+      // published, with a word about card links that go nowhere yet (warn,
+      // never block: the page is live either way)
+      var nowhere = cardLinksWithoutAddress();
+      if (nowhere.length) {
+        toast('Published. ' + (nowhere.length === 1 ? 'One card link has' : nowhere.length + ' card links have') + ' no address yet, so ' + (nowhere.length === 1 ? 'it goes' : 'they go') + ' nowhere: ' +
+          nowhere.slice(0, 3).map(function (t) { return '\u201c' + String(t).slice(0, 30) + '\u201d'; }).join(', ') + (nowhere.length > 3 ? '\u2026' : '') + '. Press a card\u2019s link to add one.', { ttl: 9000 });
+      }
       return true;
     }).catch(function (err) {
       chipBusy = false;

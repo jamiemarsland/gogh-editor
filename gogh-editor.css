@@ -5202,3 +5202,25 @@ html.gogh-editing:has(.gogh-cs-card.is-lifting) { cursor: grabbing; user-select:
 .gogh-eb-cardstrail:hover .gogh-trail-set { color: #2743c4; text-decoration-color: currentColor; }
 /* a set's tag rides above the set, like the pointing outline's */
 .gogh-selbox-tag.is-set { left: -2px; top: -26px; border-radius: 6px 6px 0 0; padding: 4px 9px; font-weight: 600; font-size: 12px; box-shadow: none; }
+/* a card's link, where the link is */
+.gogh-cardpop-linkbar { width: 320px; gap: 10px; }
+.gogh-cardpop-pages { display: flex; flex-direction: column; margin: 0 -4px; }
+.gogh-cardpop-pages .gogh-cardpop-lab { padding: 2px 8px 6px; margin: 0; }
+.gogh-cardpop-page { all: unset; box-sizing: border-box; cursor: pointer; display: flex; justify-content: space-between; gap: 12px; padding: 7px 8px; border-radius: 6px; font-size: 13.5px; }
+.gogh-cardpop-page small { color: #6b6b76; font-size: 12px; }
+.gogh-cardpop-page:hover, .gogh-cardpop-page.is-on { background: #f2f4fe; }
+.gogh-cardpop-page:focus-visible { outline: 2px solid #3858e9; outline-offset: -2px; }
+.gogh-cardtip { position: absolute; z-index: 100004; pointer-events: none; background: #1d1d20; color: #fff; font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 6px 9px; border-radius: 6px; white-space: nowrap; }
+.gogh-cardtip.is-empty { background: #7a4a00; }
+.gogh-cardtip[hidden] { display: none; }
+/* on the canvas, a link with words and no address says so */
+html.gogh-editing .gogh-cs-link:has(a[data-nohref] [data-cf]:not(:empty))::after,
+html.gogh-editing .gogh-cs-btns:has(a[data-nohref] [data-cf]:not(:empty))::after {
+  content: "No address yet"; display: inline-block; margin-left: 10px; vertical-align: middle;
+  font: 600 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 0; text-transform: none;
+  color: #7a4a00; background: #fff4e0; border-radius: 999px; padding: 4px 8px;
+}
+html.gogh-editing .gogh-cs-btns:has(a[data-nohref] [data-cf]:not(:empty)) { display: flex; align-items: center; flex-wrap: wrap; }
+html.gogh-editing .gogh-cs-link a, html.gogh-editing .gogh-cs-btns .wp-block-button__link { cursor: pointer; }
+.gogh-cardpop .gogh-cardpop-field:focus-within { outline: none; }
+.gogh-cardpop .gogh-cardpop-field input:focus { outline: none; border-color: #3858e9; box-shadow: 0 0 0 1px #3858e9; }

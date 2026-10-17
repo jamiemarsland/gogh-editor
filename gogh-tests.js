@@ -4013,6 +4013,27 @@
       return 'point → set → card → set';
     });
 
+    test('Cards: a press on a card\u2019s link opens its link bar; an address keeps; links with none are named', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      var a = n.querySelector('.gogh-cs-card[data-ck="0"] .gogh-cs-link a');
+      expect(a && a.hasAttribute('data-nohref'), 'a link with no address should say so on the canvas');
+      var r = a.getBoundingClientRect();
+      pev('pointerdown', a, r.x + 3, r.y + 3); pev('pointerup', a, r.x + 3, r.y + 3);
+      var pop = G.cards.pop();
+      expect(pop && pop.classList.contains('gogh-cardpop-linkbar'), 'the second press on a card\u2019s link should open its link bar');
+      var before = G.cards.nowhere().length;
+      var h = pop.querySelector('.gogh-lb-href');
+      h.value = 'example.com/book';
+      h.dispatchEvent(new Event('change', { bubbles: true }));
+      expect(e.cards.items[0].href === 'https://example.com/book' && /href="https:\/\/example.com\/book"/.test(e.wsrc), 'the address should keep, made whole: ' + e.cards.items[0].href);
+      expect(G.cards.nowhere().length === before - 1, 'publish should no longer name that card');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return 'link bar, address kept, ' + G.cards.nowhere().length + ' still to fill';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;

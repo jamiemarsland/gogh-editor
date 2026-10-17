@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.749**
+- Plugin version: **0.99.750**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.749`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.750`). Quote the plugin header version.
 
 ## Design constants
 
@@ -421,6 +421,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove image"
 - "Remove link (keep the text)"
 - "Remove poster"
+- "Remove the address"
 - "Remove this ' + labels.one + '"
 - "Remove this photo"
 - "Remove this slide"
@@ -552,6 +553,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
+- "Published. "
 - "Removed from the card."
 - "Restored the version from "
 - "Saved — search results and AI answers now quote your words ✓"
@@ -618,5 +620,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`375` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`376` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

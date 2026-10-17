@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.749 · knowledge base b6173ce.
+Generated for plugin version 0.99.750 · knowledge base 4bc6008.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A card's link, where the link is (v0.99.750).** Press a card's link or button (with the set chosen) and a small bar opens right under it: Words, Goes to (an address or a page like /contact/), and Your pages to pick from. Pointing at a card's link shows where it goes ("→ /contact/") before you press it. An empty link reads "Add a link" (or "Add a button"), and a link with words but no address carries a "No address yet" marker on the canvas. When you publish, gogh names any card links that still go nowhere, so you can fix them; the page publishes either way. A card's ••• menu still has Link as a second way in.
+
 **Choosing a card set, then one card (v0.99.749).** Point at a card set and the whole set is outlined and named ("Cards · 3"). The first press chooses the set, with its bar. A second press goes into the card it lands on: a ring round that card, its handle (a grip to drag it, ••• for its menu) on its corner, and "Cards › Card 2" at the start of the bar. Pressing a card's words also puts the caret there; pressing its picture opens the picture chooser. Esc steps out one level at a time: the words, then the card, then the set. Clicking "Cards" on the bar goes back to the whole set too. Choosing a layout built around pictures (Small and centred, On the photo, One big) on a set with Picture set to None now switches pictures on, and each card without one shows a spot to choose it.
 
 **Cards: one bar, no trips to the sidebar (v0.99.748).** A chosen card set's bar is now Layout, Style, + Add card and •••. Layout opens a small panel of drawings of every layout: point at one to try it on the page, click to keep it. Style holds everything about how each card looks: the card look (Open, Panel, Outline, Raised), rounded corners, the picture shape, left or centred words, what each card ends with, and titles on or off. ••• holds the extras (a price, a name and role, one featured card), All cards as a list (the side panel), and Duplicate or Delete the set. The cards edit themselves: a dashed Add card sits after the last card, a card's handle has a grip to drag it to another place in the set, clicking a card's picture opens a picture chooser beside it (your newest pictures, Upload, the alt text, or no picture), and a card's ••• menu has Link, where you type an address or pick one of your pages. There is no Edit cards button any more.
@@ -1107,11 +1109,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.749**
+- Plugin version: **0.99.750**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.749`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.750`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1524,6 +1526,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove image"
 - "Remove link (keep the text)"
 - "Remove poster"
+- "Remove the address"
 - "Remove this ' + labels.one + '"
 - "Remove this photo"
 - "Remove this slide"
@@ -1655,6 +1658,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
+- "Published. "
 - "Removed from the card."
 - "Restored the version from "
 - "Saved — search results and AI answers now quote your words ✓"
@@ -1721,4 +1725,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`375` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`376` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
