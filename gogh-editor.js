@@ -767,6 +767,12 @@
       else d.push('font-size: var(--wp--preset--font-size--' + spec.fs + ') !important');
     }
     if (tf.ff) d.push('font-family: ' + tf.ff);
+    else if (spec.body) d.push('font-family: inherit !important');
+    if (spec.body) {
+      if (tf.fw == null) d.push('font-weight: 400');
+      if (tf.ls == null && tf.ls2 == null) d.push('letter-spacing: normal');
+      if (!tf.tt) d.push('text-transform: none');
+    }
     if (tf.fs2) d.push('font-size: max(' + (tf.fs2 * k).toFixed(3) + 'cqw, ' + (tf.fsMin || Math.min(Math.round(tf.fs2 * 12), 15)) + 'px) !important');
     else if (tf.fs) d.push('font-size: ' + tf.fs + 'px !important');
     if (tf.fw) d.push('font-weight: ' + tf.fw);
@@ -11624,6 +11630,8 @@
     var out = {};
     if (spec.fs && /^[a-z0-9_-]{1,40}$/i.test(String(spec.fs))) out.fs = String(spec.fs);
     if (spec.tag === 'h2') out.tag = 'h2';
+    // a title that was a paragraph keeps the words' face, not the headings'
+    if (spec.body) out.body = 1;
     if (spec.tf && typeof spec.tf === 'object') {
       var tf = {};
       CARD_TF_KEYS.forEach(function (k) {
@@ -11900,6 +11908,7 @@
       if (b === ref) {
         refMap = map;
         ['k', 't', 'd', 'role', 'n', 'price'].forEach(function (f) { if (map[f]) type[f] = spec(map[f], f === 't' && map[f].type === 'heading' ? 'h2' : null); });
+        if (type.t && map.t && map.t.type === 'para') type.t.body = 1;
         if (map.link) type.link = spec(map.link);
       }
       if (map.btn) act = 'button';

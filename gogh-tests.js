@@ -4091,7 +4091,7 @@
         { type: 'para', x: 80, y: 96, w: 600, h: 24, text: 'How it works' },
         { type: 'cards', x: 80, y: 168, w: 1040, h: 200, cards: { layout: 'g3', look: 'open', pic: 'none', items: [
           { title: 'Pour', text: 'Slowly.', above: 'Step one' }, { title: 'Cure', text: 'Two weeks.', above: 'Step two' }, { title: 'Trim', text: 'By hand.', above: 'Step three' }],
-          extras: { k: 1 }, box: { look: 'open', rule: 36, gap: 10 } } }] });
+          extras: { k: 1 }, type: { t: { tf: { fs: 16 }, body: 1 } }, box: { look: 'open', rule: 36, gap: 10 } } }] });
       var set = made && made.els.filter(function (e) { return e.cards; })[0];
       expect(set && set.type === 'widget' && set.cards.items.length === 3, 'the definition’s cards piece should arrive as one set of three');
       expect(set.cards.items.map(function (it) { return it.k + ':' + it.t + ':' + it.d; }).join('|') === 'Step one:Pour:Slowly.|Step two:Cure:Two weeks.|Step three:Trim:By hand.', 'friendly words should map onto the parts: ' + set.cards.items.map(function (it) { return it.k + ':' + it.t; }).join('|'));
@@ -4102,6 +4102,7 @@
       G.addSection(made, 0);
       var s0 = contentSecs()[0];
       expect(/border-top: 1px solid/.test(s0.styleEl.textContent), 'a rule over each card should reach the section CSS');
+      expect(/\.gogh-cs-t \{[^}]*font-family: inherit !important/.test(s0.styleEl.textContent), 'a title that was a paragraph should keep the words\u2019 face');
       expect(!G.fillTake({ els: [{ type: 'cards', x: 0, y: 0, w: 400, h: 200, cards: { items: [] } }] }), 'a cards piece with no items draws nothing');
       return 'friendly + own words, rule';
     });

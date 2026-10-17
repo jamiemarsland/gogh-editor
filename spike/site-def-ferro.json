@@ -214,7 +214,8 @@
           "tf": {
            "fs": 16,
            "fw": 500
-          }
+          },
+          "body": 1
          },
          "role": {
           "tf": {
@@ -225,7 +226,7 @@
         },
         "box": {
          "look": "open",
-         "pad": 24,
+         "pad": 18,
          "gap": 4,
          "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 16%, transparent)"
         }
@@ -374,7 +375,8 @@
           "tf": {
            "fs": 15,
            "fw": 600
-          }
+          },
+          "body": 1
          },
          "d": {
           "tf": {
@@ -570,7 +572,8 @@
           "tf": {
            "fs": 16,
            "fw": 500
-          }
+          },
+          "body": 1
          },
          "role": {
           "tf": {
@@ -581,7 +584,7 @@
         },
         "box": {
          "look": "open",
-         "pad": 24,
+         "pad": 18,
          "gap": 4,
          "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 16%, transparent)"
         }
@@ -802,7 +805,8 @@
           "tf": {
            "fs": 15,
            "fw": 600
-          }
+          },
+          "body": 1
          },
          "d": {
           "tf": {

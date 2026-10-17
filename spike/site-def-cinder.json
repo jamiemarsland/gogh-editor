@@ -191,7 +191,8 @@
           "tf": {
            "fs": 17,
            "fw": 500
-          }
+          },
+          "body": 1
          },
          "d": {
           "tf": {
@@ -207,7 +208,7 @@
         },
         "box": {
          "look": "open",
-         "pad": 24,
+         "pad": 18,
          "gap": 4,
          "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)"
         }
@@ -1641,7 +1642,8 @@
           "tf": {
            "fs": 16,
            "fw": 500
-          }
+          },
+          "body": 1
          },
          "d": {
           "tf": {
@@ -1658,7 +1660,7 @@
         },
         "box": {
          "look": "open",
-         "pad": 24,
+         "pad": 18,
          "gap": 4,
          "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)"
         }
@@ -1967,7 +1969,8 @@
           "tf": {
            "fs": 16,
            "fw": 600
-          }
+          },
+          "body": 1
          },
          "d": {
           "tf": {

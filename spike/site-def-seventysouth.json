@@ -335,7 +335,7 @@
         },
         "box": {
          "look": "open",
-         "pad": 22,
+         "pad": 16,
          "gap": 4,
          "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)"
         }
