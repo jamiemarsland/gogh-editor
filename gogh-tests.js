@@ -4350,6 +4350,32 @@
       return 'style wins over outline';
     });
 
+    test('Cards: titles on a photo and on the featured card stay readable when the theme colours its headings', function () {
+      var themeInk = document.createElement('style');
+      themeInk.textContent = 'h1, h2, h3, h4 { color: rgb(30, 20, 60) !important; }';
+      document.head.appendChild(themeInk);
+      var s0 = sec(), n0 = s0.els.length;
+      try {
+        var e = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+        e.cards.layout = 'over'; e.cards.feat = -1; e.cards = G.cards.norm(e.cards);
+        e.wsrc = G.cards.compose(e.cards, false); e.whtml = G.cards.compose(e.cards, true);
+        G.renderSection(s0);
+        var n = s0.nodes[s0.els.indexOf(e)], card = n.querySelector('.gogh-cs-card'), t = n.querySelector('.gogh-cs-t');
+        expect(getComputedStyle(t).color === getComputedStyle(card).color && getComputedStyle(t).color === 'rgb(255, 255, 255)', 'a title on a photo should be white, not the theme’s heading ink: ' + getComputedStyle(t).color);
+        e.cards.layout = 'g3'; e.cards.feat = 1; e.cards = G.cards.norm(e.cards);
+        e.wsrc = G.cards.compose(e.cards, false); e.whtml = G.cards.compose(e.cards, true);
+        G.renderSection(s0);
+        n = s0.nodes[s0.els.indexOf(e)];
+        var fc = n.querySelector('.gogh-cs-card.is-featured'), ft = fc.querySelector('.gogh-cs-t');
+        expect(getComputedStyle(ft).color === getComputedStyle(fc).color, 'the featured card’s title should wear the card’s ink: ' + getComputedStyle(ft).color + ' vs ' + getComputedStyle(fc).color);
+      } finally {
+        themeInk.remove();
+        G.cards.drop();
+        s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      }
+      return 'white on the photo, card ink on the featured card';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
