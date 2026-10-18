@@ -4910,13 +4910,18 @@
   function duplicateSelection() {
     if (!multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
-    var copies = diceFreshIds(idxs.map(function (j) { return JSON.parse(JSON.stringify(sec.els[j])); }));
-    copies.forEach(function (c) { c.x = Math.min(W - c.w, c.x + 24); c.y = c.y + 24; });
+    var origs = idxs.map(function (j) { return sec.els[j]; });
+    var copies = diceFreshIds(origs.map(function (o) { return JSON.parse(JSON.stringify(o)); }));
+    // as one block under the originals, what was below moving down
+    var bb = bboxOf(origs), dy = bb.h + RHYTHM;
+    makeRoomUnder(sec, bb, dy, origs);
+    copies.forEach(function (c) { c.y = c.y + dy; });
     var start = sec.els.length;
     copies.forEach(function (c) { sec.els.push(c); });
     renderSection(sec);
     setMulti(sec, copies.map(function (c, k) { return start + k; }));
     pushState();
+    toast('Duplicated, under them.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
   }
   mbar.querySelector('.gogh-mb-card').addEventListener('click', makeCardFromSelection);
   mbar.querySelector('.gogh-mb-set').addEventListener('click', makeSetFromSelection);
@@ -9053,17 +9058,64 @@
 
   elbar.querySelector('.gogh-eb-fwd').addEventListener('click', function () { layerMove(1); });
   elbar.querySelector('.gogh-eb-bck').addEventListener('click', function () { layerMove(-1); });
-  elbar.querySelector('.gogh-eb-dup').addEventListener('click', function () {
+  // ---------- arrivals: a new piece lands where the next one would go ----------
+  // (the paper 'Pieces that arrive in the right place', 2026-10-18: James,
+  // 'when we duplicate a button it should arrive aligned and next to the
+  // existing button'). What sits in a row lands beside its original, tops
+  // lined up; what stacks lands under it, and what was below moves down to
+  // make room. Never on top of anything.
+  var ARRIVE_BESIDE = { button: 1, image: 1, box: 1, icon: 1, badge: 1, line: 1, video: 1, exp: 1 };
+  function arrivalGap(type) { return type === 'button' ? 16 : RHYTHM; }
+  function rectsHit(a, b) { return a.x < b.x + b.w - 2 && a.x + a.w > b.x + 2 && a.y < b.y + b.h - 2 && a.y + a.h > b.y + 2; }
+  // make room under a block: everything at or below its old bottom, in its
+  // column, moves down by dy (rows lined up with them move too)
+  function makeRoomUnder(sec, block, dy, skip) {
+    var fake = { x: block.x, y: block.y, w: block.w, h: block.h + dy };
+    var keep = skip ? sec.els.filter(function (o) { return skip.indexOf(o) === -1; }) : null;
+    reflowPush(sec, fake, block.h, keep);
+  }
+  // place piece (not yet in sec.els) near anchor; returns 'beside' or 'under'
+  function landNear(sec, anchor, piece) {
+    var gap = arrivalGap(piece.type);
+    var right = Math.max(W - 80, anchor.x + anchor.w);
+    // a backdrop the anchor sits on (a panel of colour) is not in the way
+    var inWay = sec.els.filter(function (o) {
+      if (o === anchor || o === piece) return false;
+      return !(o.type === 'box' && !(o.kids && o.kids.length) && o.x <= anchor.x && o.y <= anchor.y && o.x + o.w >= anchor.x + anchor.w && o.y + o.h >= anchor.y + anchor.h);
+    });
+    if (ARRIVE_BESIDE[piece.type] && !piece.cards) {
+      var cand = { x: anchor.x + anchor.w + gap, y: anchor.y, w: piece.w, h: piece.h };
+      if (cand.x + cand.w <= right && !inWay.some(function (o) { return rectsHit(cand, o); })) {
+        piece.x = cand.x; piece.y = cand.y;
+        return 'beside';
+      }
+    }
+    piece.x = anchor.x;
+    piece.y = anchor.y + anchor.h + gap;
+    makeRoomUnder(sec, anchor, piece.h + gap);
+    return 'under';
+  }
+  // the second button of a pair is the quieter one: a copy beside the only
+  // solid button in its row arrives in the outline style
+  function quietSecondButton(sec, anchor, copy) {
+    if (copy.type !== 'button' || anchor.type !== 'button' || anchor.ghost) return;
+    var solidInRow = sec.els.filter(function (o) { return o !== anchor && o.type === 'button' && !o.ghost && Math.abs((o.y + o.h / 2) - (anchor.y + anchor.h / 2)) < anchor.h; });
+    if (!solidInRow.length) copy.ghost = true;
+  }
+  elbar.querySelector('.gogh-eb-dup').addEventListener('click', duplicateChosen);
+  function duplicateChosen() {
     if (!sel) return;
-    var sec = sel.sec;
-    var copy = diceFreshIds([JSON.parse(JSON.stringify(sec.els[sel.i]))])[0]; // a copy is a new piece to the die
-    copy.x = Math.min(W - copy.w, copy.x + 24);
-    copy.y = copy.y + 24;
+    var sec = sel.sec, orig = sec.els[sel.i];
+    var copy = diceFreshIds([JSON.parse(JSON.stringify(orig))])[0]; // a copy is a new piece to the die
+    var where = landNear(sec, orig, copy);
+    if (where === 'beside') quietSecondButton(sec, orig, copy);
     sec.els.push(copy);
     renderSection(sec);
+    if (copy.cards) fitCards(sec);
     placeHandles(sec, sec.els.length - 1);
     pushState();
-  });
+    toast(where === 'beside' ? 'Duplicated, beside it.' : 'Duplicated, under it.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
   document.addEventListener('pointerdown', function (ev) {
     if (panelOpen && !panelSticky && !panel.contains(ev.target) && !elbar.contains(ev.target)) closePanel();
     if (!editing) return;
@@ -24288,6 +24340,13 @@
       return;
     }
     if (typing) return;
+    if ((ev.metaKey || ev.ctrlKey) && !ev.shiftKey && ev.key.toLowerCase() === 'd' && (sel || multiSel)) {
+      // duplicate, the way design tools do (and never the browser's bookmark)
+      ev.preventDefault();
+      if (multiSel) duplicateSelection();
+      else if (sel.sec.els[sel.i] && !sel.sec.els[sel.i].cards) duplicateChosen();
+      return;
+    }
     if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'a') {
       // select all, within the section that has the eye
       var secA = sel ? sel.sec : (multiSel ? multiSel.sec : (selSecIdx !== null ? S[selSecIdx] : null));

@@ -4210,6 +4210,31 @@
       return 'order kept, band ' + band.minH;
     });
 
+    test('Duplicate lands where the next one would go: a button beside its pair, words under, room made, Cmd+D', function () {
+      var s0 = sec(), n0 = s0.els.length;
+      // a clear band at the bottom of the fixture section
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'button', x: 80, y: base, w: 200, h: 48, text: 'Shop now' });
+      s0.els.push({ type: 'para', x: 600, y: base, w: 400, h: 48, text: 'Some words.' });
+      s0.els.push({ type: 'para', x: 600, y: base + 96, w: 400, h: 48, text: 'Words under them.' });
+      G.renderSection(s0); G.pushState();
+      var btn = s0.els[n0], p1 = s0.els[n0 + 1], p2 = s0.els[n0 + 2];
+      G.placeHandles(s0, n0);
+      q('.gogh-elbar .gogh-eb-dup').click();
+      var copy = s0.els[s0.els.length - 1];
+      expect(copy.type === 'button' && copy.y === btn.y && copy.x === btn.x + btn.w + 16, 'a duplicated button should land beside its original, tops lined up: ' + [copy.x, copy.y].join(','));
+      expect(copy.ghost === true && !btn.ghost, 'the second of a pair should arrive in the outline style');
+      expect(!s0.els.some(function (o) { return o !== copy && o.x < copy.x + copy.w && o.x + o.w > copy.x && o.y < copy.y + copy.h && o.y + o.h > copy.y && o.type !== 'box'; }), 'the copy should not sit on anything');
+      // words stack: the copy lands under, and what was under moves down
+      var p2y = p2.y;
+      G.placeHandles(s0, s0.els.indexOf(p1));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', metaKey: true, bubbles: true, cancelable: true }));
+      var pc = s0.els[s0.els.length - 1];
+      expect(pc.type === 'para' && pc.x === p1.x && pc.y === p1.y + p1.h + 24, 'Cmd+D on a paragraph should land the copy under it: ' + [pc.x, pc.y, p1.y, p1.h].join(','));
+      expect(p2.y >= pc.y + pc.h, 'the words that were under should move down to make room: ' + [p2y, p2.y, pc.y + pc.h].join(','));
+      return 'beside, outline pair, under, room made';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
@@ -6485,11 +6510,14 @@
       G.renderSection(s0);
       G.multi.set(s0, [n0, n0 + 1]);
       expect(bar.querySelector('.gogh-mb-card').disabled && /inside a card/.test(bar.querySelector('.gogh-mb-card').title), 'Make a card should grey out, with a reason, when a card is in the selection');
-      // Duplicate: copies 24 units down and right, and the copies become the selection
+      // Duplicate: the copies arrive as one block under the originals (the
+      // arrivals paper), and the copies become the selection
+      var o1 = s0.els[n0], o2 = s0.els[n0 + 1];
+      var bbTop = Math.min(o1.y, o2.y), bbBot = Math.max(o1.y + o1.h, o2.y + o2.h);
       bar.querySelector('.gogh-mb-dup').click();
       var m = G.multi.state();
       expect(s0.els.length === n0 + 4 && m && m.idxs.length === 2 && m.idxs[0] === n0 + 2 && m.idxs[1] === n0 + 3, 'Duplicate should add two copies and select them');
-      expect(s0.els[n0 + 3].x === 624 && s0.els[n0 + 3].y === 64 && s0.els[n0 + 2].kids && s0.els[n0 + 2].kids.length === 2, 'copies should keep their shape and sit 24 units down and right');
+      expect(s0.els[n0 + 3].x === o2.x && s0.els[n0 + 3].y === o2.y + (bbBot - bbTop) + 24 && s0.els[n0 + 2].kids && s0.els[n0 + 2].kids.length === 2, 'copies should keep their shape and land under the originals: ' + [s0.els[n0 + 3].x, s0.els[n0 + 3].y, o2.x, o2.y, bbBot - bbTop].join(','));
       G.multi.clear();
       s0.els.splice(n0);
       G.renderSection(s0);
