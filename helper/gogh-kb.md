@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.764 · knowledge base 62334e1.
+Generated for plugin version 0.99.765 · knowledge base 0d6014b.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The cards' Style tab follows the sidebar standard (v0.99.765).** Under Edit design › Style, the card looks (Open, Panel, Outline, Raised) are still drawings. Below them is a block of hairline rows, like Site styles: **Rounded corners** and **Titles** are switches, and **Picture**, **Words line up** and **Each card ends with** show their current value. Pressing one of those opens its choices beneath it as rows; the current one is blue with a tick, pointing at another tries it on the page, and a click keeps it. The All cards page now lists every extra: a line above the title, a price, a name and role, a small note, and one featured card.
+
 **On the photo keeps its name; photo cards and arriving designs fixed (v0.99.764).** The layout is called **On the photo** again (v0.99.763 had renamed it). A set made from freeform cards now works on the photo: the cards fit their columns instead of spilling into each other, the words are white over the veil, and "Choose a picture" sits in the corner instead of under the words. Two fixes for designs as they arrive, seen on Misprint's home: a big backdrop word that measures shorter than drawn no longer pulls the words under a headline up into it, and a thin band (a ticker) keeps the height it was drawn at instead of growing to half a section.
 
 **The "On the photo" layout is now called Photo cards (v0.99.763).** In a set's Layout choices, the layout that puts the words over each picture is now named **Photo cards**, the same as the shelf design built with it. Nothing about how it looks has changed.
@@ -1137,11 +1139,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.764**
+- Plugin version: **0.99.765**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.764`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.765`). Quote the plugin header version.
 
 ## Design constants
 

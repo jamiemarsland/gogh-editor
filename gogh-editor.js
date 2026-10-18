@@ -7314,34 +7314,46 @@
     grid.addEventListener('mouseleave', function () { cardsWear(sec, e, 'layout', c.layout); });
   }
   var CARD_LOOK_DRAW = '<i class="cs-card"><i class="cs-pic"></i><i class="cs-w1"></i><i class="cs-w2"></i></i>';
+  // the Style tab, to the sidebar standard (Site styles): the card looks as
+  // drawings, then hairline rows — a switch, or a name with its current
+  // value that opens its choices as rows with a tick (James: 'do the cards
+  // sidebar follow our lovely new design system?')
+  var cardsStyleOpen = null;
+  // (built when painted: the choice lists are defined further down)
+  function cardStyleRows() {
+    return [
+      ['pic', 'Picture', CARD_PICS],
+      ['align', 'Words line up', [['left', 'Left'], ['center', 'Centred']]],
+      ['act', 'Each card ends with', CARD_ACTS],
+    ];
+  }
   function paintCardsStyleInto(box, sec, e) {
     var c = e.cards = cardsNorm(e.cards);
-    var seg = function (key, opts) {
-      return '<span class="gogh-cardpop-seg" role="group">' + opts.map(function (o) {
-        var on = c[key] === o[0];
-        return '<button type="button" data-k="' + key + '" data-v="' + o[0] + '" aria-pressed="' + on + '"' + (on ? ' class="is-on"' : '') + '>' + esc(o[1]) + '</button>';
-      }).join('') + '</span>';
+    var sw = function (key, label, sub) {
+      return '<div class="gogh-siterow gogh-csrow-sw"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">' + label + '</span>' + (sub ? '<span class="gogh-siterow-sub">' + sub + '</span>' : '') + '</span>' +
+        '<button type="button" class="gogh-hswitch' + (c[key] ? ' is-on' : '') + '" role="switch" aria-checked="' + !!c[key] + '" data-sw="' + key + '" aria-label="' + label + '"><span class="gogh-hswitch-knob"></span></button></div>';
     };
-    var sw = function (key, label) {
-      return '<span class="gogh-cardpop-row"><span>' + label + '</span><button type="button" class="gogh-hswitch' + (c[key] ? ' is-on' : '') + '" role="switch" aria-checked="' + !!c[key] + '" data-sw="' + key + '" aria-label="' + label + '"><span class="gogh-hswitch-knob"></span></button></span>';
+    var drill = function (r) {
+      if (r[0] === 'align' && c.layout === 'small') return '';
+      var open = cardsStyleOpen === r[0];
+      var html = '<button type="button" class="gogh-siterow gogh-csrow' + (open ? ' is-open' : '') + '" data-row="' + r[0] + '" aria-expanded="' + open + '">' +
+        '<span class="gogh-siterow-tx"><span class="gogh-siterow-t">' + r[1] + '</span><span class="gogh-siterow-sub">' + esc(cardsOptName(r[2], c[r[0]])) + '</span></span><span class="gogh-siterow-val"></span>' + CARDS_CHEV + '</button>';
+      if (open) html += '<div class="gogh-cschoices" role="group" aria-label="' + escAttr(r[1]) + '">' + r[2].map(function (o) {
+        var on = c[r[0]] === o[0];
+        return '<button type="button" class="gogh-cschoice' + (on ? ' is-current' : '') + '" data-k="' + r[0] + '" data-v="' + o[0] + '" aria-pressed="' + on + '"><span>' + esc(o[1]) + '</span>' +
+          (on ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : '') + '</button>';
+      }).join('') + '</div>';
+      return html;
     };
-    box.innerHTML = '<div class="gogh-cardpop-lab">Card</div>' +
-      '<div class="gogh-cardpop-looks">' + CARD_LOOKS.map(function (o) {
+    box.innerHTML = '<div class="gogh-cardpop-looks">' + CARD_LOOKS.map(function (o) {
         return '<button type="button" class="gogh-cslook gogh-cslook-' + o[0] + (c.look === o[0] ? ' is-active' : '') + '" data-v="' + o[0] + '" aria-pressed="' + (c.look === o[0]) + '">' +
           '<span class="gogh-csdraw" aria-hidden="true">' + CARD_LOOK_DRAW + '</span><span>' + esc(o[1]) + '</span></button>';
       }).join('') + '</div>' +
+      '<div class="gogh-siterows gogh-csrows">' +
       sw('round', 'Rounded corners') +
-      '<hr>' +
-      '<div class="gogh-cardpop-lab">Picture</div>' +
-      '<div class="gogh-cardpop-pics">' + CARD_PICS.map(function (o) {
-        var on = c.pic === o[0];
-        return '<button type="button" class="gogh-cspic gogh-cspic-' + o[0] + (on ? ' is-on' : '') + '" data-v="' + o[0] + '" aria-pressed="' + on + '"><i aria-hidden="true"></i>' + esc(o[0] === 'none' ? 'None' : o[0] === 'wide' ? 'Wide' : o[0] === 'tall' ? 'Tall' : 'Square') + '</button>';
-      }).join('') + '</div>' +
-      '<hr>' +
-      '<div class="gogh-cardpop-lab">Words</div>' +
-      (c.layout === 'small' ? '' : '<span class="gogh-cardpop-row"><span>Line up</span>' + seg('align', [['left', 'Left'], ['center', 'Centred']]) + '</span>') +
-      '<span class="gogh-cardpop-row"><span>Each card ends with</span>' + seg('act', [['link', 'A link'], ['button', 'A button'], ['none', 'Nothing']]) + '</span>' +
-      sw('titles', 'Titles');
+      cardStyleRows().map(drill).join('') +
+      sw('titles', 'Titles', c.titles ? 'Each card has a title' : 'Kind words: the name signs off') +
+      '</div>';
     var again = function () { cardsApply(sec, e); paintCardsStyleInto(box, sec, e); };
     var looks = box.querySelector('.gogh-cardpop-looks');
     looks.querySelectorAll('.gogh-cslook').forEach(function (b) {
@@ -7349,8 +7361,17 @@
       b.addEventListener('click', function () { c.look = b.dataset.v; again(); });
     });
     looks.addEventListener('mouseleave', function () { cardsWear(sec, e, 'look', c.look); });
-    box.querySelectorAll('.gogh-cspic').forEach(function (b) { b.addEventListener('click', function () { c.pic = b.dataset.v; again(); }); });
-    box.querySelectorAll('.gogh-cardpop-seg button').forEach(function (b) { b.addEventListener('click', function () { c[b.dataset.k] = b.dataset.v; again(); }); });
+    box.querySelectorAll('.gogh-csrow').forEach(function (b) {
+      b.addEventListener('click', function () { cardsStyleOpen = cardsStyleOpen === b.dataset.row ? null : b.dataset.row; paintCardsStyleInto(box, sec, e); });
+    });
+    box.querySelectorAll('.gogh-cschoices').forEach(function (g) {
+      g.querySelectorAll('.gogh-cschoice').forEach(function (b) {
+        // point to try it on the page, click to keep it
+        b.addEventListener('mouseenter', function () { cardsWear(sec, e, b.dataset.k, b.dataset.v); });
+        b.addEventListener('click', function () { c[b.dataset.k] = b.dataset.v; again(); });
+      });
+      g.addEventListener('mouseleave', function () { var k0 = g.querySelector('.gogh-cschoice').dataset.k; cardsWear(sec, e, k0, c[k0]); });
+    });
     box.querySelectorAll('[data-sw]').forEach(function (b) { b.addEventListener('click', function () { c[b.dataset.sw] = c[b.dataset.sw] ? 0 : 1; again(); }); });
   }
   // the bar's Layout and Style open their page of the sidebar; a second
@@ -7833,7 +7854,7 @@
         '<button type="button" class="gogh-siterow" data-view="style"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">Style</span><span class="gogh-siterow-sub">' + esc(cardsOptName(CARD_LOOKS, c.look) + (c.round ? ', rounded' : '') + ' \u00b7 ' + cardsOptName(CARD_PICS, c.pic) + ' \u00b7 ' + cardsWordsName(c)) + '</span></span><span class="gogh-siterow-val"></span>' + CARDS_CHEV + '</button>' +
         '</div>' +
         '<div class="gogh-swlab">Extras on every card</div>' +
-        [['price', 'A price'], ['role', 'A name and role'], ['feat', 'One featured card']].map(function (x) {
+        [['k', 'A line above the title'], ['price', 'A price'], ['role', 'A name and role'], ['n', 'A small note'], ['feat', 'One featured card']].map(function (x) {
           var on = x[0] === 'feat' ? c.feat >= 0 : !!c.extras[x[0]];
           return '<div class="gogh-hstickyrow gogh-cards-extra"><span>' + x[1] + '</span>' +
             '<button type="button" class="gogh-hswitch' + (on ? ' is-on' : '') + '" role="switch" aria-checked="' + on + '" data-x="' + x[0] + '" aria-label="' + x[1] + '"><span class="gogh-hswitch-knob"></span></button></div>';

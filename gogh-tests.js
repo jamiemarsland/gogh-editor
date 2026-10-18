@@ -3973,6 +3973,16 @@
         side.querySelector('.gogh-cslook-outline').click();
         q('.gogh-panel [data-sw="round"]').click();
         expect(e.cards.look === 'outline' && e.cards.round === 1, 'the look and the corners should keep');
+        // the Style tab is hairline rows: Picture shows its value and opens its choices
+        var picRow = q('.gogh-panel .gogh-csrow[data-row="pic"]');
+        expect(picRow && /Picture/.test(picRow.textContent) && /Landscape/.test(picRow.textContent) && !q('.gogh-panel .gogh-cardpop-lab'), 'Picture should be a row with its current value, no small-caps labels');
+        picRow.click();
+        var sq = q('.gogh-panel .gogh-cschoice[data-k="pic"][data-v="square"]');
+        expect(sq && q('.gogh-panel .gogh-cschoice.is-current[data-v="wide"] svg'), 'its choices should open beneath it, the current one ticked');
+        sq.dispatchEvent(new MouseEvent('mouseenter'));
+        expect(e.cards.pic === 'wide' && /gogh-cardset-pic-square/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'pointing at Square should try it on the canvas only');
+        sq.click();
+        expect(e.cards.pic === 'square' && /Square/.test(q('.gogh-panel .gogh-csrow[data-row="pic"]').textContent) && q('.gogh-panel .gogh-cschoice.is-current[data-v="square"]'), 'a click should keep Square and tick it');
         expect(q('.gogh-eb-cardslayout').classList.contains('is-open'), 'Edit design should stay pressed on the Style tab too');
         q('.gogh-eb-cardslayout').click();
         expect(q('.gogh-panel').hidden && !q('.gogh-eb-cardslayout').classList.contains('is-open'), 'a second press on Edit design should put the sidebar away');
