@@ -4068,6 +4068,11 @@
       expect(e.cards.items.length === 5 && !e.cards.items[1].t && !e.cards.items[2].t, 'Add card after the chosen card goes right after it');
       G.placeHandles(s0, s0.els.indexOf(e));
       expect(!G.cards.ghost().hidden, 'five cards in rows of three leave a slot for the ghost');
+      // On the photo is a grid too: its empty slot gets a photo-card-shaped ghost
+      e.cards.layout = 'over'; e.cards = G.cards.norm(e.cards); e.wsrc = G.cards.compose(e.cards, false); e.whtml = G.cards.compose(e.cards, true);
+      G.renderSection(s0); G.placeHandles(s0, s0.els.indexOf(e));
+      var gh2 = G.cards.ghost(), lastCard = [].slice.call(s0.nodes[s0.els.indexOf(e)].querySelectorAll('.gogh-cs-card')).pop().getBoundingClientRect();
+      expect(!gh2.hidden && Math.abs(gh2.getBoundingClientRect().height - lastCard.height) < 2, 'On the photo should show the ghost in its empty slot, card-sized');
       var lay = q('.gogh-eb-cardslayout');
       expect(lay.textContent === 'Edit design' && !lay.querySelector('svg'), 'the bar should say Edit design, with no dropdown chevron');
       return 'gap +, insert after, ghost in the empty slot';
@@ -4167,6 +4172,7 @@
       };
       s0.els.push(card(100, 'One', 'First words'), card(440, 'Two', 'Second words'));
       G.renderSection(s0);
+      G.pushState(); // the cards were added as a person would: one undo step
       G.multi.set(s0, [n0, n0 + 1]);
       var bar = q('.gogh-mbar'), setBtn = bar.querySelector('.gogh-mb-set');
       expect(setBtn && !setBtn.hidden && bar.querySelector('.gogh-mb-card').hidden, 'two matching cards should lead with Make these a set');

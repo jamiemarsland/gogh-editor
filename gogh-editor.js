@@ -7125,7 +7125,7 @@
     // only in the slot a part-filled grid row leaves empty, exactly where
     // the card will land; never a row of its own (the bar and the + in the
     // gaps do the rest: the Add a card paper, 2026-10-17)
-    if (!/^(g2|g3|g4|steps|small|big)$/.test(e.cards.layout)) { hideCardGhost(); return; }
+    if (!/^(g2|g3|g4|steps|small|big|over)$/.test(e.cards.layout)) { hideCardGhost(); return; }
     var grid = node.querySelector('.gogh-cardset');
     var cols = (getComputedStyle(grid).gridTemplateColumns || '').split(' ').filter(Boolean).length;
     var lastEl = cards[cards.length - 1], last = lastEl.getBoundingClientRect();
