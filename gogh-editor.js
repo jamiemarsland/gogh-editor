@@ -1429,8 +1429,14 @@
     var rest = userCls(e.cls).split(' ').filter(function (c) { return c && !mine[c]; });
     if (lk) rest.unshift('is-style-' + lk.slug);
     e.cls = userCls(rest.join(' ')) || null;
+    // a design's button style says solid or outline itself: an outline left
+    // on from before would paint over it (James: 'if a button is set to
+    // outline on misprint - cant use any of the other styles')
+    if (lk && e.type === 'button') e.ghost = false;
     return e;
   }
+  // outline only counts on a button that wears no design style
+  function ghostShows(e) { return !!e.ghost && !lookOf(e); }
   // ---------- styles the designer saves (Save this look as a style) ----------
   // A piece styled by hand on the canvas (a colour, a weight, capitals, a
   // hover fill) can become one of the design's looks: the CSS is written
@@ -1708,7 +1714,7 @@
           // the Buttons wrapper gogh places
           var bSty = cls.split(' ').filter(function (c) { return /^is-style-/.test(c); }).join(' ');
           cls = cls.split(' ').filter(function (c) { return !/^is-style-/.test(c); }).join(' ');
-          var btnCls = [bSty, e.ghost ? 'gogh-ghost' : ''].filter(Boolean).join(' ');
+          var btnCls = [bSty, ghostShows(e) ? 'gogh-ghost' : ''].filter(Boolean).join(' ');
           if (btnCls) attrs.className = btnCls;
           if (e.href) attrs.url = e.href;
           if (e.btnBg) attrs.backgroundColor = e.btnBg;
@@ -2191,7 +2197,7 @@
         var nSty = cls.split(' ').filter(function (c) { return /^is-style-/.test(c); }).join(' ');
         n = document.createElement('div');
         n.className = 'wp-block-buttons ' + cls.split(' ').filter(function (c) { return !/^is-style-/.test(c); }).join(' ');
-        n.innerHTML = '<div class="wp-block-button' + (nSty ? ' ' + nSty : '') + (e.ghost ? ' gogh-ghost' : '') + '">' +
+        n.innerHTML = '<div class="wp-block-button' + (nSty ? ' ' + nSty : '') + (ghostShows(e) ? ' gogh-ghost' : '') + '">' +
           '<a class="wp-block-button__link' +
           (e.btnText ? ' has-' + e.btnText + '-color has-text-color' : '') +
           (e.btnBg ? ' has-' + e.btnBg + '-background-color has-background' : '') +
@@ -8109,7 +8115,7 @@
         : '') +
       (showColour
         ? '<div class="gogh-swlab">Style</div>' +
-          '<div class="gogh-panel-row gogh-btnstyle">' +
+          '<div class="gogh-panel-row gogh-btnstyle"' + (lookOf(e) ? ' hidden' : '') + '>' +
           '<button type="button" class="gogh-btn gogh-btn-small gogh-style-solid' + (!e.ghost ? ' is-active' : '') + '">Solid</button>' +
           '<button type="button" class="gogh-btn gogh-btn-small gogh-style-outline' + (e.ghost ? ' is-active' : '') + '">Outline</button>' +
           '</div>' +
@@ -9137,7 +9143,7 @@
   // the second button of a pair is the quieter one: a copy beside the only
   // solid button in its row arrives in the outline style
   function quietSecondButton(sec, anchor, copy) {
-    if (copy.type !== 'button' || anchor.type !== 'button' || anchor.ghost) return;
+    if (copy.type !== 'button' || anchor.type !== 'button' || anchor.ghost || lookOf(anchor)) return;
     var solidInRow = sec.els.filter(function (o) { return o !== anchor && o.type === 'button' && !o.ghost && Math.abs((o.y + o.h / 2) - (anchor.y + anchor.h / 2)) < anchor.h; });
     if (!solidInRow.length) copy.ghost = true;
   }
@@ -10723,7 +10729,7 @@
   function lookSample(e, lk, mini) {
     var c = lk.slug ? 'is-style-' + lk.slug : '';
     if (e.type === 'button') {
-      return '<div class="wp-block-buttons"><div class="wp-block-button ' + c + (e.ghost ? ' gogh-ghost' : '') + '">' +
+      return '<div class="wp-block-buttons"><div class="wp-block-button ' + c + (ghostShows(e) ? ' gogh-ghost' : '') + '">' +
         '<span class="wp-block-button__link wp-element-button">' + (mini ? '' : esc(String(e.text || 'Button').replace(/<[^>]*>/g, '').slice(0, 18))) + '</span></div></div>';
     }
     if (e.type === 'image') {

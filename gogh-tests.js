@@ -4325,6 +4325,31 @@
       return 'gap closed, words matched, button made room';
     });
 
+    test('A button in a design style is never stuck as outline: the style wins, and a duplicate keeps it', function () {
+      var cfgG = window.GOGH, was = cfgG.design;
+      cfgG.design = { name: 'Riso Test', looks: { button: [{ name: 'Yellow print', slug: 'yellow-print', 'default': true }, { name: 'Ink print', slug: 'ink-print', 'default': false }] } };
+      var s0 = sec(), n0 = s0.els.length;
+      try {
+        var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+        s0.els.push({ type: 'button', x: 80, y: base, w: 240, h: 48, text: 'Book a session', cls: 'is-style-yellow-print', ghost: true });
+        G.renderSection(s0); G.pushState();
+        var b = s0.els[n0];
+        expect(!s0.nodes[n0].querySelector('.gogh-ghost') && /is-style-yellow-print/.test(s0.nodes[n0].innerHTML), 'a styled button should draw in its style, not as outline');
+        G.looks.wear(b, G.looks.list('button')[1]);
+        expect(b.ghost === false && /is-style-ink-print/.test(b.cls), 'choosing a style should clear an old outline');
+        G.placeHandles(s0, n0);
+        q('.gogh-elbar .gogh-eb-dup').click();
+        var copy = s0.els[s0.els.length - 1];
+        expect(copy.type === 'button' && !copy.ghost && /is-style-ink-print/.test(copy.cls), 'a duplicate of a styled button keeps the style, not outline');
+      } finally {
+        cfgG.design = was;
+        G.cards.drop();
+        [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t2) { t2.remove(); });
+        s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      }
+      return 'style wins over outline';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
