@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.769 · knowledge base 6f43ef6.
+Generated for plugin version 0.99.770 · knowledge base 8c87d5e.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Copy and paste pieces (v0.99.770).** Choose a piece (or several) and press **Cmd+C** (Ctrl+C) to copy it, or **Cmd+X** to cut it; **Cmd+V** pastes it into any section, on any page of the site. With a piece chosen, the paste lands like a duplicate, beside or under it, with room made; with nothing chosen it keeps its spot if that is free, otherwise it goes to the foot of the section. Pasting a picture copied from another app adds it to the media library and places it like Add; pasting plain words (from an email, a document) makes a paragraph. Pasted HTML still becomes a new section, as before. Other apps get the pieces' plain words.
+
 **New pieces land next to the chosen one (v0.99.769).** With a piece chosen, a new piece added from the section's Add menu or with / no longer lands in the middle of the section: it arrives under the chosen piece, lined up with it (centred under centred words), and whatever was below moves down to make room. A piece of the same kind that sits in a row (a button beside a button, a picture beside a picture) lands beside it instead. With nothing chosen, new pieces still land in the middle of the section, and shapes still go behind.
 
 **Duplicate lands where the next one would go (v0.99.768).** A duplicated piece no longer lands on top of its original. Buttons, pictures, shapes and freeform cards land beside the original, tops lined up, when there is room in the row; headings, paragraphs and anything without room land under it, and whatever was below moves down to make room. A button duplicated beside the only solid button in its row arrives in the outline style, so the pair reads as a main and a quieter button; on phones the pair stacks in order. Duplicating several pieces puts the copies as one block under them. **Cmd+D** (Ctrl+D) duplicates the chosen piece or pieces, and the toast says where the copy went, with Undo.
@@ -1147,11 +1149,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.769**
+- Plugin version: **0.99.770**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.769`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.770`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1654,6 +1656,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 ## Exact toast and message copy
 
 - "A section keeps at least one piece."
+- "Adding the picture to your media library…"
 - "Back to freeform — drag it anywhere."
 - "Backup restored — publish when ready."
 - "Button updated."
@@ -1700,6 +1703,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "One card now — it holds together on phones. Click it for a background."
 - "One set now: add, move and restyle the cards together."
 - "Out of the card — it’s its own piece again."
+- "Pasted as a paragraph."
+- "Pasted the picture. It is in your media library too."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
 - "Published. "
@@ -1726,6 +1731,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The description could not be saved — try again."
 - "The header and footer stay — edit them instead."
 - "The name didn’t save — try again."
+- "The picture could not be added: "
 - "The type before is back."
 - "Theme style applied: "
 - "This "
@@ -1769,4 +1775,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`385` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`386` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

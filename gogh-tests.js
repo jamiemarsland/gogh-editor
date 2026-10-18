@@ -4232,6 +4232,8 @@
       var pc = s0.els[s0.els.length - 1];
       expect(pc.type === 'para' && pc.x === p1.x && pc.y === p1.y + p1.h + 24, 'Cmd+D on a paragraph should land the copy under it: ' + [pc.x, pc.y, p1.y, p1.h].join(','));
       expect(p2.y >= pc.y + pc.h, 'the words that were under should move down to make room: ' + [p2y, p2.y, pc.y + pc.h].join(','));
+      // leave the fixture as it was (later tests lay pieces out at the foot)
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
       return 'beside, outline pair, under, room made';
     });
 
@@ -4249,7 +4251,37 @@
       // the button is now chosen: another button lands beside it
       var b2 = G.addElementToSection(idx, 'button');
       expect(b2.y === b.y && b2.x === b.x + b.w + 16, 'a second button added beside the chosen one: ' + [b2.x, b2.y, b.x + b.w].join(','));
+      // leave the fixture as it was (later tests lay pieces out at the foot)
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
       return 'under, room made, beside';
+    });
+
+    test('Copy and paste pieces: Cmd+C then Cmd+V lands beside the chosen one; plain words paste as a paragraph', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'button', x: 80, y: base, w: 200, h: 48, text: 'Book now' });
+      G.renderSection(s0); G.pushState();
+      G.placeHandles(s0, n0);
+      var dt = new DataTransfer();
+      document.dispatchEvent(new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }));
+      expect(/data-gogh-pieces="/.test(dt.getData('text/html')) && dt.getData('text/plain') === 'Book now', 'copy should carry the piece, and its words for other apps');
+      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      var pasted = s0.els[s0.els.length - 1];
+      expect(s0.els.length === n0 + 2 && pasted.type === 'button' && pasted.text === 'Book now' && pasted.y === s0.els[n0].y && pasted.x === s0.els[n0].x + s0.els[n0].w + 16, 'paste with the original chosen should land beside it: ' + [pasted.x, pasted.y].join(','));
+      expect(pasted.gid !== s0.els[n0].gid || pasted.gid == null, 'the pasted piece is a new piece');
+      // plain words from elsewhere, nothing chosen: a paragraph
+      G.drop && G.cards.drop();
+      var dt2 = new DataTransfer(); dt2.setData('text/plain', 'Words from an email.\n\nA second paragraph.');
+      var before = s0.els.length;
+      G.placeHandles(s0, s0.els.length - 1);
+      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt2, bubbles: true, cancelable: true }));
+      var para = s0.els[s0.els.length - 1];
+      expect(s0.els.length === before + 1 && para.type === 'para' && /Words from an email\.<br><br>A second paragraph\./.test(para.text), 'plain words should arrive as a paragraph: ' + (para && para.text));
+      // leave the fixture as it was (later tests lay pieces out at the foot)
+      G.cards.drop();
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) { t.remove(); });
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'copy, paste beside, words as a paragraph';
     });
 
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {

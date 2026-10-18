@@ -26376,6 +26376,119 @@
   // frictionless paste: Cmd+V anywhere in edit mode drops HTML straight onto
   // the page as a section — no modal, no textarea. Only pastes that are
   // clearly HTML source are claimed; typing into any field keeps its meaning.
+  // ---------- copy and paste pieces (the arrivals paper, release 3) ----------
+  // Cmd+C / Cmd+X on chosen pieces puts the pieces themselves on the
+  // clipboard (inside its HTML, with their plain words for other apps);
+  // Cmd+V lands them like Duplicate beside or under what is chosen, else in
+  // the same spot if it is free, else at the section's foot. A picture on
+  // the clipboard goes into the media library and arrives like Add; plain
+  // words arrive as a paragraph.
+  function inAField(t) {
+    return !!(t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || (t.closest && t.closest('[contenteditable="true"]'))));
+  }
+  function chosenPieces() {
+    if (multiSel) return { sec: multiSel.sec, els: multiSel.idxs.map(function (j) { return multiSel.sec.els[j]; }).filter(Boolean) };
+    if (sel && sel.sec.els[sel.i]) return { sec: sel.sec, els: [sel.sec.els[sel.i]] };
+    return null;
+  }
+  function piecesWords(els) {
+    return els.map(function (e) { return cardsPlainText(e.text || ''); }).filter(Boolean).join('\n');
+  }
+  function copyPieces(ev) {
+    if (!editing || inAField(ev.target) || textEditing || panelOpen) return null;
+    var ch = chosenPieces();
+    if (!ch || !ch.els.length || !ev.clipboardData) return null;
+    var json = JSON.stringify({ v: 1, els: ch.els });
+    var b64 = btoa(unescape(encodeURIComponent(json)));
+    ev.clipboardData.setData('text/html', '<meta data-gogh-pieces="' + b64 + '">' + esc(piecesWords(ch.els)));
+    ev.clipboardData.setData('text/plain', piecesWords(ch.els) || ' ');
+    ev.preventDefault();
+    return ch;
+  }
+  document.addEventListener('copy', function (ev) {
+    var ch = copyPieces(ev);
+    if (ch) toast(ch.els.length === 1 ? 'Copied. ⌘V puts it in any section, on any page.' : 'Copied ' + ch.els.length + ' pieces.', { ttl: 2600 });
+  });
+  document.addEventListener('cut', function (ev) {
+    var ch = copyPieces(ev);
+    if (ch) deleteSelected();
+  });
+  function pasteTarget() {
+    if (sel && sel.sec) return sel.sec;
+    if (multiSel) return multiSel.sec;
+    if (selSecIdx !== null && S[selSecIdx] && !S[selSecIdx].chrome) return S[selSecIdx];
+    var v = viewportSection();
+    return v && !v.chrome ? v : null;
+  }
+  function pastePieces(sec, els) {
+    var copies = diceFreshIds(JSON.parse(JSON.stringify(els)));
+    var anchors = sel && sel.sec === sec && sec.els[sel.i] ? [sec.els[sel.i]]
+      : (multiSel && multiSel.sec === sec ? multiSel.idxs.map(function (j) { return sec.els[j]; }) : null);
+    var said = 'Pasted.';
+    if (anchors && copies.length === 1 && anchors.length === 1) {
+      said = landNear(sec, anchors[0], copies[0]) === 'beside' ? 'Pasted, beside it.' : 'Pasted, under it.';
+    } else if (anchors) {
+      var abb = bboxOf(anchors), cbb = bboxOf(copies);
+      makeRoomUnder(sec, abb, cbb.h + RHYTHM, anchors);
+      copies.forEach(function (c) { c.x = Math.max(0, Math.min(W - c.w, c.x - cbb.x + abb.x)); c.y = c.y - cbb.y + abb.y + abb.h + RHYTHM; });
+      said = 'Pasted, under them.';
+    } else if (sec.els.some(function (o) { return copies.some(function (c) { return rectsHit(c, o); }); })) {
+      var foot = 0; sec.els.forEach(function (o) { foot = Math.max(foot, o.y + o.h); });
+      var top = bboxOf(copies).y;
+      copies.forEach(function (c) { c.y = c.y - top + foot + RHYTHM; });
+      said = 'Pasted, at the foot of the section.';
+    }
+    var start = sec.els.length;
+    copies.forEach(function (c) { sec.els.push(c); });
+    renderSection(sec);
+    fitCards(sec);
+    if (copies.length === 1) placeHandles(sec, start); else setMulti(sec, copies.map(function (c, k) { return start + k; }));
+    pushState();
+    toast(said, { ttl: 3000, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
+  document.addEventListener('paste', function (ev) {
+    if (!editing || inAField(ev.target) || textEditing || panelOpen) return;
+    var cd = ev.clipboardData;
+    var target = pasteTarget();
+    if (!cd || !target) return;
+    var claim = function () { ev.preventDefault(); ev.stopImmediatePropagation(); };
+    var m = (cd.getData('text/html') || '').match(/data-gogh-pieces="([A-Za-z0-9+\/=]+)"/);
+    if (m) {
+      var got = null;
+      try { got = JSON.parse(decodeURIComponent(escape(atob(m[1])))); } catch (er) { got = null; }
+      if (got && Array.isArray(got.els) && got.els.length) { claim(); pastePieces(target, got.els); return; }
+    }
+    var idx = S.indexOf(target);
+    var pic = cd.files && [].filter.call(cd.files, function (f) { return /^image\//.test(f.type); })[0];
+    if (pic && cfg.canUpload && cfg.mediaUrl) {
+      claim();
+      toast('Adding the picture to your media library…', { ttl: 2500 });
+      var fd = new FormData();
+      fd.append('file', pic, pic.name || 'pasted-picture.png');
+      fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd })
+        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(function (item) {
+          var e = DEFAULTS.image();
+          e.src = item.source_url; e.mediaId = item.id; e.alt = item.alt_text || '';
+          var md = item.media_details || {};
+          if (md.width && md.height) e.h = Math.max(48, Math.round(e.w * md.height / md.width));
+          addElementToSection(idx, e);
+          toast('Pasted the picture. It is in your media library too.', { ttl: 3000, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        })
+        .catch(function (err) { toast('The picture could not be added: ' + (err && err.message ? err.message : 'try again') + '.', { error: true }); });
+      return;
+    }
+    var words = (cd.getData('text/plain') || '').trim();
+    // (HTML-looking text still becomes a section, below)
+    if (words && words[0] !== '<') {
+      claim();
+      var para = DEFAULTS.para();
+      para.text = words.split(/\n{2,}/).map(function (chunk) { return esc(chunk).replace(/\n/g, '<br>'); }).join('<br><br>');
+      para.w = Math.min(640, Math.max(para.w, 380));
+      addElementToSection(idx, para);
+      toast('Pasted as a paragraph.', { ttl: 2600, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+    }
+  });
   document.addEventListener('paste', function (ev) {
     if (!editing) return;
     var t = ev.target;

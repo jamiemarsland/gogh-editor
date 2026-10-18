@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.769",
+    "plugin_version": "0.99.770",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.769-chrome"
+    "asset_version": "0.99.770-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -731,6 +731,7 @@
   ],
   "toasts": [
     "A section keeps at least one piece.",
+    "Adding the picture to your media library…",
     "Back to freeform — drag it anywhere.",
     "Backup restored — publish when ready.",
     "Button updated.",
@@ -777,6 +778,8 @@
     "One card now — it holds together on phones. Click it for a background.",
     "One set now: add, move and restyle the cards together.",
     "Out of the card — it’s its own piece again.",
+    "Pasted as a paragraph.",
+    "Pasted the picture. It is in your media library too.",
     "Publish failed: ",
     "Publish your changes first — changing the page style reloads the page.",
     "Published. ",
@@ -803,6 +806,7 @@
     "The description could not be saved — try again.",
     "The header and footer stay — edit them instead.",
     "The name didn’t save — try again.",
+    "The picture could not be added: ",
     "The type before is back.",
     "Theme style applied: ",
     "This ",
@@ -1609,5 +1613,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 385
+  "test_count": 386
 }

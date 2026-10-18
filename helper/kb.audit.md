@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.769
+# Knowledge-base audit — plugin v0.99.770
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -153,3 +153,13 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.769 → 0.99.770
+- added toast: "Adding the picture to your media library…"
+- added toast: "Pasted as a paragraph."
+- added toast: "Pasted the picture. It is in your media library too."
+- added toast: "The picture could not be added: "

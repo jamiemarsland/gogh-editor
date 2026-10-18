@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.769**
+- Plugin version: **0.99.770**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.769`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.770`). Quote the plugin header version.
 
 ## Design constants
 
@@ -511,6 +511,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 ## Exact toast and message copy
 
 - "A section keeps at least one piece."
+- "Adding the picture to your media library…"
 - "Back to freeform — drag it anywhere."
 - "Backup restored — publish when ready."
 - "Button updated."
@@ -557,6 +558,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "One card now — it holds together on phones. Click it for a background."
 - "One set now: add, move and restyle the cards together."
 - "Out of the card — it’s its own piece again."
+- "Pasted as a paragraph."
+- "Pasted the picture. It is in your media library too."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
 - "Published. "
@@ -583,6 +586,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The description could not be saved — try again."
 - "The header and footer stay — edit them instead."
 - "The name didn’t save — try again."
+- "The picture could not be added: "
 - "The type before is back."
 - "Theme style applied: "
 - "This "
@@ -626,5 +630,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`385` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`386` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
