@@ -12215,9 +12215,33 @@
     }
     return tpl.bgImage;
   }
+  // a design names its inks by the common slugs (base for the page's light,
+  // contrast for its ink). A theme without them (Purple: theme-1..7) would
+  // drop the colour and leave the theme's dark heading ink on a dark photo
+  // (James: 'we still got a few sentinal issues - this is from the violet
+  // hour'): those slugs map to the theme's own page and text colours
+  function tplSlugMap() {
+    var have = {};
+    themePalette().forEach(function (p) { have[p.slug] = 1; });
+    if (have.base && have.contrast) return null;
+    var roles = paletteRoles(), map = {};
+    if (!have.base && roles.bgSlug) map.base = roles.bgSlug;
+    if (!have.contrast && roles.textSlug) map.contrast = roles.textSlug;
+    return Object.keys(map).length ? map : null;
+  }
+  function tplMapSlugs(els) {
+    var map = tplSlugMap();
+    if (!map) return els;
+    var walk = function (e) {
+      ['color', 'btnBg', 'btnText', 'btnHover'].forEach(function (k) { if (typeof e[k] === 'string' && map[e[k]]) e[k] = map[e[k]]; });
+      (e.kids || []).forEach(walk);
+    };
+    els.forEach(walk);
+    return els;
+  }
   function tplEls(tpl) {
     // __posts__ is the blog page; with no blog page the button goes
-    var els = JSON.parse(JSON.stringify(tpl.els)).filter(function (e) { return e.href !== '__posts__' || !!cfg.postsUrl; });
+    var els = tplMapSlugs(JSON.parse(JSON.stringify(tpl.els)).filter(function (e) { return e.href !== '__posts__' || !!cfg.postsUrl; }));
     els.forEach(function (e) { if (e.href === '__posts__') e.href = cfg.postsUrl; });
     var sizes = fontSizes();
     var k = 0;
