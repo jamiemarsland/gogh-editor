@@ -4284,6 +4284,39 @@
       return 'copy, paste beside, words as a paragraph';
     });
 
+    test('Small kindnesses: delete closes the gap, new words match their neighbours, a growing button makes room', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'para', x: 160, y: base, w: 520, h: 48, text: 'First words.', fs: 'large', tf: { fw: 600 } });
+      s0.els.push({ type: 'para', x: 160, y: base + 96, w: 520, h: 48, text: 'Second words.' });
+      s0.els.push({ type: 'para', x: 160, y: base + 192, w: 520, h: 48, text: 'Third words.' });
+      G.renderSection(s0); G.pushState();
+      var p1 = s0.els[n0], p2 = s0.els[n0 + 1], p3 = s0.els[n0 + 2];
+      var p2y = p2.y, p3y = p3.y;
+      G.placeHandles(s0, n0 + 1);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+      expect(s0.els.indexOf(p2) === -1 && p3.y === p2y, 'the words under a deleted piece should rise into its place: ' + [p3y, p3.y, p2y].join(','));
+      // a paragraph added under a paragraph takes its look
+      G.placeHandles(s0, s0.els.indexOf(p1));
+      var np = G.addElementToSection(idx, 'para');
+      expect(np.fs === 'large' && np.tf && np.tf.fw === 600 && np.w === p1.w && np.x === p1.x, 'new words should match the words they arrive under: ' + JSON.stringify({ fs: np.fs, tf: np.tf, w: np.w }));
+      // two buttons in a row: typing more words into the first widens it and moves the second along
+      var by = base + 600;
+      s0.els.push({ type: 'button', x: 160, y: by, w: 120, h: 48, text: 'Go' });
+      s0.els.push({ type: 'button', x: 296, y: by, w: 120, h: 48, text: 'Next' });
+      G.renderSection(s0);
+      var bi = s0.els.length - 2, b1 = s0.els[bi], b2 = s0.els[bi + 1], b2x = b2.x;
+      var link = s0.nodes[bi].querySelector('.wp-block-button__link');
+      var tgt = link.querySelector('[contenteditable], span') || link;
+      tgt.textContent = 'Book your free consultation today';
+      tgt.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(b1.w > 120 && b2.x >= b1.x + b1.w && b2.x > b2x, 'a button that grows should widen and move its neighbour along: ' + [b1.w, b2.x, b2x].join(','));
+      G.cards.drop();
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t2) { t2.remove(); });
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'gap closed, words matched, button made room';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;

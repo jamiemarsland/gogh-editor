@@ -5492,6 +5492,25 @@
     return null;
   }
   function preventNav(ev) { ev.preventDefault(); }
+  // a button's words never spill past its edges: it widens to fit them, and
+  // a piece beside it in its row moves along (the arrivals paper, row 9)
+  function growButtonToWords(sec, i) {
+    var e = sec.els[i], node = sec.nodes && sec.nodes[i];
+    var link = node && node.querySelector('.wp-block-button__link');
+    if (!link) return;
+    var s = measureScaleOf(sec);
+    if (!(s > 0.2)) return;
+    var need = Math.ceil(link.scrollWidth / s) + 2;
+    var grow = Math.min(need, W - e.x) - e.w;
+    if (!(grow > 0)) return;
+    var oldRight = e.x + e.w;
+    e.w += grow;
+    sec.els.forEach(function (o) {
+      if (o === e || o.x < oldRight - 8) return;
+      if (o.y < e.y + e.h && o.y + o.h > e.y) o.x = Math.min(W - o.w, o.x + grow);
+    });
+    resolveAndApply(sec);
+  }
   function onTextInput(ev) {
     var t = ev.target;
     S.forEach(function (sec) {
@@ -5500,6 +5519,7 @@
         e.text = (e.type === 'para' && e.list) ? listText(t)
           : (e.type === 'heading' || e.type === 'para') ? cleanInline(t.innerHTML) : t.textContent;
         if (e.fitW) refitText(sec, i); // fitted text follows the words as they change
+        if (e.type === 'button') growButtonToWords(sec, i);
         var oldH = e.h;
         measureTextHeights(sec);
         if (isText(e) && reflowPush(sec, e, oldH)) resolveAndApply(sec);
@@ -9103,6 +9123,14 @@
     if (!sel || sel.sec !== sec) return false;
     var anchor = sec.els[sel.i];
     if (!anchor || anchor === e) return false;
+    // new words match the words they arrive under (paper row 8): a
+    // paragraph under a paragraph, a heading under a heading
+    if (isText(e) && anchor.type === e.type && !anchor.list) {
+      ['fs', 'align', 'color', 'cls'].forEach(function (k) { if (anchor[k] != null) e[k] = anchor[k]; else delete e[k]; });
+      if (anchor.tf) e.tf = JSON.parse(JSON.stringify(anchor.tf)); else delete e.tf;
+      e.w = anchor.w;
+      e.__keepW = true; // its width is its neighbour's, not its ink's
+    }
     landNear(sec, anchor, e);
     return true;
   }
@@ -10532,7 +10560,8 @@
     // fresh TEXT hugs its words: a box wider than the ink reads as broken
     // ("shouldn't the box be the size of the text"). Measure the rendered
     // line and shrink the default box to it (+ a whisker), never wider.
-    if (isText(e) && e.text) {
+    var keepW = e.__keepW; delete e.__keepW;
+    if (isText(e) && e.text && !keepW) {
       var nNew = sec.nodes[iNew];
       var tHost = nNew && (nNew.querySelector('p,h1,h2,h3,h4,h5,h6') || nNew);
       if (tHost) {
@@ -10574,12 +10603,28 @@
     }
     if (!sel) return;
     var sec = sel.sec;
-    sec.els.splice(sel.i, 1);
+    var gone = sec.els.splice(sel.i, 1)[0];
     sel = null;
     hideHandles();
     closePanel();
+    var closed = closeGapAfter(sec, gone);
     renderSection(sec);
+    if (closed) toast('Deleted, and what was under it moved up.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
     pushState();
+  }
+  // a deleted piece's slot closes: what sat straight under it rises into its
+  // place (the arrivals paper, row 7). Not for a backdrop shape, and not
+  // when the piece shared its space with another (a layered design)
+  function closeGapAfter(sec, e) {
+    if (!e || (e.type === 'box' && !(e.kids && e.kids.length))) return false;
+    if (sec.els.some(function (o) { return rectsHit(o, e); })) return false;
+    var col = sec.els.filter(function (o) { return o.x < e.x + e.w && o.x + o.w > e.x && o.y >= e.y + e.h - 8; });
+    if (!col.length) return false;
+    var next = Math.min.apply(null, col.map(function (o) { return o.y; }));
+    var d = next - e.y;
+    if (!(d > 0)) return false;
+    var stand = { x: e.x, y: e.y, w: e.w, h: 0 };
+    return reflowPush(sec, stand, d);
   }
   // the section most visible in the current viewport
   function viewportSection() {
