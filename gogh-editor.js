@@ -9083,17 +9083,28 @@
       if (o === anchor || o === piece) return false;
       return !(o.type === 'box' && !(o.kids && o.kids.length) && o.x <= anchor.x && o.y <= anchor.y && o.x + o.w >= anchor.x + anchor.w && o.y + o.h >= anchor.y + anchor.h);
     });
-    if (ARRIVE_BESIDE[piece.type] && !piece.cards) {
+    if (ARRIVE_BESIDE[piece.type] && !piece.cards && anchor.type === piece.type) {
       var cand = { x: anchor.x + anchor.w + gap, y: anchor.y, w: piece.w, h: piece.h };
       if (cand.x + cand.w <= right && !inWay.some(function (o) { return rectsHit(cand, o); })) {
         piece.x = cand.x; piece.y = cand.y;
         return 'beside';
       }
     }
-    piece.x = anchor.x;
-    piece.y = anchor.y + anchor.h + gap;
-    makeRoomUnder(sec, anchor, piece.h + gap);
+    piece.x = anchor.align === 'center' ? Math.round(anchor.x + (anchor.w - piece.w) / 2) : anchor.x;
+    piece.x = Math.max(0, Math.min(W - piece.w, piece.x));
+    // (a stack keeps the page's rhythm; the tighter gap is a button pair's)
+    piece.y = anchor.y + anchor.h + RHYTHM;
+    makeRoomUnder(sec, anchor, piece.h + RHYTHM);
     return 'under';
+  }
+  // Add with a piece chosen in this section: the new piece arrives next to
+  // it (paper row 2), not in the section's middle. False when nothing fits
+  function landNearChosen(sec, e) {
+    if (!sel || sel.sec !== sec) return false;
+    var anchor = sec.els[sel.i];
+    if (!anchor || anchor === e) return false;
+    landNear(sec, anchor, e);
+    return true;
   }
   // the second button of a pair is the quieter one: a copy beside the only
   // solid button in its row arrives in the outline style
@@ -10612,6 +10623,7 @@
     // land in what the user is looking at: the selected section if it's on
     // screen, else the most visible one — centred in the viewport
     var sec = (sel && sectionVisible(sel.sec)) ? sel.sec : viewportSection();
+    if (!atBack && landNearChosen(sec, e)) { addElement(sec, e, atBack); return e; }
     var r = sec.sectionEl.getBoundingClientRect();
     var s = r.width / W;
     var cy = (window.innerHeight / 2 - r.top) / s - e.h / 2;
@@ -10639,12 +10651,15 @@
     // KEY for hydration: posts/products are 'widget' type in the model
     var kindKey = typeof kind === 'string' ? kind : null;
     var e = kindKey ? DEFAULTS[kindKey]() : kind;
-    var H = designH(secx.els, secx.minH);
-    e.x = Math.max(0, Math.min(W - e.w, Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48)));
-    e.y = Math.max(8, Math.round(Math.min(Math.max(8, (H - e.h) / 2), Math.max(8, H - e.h - 8)) + (stagger % 5) * 24 - 48));
-    stagger++;
-    landOnRhythm(secx, e);
-    addElement(secx, e);
+    if (!(e.type === 'box' && !e.kids) && landNearChosen(secx, e)) addElement(secx, e);
+    else {
+      var H = designH(secx.els, secx.minH);
+      e.x = Math.max(0, Math.min(W - e.w, Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48)));
+      e.y = Math.max(8, Math.round(Math.min(Math.max(8, (H - e.h) / 2), Math.max(8, H - e.h - 8)) + (stagger % 5) * 24 - 48));
+      stagger++;
+      landOnRhythm(secx, e);
+      addElement(secx, e);
+    }
     // a new piece lands at the section's middle, which on a tall section
     // can be below the fold — bring it into view so what was chosen is
     // seen (James: "should we scroll to the element that's been added?")

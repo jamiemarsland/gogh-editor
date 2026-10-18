@@ -4235,6 +4235,23 @@
       return 'beside, outline pair, under, room made';
     });
 
+    test('Adding with a piece chosen: the new piece lands under it (beside, for the same kind), and makes room', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'para', x: 160, y: base, w: 480, h: 48, text: 'Words to add under.' });
+      s0.els.push({ type: 'para', x: 160, y: base + 96, w: 480, h: 48, text: 'Words further down.' });
+      G.renderSection(s0); G.pushState();
+      var p1 = s0.els[n0], p2 = s0.els[n0 + 1], p2y = p2.y;
+      G.placeHandles(s0, n0);
+      var b = G.addElementToSection(idx, 'button');
+      expect(b.x === p1.x && b.y === p1.y + p1.h + 24, 'a button added while a paragraph is chosen should land under it: ' + [b.x, b.y, p1.x, p1.y + p1.h].join(','));
+      expect(p2.y >= b.y + b.h, 'what was under should move down to make room: ' + [p2y, p2.y, b.y + b.h].join(','));
+      // the button is now chosen: another button lands beside it
+      var b2 = G.addElementToSection(idx, 'button');
+      expect(b2.y === b.y && b2.x === b.x + b.w + 16, 'a second button added beside the chosen one: ' + [b2.x, b2.y, b.x + b.w].join(','));
+      return 'under, room made, beside';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
