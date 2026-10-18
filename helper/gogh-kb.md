@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.766 · knowledge base 4c765d1.
+Generated for plugin version 0.99.767 · knowledge base 9461f64.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Raised cards lift off the page, and the looks work on photo cards (v0.99.767).** The Raised card look now has a hairline edge, rounder corners and a real shadow, so it shows even on a white page; before, it was hard to tell from Panel. On the On the photo layout each look now changes something: Open makes the photo cards square and flat, Panel keeps the soft corners, Outline draws a thin white frame inside each picture, and Raised lifts the cards off the page.
+
 **On the photo gets the ghost card too (v0.99.766).** A set on the On the photo layout with a part-filled row now shows the big "+ Add card" ghost in its empty slot, the size and shape of its photo cards, exactly where the new card will land, as the grid layouts already did.
 
 **The cards' Style tab follows the sidebar standard (v0.99.765).** Under Edit design › Style, the card looks (Open, Panel, Outline, Raised) are still drawings. Below them is a block of hairline rows, like Site styles: **Rounded corners** and **Titles** are switches, and **Picture**, **Words line up** and **Each card ends with** show their current value. Pressing one of those opens its choices beneath it as rows; the current one is blue with a tick, pointing at another tries it on the page, and a click keeps it. The All cards page now lists every extra: a line above the title, a price, a name and role, a small note, and one featured card.
@@ -1141,11 +1143,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.766**
+- Plugin version: **0.99.767**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.766`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.767`). Quote the plugin header version.
 
 ## Design constants
 
