@@ -4999,7 +4999,7 @@ html.gogh-editing .gogh-cardset .gogh-cs-nopic { display: grid; place-items: cen
 html.gogh-editing .gogh-cardset-pic-square .gogh-cs-nopic, html.gogh-editing .gogh-cardset-small .gogh-cs-nopic { aspect-ratio: 1; }
 html.gogh-editing .gogh-cardset-pic-tall .gogh-cs-nopic { aspect-ratio: 4 / 5; }
 html.gogh-editing .gogh-cardset-small .gogh-cs-nopic { border-radius: 50%; padding: 0 12px; box-sizing: border-box; text-align: center; font-size: 11px; }
-html.gogh-editing .gogh-cardset-over .gogh-cs-nopic { position: absolute; inset: 0; aspect-ratio: auto; height: 100%; }
+html.gogh-editing .gogh-cardset-over .gogh-cs-nopic { position: absolute; inset: 0; aspect-ratio: auto; height: 100%; place-items: start end; padding: 14px 16px; box-sizing: border-box; color: #fff; }
 html.gogh-editing .gogh-cardset a { cursor: default; }
 .gogh-cardchip {
   position: absolute; z-index: 100002; display: flex; background: #fff; border-radius: 8px;

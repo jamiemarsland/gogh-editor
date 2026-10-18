@@ -793,11 +793,13 @@
       var d = cardsTypeDecls(sp, e.w);
       if (d.length) out.push(base + ' ' + sel + ' { ' + d.join('; ') + '; }');
       // a carried colour is the plain cards'; the featured card keeps its own
-      if (sp.tf && sp.tf.col) out.push(base + ' .gogh-cs-card:not(.is-featured) ' + sel + ' { color: ' + sp.tf.col + ' !important; }');
+      // (on a photo card the words are white over the veil, whatever ink
+      // they carried)
+      if (sp.tf && sp.tf.col && c.layout !== 'over') out.push(base + ' .gogh-cs-card:not(.is-featured) ' + sel + ' { color: ' + sp.tf.col + ' !important; }');
     });
     var b = c.box;
     if (b && b.look === c.look) {
-      if (b.bg) out.push(base + ' .gogh-cs-card:not(.is-featured) { background: ' + b.bg + ' !important; }');
+      if (b.bg && c.layout !== 'over') out.push(base + ' .gogh-cs-card:not(.is-featured) { background: ' + b.bg + ' !important; }');
       // the carried corners hold while Rounded corners is on; off is square
       // (James: 'dont think rounded corners does anthing')
       if (b.radius != null && c.round) out.push(base + ' .gogh-cardset:not(.gogh-cardset-index):not(.gogh-cardset-ledger) > .gogh-cs-card { border-radius: ' + b.radius + 'px !important; }');
@@ -809,7 +811,10 @@
       if (b.pad != null && c.layout === 'ledger') out.push(base + ' .gogh-cardset-ledger > .gogh-cs-card { padding: 0 !important; } ' + base + ' .gogh-cardset-ledger .gogh-cs-body { padding: max(8px, ' + cq(b.pad) + ') 0 !important; }');
       else if (b.pad != null) out.push(base + ' .gogh-cs-card .gogh-cs-body { padding: max(' + Math.min(b.pad, 16) + 'px, ' + cq(b.pad) + ') !important; }');
       if (b.gap != null) out.push(base + ' .gogh-cs-body { gap: max(' + Math.min(b.gap, 6) + 'px, ' + cq(b.gap) + '); }');
-      if (b.minH && !(c.layout === 'over' && b.ratio)) out.push(base + ' .gogh-cardset > .gogh-cs-card { min-height: ' + (b.minH * 100 / Math.max(80, e.w)).toFixed(2) + 'cqw; }');
+      // (a photo card takes its height from its shape: a carried height
+      // there would force it wider than its column — James: 'photo cards
+      // looks broken on elliot grey')
+      if (b.minH && c.layout !== 'over') out.push(base + ' .gogh-cardset > .gogh-cs-card { min-height: ' + (b.minH * 100 / Math.max(80, e.w)).toFixed(2) + 'cqw; }');
       if (b.tight && b.gap != null) Object.keys(b.tight).forEach(function (f) {
         var pre = f === 't' ? '.gogh-cs-k + .gogh-cs-t' : '.gogh-cs-role + .gogh-cs-n';
         out.push(base + ' .gogh-cs-body > ' + pre + ' { margin-top: calc(' + cq(b.tight[f]) + ' - ' + cq(b.gap) + ') !important; }');
@@ -2455,6 +2460,19 @@
         }
       });
     }
+    // a shrink pulls up only what nothing else is holding: a piece under
+    // another that did not move (Misprint's outline PRINT shrank and pulled
+    // the paragraph up under the headline, which had not — James: 'the
+    // missprint home page looks a bit wonky still')
+    if (delta < 0) {
+      var newBottom = e.y + e.h;
+      pushed = pushed.filter(function (o) {
+        return !sec.els.some(function (q) {
+          return q !== e && q !== o && pushed.indexOf(q) === -1 && (!only || only.indexOf(q) !== -1) &&
+            q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y && q.y + q.h <= o.y + 8 && q.y + q.h > newBottom;
+        });
+      });
+    }
     pushed.forEach(function (o) { o.y = Math.max(0, o.y + delta); });
     return true;
   }
@@ -2650,7 +2668,9 @@
     // the air under the design as drawn, on the 8 grid (24 rounding stacked
     // up to a deeper floor than the top)
     // (a picture section keeps its height: its words sit in its middle)
-    if (sec.minH && !(sec.bgImage || sec.fill || sec.bgVideo)) sec.minH = Math.max(MIN_H / 2, Math.ceil((bottomOf(sec.els) + Math.min(padB, 104)) / BASE) * BASE);
+    // (the floor never lifts a band drawn shorter than it: Misprint's
+    // ticker, drawn 160 tall, arrived 288)
+    if (sec.minH && !(sec.bgImage || sec.fill || sec.bgVideo)) sec.minH = Math.max(Math.min(MIN_H / 2, sec.minH), Math.ceil((bottomOf(sec.els) + Math.min(padB, 104)) / BASE) * BASE);
     resolveAndApply(sec);
   }
   // fonts land late: settle again a few times while nobody has touched it
@@ -11606,7 +11626,7 @@
     ['steps', 'Steps', 'Each card a little lower than the last.'],
     ['rows', 'Rows', 'Picture beside the words, one under another.'],
     ['zig', 'Zig-zag', 'Pictures swap sides down the page.'],
-    ['over', 'Photo cards', 'Words over the picture.'],
+    ['over', 'On the photo', 'Words over the picture.'],
     ['slider', 'Slider', 'A row that scrolls sideways.'],
     ['big', 'One big', 'The first card leads, the rest sit beside it.'],
     ['index', 'Index', 'Just the titles, ruled.'],

@@ -4178,6 +4178,22 @@
       return 'two cards → one set, undo';
     });
 
+    test('Arriving designs: a shrinking backdrop word never pulls words under a headline, and a thin band keeps its height', function () {
+      var made = G.fillTake({ name: 'Hero', minH: 864, els: [
+        { type: 'heading', x: 24, y: 48, w: 1152, h: 312, text: 'PRINT' },
+        { type: 'heading', x: 80, y: 216, w: 720, h: 336, text: 'Two inks, one pass, no undo.', fs: 'xx-large' },
+        { type: 'para', x: 80, y: 576, w: 560, h: 96, text: 'A risograph studio and zine library. Bring a file and leave with a hundred prints.' },
+        { type: 'button', x: 80, y: 720, w: 288, h: 48, text: 'Book a session' }] });
+      G.addSection(made, 0);
+      var s0 = contentSecs()[0], h = s0.els[1], pa = s0.els[2], bt = s0.els[3];
+      expect(s0.els[0].h < 312, 'the backdrop word should measure shorter than drawn (' + s0.els[0].h + ')');
+      expect(pa.y >= h.y + h.h - 2 && bt.y >= pa.y + pa.h - 2, 'the paragraph and button should stay under the headline: ' + [h.y, h.h, pa.y, pa.h, bt.y].join(','));
+      G.addSection(G.fillTake({ name: 'Ticker', minH: 160, els: [{ type: 'para', x: 0, y: 48, w: 1200, h: 48, text: 'Zines * Posters * Flyers' }] }), 0);
+      var band = contentSecs()[0];
+      expect(band.minH <= 168, 'a band drawn 160 tall should keep about that height, not ' + band.minH);
+      return 'order kept, band ' + band.minH;
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
