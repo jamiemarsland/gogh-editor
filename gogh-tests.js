@@ -4024,6 +4024,14 @@
       expect(!G.cards.focus() && /Cards · 3/.test(q('.gogh-selbox-tag').textContent), 'the first press should choose the set, named on its frame');
       pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
       expect(G.cards.focus() && G.cards.focus().k === 1, 'a second press should go into card 2');
+      // Delete with a card chosen takes that card only, and the set stays
+      var t2 = e.cards.items[1].t;
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+      expect(s0.els.indexOf(e) !== -1 && e.cards.items.length === 2 && e.cards.items.every(function (it) { return it.t !== t2; }), 'Backspace on a chosen card should delete only that card: ' + e.cards.items.length);
+      expect(G.cards.focus() && G.cards.focus().k === 1, 'the next card should be chosen, so a second press takes a card, not the set');
+      pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
+      card2 = s0.nodes[s0.els.indexOf(e)].querySelectorAll('.gogh-cs-card')[1]; r = card2.getBoundingClientRect();
+      if (!G.cards.focus()) { pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5); }
       var trail = q('.gogh-eb-cardstrail');
       expect(trail.style.display !== 'none' && /Card 2/.test(trail.textContent), 'the bar should say Cards › Card 2');
       expect(!G.cards.chip().hidden, 'the chosen card should wear its handle');

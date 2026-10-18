@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.771 · knowledge base 8dda185.
+Generated for plugin version 0.99.772 · knowledge base 799164a.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Delete takes the chosen card, not the set (v0.99.772).** With a card chosen inside a set (Cards › Card 2 on the bar), pressing Delete or Backspace now deletes just that card, with Undo, and the next card becomes the chosen one, so pressing again deletes another card rather than the whole set. On the last card it says so instead of removing the set; to remove a whole set, choose the set itself and press Delete, or use its ••• menu.
+
 **Delete closes the gap, new words match, buttons make room (v0.99.771).** Deleting a piece now closes the hole it leaves: what sat straight under it rises into its place, as one Undo (not for a backdrop shape, or a piece layered with another). A paragraph added under a paragraph (or a heading under a heading) arrives with its neighbour's size, weight, colour, width and line-up instead of the default. And typing more words into a button widens it to fit, moving a button beside it along, instead of the words spilling past its edges.
 
 **Copy and paste pieces (v0.99.770).** Choose a piece (or several) and press **Cmd+C** (Ctrl+C) to copy it, or **Cmd+X** to cut it; **Cmd+V** pastes it into any section, on any page of the site. With a piece chosen, the paste lands like a duplicate, beside or under it, with room made; with nothing chosen it keeps its spot if that is free, otherwise it goes to the foot of the section. Pasting a picture copied from another app adds it to the media library and places it like Add; pasting plain words (from an email, a document) makes a paragraph. Pasted HTML still becomes a new section, as before. Other apps get the pieces' plain words.
@@ -1151,11 +1153,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.771**
+- Plugin version: **0.99.772**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.771`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.772`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1662,6 +1664,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Back to freeform — drag it anywhere."
 - "Backup restored — publish when ready."
 - "Button updated."
+- "Card deleted."
 - "Copied. Paste it into the site definition, beside pages."
 - "Could not add that section."
 - "Could not apply that style."
@@ -1723,6 +1726,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Site name restored — click it to rename."
 - "Site name saved."
 - "Style copied — click other text to paint it. Esc finishes."
+- "That is the last card. To remove the set, choose it and press Delete."
 - "That is the only section on the page. Add another before deleting it."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."

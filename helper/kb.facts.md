@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.771**
+- Plugin version: **0.99.772**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.771`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.772`). Quote the plugin header version.
 
 ## Design constants
 
@@ -515,6 +515,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Back to freeform — drag it anywhere."
 - "Backup restored — publish when ready."
 - "Button updated."
+- "Card deleted."
 - "Copied. Paste it into the site definition, beside pages."
 - "Could not add that section."
 - "Could not apply that style."
@@ -576,6 +577,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Site name restored — click it to rename."
 - "Site name saved."
 - "Style copied — click other text to paint it. Esc finishes."
+- "That is the last card. To remove the set, choose it and press Delete."
 - "That is the only section on the page. Add another before deleting it."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."

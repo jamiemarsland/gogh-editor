@@ -24417,6 +24417,21 @@
     }
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && (sel || multiSel)) {
       ev.preventDefault();
+      // a card chosen inside a set: the key takes that card, not the set
+      // (James: 'if i select a card, and hit delete or backspace, it should
+      // only delete that card, not all the cards')
+      var dce = !multiSel && sel && sel.sec.els[sel.i];
+      if (dce && dce.cards && cardFocusOn(sel.sec, sel.i)) {
+        closeCardPop();
+        if (dce.cards.items.length < 2) { toast('That is the last card. To remove the set, choose it and press Delete.'); return; }
+        var dk = cardFocus.k, dsec = sel.sec, di = sel.i;
+        cardsDo(dsec, dce, 'del', dk);
+        // the next card is chosen, so a second press takes a second card,
+        // never the whole set
+        focusCard(dsec, di, Math.min(dk, dce.cards.items.length - 1));
+        toast('Card deleted.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        return;
+      }
       deleteSelected();
       return;
     }

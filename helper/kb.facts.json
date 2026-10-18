@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.771",
+    "plugin_version": "0.99.772",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.771-chrome"
+    "asset_version": "0.99.772-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -735,6 +735,7 @@
     "Back to freeform — drag it anywhere.",
     "Backup restored — publish when ready.",
     "Button updated.",
+    "Card deleted.",
     "Copied. Paste it into the site definition, beside pages.",
     "Could not add that section.",
     "Could not apply that style.",
@@ -796,6 +797,7 @@
     "Site name restored — click it to rename.",
     "Site name saved.",
     "Style copied — click other text to paint it. Esc finishes.",
+    "That is the last card. To remove the set, choose it and press Delete.",
     "That is the only section on the page. Add another before deleting it.",
     "That saved section can’t be read.",
     "That section can’t move past other stored content yet.",
