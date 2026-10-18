@@ -3185,8 +3185,20 @@
       addToSec('badge'); addToSec('badge');
       var n = sec().els.length;
       var a = sec().els[n - 2], b = sec().els[n - 1];
+      // the magnet takes the CLOSEST edge in the whole section, so b goes
+      // where no other piece has an edge or middle near its right side: the
+      // fixture is a living page, and on 2026-10-18 its picture's right edge
+      // landed at 702, beside the 704 this drag lets go at, and won
+      var others = sec().els.slice(0, n - 2);
+      var clear = function (bx) {
+        return others.every(function (o) {
+          return [o.x, o.x + o.w, o.x + o.w / 2].every(function (c) { return Math.abs(c - (bx + 200)) > 12 && Math.abs(c - (bx + 204)) > 12; });
+        });
+      };
+      var bx = [500, 540, 580, 620, 660, 460, 420].filter(clear)[0];
+      if (bx == null) throw new Error('no clear lane for the resize: other pieces have edges near every spot tried');
       a.x = 100; a.y = 2801; a.w = 200; a.h = 60;
-      b.x = 500; b.y = 2801; b.w = 230; b.h = 60;
+      b.x = bx; b.y = 2801; b.w = 230; b.h = 60;
       G.resolve(sec()); G.measure(sec()); G.resolve(sec());
       select(n - 1);
       var s = sec().sectionEl.getBoundingClientRect().width / 1200;
