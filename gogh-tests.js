@@ -3947,7 +3947,7 @@
       return 'boxes → set, words kept';
     });
 
-    test('Cards: the set’s bar is Add card, Edit design and •••; the design sidebar tries on hover and keeps on click', function () {
+    test('Cards: the set’s bar is Edit design, Add card and •••; the design sidebar tries on hover and keeps on click', function () {
       var s0 = sec();
       var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
       var n = s0.nodes[i];
@@ -3955,7 +3955,7 @@
       var shown = function (c) { var b = q('.gogh-elbar ' + c); return !!b && getComputedStyle(b).display !== 'none'; };
       expect(shown('.gogh-eb-addcard') && shown('.gogh-eb-cardslayout') && shown('.gogh-eb-cardsmore') && !q('.gogh-eb-cardsstyle'), 'the set’s bar should show Add card, Edit design and •••');
       var ed = q('.gogh-eb-cardslayout'), ad = q('.gogh-eb-addcard');
-      expect(ed.textContent === 'Edit design' && (ad.compareDocumentPosition(ed) & Node.DOCUMENT_POSITION_FOLLOWING), 'Edit design should follow Add card, as Edit design follows Manage products');
+      expect(ed.textContent === 'Edit design' && (ed.compareDocumentPosition(ad) & Node.DOCUMENT_POSITION_FOLLOWING), 'Edit design should come first, then Add card (as Edit design leads a shelf\u2019s bar)');
       expect(!shown('.gogh-eb-ctx') && !shown('.gogh-eb-dup') && !shown('.gogh-eb-del'), 'no Edit door, and copy and bin live in the set’s •••');
       try {
         // Edit design opens the docked sidebar on Layout (the set stays in view)

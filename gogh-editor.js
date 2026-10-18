@@ -3909,12 +3909,12 @@
     '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
     // inside a set: where you are, and the way back out to the set
     '<button type="button" class="gogh-eb gogh-eb-cardstrail" title="Back to the whole set (Esc)" style="display:none"></button>' +
-    // a card set's two everyday doors, as a shelf's are (Manage products ·
-    // Edit design): one more card, and the design of every card, its
-    // layout and style in the sidebar (James: 'should we just have edit
-    // design for the card layout, like we do for products?')
-    '<button type="button" class="gogh-eb gogh-eb-addcard" title="Add a card" style="display:none"><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>Add card</button>' +
+    // a card set's two everyday doors, in the shelf's order (Edit design ·
+    // Manage products): the design of every card, its layout and style in
+    // the sidebar, then one more card (James: 'i wonder if these should be
+    // the other way around')
     '<button type="button" class="gogh-eb gogh-eb-cardslayout" title="Layout and style for every card" aria-haspopup="dialog" aria-expanded="false" style="display:none">Edit design</button>' +
+    '<button type="button" class="gogh-eb gogh-eb-addcard" title="Add a card" style="display:none"><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>Add card</button>' +
     // text size, the way Canva and Docs do it: a step smaller, the size by
     // name (a click opens every size), a step bigger
     // one small pill, [ − 85 + ]: a number needs no explaining (James:

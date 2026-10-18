@@ -811,6 +811,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A set's bar leads with Edit design (v0.99.774).** The bar for a set of cards now reads **Edit design · + Add card · •••**, design first, the same order as a shop or posts grid's bar (Edit design, then Manage products).
+
 **A button's design style always wins over Outline (v0.99.773).** On a design with its own button styles (Misprint's prints, for example), a button left on Outline could not change style: the outline painted over whichever style was chosen. Now the style decides: choosing a style turns Outline off, a button already stuck that way draws in its style straight away, and the Solid/Outline switch is hidden while a design style is on. A duplicated button keeps its design style rather than arriving as outline (outline for the second button of a pair only applies to buttons with no design style).
 
 **Delete takes the chosen card, not the set (v0.99.772).** With a card chosen inside a set (Cards › Card 2 on the bar), pressing Delete or Backspace now deletes just that card, with Undo, and the next card becomes the chosen one, so pressing again deletes another card rather than the whole set. On the last card it says so instead of removing the set; to remove a whole set, choose the set itself and press Delete, or use its ••• menu.
