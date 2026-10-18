@@ -11606,7 +11606,7 @@
     ['steps', 'Steps', 'Each card a little lower than the last.'],
     ['rows', 'Rows', 'Picture beside the words, one under another.'],
     ['zig', 'Zig-zag', 'Pictures swap sides down the page.'],
-    ['over', 'On the photo', 'Words over the picture.'],
+    ['over', 'Photo cards', 'Words over the picture.'],
     ['slider', 'Slider', 'A row that scrolls sideways.'],
     ['big', 'One big', 'The first card leads, the rest sit beside it.'],
     ['index', 'Index', 'Just the titles, ruled.'],

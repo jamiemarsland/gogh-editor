@@ -811,6 +811,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The "On the photo" layout is now called Photo cards (v0.99.763).** In a set's Layout choices, the layout that puts the words over each picture is now named **Photo cards**, the same as the shelf design built with it. Nothing about how it looks has changed.
+
 **A set's bar is Add card · Edit design (v0.99.762).** The bar for a set of cards now matches a shop's (Manage products · Edit design): **+ Add card**, **Edit design** and **•••**. Edit design opens the sidebar on Layout, with Style one tab away, and stays pressed while the sidebar is open; press it again to put the sidebar away. The separate "Layout · 3 across" and "Style · Panel" chips are gone, since both opened the same sidebar.
 
 **Rounded corners works on every set, and a calmer picture chooser (v0.99.761).** On a set made from freeform cards, Rounded corners did nothing because the cards kept their own corners. Now the cards' own corners show while it is on, and turning it off makes them square. In a card's picture chooser, Upload and Library are two matching buttons on one line, and "Remove picture" is a quiet link rather than red words.
