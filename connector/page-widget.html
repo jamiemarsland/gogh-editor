@@ -71,6 +71,23 @@ button[disabled] { opacity: .45; cursor: default; }
 #gw-page .gw-tools .gw-grip { cursor: grab; }
 #gw-page .gw-drop { position: absolute; left: 0; right: 0; height: 8px; background: #2271b1; z-index: 9999; pointer-events: none; }
 #gw-page .gw-dim { opacity: .35; }
+#gw-page .gw-seam { position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%); z-index: 9998; display: none; }
+#gw-page [data-gw-sec]:hover > .gw-seam { display: block; }
+#gw-page .gw-seam button { all: unset; cursor: pointer; background: #2271b1; color: #fff; border-radius: 999px; padding: 12px 22px; font: 600 22px/1 system-ui, sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,.25); white-space: nowrap; }
+.pick { display: flex; flex-direction: column; gap: 10px; }
+.pick[hidden] { display: none; }
+.pick .head { display: flex; align-items: center; gap: 8px; font: 600 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--w-ink); }
+.pick .head span { margin-right: auto; }
+.pick .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.pick .tabs button { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); color: var(--w-ink); border-radius: 999px; padding: 4px 12px; font: 13px system-ui, sans-serif; cursor: pointer; }
+.pick .tabs button[aria-pressed="true"] { border-color: var(--w-accent); box-shadow: inset 0 0 0 1px var(--w-accent); }
+.pick .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pick .opt { appearance: none; border: 2px solid transparent; padding: 0; border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--w-surface); box-shadow: 0 0 0 1px var(--w-line); text-align: left; display: flex; flex-direction: column; }
+.pick .opt:hover, .pick .opt:focus-visible { border-color: var(--w-accent); box-shadow: none; outline: none; }
+.pick .opt .name { font: 12px/1.3 system-ui, sans-serif; color: var(--w-muted); padding: 5px 8px 6px; }
+.pick .thumb { position: relative; width: 100%; aspect-ratio: 1200 / 680; overflow: hidden; }
+.pick .thumb > .gw-stage { position: absolute; top: 0; left: 0; width: 1200px; transform-origin: 0 0; container-type: inline-size; }
+.pick .thumb > .gw-stage > .gogh-section { display: grid; }
 .msg { padding: 28px; text-align: center; color: var(--w-muted); }
 </style>
 </head>
@@ -84,13 +101,19 @@ button[disabled] { opacity: .45; cursor: default; }
     <button class="go" id="publish" type="button" hidden>Publish</button>
   </div>
   <div class="ask" id="ask" role="alertdialog" aria-live="assertive"><span id="askText"></span><button class="chip" id="askNo" type="button">Cancel</button><button class="go" id="askYes" type="button">Yes</button></div>
-  <div class="hint">Click any words to change them. Drag a section by its handle to move it.</div>
+  <div class="hint" id="hint">Click any words to change them. Drag a section by its handle to move it. Add a section from the + under any section.</div>
+  <div class="pick" id="pick" hidden>
+    <div class="head"><span id="pickTitle">Add a section</span><button class="chip" id="pickClose" type="button">Cancel</button></div>
+    <div class="tabs" id="pickTabs"></div>
+    <div class="grid" id="pickGrid"></div>
+  </div>
   <div class="stage" id="stage"><div class="msg" id="msg">Opening your page…</div></div>
 </div>
+<script>/*__GOGH_DRAW__*/</script>
 <script>
 (function () {
   'use strict';
-  var st = null, busy = 0, frame = null, W = 1280;
+  var st = null, busy = 0, frame = null, W = 1280, G = window.goghDraw, info = null;
 
   /* ---------- the chat: MCP Apps over postMessage ---------- */
   var rid = 0, pend = {}, inHost = window.parent !== window;
@@ -194,7 +217,15 @@ button[disabled] { opacity: .45; cursor: default; }
       sel.appendChild(o);
     });
     status(d.unpublished_changes);
+    if (G && d.pictures) { G.mediaPool.imgs = d.pictures.imgs || []; G.mediaPool.bgs = d.pictures.bgs || []; G.mediaPool.fetched = true; }
     draw();
+  }
+  // what each section is and says, for redrawing one in another design
+  function reread() {
+    return request('tools/call', { name: 'gogh_read_page', arguments: { page_id: st.page.id } }).then(function (r) {
+      info = r && r.structuredContent ? r.structuredContent : null;
+      return info;
+    }).catch(function () { info = null; });
   }
   function draw() {
     var keep = window.scrollY;
@@ -227,7 +258,7 @@ button[disabled] { opacity: .45; cursor: default; }
       stage.innerHTML = '';
       stage.appendChild(page);
       frame = page;
-      wire(page);
+      reread().then(function () { wire(page); });
       window.scrollTo(0, keep);
     }).catch(oops);
   }
@@ -301,17 +332,26 @@ button[disabled] { opacity: .45; cursor: default; }
     var doc = document;
     var t = doc.createElement('div'); t.className = 'gw-tools';
     t.setAttribute('contenteditable', 'false');
+    var design = G && info && info.sections && info.sections[n - 1] && info.sections[n - 1].design && G.diceFaces(info.sections[n - 1].design);
     t.innerHTML = '<button class="gw-grip" draggable="true" title="Drag to move">⠿</button>' +
+      (design ? '<button data-a="design" title="Try this section in its other designs">Design</button>' : '') +
       (n > 1 ? '<button data-a="up" title="Move up">↑</button>' : '') +
       (n < count ? '<button data-a="down" title="Move down">↓</button>' : '') +
       (count > 1 ? '<button data-a="remove" title="Remove this section">Remove</button>' : '');
     sec.appendChild(t);
+    if (G) {
+      var seam = doc.createElement('div'); seam.className = 'gw-seam'; seam.setAttribute('contenteditable', 'false');
+      seam.innerHTML = '<button type="button">+ Add a section</button>';
+      seam.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); chooseNew(n + 1); });
+      sec.appendChild(seam);
+    }
     t.addEventListener('click', function (ev) {
       var b = ev.target.closest('button'); if (!b) return;
       ev.preventDefault(); ev.stopPropagation();
       var a = b.getAttribute('data-a');
       if (a === 'up') move(n, n - 1);
       if (a === 'down') move(n, n + 1);
+      if (a === 'design') chooseDesign(n);
       if (a === 'remove') { t.classList.add('on'); ask('Remove this section from the page? You can throw the change away until it is published.', 'Remove', function () { remove(n); }); }
     });
     var grip = t.querySelector('.gw-grip');
@@ -354,6 +394,125 @@ button[disabled] { opacity: .45; cursor: default; }
       saying('Removed. Not live yet.'); status(true); draw();
       tell('In the page panel the person removed section ' + n + ' of "' + st.page.title + '".');
     }, oops);
+  }
+
+  /* ---------- new sections, drawn with gogh's own code ---------- */
+  var INTENTS = [['introduce', 'Introduce'], ['showcase', 'Showcase'], ['sell', 'Sell'], ['share', 'Share']];
+  var OPENERS = ['Hero', 'Cover', 'Big statement'];
+  function nextScope() {
+    var top = 0;
+    [].forEach.call(document.querySelectorAll('#gw-page [data-gogh-scope]'), function (el) { var m = /gogh-sec-(\d+)/.exec(el.getAttribute('data-gogh-scope')); if (m) top = Math.max(top, +m[1]); });
+    return 'gogh-sec-' + (top + 1 + Math.floor(Math.random() * 50));
+  }
+  function secFrom(tpl, scope) {
+    var els = G.tplEls(tpl);
+    var m = G.diceFaces(tpl.name) ? { tpl: tpl.name, face: +tpl.face > 0 ? +tpl.face : 0 } : null;
+    if (tpl.cls) m = Object.assign(m || {}, { cls: tpl.cls });
+    return { scope: scope, els: els, minH: tpl.minH || null, bg: tpl.bg || null, bgImage: G.tplBgFor(tpl) || null, bgA: tpl.bgA != null ? tpl.bgA : null, m: m, divider: null, fx: null, anchor: null };
+  }
+  function shown(html) { return st.site_origin === st.public_origin ? html : html.split(st.site_origin).join(st.public_origin); }
+  function thumb(sec) {
+    var css = G.buildCSS(sec.els, sec.scope, sec.minH, { bg: sec.bg, bgImage: sec.bgImage, bgA: sec.bgA });
+    var inner = sec.els.map(function (e, i) { return G.makeNode(e, i).outerHTML; }).join('');
+    return '<div class="thumb"><style>' + shown(css) + '</style><div class="gw-stage gogh-wrap"><div class="gogh-section ' + sec.scope + '">' + shown(inner) + '</div></div></div>';
+  }
+  function fitThumbs() {
+    [].forEach.call(document.querySelectorAll('.pick .gw-stage'), function (s) { s.style.transform = 'scale(' + (s.parentNode.clientWidth / 1200) + ')'; });
+    sizeUp();
+  }
+  function showPick(title, tabs, onTab) {
+    document.getElementById('pickTitle').textContent = title;
+    var tb = document.getElementById('pickTabs'); tb.innerHTML = '';
+    (tabs || []).forEach(function (t, i) {
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = t[1];
+      b.setAttribute('aria-pressed', i ? 'false' : 'true');
+      b.onclick = function () { [].forEach.call(tb.children, function (x) { x.setAttribute('aria-pressed', 'false'); }); b.setAttribute('aria-pressed', 'true'); onTab(t[0]); };
+      tb.appendChild(b);
+    });
+    document.getElementById('pick').hidden = false;
+    document.getElementById('stage').hidden = true;
+    document.getElementById('hint').hidden = true;
+    window.scrollTo(0, 0);
+  }
+  function hidePick() {
+    document.getElementById('pick').hidden = true;
+    document.getElementById('stage').hidden = false;
+    document.getElementById('hint').hidden = false;
+    document.getElementById('pickGrid').innerHTML = '';
+    fit();
+  }
+  document.getElementById('pickClose').onclick = hidePick;
+  function fillGrid(list, onPick) {
+    var grid = document.getElementById('pickGrid'); grid.innerHTML = '';
+    list.forEach(function (o, i) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'opt';
+      try { b.innerHTML = thumb(secFrom(o.tpl, 'gw-pk-' + i)) + '<span class="name">' + o.label + '</span>'; } catch (e) { return; }
+      b.onclick = function () { onPick(o); };
+      grid.appendChild(b);
+    });
+    if (document.fonts) document.fonts.ready.then(fitThumbs);
+    fitThumbs(); setTimeout(fitThumbs, 400);
+  }
+  // + Add a section: gogh's designs, by what they are for
+  function chooseNew(at) {
+    if (!G) return;
+    var byIntent = function (intent) {
+      return G.TEMPLATES.filter(function (t) { return t.intent === intent && !t.retired && !t.gated && t.els && t.els.length; })
+        .map(function (t) { return { tpl: t, label: t.label ? String(t.label).replace(/<[^>]*>/g, '') : t.name }; });
+    };
+    showPick('Add a section here', INTENTS, function (k) { fillGrid(byIntent(k), pick); });
+    fillGrid(byIntent('introduce'), pick);
+    function pick(o) {
+      var sec = secFrom(o.tpl, nextScope());
+      var blocks = G.buildSectionBlocksV3(sec);
+      hidePick();
+      tool('gogh_add_section', { page_id: st.page.id, at: at, blocks: blocks }).then(function () {
+        saying('Added. Click its words to make them yours.'); status(true); draw();
+        tell('In the page panel the person added a ' + o.label + ' section to "' + st.page.title + '" at place ' + at + '. It carries gogh\'s sample words until they change them.');
+      }, oops);
+    }
+  }
+  // a section's other designs, wearing its own words and pictures
+  function wordsOf(s) {
+    var w = {}, texts = [], buttons = [], pic = null, items = null;
+    (s.pieces || []).forEach(function (p) {
+      if (p.role === 'eyebrow' && !w.eyebrow) w.eyebrow = p.words;
+      else if (p.role === 'heading' && !w.heading) w.heading = p.words;
+      else if (p.role === 'text') texts.push(p.words);
+      else if (p.role === 'button') buttons.push(p.words);
+      else if (p.role === 'picture' && p.src && !pic) pic = p.src;
+      else if (p.role === 'cards' && p.cards && !items) items = p.cards.map(function (c) { return { title: c.title, text: c.text, quote: c.text, name: c.name || c.role, role: c.role, price: c.price, eyebrow: c.eyebrow, image: c.src }; });
+    });
+    if (texts[0]) w.text = texts[0]; if (texts[1]) w.text2 = texts[1]; if (texts[2]) w.text3 = texts[2];
+    if (buttons[0]) w.button = buttons[0]; if (buttons[1]) w.button2 = buttons[1];
+    if (pic || s.background_picture) w.image = pic || s.background_picture;
+    if (items) w.items = items;
+    return w;
+  }
+  function chooseDesign(n) {
+    if (!G || !info || !info.sections[n - 1]) return;
+    var s = info.sections[n - 1], fam = s.design, words = wordsOf(s);
+    var fams = OPENERS.indexOf(fam) !== -1 ? OPENERS : [fam];
+    var list = [];
+    fams.forEach(function (f) {
+      (G.diceFaces(f) || []).forEach(function (t, k) {
+        var face = k ? t.take : 'The original';
+        if (f === fam && k === (s.design_take || 0)) return; // the one it is now
+        var tpl = null;
+        try { tpl = G.fillTake(Object.assign({ take: f, face: face }, words)); } catch (e) {}
+        if (tpl) list.push({ tpl: tpl, label: face === 'The original' ? f : f + ' · ' + face.replace(/^The /, '') });
+      });
+    });
+    showPick('Try section ' + n + ' in another design', null, null);
+    fillGrid(list, function (o) {
+      var sec = secFrom(o.tpl, nextScope());
+      var blocks = G.buildSectionBlocksV3(sec);
+      hidePick();
+      tool('gogh_replace_section', { page_id: st.page.id, section: n, blocks: blocks }).then(function () {
+        saying('Changed. Not live yet.'); status(true); draw();
+        tell('In the page panel the person changed section ' + n + ' of "' + st.page.title + '" to the ' + o.label + ' design, keeping its words.');
+      }, oops);
+    });
   }
 
   window.addEventListener('resize', fit);

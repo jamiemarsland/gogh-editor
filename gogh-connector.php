@@ -96,6 +96,9 @@ function gogh_connector_tool( $tool, $a ) {
 	if ( $hints ) {
 		$t['annotations'] = $hints;
 	}
+	if ( ! empty( $meta['mcp']['app_only'] ) ) {
+		$t['_meta'] = array( 'ui' => array( 'visibility' => array( 'app' ) ) );
+	}
 	return $t;
 }
 
@@ -162,6 +165,7 @@ function gogh_connector_open_page( $args ) {
 		'public_origin'       => $pub,
 		'unpublished_changes' => $pv['unpublished_changes'],
 		'can_publish'         => current_user_can( 'publish_pages' ),
+		'pictures'            => gogh_pg_pictures(),
 	);
 	return array(
 		'content'           => array( array( 'type' => 'text', 'text' => sprintf( 'Showing "%s" in the panel. The person can change words, move and remove sections, and publish there. Their edits are saved as they go; read the page again with gogh_read_page before changing it yourself.', $data['page']['title'] ) ) ),
@@ -178,7 +182,8 @@ function gogh_connector_read_resource( $uri ) {
 	return array( 'contents' => array( array(
 		'uri'      => $uri,
 		'mimeType' => 'text/html;profile=mcp-app',
-		'text'     => (string) file_get_contents( __DIR__ . '/connector/page-widget.html' ),
+		// the panel draws new sections with gogh's own code, inlined
+		'text'     => str_replace( '/*__GOGH_DRAW__*/', str_replace( '</script', '<\\/script', (string) file_get_contents( __DIR__ . '/connector/gogh-draw.js' ) ), (string) file_get_contents( __DIR__ . '/connector/page-widget.html' ) ),
 		'_meta'    => array( 'ui' => array(
 			'csp'           => array(
 				'connectDomains'  => array( $pub ),

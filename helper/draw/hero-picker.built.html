@@ -159,8 +159,12 @@ button { font: inherit; color: inherit; }
     { slug: 'xx-large', size: '3rem' }
   ];
   function fontSizes() { return FONT_SIZES; }
-  var mediaPool = [];
-  function poolPick() { return null; }
+  // a section drawn outside the editor has no neighbours: no dividers,
+  // transitions or drags to account for (the editor's sectionOpts reads them)
+  function sectionOpts(sec) {
+    return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage,
+      bgVideo: sec.bgVideo || null, m: sec.m || null, bgPos: sec.bgPos || null, fx: sec.fx || null };
+  }
   function embedNode() { var d = document.createElement('div'); d.className = 'gogh-embed-stub'; return d; }
   function videoNode() { var d = document.createElement('div'); d.className = 'gogh-video-stub'; return d; }
   function composePosts() { return ''; }
@@ -261,6 +265,82 @@ button { font: inherit; color: inherit; }
       }),
     };
   }
+  function splitByGaps(items, pos, len) {
+    var sorted = items.slice().sort(function (p, q) { return p.e[pos] - q.e[pos]; });
+    var groups = [], cur = [sorted[0]];
+    var end = sorted[0].e[pos] + sorted[0].e[len];
+    for (var k = 1; k < sorted.length; k++) {
+      var it = sorted[k];
+      if (it.e[pos] >= end - 2) {
+        groups.push(cur);
+        cur = [it];
+        end = it.e[pos] + it.e[len];
+      } else {
+        cur.push(it);
+        end = Math.max(end, it.e[pos] + it.e[len]);
+      }
+    }
+    groups.push(cur);
+    return groups;
+  }
+  function xyLinearize(items) {
+    if (items.length <= 1) return items;
+    // a top band that SPANS the columns beneath it (a section title) reads
+    // first; a top band that aligns one-per-column (a row of card images)
+    // does not peel — the column pass below keeps each card together
+    var bands = splitByGaps(items, 'y', 'h');
+    if (bands.length > 1) {
+      var rest0 = [];
+      for (var bk = 1; bk < bands.length; bk++) rest0 = rest0.concat(bands[bk]);
+      var colsRest = splitByGaps(rest0, 'x', 'w');
+      if (colsRest.length > 1) {
+        var extents = colsRest.map(function (g) {
+          var lo = Infinity, hi = -Infinity;
+          g.forEach(function (it) {
+            lo = Math.min(lo, it.e.x);
+            hi = Math.max(hi, it.e.x + it.e.w);
+          });
+          return [lo, hi];
+        });
+        var spansMulti = bands[0].every(function (it) {
+          var n = 0;
+          extents.forEach(function (ex) {
+            if (it.e.x < ex[1] && it.e.x + it.e.w > ex[0]) n++;
+          });
+          return n >= 2;
+        });
+        if (spansMulti) return xyLinearize(bands[0]).concat(xyLinearize(rest0));
+      }
+    }
+    // columns first: a card's image, copy and button belong together
+    var cols = splitByGaps(items, 'x', 'w');
+    if (cols.length > 1) {
+      var out = [];
+      cols.forEach(function (g) { out = out.concat(xyLinearize(g)); });
+      return out;
+    }
+    // no clean columns (e.g. a full-width heading spans them): peel off the
+    // TOP band only, so columns underneath stay detectable in the remainder
+    var bands = splitByGaps(items, 'y', 'h');
+    if (bands.length > 1) {
+      var rest = [];
+      for (var k = 1; k < bands.length; k++) rest = rest.concat(bands[k]);
+      return xyLinearize(bands[0]).concat(xyLinearize(rest));
+    }
+    // fully interlocked cluster: stable top-to-bottom, left-to-right
+    return items.slice().sort(function (p, q) { return p.e.y - q.e.y || p.e.x - q.e.x; });
+  }
+  function readingRank(els) {
+    var rank = [];
+    var items = els.map(function (e, i) { return { i: i, e: e }; });
+    xyLinearize(items).forEach(function (r, kk) { rank[r.i] = kk; });
+    return rank;
+  }
+  function readingIndexOrder(els) {
+    var rank = readingRank(els);
+    return els.map(function (_, i) { return i; })
+      .sort(function (a, b) { return rank[a] - rank[b]; });
+  }
   var TYPE_RULES = {
     heading: 'align-self: start;',
     para: 'align-self: start;',
@@ -308,6 +388,66 @@ button { font: inherit; color: inherit; }
     'repeating-linear-gradient(180deg, transparent 0, transparent 2cqw, rgba(15,23,42,0.18) 2cqw, rgba(15,23,42,0.18) 3cqw) 6.6667cqw 0 / 86.6667cqw 100% no-repeat',
     'repeating-linear-gradient(90deg, rgba(255,255,255,0.14) 0, rgba(255,255,255,0.14) 2.65278cqw, transparent 2.65278cqw, transparent 3.65278cqw) 6.6667cqw 0 / 86.6667cqw 100% no-repeat'
   ].join(', ');
+  function videoEmbedInfo(url) {
+    var u = String(url || '').trim();
+    var m = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+    if (m) return { provider: 'youtube', id: m[1], embed: 'https://www.youtube-nocookie.com/embed/' + m[1] };
+    m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (m) return { provider: 'vimeo', id: m[1], embed: 'https://player.vimeo.com/video/' + m[1] };
+    return null;
+  }
+  function videoEmbedSrc(info, auto) {
+    if (info.provider === 'youtube') {
+      return info.embed + (auto
+        ? '?autoplay=1&mute=1&loop=1&playlist=' + info.id + '&controls=0&rel=0&modestbranding=1&playsinline=1'
+        : '?rel=0');
+    }
+    return info.embed + (auto ? '?autoplay=1&muted=1&loop=1&background=1' : '?dnt=1');
+  }
+  function videoBlock(e, cls) {
+    var auto = (e.vplay || 'auto') === 'auto';
+    var info = e.vurl ? videoEmbedInfo(e.vurl) : null;
+    if (info) {
+      var figCls = 'wp-block-embed is-type-video is-provider-' + info.provider + ' wp-block-embed-' + info.provider +
+        ' wp-embed-aspect-16-9 wp-has-aspect-ratio ' + cls + ' gogh-vid gogh-vid-embed';
+      if (auto) {
+        // a silent loop is a background kind of thing: WordPress's oEmbed
+        // can't ask a player to start muted, so the iframe is written out
+        return '<!-- wp:html -->\n<figure class="' + figCls + '"><div class="wp-block-embed__wrapper">' +
+          '<iframe src="' + escAttr(videoEmbedSrc(info, true)) + '" title="' + escAttr(e.alt || 'Video') + '"' +
+          ' allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>' +
+          '</div></figure>\n<!-- /wp:html -->';
+      }
+      var eAttrs = { url: e.vurl, type: 'video', providerNameSlug: info.provider, responsive: true,
+        className: 'wp-embed-aspect-16-9 wp-has-aspect-ratio ' + cls + ' gogh-vid gogh-vid-embed' };
+      return '<!-- wp:embed ' + JSON.stringify(eAttrs) + ' -->\n<figure class="' + figCls + '">' +
+        '<div class="wp-block-embed__wrapper">\n' + esc(e.vurl) + '\n</div></figure>\n<!-- /wp:embed -->';
+    }
+    if (e.src) {
+      var vAttrs = { className: cls + ' gogh-vid' };
+      if (e.mediaId) vAttrs.id = e.mediaId;
+      if (auto) { vAttrs.autoplay = true; vAttrs.loop = true; vAttrs.muted = true; vAttrs.playsInline = true; }
+      else vAttrs.controls = true;
+      if (e.poster) vAttrs.poster = e.poster;
+      return '<!-- wp:video ' + JSON.stringify(vAttrs) + ' -->\n' +
+        '<figure class="wp-block-video ' + cls + ' gogh-vid"><video' +
+        (auto ? ' autoplay loop muted playsinline' : ' controls') +
+        (e.poster ? ' poster="' + escAttr(e.poster) + '"' : '') +
+        ' src="' + escAttr(e.src) + '"></video></figure>\n<!-- /wp:video -->';
+    }
+    return '<!-- wp:group {"className":"' + cls + ' gogh-vid","layout":{"type":"default"}} -->\n' +
+      '<div class="wp-block-group ' + cls + ' gogh-vid"></div>\n<!-- /wp:group -->';
+  }
+  function bgVideoMarkup(sec) {
+    if (!sec.bgVideo) return '';
+    var a = { className: 'gogh-bgvideo', autoplay: true, loop: true, muted: true, playsInline: true };
+    if (sec.bgVideoId) a.id = sec.bgVideoId;
+    if (sec.bgImage) a.poster = sec.bgImage;
+    return '<!-- wp:video ' + JSON.stringify(a) + ' -->\n' +
+      '<figure class="wp-block-video gogh-bgvideo"><video autoplay loop muted playsinline' +
+      (sec.bgImage ? ' poster="' + escAttr(sec.bgImage) + '"' : '') +
+      ' src="' + escAttr(sec.bgVideo) + '"></video></figure>\n<!-- /wp:video -->\n';
+  }
   var GRAIN_LAYER = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'2\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E") left top / 160px 160px repeat';
   var DIVIDER_PATHS = {
     // ---- the 2026 set: soft, asymmetric, organic (research: symmetric
@@ -959,6 +1099,9 @@ button { font: inherit; color: inherit; }
   function escAttr(s) {
     return esc(s).replace(/"/g, '&quot;');
   }
+  function linkPara(a) {
+    return '\n<!-- wp:paragraph {"className":"gogh-fallback"} -->\n<p class="gogh-fallback">' + a + '</p>\n<!-- /wp:paragraph -->\n';
+  }
   function userCls(v) {
     return String(v || '').split(/\s+/).filter(function (c) {
       return /^[a-z][a-z0-9-]{0,40}$/i.test(c) && !/^gogh-/i.test(c) && !/^wp-/i.test(c);
@@ -976,6 +1119,244 @@ button { font: inherit; color: inherit; }
   function paintOf(v) {
     if (!v) return null;
     return /^[a-z0-9-]+$/.test(v) ? 'var(--wp--preset--color--' + v + ')' : v;
+  }
+  function projEl(e) {
+    return { type: e.type, x: e.x, y: e.y, w: e.w, h: e.h,
+      text: e.text || null, ghost: !!e.ghost, cool: !!e.cool,
+      src: e.src || null, href: e.href || null, rot: e.rot || 0,
+      alt: e.alt || null, mediaId: e.mediaId || null, fs: e.fs || null,
+      // the video element: a file (src) or a player link (vurl), how it plays, its poster
+      poster: e.poster || null, posterId: e.posterId || null, vurl: e.vurl || null, vplay: e.vplay || null,
+      // an embed's link: the page renderer frames a map from it, so without it
+      // every published map stayed a bare 'Open the map' link
+      url: e.url || null,
+      cls: userCls(e.cls) || null,
+      align: e.align || null, color: e.color || null, tf: e.tf || null,
+      btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
+      wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
+      // the rails element: its flag and its few choices travel with the model
+      rails: e.rails ? true : undefined, shop: e.shop || undefined, posts: e.posts || undefined,
+      boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
+      boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
+      mood: e.mood || null,
+      faq: e.faq || null, tabs: e.tabs || null, slides: e.slides || null, copt: e.copt || null,
+      wall: e.wall || null, wopt: e.wopt || null,
+      cards: e.cards || null,
+      ph: e.ph || null,
+      expId: e.expId || null, expUrl: e.expUrl || null,
+      m: (e.m && Object.keys(e.m).length) ? e.m : null, // sparse mobile overrides (hidden, …)
+      fitW: e.fitW ? true : null, fitFs: e.fitW && e.fitFs ? e.fitFs : null, // fill-the-width text
+      flushB: e.flushB ? true : null, // dragged flush to the section bottom
+      // the die's take mark: which roll drew this piece (face 0 counts, so
+      // no truthy test). Left off the model, every take-drawn piece came
+      // back from a reload as an original and the next roll piled the
+      // riders up (the v435 leak, back one reload later)
+      tk: e.tk != null ? e.tk : undefined,
+      // its identity and its slot in the family's drawing (see diceEnsureIds)
+      id: e.id || undefined, sk: e.sk || undefined,
+      kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
+  }
+  function buildElBlocks(els, clsBase) {
+    // blocks are emitted in READING order; each keeps its stacking-indexed
+    // class, so grid placement and z-order are untouched by the resequence
+    return readingIndexOrder(els).map(function (i) {
+      var e = els[i];
+      var cls = (clsBase || 'gogh-el-') + (i + 1) + (userCls(e.cls) ? ' ' + userCls(e.cls) : '');
+      switch (e.type) {
+        case 'heading': {
+          var hAttrs = { level: 2, className: cls };
+          if (e.align === 'center' || e.align === 'right') hAttrs.textAlign = e.align;
+          if (e.fs && !DISPLAY_FS[e.fs]) hAttrs.fontSize = e.fs;
+          if (e.color) hAttrs.textColor = e.color;
+          return '<!-- wp:heading ' + JSON.stringify(hAttrs) + ' -->\n' +
+            '<h2 class="wp-block-heading ' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
+            cleanInline(e.text) + '</h2>\n<!-- /wp:heading -->';
+        }
+        case 'para': {
+          if (e.list) {
+            var lTag = e.list === 'ol' ? 'ol' : 'ul';
+            var lAttrs = { className: cls };
+            if (lTag === 'ol') lAttrs.ordered = true;
+            if (e.fs && !DISPLAY_FS[e.fs]) lAttrs.fontSize = e.fs;
+            if (e.color) lAttrs.textColor = e.color;
+            return '<!-- wp:list ' + JSON.stringify(lAttrs) + ' -->\n' +
+              '<' + lTag + ' class="wp-block-list ' + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
+              listLines(e.text).map(function (l) { return '<!-- wp:list-item -->\n<li>' + cleanInline(l) + '</li>\n<!-- /wp:list-item -->'; }).join('\n') +
+              '</' + lTag + '>\n<!-- /wp:list -->';
+          }
+          var pAttrs = { className: cls };
+          if (e.align === 'center' || e.align === 'right') pAttrs.align = e.align;
+          if (e.fs && !DISPLAY_FS[e.fs]) pAttrs.fontSize = e.fs;
+          if (e.color) pAttrs.textColor = e.color;
+          return '<!-- wp:paragraph ' + JSON.stringify(pAttrs) + ' -->\n' +
+            '<p class="' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
+            cleanInline(e.text) + '</p>\n<!-- /wp:paragraph -->';
+        }
+        case 'button': {
+          var href = e.href ? escAttr(e.href) : '#';
+          var attrs = {};
+          // a block style (is-style-…) belongs to core/button, where the
+          // block editor's Styles panel reads it; every other class stays on
+          // the Buttons wrapper gogh places
+          var bSty = cls.split(' ').filter(function (c) { return /^is-style-/.test(c); }).join(' ');
+          cls = cls.split(' ').filter(function (c) { return !/^is-style-/.test(c); }).join(' ');
+          var btnCls = [bSty, ghostShows(e) ? 'gogh-ghost' : ''].filter(Boolean).join(' ');
+          if (btnCls) attrs.className = btnCls;
+          if (e.href) attrs.url = e.href;
+          if (e.btnBg) attrs.backgroundColor = e.btnBg;
+          if (e.btnText) attrs.textColor = e.btnText;
+          var linkCls = 'wp-block-button__link' +
+            (e.btnText ? ' has-' + e.btnText + '-color has-text-color' : '') +
+            (e.btnBg ? ' has-' + e.btnBg + '-background-color has-background' : '') +
+            ' wp-element-button';
+          var attrJson = JSON.stringify(attrs);
+          return '<!-- wp:buttons {"className":"' + cls + '"} -->\n' +
+            '<div class="wp-block-buttons ' + cls + '"><!-- wp:button ' + (attrJson !== '{}' ? attrJson + ' ' : '') + '-->\n' +
+            '<div class="wp-block-button' + (btnCls ? ' ' + btnCls : '') + '">' +
+            '<a class="' + linkCls + '" href="' + href + '">' + esc(e.text) + '</a></div>\n' +
+            '<!-- /wp:button --></div>\n<!-- /wp:buttons -->';
+        }
+        case 'image':
+          if (e.src) {
+            var iAttrs = { className: cls + ' gogh-img', sizeSlug: 'full' };
+            if (e.mediaId) iAttrs.id = e.mediaId;
+            return '<!-- wp:image ' + JSON.stringify(iAttrs) + ' -->\n' +
+              '<figure class="wp-block-image size-full ' + cls + ' gogh-img">' +
+              '<img src="' + escAttr(e.src) + '" alt="' + escAttr(e.alt || '') + '"' +
+              (e.mediaId ? ' class="wp-image-' + e.mediaId + '"' : '') +
+              '/></figure>\n<!-- /wp:image -->';
+          }
+          return '<!-- wp:group {"className":"' + cls + '","layout":{"type":"default"}} -->\n' +
+            '<div class="wp-block-group ' + cls + '"></div>\n<!-- /wp:group -->';
+        case 'video':
+          return videoBlock(e, cls);
+        case 'embed': {
+          var ei = e.url ? embedInfo(e.url) : null;
+          if (ei && ei.kind === 'map') {
+            // a plain link in the stored markup; gogh_render_section frames it.
+            // The link rides in a paragraph: core/group's save() only knows
+            // its inner blocks, so a bare <a> fails validation in the editor
+            return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-embed gogh-embed-map', layout: { type: 'default' } }) + ' -->\n' +
+              '<div class="wp-block-group ' + cls + ' gogh-embed gogh-embed-map">' +
+              linkPara('<a class="gogh-embed-link" href="' + escAttr(ei.url) + '" rel="noopener">Open the map</a>') +
+              '</div>\n<!-- /wp:group -->';
+          }
+          if (ei) {
+            // the URL on its own line: WordPress swaps it for the provider's player
+            var eAttrs2 = { url: ei.url, type: 'rich', providerNameSlug: ei.slug, responsive: true, className: cls + ' gogh-embed' };
+            return '<!-- wp:embed ' + JSON.stringify(eAttrs2) + ' -->\n' +
+              '<figure class="wp-block-embed is-type-rich is-provider-' + ei.slug + ' wp-block-embed-' + ei.slug + ' ' + cls + ' gogh-embed">' +
+              '<div class="wp-block-embed__wrapper">\n' + esc(ei.url) + '\n</div></figure>\n<!-- /wp:embed -->';
+          }
+          return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-embed', layout: { type: 'default' } }) + ' -->\n' +
+            '<div class="wp-block-group ' + cls + ' gogh-embed"></div>\n<!-- /wp:group -->';
+        }
+        case 'icon': {
+          // an empty group: the picture is the element's own CSS mask
+          var iName = ICONS[e.icon] ? e.icon : 'star';
+          var iCls = cls + ' gogh-icon gogh-icon-' + iName + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+          var iAttrs = { className: cls + ' gogh-icon gogh-icon-' + iName, layout: { type: 'default' } };
+          if (e.color) iAttrs.textColor = e.color;
+          return '<!-- wp:group ' + JSON.stringify(iAttrs) + ' -->\n' +
+            '<div class="wp-block-group ' + iCls + '" role="img" aria-label="' + escAttr(e.alt || iName.replace(/-/g, ' ')) + '"></div>\n<!-- /wp:group -->';
+        }
+        case 'rule': {
+          // a core separator; the stroke's weight and colour ride in the
+          // element's CSS (border-top) so the block stays a plain <hr>
+          var rAttrs = { className: cls + ' gogh-rule' };
+          if (e.color) rAttrs.backgroundColor = e.color;
+          return '<!-- wp:separator ' + JSON.stringify(rAttrs) + ' -->\n' +
+            '<hr class="wp-block-separator has-alpha-channel-opacity ' + cls + ' gogh-rule' +
+            (e.color ? ' has-text-color has-' + e.color + '-color has-' + e.color + '-background-color has-background' : '') + '"/>\n<!-- /wp:separator -->';
+        }
+        case 'badge':
+          return '<!-- wp:paragraph {"className":"' + cls + ' gogh-badge"} -->\n' +
+            '<p class="' + cls + ' gogh-badge">' + esc(e.text) + '</p>\n<!-- /wp:paragraph -->';
+        case 'box': {
+          // a coloured backdrop rectangle: an empty group. Preset colours go
+          // in block attrs; raw colours ride in the section stylesheet, which
+          // ships inside the page either way.
+          var boxAttrs = { className: cls + ' gogh-box' + (e.kids && e.kids.length ? ' gogh-cardbox' : ''), layout: { type: 'default' } };
+          var boxCls = 'wp-block-group ' + cls + ' gogh-box' + (e.kids && e.kids.length ? ' gogh-cardbox' : '');
+          if (e.boxBg && /^[a-z0-9-]+$/.test(e.boxBg)) {
+            boxAttrs.backgroundColor = e.boxBg;
+            boxCls += ' has-' + e.boxBg + '-background-color has-background';
+          }
+          // a card publishes its kids INSIDE itself — plugin off, they
+          // degrade to normal stacked blocks in a group
+          var boxLink = e.href
+            ? '<a class="gogh-card-link" href="' + escAttr(e.href) + '" aria-label="' + escAttr((e.kids && e.kids.length && e.kids[0].text) || 'Card link') + '"></a>'
+            : '';
+          var boxInner = (boxLink || (e.kids && e.kids.length)) ? '\n' + boxLink + (e.kids && e.kids.length ? buildElBlocks(e.kids, 'gogh-k-') : '') + '\n' : '';
+          return '<!-- wp:group ' + JSON.stringify(boxAttrs) + ' -->\n' +
+            '<div class="' + boxCls + '">' + boxInner + '</div>\n<!-- /wp:group -->';
+        }
+        case 'widget':
+          // atomic block (navigation, site title…): source markup verbatim,
+          // wrapped so the solver can place it
+          // a widget born from pasted HTML carries RAW markup, not a block —
+          // a bare group around loose markup fails block validation in the
+          // WordPress editor (its save() cannot regenerate children it
+          // never knew) and recovery would strip them. Raw markup rides
+          // inside a core/html block; real blocks pass through untouched.
+          var wsrcOut = e.wsrc || '';
+          if (wsrcOut && !/^\s*<!--\s*wp:/.test(wsrcOut)) wsrcOut = '<!-- wp:html -->\n' + wsrcOut + '\n<!-- /wp:html -->';
+          return '<!-- wp:group {"className":"' + cls + ' gogh-widget","layout":{"type":"default"}} -->\n' +
+            '<div class="wp-block-group ' + cls + ' gogh-widget">\n' + wsrcOut + '\n</div>\n<!-- /wp:group -->';
+        case 'exp':
+          // stored markup carries ONLY a plain link (kses-safe, works with the
+          // plugin off); gogh_render_section swaps it for the sandboxed iframe
+          return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-exp' }) + ' -->\n' +
+            '<div class="wp-block-group ' + cls + ' gogh-exp">' +
+            (e.expUrl ? linkPara('<a class="gogh-exp-link" href="' + escAttr(e.expUrl) + '">Open interactive experience</a>') : '') +
+            '</div>\n<!-- /wp:group -->';
+      }
+    }).join('\n\n');
+  }
+  function sectionModelJSON(sec, version) {
+    return {
+      version: version, designW: W, minH: sec.minH || null,
+      anchor: sec.anchor || null, // a name the menu of a one-page site can scroll to
+      bg: sec.bg || null, divider: sec.divider || null,
+      fx: sec.fx || null,
+      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null,
+      m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, // sparse section-level mobile overrides
+      bgPos: sec.bgPos || null, // background focal point
+      elements: sec.els.map(projEl),
+    };
+  }
+  function serializeBlockAttrs(obj) {
+    // mirror WP's serialize_block_attributes(): the JSON rides inside an
+    // HTML comment, so comment/HTML-sensitive sequences must be escaped
+    return JSON.stringify(obj)
+      .replace(/--/g, '\\u002d\\u002d')
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026')
+      .replace(/\\"/g, '\\u0022');
+  }
+  function buildSectionAttrsV3(sec) {
+    return {
+      v: 3,
+      scope: sec.scope,
+      model: sectionModelJSON(sec, 3),
+      // GOGHSCOPE placeholder: PHP substitutes the sanitized scope class.
+      // (Production refinement: split into per-rule declaration maps.)
+      cssT: buildCSS(sec.els, 'GOGHSCOPE', sec.minH, sectionOpts(sec)),
+    };
+  }
+  function buildSectionBlocksV3(sec) {
+    var attrs = buildSectionAttrsV3(sec);
+    // the baked stylesheet is a PROJECTION of the attrs (matches the block's
+    // save() output byte-for-byte, and the server rebake regenerates it when
+    // KSES strips it) — deactivation keeps the look, attrs stay the truth
+    var css = attrs.cssT.split('GOGHSCOPE').join(sec.scope);
+    return '<!-- wp:gogh/section ' + serializeBlockAttrs(attrs) + ' -->\n' +
+      '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
+      '<style class="gogh-style">' + css + '</style>' +
+      '<div' + (sec.anchor ? ' id="' + sec.anchor + '"' : '') + ' class="gogh-section ' + sec.scope + (userCls(sec.m && sec.m.cls) ? ' ' + userCls(sec.m.cls) : '') + '" data-gogh-scope="' + sec.scope + '">\n' +
+      bgVideoMarkup(sec) + buildElBlocks(sec.els) + '\n</div></div>\n' +
+      '<!-- /wp:gogh/section -->';
   }
   var ICONS = {
     'arrow-right': 'M5 12h14M12 5l7 7-7 7',
@@ -1041,6 +1422,37 @@ button { font: inherit; color: inherit; }
     'bookmark': 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
     'flag': 'M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7',
   };
+  function mapEmbedUrl(url) {
+    var u = String(url || '').trim();
+    if (!u) return null;
+    var m;
+    if (/^https?:\/\/(www\.)?google\.[a-z.]+\/maps\/embed/i.test(u) || /[?&]output=embed/i.test(u)) return u;
+    if (/^https?:\/\/(www\.)?openstreetmap\.org\/export\/embed/i.test(u)) return u;
+    m = u.match(/^https?:\/\/(www\.)?openstreetmap\.org\/.*#map=(\d+)\/(-?[\d.]+)\/(-?[\d.]+)/i);
+    if (m) {
+      var lat = +m[3], lng = +m[4], span = 0.02 * Math.pow(2, 14 - Math.min(19, +m[2]));
+      return 'https://www.openstreetmap.org/export/embed.html?bbox=' + (lng - span) + ',' + (lat - span / 2) + ',' + (lng + span) + ',' + (lat + span / 2) + '&layer=mapnik&marker=' + lat + ',' + lng;
+    }
+    if (!/^https?:\/\/((www|maps)\.)?google\.[a-z.]+\/maps/i.test(u) && !/^https?:\/\/maps\.app\.goo\.gl\//i.test(u)) return null;
+    m = u.match(/\/maps\/place\/([^/?#]+)/i);
+    if (m) return 'https://www.google.com/maps?q=' + encodeURIComponent(decodeURIComponent(m[1].replace(/\+/g, ' '))) + '&output=embed';
+    m = u.match(/\/maps\/search\/([^/?#]+)/i);
+    if (m) return 'https://www.google.com/maps?q=' + encodeURIComponent(decodeURIComponent(m[1].replace(/\+/g, ' '))) + '&output=embed';
+    m = u.match(/[?&]q=([^&#]+)/i);
+    if (m) return 'https://www.google.com/maps?q=' + m[1] + '&output=embed';
+    m = u.match(/\/maps\/@(-?[\d.]+),(-?[\d.]+),(\d+)z/i);
+    if (m) return 'https://www.google.com/maps?q=' + m[1] + ',' + m[2] + '&z=' + m[3] + '&output=embed';
+    return null; // a short link (maps.app.goo.gl): the server resolves it on the live page
+  }
+  function embedInfo(url) {
+    var u = String(url || '').trim();
+    if (!/^https?:\/\//i.test(u)) return null;
+    var map = mapEmbedUrl(u);
+    if (map) return { kind: 'map', src: map, url: u };
+    if (/^https?:\/\/maps\.app\.goo\.gl\//i.test(u)) return { kind: 'map', src: null, url: u };
+    var host = (u.match(/^https?:\/\/([^/]+)/i) || ['', ''])[1].replace(/^www\./, '');
+    return { kind: 'oembed', url: u, host: host, slug: host.replace(/\.[a-z]+$/i, '').replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'embed' };
+  }
   function iconSvg(name, attrs) {
     var d = ICONS[name] || ICONS.star;
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + (attrs && attrs.stroke || 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
@@ -2094,6 +2506,21 @@ button { font: inherit; color: inherit; }
         link: String(it.button != null ? it.button : ''), href: it.link ? String(it.link) : '',
         img: it.image ? String(it.image) : '', alt: it.alt ? String(it.alt) : '' };
     });
+  }
+  var mediaPool = { imgs: [], bgs: [], fetched: false };
+  function poolPick(list, seed, k) {
+    if (!list.length) return null;
+    var h = 0, str = String(seed);
+    for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return list[(h + (k || 0)) % list.length];
+  }
+  function tplBgFor(tpl) {
+    if (!tpl.bgImage) return tpl.bgImage || null;
+    if (/demo-assets/.test(tpl.bgImage)) {
+      var mine = poolPick(mediaPool.bgs, tpl.name, 0);
+      if (mine) return mine;
+    }
+    return tpl.bgImage;
   }
   function tplSlugMap() {
     var have = {};
@@ -3372,7 +3799,7 @@ button { font: inherit; color: inherit; }
     { key: 'loud', say: 'loud', heading: { name: 'Syne', w: 700 }, body: { name: 'Inter', w: 400 } },
     { key: 'technical', say: 'technical', heading: { name: 'IBM Plex Mono', w: 500 }, body: { name: 'IBM Plex Sans', w: 400 } },
   ];
-  window.goghDraw = { fillTake: fillTake, tplEls: tplEls, buildCSS: buildCSS, makeNode: makeNode, solve: solve, TEMPLATES: TEMPLATES, VARIANTS: VARIANTS, diceFaces: diceFaces, templateByName: templateByName, FONT_PAIRS: FONT_PAIRS, W: W, DISPLAY_FS: DISPLAY_FS };
+  window.goghDraw = { fillTake: fillTake, tplEls: tplEls, buildCSS: buildCSS, makeNode: makeNode, solve: solve, TEMPLATES: TEMPLATES, VARIANTS: VARIANTS, diceFaces: diceFaces, templateByName: templateByName, FONT_PAIRS: FONT_PAIRS, buildSectionBlocksV3: buildSectionBlocksV3, mediaPool: mediaPool, poolPick: poolPick, tplBgFor: tplBgFor, W: W, DISPLAY_FS: DISPLAY_FS };
 })();
 </script>
 <script>

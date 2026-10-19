@@ -8,7 +8,7 @@ const out = process.argv[2], mode = process.argv[3] || 'edit';
 let n = 0;
 const rpc = async (method, params) => (await (await fetch(U, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++n, method, params }) })).json());
 const html = (await rpc('resources/read', { uri: 'ui://gogh/page.html' })).result.contents[0].text;
-const opened = (await rpc('tools/call', { name: 'gogh_open_page', arguments: {} })).result;
+const opened = (await rpc('tools/call', { name: 'gogh_open_page', arguments: process.env.PAGE ? { page_id: +process.env.PAGE } : {} })).result;
 const host = `<!doctype html><html><body style="margin:0;padding:16px;background:#fff">
 <iframe id="f" sandbox="allow-scripts" style="width:760px;border:0;height:300px"></iframe>
 <script>
@@ -39,6 +39,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const info = async () => pg().evaluate(() => ({ secs: [...document.querySelectorAll('[data-gw-sec]')].map((s) => s.getAttribute('data-gw-sec') + ':' + ((s.querySelector('h1,h2,h3') || {}).innerText || '').slice(0, 30)), editable: document.querySelectorAll('[contenteditable="plaintext-only"]').length }));
 console.log("dbg", JSON.stringify(await w.evaluate(() => ({ page: !!document.getElementById("gw-page"), comments: (function(){var n=0,t=document.createTreeWalker(document.body,NodeFilter.SHOW_COMMENT),c;while((c=t.nextNode()))n++;return n;})(), ask: document.getElementById("askText").textContent, saving: document.getElementById("saving").textContent, stage: document.getElementById("stage").innerText.slice(0,80) }))));
 console.log("before", JSON.stringify(await info()));
+if (mode === 'add') {
+  await w.evaluate(() => { document.querySelector('[data-gw-sec="1"] .gw-seam button').click(); });
+  await sleep(2500);
+  console.log('chooser', JSON.stringify(await w.evaluate(() => ({ open: !document.getElementById('pick').hidden, opts: [...document.querySelectorAll('.pick .opt .name')].map((n) => n.textContent) }))));
+  await p.screenshot({ path: out + '-chooser.png', fullPage: true });
+  await w.evaluate(() => { document.querySelectorAll('.pick .opt')[1].click(); });
+  await sleep(6000);
+  console.log('after add', JSON.stringify(await info()));
+}
+if (mode === 'design') {
+  await w.evaluate(() => { document.querySelector('[data-gw-sec="1"] .gw-tools [data-a="design"]').click(); });
+  await sleep(2500);
+  console.log('designs', JSON.stringify(await w.evaluate(() => [...document.querySelectorAll('.pick .opt .name')].map((n) => n.textContent))));
+  await p.screenshot({ path: out + '-chooser.png', fullPage: true });
+  await w.evaluate((pick) => { [...document.querySelectorAll('.pick .opt')].find((b) => new RegExp(pick).test(b.textContent)).click(); }, process.env.PICK || 'mirror');
+  await sleep(6000);
+  console.log('after design', JSON.stringify(await info()));
+}
 if (mode === 'edit') {
   // type over the hero's heading
   await pg().evaluate(() => { const h = document.querySelector('[data-gw-sec="1"] h1, [data-gw-sec="1"] h2'); h.focus(); h.innerText = 'Stoneware for every day.'; h.blur(); });

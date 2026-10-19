@@ -128,6 +128,48 @@ function gogh_pg_role( $e, $els ) {
 
 const GOGH_PG_WORDY = array( 'heading', 'para', 'button', 'badge' );
 
+// a section written by gogh's own code in the page panel: exactly one
+// gogh/section block, or nothing. (The content then goes through the same
+// save path as the editor's, filters and all.)
+function gogh_pg_one_section( $markup ) {
+	$blocks = gogh_pg_blocks( (string) $markup );
+	if ( 1 !== count( $blocks ) || 'gogh/section' !== $blocks[0]['blockName'] || empty( $blocks[0]['attrs']['model']['elements'] ) ) {
+		return new WP_Error( 'gogh_not_a_section', __( 'That is not a gogh section. New sections come from the page panel.', 'gogh-editor' ), array( 'status' => 400 ) );
+	}
+	return $blocks[0];
+}
+
+// pictures a new section may wear: the media library's newest, then the
+// ones the site's pages already use (a site built from a definition may
+// have no library at all)
+function gogh_pg_pictures() {
+	$imgs = array();
+	$bgs  = array();
+	foreach ( get_posts( array( 'post_type' => 'attachment', 'post_mime_type' => 'image', 'numberposts' => 30, 'orderby' => 'date', 'order' => 'DESC' ) ) as $a ) {
+		$u = wp_get_attachment_image_url( $a->ID, 'large' );
+		if ( $u ) {
+			$imgs[] = $u;
+			$m = wp_get_attachment_metadata( $a->ID );
+			if ( ! empty( $m['width'] ) && ! empty( $m['height'] ) && $m['width'] >= 1200 && $m['width'] > $m['height'] ) {
+				$bgs[] = $u;
+			}
+		}
+	}
+	foreach ( get_posts( array( 'post_type' => 'page', 'post_status' => array( 'publish', 'draft' ), 'numberposts' => 30 ) ) as $p ) {
+		if ( ! preg_match_all( '/"(?:src|bgImage|img)":"([^"]+\.(?:jpe?g|png|webp|avif))"/i', $p->post_content, $m ) ) {
+			continue;
+		}
+		foreach ( $m[1] as $u ) {
+			$u = str_replace( '\\/', '/', $u );
+			if ( false === strpos( $u, 'demo-assets' ) ) {
+				$imgs[] = $u;
+				$bgs[]  = $u;
+			}
+		}
+	}
+	return array( 'imgs' => array_values( array_unique( $imgs ) ), 'bgs' => array_values( array_unique( $bgs ) ) );
+}
+
 // ---------- the abilities ---------------------------------------------------
 
 add_action( 'wp_abilities_api_init', function () {
@@ -180,6 +222,9 @@ add_action( 'wp_abilities_api_init', function () {
 				if ( ! empty( $md['anchor'] ) ) {
 					$one['anchor'] = (string) $md['anchor'];
 				}
+				if ( ! empty( $md['bgImage'] ) ) {
+					$one['background_picture'] = (string) $md['bgImage'];
+				}
 				$pieces = array();
 				foreach ( $els as $i => $e ) {
 					if ( ! is_array( $e ) || empty( $e['type'] ) || ( 'box' === $e['type'] && empty( $e['kids'] ) && empty( $e['text'] ) ) ) {
@@ -194,6 +239,9 @@ add_action( 'wp_abilities_api_init', function () {
 					}
 					if ( 'image' === $e['type'] ) {
 						$p['picture'] = ! empty( $e['alt'] ) ? gogh_ab_words( $e['alt'], 120 ) : '';
+						if ( ! empty( $e['src'] ) ) {
+							$p['src'] = (string) $e['src'];
+						}
 					}
 					if ( ! empty( $e['cards']['items'] ) && is_array( $e['cards']['items'] ) ) {
 						$p['cards'] = array_map( function ( $it ) {
@@ -202,6 +250,9 @@ add_action( 'wp_abilities_api_init', function () {
 								if ( ! empty( $it[ $from ] ) ) {
 									$c[ $to ] = gogh_ab_words( $it[ $from ], 300 );
 								}
+							}
+							if ( ! empty( $it['img'] ) ) {
+								$c['src'] = (string) $it['img'];
 							}
 							return $c;
 						}, $e['cards']['items'] );
@@ -380,6 +431,87 @@ add_action( 'wp_abilities_api_init', function () {
 			'show_in_rest' => true,
 			'annotations'  => array( 'readonly' => false, 'destructive' => true, 'idempotent' => false ),
 			'mcp'          => $mcp,
+		),
+	) );
+
+	$section_markup = array( 'type' => 'string', 'description' => 'The section\'s blocks, as written by gogh\'s page panel.' );
+
+	wp_register_ability( 'gogh/add-section', array(
+		'label'               => __( 'Add a section', 'gogh-editor' ),
+		'description'         => __( 'Puts a new section, drawn by gogh\'s page panel from one of its designs, onto a page. Saved as a change that is not live yet.', 'gogh-editor' ),
+		'category'            => 'gogh',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'properties'           => array(
+				'page_id' => $page,
+				'at'      => array( 'type' => 'integer', 'description' => 'Where it goes, counting from 1 at the top. Leave out for the end of the page.' ),
+				'blocks'  => $section_markup,
+			),
+			'required'             => array( 'page_id', 'blocks' ),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array( 'type' => 'object' ),
+		'execute_callback'    => function ( $input ) {
+			$post = gogh_pg_page( $input );
+			if ( is_wp_error( $post ) ) {
+				return $post;
+			}
+			$one = gogh_pg_one_section( $input['blocks'] );
+			if ( is_wp_error( $one ) ) {
+				return $one;
+			}
+			$blocks = gogh_pg_blocks( gogh_pg_current( $post ) );
+			$at     = isset( $input['at'] ) ? max( 0, min( count( $blocks ), (int) $input['at'] - 1 ) ) : count( $blocks );
+			array_splice( $blocks, $at, 0, array( $one ) );
+			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ) );
+			return is_wp_error( $r ) ? $r : array( 'added' => true, 'section' => $at + 1, 'live' => false );
+		},
+		'permission_callback' => $can,
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => false ),
+			'mcp'          => array( 'public' => true, 'app_only' => true ),
+		),
+	) );
+
+	wp_register_ability( 'gogh/replace-section', array(
+		'label'               => __( 'Change a section\'s design', 'gogh-editor' ),
+		'description'         => __( 'Swaps one section for the same words in another of gogh\'s designs, drawn by the page panel. Saved as a change that is not live yet.', 'gogh-editor' ),
+		'category'            => 'gogh',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'properties'           => array( 'page_id' => $page, 'section' => $sec, 'blocks' => $section_markup ),
+			'required'             => array( 'page_id', 'section', 'blocks' ),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array( 'type' => 'object' ),
+		'execute_callback'    => function ( $input ) {
+			$post = gogh_pg_page( $input );
+			if ( is_wp_error( $post ) ) {
+				return $post;
+			}
+			$one = gogh_pg_one_section( $input['blocks'] );
+			if ( is_wp_error( $one ) ) {
+				return $one;
+			}
+			$blocks = gogh_pg_blocks( gogh_pg_current( $post ) );
+			$k      = (int) $input['section'] - 1;
+			if ( ! isset( $blocks[ $k ] ) ) {
+				return new WP_Error( 'gogh_no_section', __( 'There is no section with that number on this page.', 'gogh-editor' ), array( 'status' => 400 ) );
+			}
+			// the section keeps its place in a one-page menu
+			if ( ! empty( $blocks[ $k ]['attrs']['model']['anchor'] ) && empty( $one['attrs']['model']['anchor'] ) ) {
+				$one['attrs']['model']['anchor'] = $blocks[ $k ]['attrs']['model']['anchor'];
+			}
+			$blocks[ $k ] = $one;
+			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ) );
+			return is_wp_error( $r ) ? $r : array( 'changed' => true, 'live' => false );
+		},
+		'permission_callback' => $can,
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ),
+			'mcp'          => array( 'public' => true, 'app_only' => true ),
 		),
 	) );
 

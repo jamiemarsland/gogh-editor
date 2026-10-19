@@ -26,7 +26,10 @@ sys.path.insert(0, str(HERE))
 import slice as S  # noqa: E402
 
 ROOTS = ['fillTake', 'tplEls', 'buildCSS', 'makeNode', 'solve', 'TEMPLATES', 'VARIANTS',
-         'diceFaces', 'templateByName', 'FONT_PAIRS']
+         'diceFaces', 'templateByName', 'FONT_PAIRS',
+         # the site connector's page panel also WRITES sections: the same
+         # block markup the editor saves, with pictures from the site's pool
+         'buildSectionBlocksV3', 'mediaPool', 'poolPick', 'tplBgFor']
 
 # names the drawing references but a standalone page cannot (or need not) have
 STUB_JS = r"""
@@ -39,8 +42,12 @@ STUB_JS = r"""
     { slug: 'xx-large', size: '3rem' }
   ];
   function fontSizes() { return FONT_SIZES; }
-  var mediaPool = [];
-  function poolPick() { return null; }
+  // a section drawn outside the editor has no neighbours: no dividers,
+  // transitions or drags to account for (the editor's sectionOpts reads them)
+  function sectionOpts(sec) {
+    return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage,
+      bgVideo: sec.bgVideo || null, m: sec.m || null, bgPos: sec.bgPos || null, fx: sec.fx || null };
+  }
   function embedNode() { var d = document.createElement('div'); d.className = 'gogh-embed-stub'; return d; }
   function videoNode() { var d = document.createElement('div'); d.className = 'gogh-video-stub'; return d; }
   function composePosts() { return ''; }
@@ -78,6 +85,9 @@ def build():
            f'\n  window.goghDraw = {{ {exports} }};\n}})();\n')
     dest = HERE / 'gogh-draw.js'
     dest.write_text(out, encoding='utf-8')
+    # the plugin's own copy, for the site connector's page panel (helper/ is
+    # not part of every install's needs, connector/ is)
+    (HERE.parents[1] / 'connector' / 'gogh-draw.js').write_text(out, encoding='utf-8')
     return dest, len(want), len(out)
 
 
