@@ -114,7 +114,7 @@ function gogh_connector_widget_uri() {
 // the panel's own code and styles, served to the loader
 add_action( 'init', function () {
 	$what = isset( $_GET['gogh-panel'] ) ? (string) $_GET['gogh-panel'] : '';
-	if ( 'js' !== $what && 'css' !== $what ) {
+	if ( 'js' !== $what && 'css' !== $what && 'lib' !== $what ) {
 		return;
 	}
 	$dir = __DIR__ . '/connector/';
@@ -124,6 +124,12 @@ add_action( 'init', function () {
 	if ( 'css' === $what ) {
 		header( 'Content-Type: text/css; charset=utf-8' );
 		readfile( $dir . 'panel.css' );
+	} elseif ( 'lib' === $what ) {
+		// html2canvas (MIT, vendor/html2canvas-LICENSE): the panel draws a
+		// changed section as a small picture for the agent to look at
+		header( 'Content-Type: text/javascript; charset=utf-8' );
+		header( 'Cache-Control: public, max-age=86400' );
+		readfile( $dir . 'vendor/html2canvas.min.js' );
 	} else {
 		header( 'Content-Type: text/javascript; charset=utf-8' );
 		readfile( $dir . 'gogh-draw.js' );
@@ -394,7 +400,7 @@ function gogh_connector_message( $msg ) {
 			'capabilities'    => array( 'tools' => array( 'listChanged' => false ), 'resources' => array( 'listChanged' => false ) ),
 			'serverInfo'      => array( 'name' => 'gogh · ' . $site, 'version' => defined( 'GOGH_VERSION' ) ? GOGH_VERSION : '1' ),
 			'instructions'    => sprintf(
-				'This is %1$s, a real WordPress site drawn with gogh, and you act as %2$s. Start with gogh_describe_site, then gogh_read_page for the page in question. When the person wants to see or work on a page, open it with gogh_open_page: they can edit it there themselves, and the open panel redraws by itself when you change the page (no need to open it again). The panel tells you what they are pointing at: when they say "this", "here" or "it", that is what they mean. Address sections by their key (section_key), which stays the same when sections move. Every change goes into the page\'s change list with who made it; gogh_undo_change takes back the latest. Changes to a page are saved but not live: offer gogh_preview_page so the person can look, and use gogh_publish only when they say so. Remove sections or throw changes away only when asked.',
+				'This is %1$s, a real WordPress site drawn with gogh, and you act as %2$s. Start with gogh_describe_site, then gogh_read_page for the page in question. When the person wants to see or work on a page, open it with gogh_open_page: they can edit it there themselves, and the open panel redraws by itself when you change the page (no need to open it again). The panel tells you what they are pointing at: when they say "this", "here" or "it", that is what they mean. Address sections by their key (section_key), which stays the same when sections move. Every change goes into the page\'s change list with who made it; gogh_undo_change takes back the latest. After a change the panel also shows you a small picture of the section that changed: look at it the way a designer would (words too long for the design, words hard to read on a picture, a section that now feels crowded) and say so or fix it. Changes to a page are saved but not live: offer gogh_preview_page so the person can look, and use gogh_publish only when they say so. Remove sections or throw changes away only when asked.',
 				$site,
 				wp_get_current_user()->display_name
 			),
@@ -427,6 +433,33 @@ function gogh_connector_message( $msg ) {
 	}
 	return $err( -32601, 'Method not found: ' . $method );
 }
+
+// the site's own pictures, for the panel's snapshot: a canvas only lets a
+// picture into the image it makes when the picture's server says other
+// origins may use it, and plain files do not (html2canvas's proxy protocol:
+// ?url=…&responseType=…). Pictures under wp-content on this site only.
+add_action( 'rest_api_init', function () {
+	register_rest_route( 'gogh/v1', '/img', array(
+		'methods'             => 'GET',
+		'permission_callback' => '__return_true',
+		'callback'            => function ( WP_REST_Request $req ) {
+			$u    = wp_parse_url( (string) $req->get_param( 'url' ) );
+			$path = isset( $u['path'] ) ? rawurldecode( $u['path'] ) : '';
+			$file = $path && 0 === strpos( $path, '/wp-content/' ) ? realpath( ABSPATH . ltrim( $path, '/' ) ) : false;
+			$root = realpath( WP_CONTENT_DIR );
+			$type = array( 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'gif' => 'image/gif', 'avif' => 'image/avif', 'svg' => 'image/svg+xml' );
+			$ext  = strtolower( pathinfo( (string) $file, PATHINFO_EXTENSION ) );
+			if ( ! $file || ! $root || 0 !== strpos( $file, $root . DIRECTORY_SEPARATOR ) || ! isset( $type[ $ext ] ) || ! is_readable( $file ) ) {
+				return new WP_Error( 'gogh_no_picture', 'No such picture.', array( 'status' => 404 ) );
+			}
+			header( 'Content-Type: ' . $type[ $ext ] );
+			header( 'Access-Control-Allow-Origin: *' );
+			header( 'Cache-Control: public, max-age=86400' );
+			readfile( $file );
+			exit;
+		},
+	) );
+} );
 
 add_action( 'rest_api_init', function () {
 	register_rest_route( 'gogh/v1', '/mcp', array(

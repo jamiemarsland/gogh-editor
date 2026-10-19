@@ -45,7 +45,12 @@
     var ch = st.changes || [];
     if (ch.length) lines.push('Changes not live yet (oldest first): ' + ch.map(function (c) { return (c.who === 'you' ? 'the person' : 'you') + ': ' + c.what; }).join('; ') + '.');
     if (lastNote) lines.push('Latest in the panel: ' + lastNote);
-    request('ui/update-model-context', { content: [{ type: 'text', text: lines.join('\n') }], structuredContent: { page_id: st.page.id, selected: st.sel || null, changes: ch } }).catch(function () {});
+    var content = [{ type: 'text', text: lines.join('\n') }];
+    if (st.picture) {
+      content[0].text += '\nThe picture shows ' + st.picture.label + ' as it looks now.';
+      content.push({ type: 'image', data: st.picture.data, mimeType: 'image/jpeg' });
+    }
+    request('ui/update-model-context', { content: content, structuredContent: { page_id: st.page.id, selected: st.sel || null, changes: ch } }).catch(function () {});
   }
 
   // the site may name itself http:// or https:// depending on the request:
@@ -165,7 +170,7 @@
       try { blocks.push(G.buildSectionBlocksV3(secFrom(tpl, scope))); } catch (e) {}
     });
     tool('gogh_compose_page', { page_id: st.page.id, blocks: blocks }).then(function (r) {
-      saying('Drawn. Click any words to change them.'); status(true); draw();
+      saying('Drawn. Click any words to change them.'); status(true); st.snapAt = 1; draw();
       tell('The panel drew ' + (r.composed || blocks.length) + ' new section(s) on "' + st.page.title + '" from the description. They are saved, not live yet.');
     }, function (e) { draw(); oops(e); });
   }
@@ -217,12 +222,75 @@
     [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (el) { out[secKey(el)] = el.innerText; });
     return out;
   }
+  // let the agent see: after a change, a small picture of the section that
+  // changed goes into its context (html2canvas, served by the site; the
+  // site's pictures come through its CORS route so the canvas stays usable)
+  var libP = null;
+  function lib() {
+    if (window.html2canvas) return Promise.resolve();
+    if (!libP) libP = new Promise(function (res, rej) {
+      var sc = document.createElement('script');
+      sc.src = st.public_origin + '/?gogh-panel=lib';
+      sc.onload = res; sc.onerror = function () { libP = null; rej(new Error('no snapshot library')); };
+      document.head.appendChild(sc);
+    });
+    return libP;
+  }
+  function snap(sec) {
+    if (!sec || !st) return;
+    var n = sec.getAttribute('data-gw-sec');
+    var s2 = info && info.sections ? info.sections.filter(function (x) { return x.key === secKey(sec); })[0] : null;
+    var label = s2 && s2.design ? 'the ' + s2.design + ' section (place ' + n + ')' : 'section ' + n;
+    lib().then(function () {
+      return window.html2canvas(sec, {
+        proxy: st.public_origin + '/wp-json/gogh/v1/img', useCORS: false, logging: false, scale: 0.5,
+        backgroundColor: getComputedStyle(frame || document.body).backgroundColor || '#ffffff',
+        onclone: function (doc) {
+          var pg = doc.getElementById('gw-page'); if (pg) pg.style.transform = 'none';
+          // html2canvas 1.4 cannot read the color(srgb …) the browser reports
+          // for gogh's mixed colours: hand it plain rgb in the copy
+          var win = doc.defaultView, root = doc.querySelector('[data-gw-sec="' + n + '"]') || pg;
+          var rgb = function (v) {
+            return String(v).replace(/color\(srgb\s+([-\d.e]+)\s+([-\d.e]+)\s+([-\d.e]+)(?:\s*\/\s*([\d.]+)(%?))?\)/g, function (m, r, g, b2, a, pc) {
+              var c = function (x) { return Math.max(0, Math.min(255, Math.round(parseFloat(x) * 255))); };
+              var al = a == null ? 1 : (pc ? parseFloat(a) / 100 : parseFloat(a));
+              return 'rgba(' + c(r) + ',' + c(g) + ',' + c(b2) + ',' + al + ')';
+            }).replace(/(?:oklch|oklab|lab|lch|color)\([^()]*\)/g, 'rgba(128,128,128,0.5)');
+          };
+          var props = ['color', 'backgroundColor', 'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'outlineColor', 'textDecorationColor', 'backgroundImage', 'boxShadow', 'textShadow', 'fill', 'stroke'];
+          if (root && win) [root].concat([].slice.call(root.querySelectorAll('*'))).forEach(function (el) {
+            var cs = win.getComputedStyle(el);
+            props.forEach(function (pr) { var v = cs[pr]; if (v && /(?:color|oklch|oklab|lab|lch)\(/.test(v)) el.style[pr] = rgb(v); });
+            // gogh layers a section's pieces with z-index on grid items;
+            // html2canvas only stacks positioned boxes, so position them
+            if (cs.zIndex !== 'auto' && cs.position === 'static') el.style.position = 'relative';
+          });
+          [].forEach.call(doc.querySelectorAll('.gw-tools, .gw-seam, .gw-empty'), function (x) { x.remove(); });
+          [].forEach.call(doc.querySelectorAll('.gw-chosen, .gw-flash'), function (x) { x.classList.remove('gw-chosen', 'gw-flash'); });
+        },
+      });
+    }).then(function (canvas) {
+      var w = Math.min(720, canvas.width), h = Math.round(canvas.height * w / canvas.width);
+      var c2 = document.createElement('canvas'); c2.width = w; c2.height = Math.min(h, 900);
+      c2.getContext('2d').drawImage(canvas, 0, 0, w, h);
+      st.picture = { label: label, data: c2.toDataURL('image/jpeg', 0.72).split(',')[1] };
+      pushContext();
+    }).catch(function (e) { try { console.error('gogh snapshot:', e && e.message || e); } catch (x) {} });
+  }
+  function snapKey(key) {
+    var el = null;
+    [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (x) { if (!el && secKey(x) === key) el = x; });
+    if (el) snap(el);
+  }
   function flashChanged() {
-    var before = st.flash; st.flash = null;
+    var before = st.flash, snapped = false; st.flash = null;
     if (!before) return;
     [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (el) {
       var k = secKey(el);
-      if (before[k] !== el.innerText) { el.classList.add('gw-flash'); setTimeout(function () { el.classList.remove('gw-flash'); }, 2600); }
+      if (before[k] !== el.innerText) {
+        el.classList.add('gw-flash'); setTimeout(function () { el.classList.remove('gw-flash'); }, 2600);
+        if (!snapped) { snapped = true; snap(el); }
+      }
     });
   }
   function draw() {
@@ -265,6 +333,7 @@
       reread().then(function () {
         wire(page);
         flashChanged();
+        if (st.snapAt) { var at = st.snapAt; st.snapAt = null; var el2 = document.querySelector('#gw-page [data-gw-sec="' + at + '"]'); if (el2) snap(el2); }
         if (st.stale) goStale();
         if (st.waiting) { var l = st.waiting; st.waiting = null; compose(l); }
       });
@@ -368,7 +437,7 @@
         if (!now) { target.innerText = was; return; }
         var sk = secKey(sec);
         tool('gogh_change_words', sk.indexOf('gogh-sec') === 0 ? { page_id: st.page.id, section_key: sk, piece: piece, words: now } : { page_id: st.page.id, section: n, piece: piece, words: now }).then(function (r) {
-          saying('Saved. Not live yet.'); status(true); fit();
+          saying('Saved. Not live yet.'); status(true); fit(); snap(sec);
           tell('In the page panel the person changed words on "' + st.page.title + '", section ' + n + ': "' + was.trim().slice(0, 80) + '" → "' + now.slice(0, 80) + '".');
         }, function (e) { target.innerText = was; oops(e); });
       });
@@ -433,7 +502,7 @@
   }
   function move(from, to) {
     tool('gogh_move_section', { page_id: st.page.id, section: from, to: to }).then(function () {
-      saying('Moved. Not live yet.'); status(true); draw();
+      saying('Moved. Not live yet.'); status(true); st.snapAt = to; draw();
       tell('In the page panel the person moved section ' + from + ' of "' + st.page.title + '" to place ' + to + '.');
     }, oops);
   }
@@ -464,6 +533,7 @@
   function editorHeight() { return Math.max(520, window.innerHeight - document.getElementById('stage').getBoundingClientRect().top - 8); }
   document.getElementById('editor').onclick = function () {
     if (!st) return;
+    reread();
     request('ui/request-display-mode', { mode: 'fullscreen' }).catch(function () {});
     saying('Opening the editor…');
     tool('gogh_open_editor', { page_id: st.page.id }).then(function (d) {
@@ -486,6 +556,7 @@
       f.title = 'gogh editor';
       f.setAttribute('allow', 'clipboard-read; clipboard-write');
       f.style.cssText = 'display:block;width:100%;border:0;height:' + editorHeight() + 'px;background:#fff';
+      f.onload = function () { editorWire(f); };
       f.srcdoc = html;
       stage.style.height = 'auto';
       stage.appendChild(f);
@@ -494,8 +565,48 @@
       tell('The person opened gogh\'s full editor on "' + st.page.title + '" in the panel. Changes made there are saved by the editor itself; read the page again afterwards.');
     }).catch(oops);
   };
+  // inside the editor: Done sits in gogh's own bar (one set of controls, one
+  // Publish), and what the person clicks there tells the agent what "this" is
+  function editorWire(f) {
+    var doc = null;
+    try { doc = f.contentDocument; } catch (e) {}
+    if (!doc || !doc.body) return; // a chat that seals the frame keeps the panel's own Back
+    var tries = 0;
+    (function mount() {
+      var bar = doc.querySelector('#wp-admin-bar-root-default');
+      if (!bar) { if (++tries < 40) setTimeout(mount, 250); return; }
+      if (!doc.getElementById('wp-admin-bar-gogh-done')) {
+        var li = doc.createElement('li');
+        li.id = 'wp-admin-bar-gogh-done';
+        li.innerHTML = '<a class="ab-item" href="#" role="button">\u2190 Done</a>';
+        li.querySelector('a').addEventListener('click', function (ev) { ev.preventDefault(); document.getElementById('back').click(); });
+        bar.insertBefore(li, bar.firstChild);
+        var css = doc.createElement('style');
+        css.textContent = '#wp-admin-bar-gogh-edit{display:none!important}#wp-admin-bar-gogh-done>a{font-weight:600}';
+        doc.head.appendChild(css);
+      }
+      document.querySelector('#w > .bar').style.display = 'none';
+      f.style.height = (window.innerHeight - 8) + 'px';
+      sizeUp();
+    })();
+    doc.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.closest || t.closest('#wpadminbar, .gogh-elbar, .gogh-panel, .gogh-side')) return;
+      var wrap = t.closest('.gogh-wrap');
+      if (!wrap) return;
+      var scEl = wrap.querySelector('[data-gogh-scope]'), key = scEl ? scEl.getAttribute('data-gogh-scope') : null;
+      var s2 = info && info.sections && key ? info.sections.filter(function (x) { return x.key === key; })[0] : null;
+      var name = s2 && s2.design ? 'the ' + s2.design + ' section' : 'a section';
+      var pieceEl = t.closest('[class*="gogh-el-"]'), m = pieceEl && /\bgogh-el-(\d+)\b/.exec(pieceEl.className);
+      var piece = m ? +m[1] : null, pc = piece && s2 && s2.pieces ? s2.pieces.filter(function (p) { return p.piece === piece; })[0] : null;
+      var words = pieceEl ? (pieceEl.innerText || '').trim().slice(0, 80) : '';
+      st.sel = { n: s2 ? s2.section : 0, key: key, piece: piece, label: piece ? 'the ' + (pc ? pc.role : 'piece') + (words ? ' "' + words + '"' : '') + ' in ' + name + ' (in the full editor)' : name + ' (in the full editor)' };
+      pushContext();
+    }, true);
+  }
   document.getElementById('back').onclick = function () {
     request('ui/request-display-mode', { mode: 'inline' }).catch(function () {});
+    document.querySelector('#w > .bar').style.display = '';
     editorOn(false);
     // what the editor did is on the site now: start from it
     tool('gogh_open_page', { page_id: st.page.id }).then(function (d) { saying(''); open(d); }, function () { draw(); });
@@ -580,7 +691,7 @@
       var blocks = G.buildSectionBlocksV3(sec);
       hidePick();
       tool('gogh_add_section', { page_id: st.page.id, at: at, blocks: blocks }).then(function () {
-        saying('Added. Click its words to make them yours.'); status(true); draw();
+        saying('Added. Click its words to make them yours.'); status(true); st.snapAt = at; draw();
         tell('In the page panel the person added a ' + o.label + ' section to "' + st.page.title + '" at place ' + at + '. It carries gogh\'s sample words until they change them.');
       }, oops);
     }
@@ -622,7 +733,7 @@
       var blocks = G.buildSectionBlocksV3(sec);
       hidePick();
       tool('gogh_replace_section', { page_id: st.page.id, section: n, blocks: blocks }).then(function () {
-        saying('Changed. Not live yet.'); status(true); draw();
+        saying('Changed. Not live yet.'); status(true); st.snapAt = n; draw();
         tell('In the page panel the person changed section ' + n + ' of "' + st.page.title + '" to the ' + o.label + ' design, keeping its words.');
       }, oops);
     });

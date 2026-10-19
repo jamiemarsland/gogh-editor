@@ -22,17 +22,28 @@ window.addEventListener('message', async function (ev) {
   else if (m.method === 'ui/notifications/initialized') f.contentWindow.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: ${JSON.stringify(opened)} }, '*');
   else if (m.method === 'ui/notifications/size-changed') f.style.height = m.params.height + 'px';
   else if (m.method === 'tools/call') reply(await window.mcpCall(m.params));
-  else if (m.method === 'ui/update-model-context') { window.__ctx.push(m.params.content[0].text); reply({}); }
+  else if (m.method === 'ui/update-model-context') { window.__ctx.push(m.params.content.map(function (c) { if (c.type === 'image') { window.__img = c.data; return '[image ' + Math.round(c.data.length * 0.75 / 1024) + 'KB]'; } return c.text; }).join(' || ')); reply({}); }
   else if (m.method === 'ui/request-display-mode') { f.style.width = '1260px'; f.style.height = '860px'; reply({ mode: m.params.mode }); }
 });
 </script></body></html>`;
 fs.writeFileSync(out + '.html', host);
+import http from 'http';
+let hostUrl = 'file://' + out + '.html';
+if (process.env.REALORIGIN) {
+  const panelSrv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(html); }).listen(8898);
+  const realHost = host.replace(/<iframe id="f" sandbox="allow-scripts"/, '<iframe id="f" sandbox="allow-scripts allow-same-origin" src="http://127.0.0.1:8898/panel.html"');
+  const a0 = realHost.indexOf('f.srcdoc = '), b0 = realHost.indexOf('\nwindow.addEventListener', a0);
+  const realHost2 = realHost.slice(0, a0) + realHost.slice(b0);
+  const hostSrv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(realHost2); }).listen(8899);
+  hostUrl = 'http://127.0.0.1:8899/';
+  process.on('exit', () => { panelSrv.close(); hostSrv.close(); });
+}
 const b = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: 'new' });
 const p = await b.newPage(); await p.setViewport({ width: 800, height: 1000 });
 p.on('pageerror', (e) => console.log('pageerror', String(e).slice(0, 300)));
-p.on('console', (m) => { if (m.type() === 'error') console.log('console', m.text().slice(0, 200)); });
+p.on('console', (m) => { if (m.type() === 'error' && !/font|Failed to load|interactivity|navigation/.test(m.text())) console.log('console', m.text().slice(0, 300)); });
 await p.exposeFunction('mcpCall', async (params) => (await rpc('tools/call', params)).result);
-await p.goto('file://' + out + '.html', { waitUntil: 'networkidle0' });
+await p.goto(hostUrl, { waitUntil: 'domcontentloaded' });
 await new Promise((r) => setTimeout(r, 6000));
 const w = p.frames().find((x) => x.parentFrame() === p.mainFrame());
 const pg = () => w;
@@ -122,6 +133,32 @@ if (mode === 'live') {
   await sleep(4500);
   console.log('5 stale:', await w.evaluate(() => !document.getElementById('stale').hidden));
   console.log('context now:', JSON.stringify((await p.evaluate(() => window.__ctx.slice(-1)[0] || '')).slice(0, 400)));
+}
+if (mode === 'see') {
+  const agent = async (name, args) => (await rpc('tools/call', { name, arguments: args })).result;
+  const pid = +process.env.PAGE;
+  const pg = (await agent('gogh_read_page', { page_id: pid })).structuredContent;
+  const hero = pg.sections[0], hp = hero.pieces.find((x) => x.role === 'heading');
+  await agent('gogh_change_words', { page_id: pid, section_key: hero.key, piece: hp.piece, words: 'A very long headline to see whether the agent notices it wraps onto many lines ' + Date.now() % 100 });
+  await sleep(9000);
+  const last = await p.evaluate(() => window.__ctx.slice(-1)[0] || '');
+  console.log('see:', last.slice(-160));
+  const img = await p.evaluate(() => window.__img || '');
+  if (img) fs.writeFileSync(out + '-snap.jpg', Buffer.from(img, 'base64'));
+  if (process.env.NOEDITOR) { await b.close(); process.exit(0); }
+  // the editor: Done in gogh's bar, point and say inside it
+  await p.setViewport({ width: 1300, height: 900 });
+  await w.evaluate(() => { document.getElementById('editor').click(); });
+  await sleep(15000);
+  const ed = p.frames().find((x) => /gogh-editor=|about:srcdoc/.test(x.url()) && x.parentFrame() && x.parentFrame().parentFrame());
+  console.log('editor bar:', JSON.stringify(await ed.evaluate(() => ({ done: !!document.getElementById('wp-admin-bar-gogh-done'), viewSiteHidden: getComputedStyle(document.getElementById('wp-admin-bar-gogh-edit') || document.body).display === 'none' }))), 'panel bar hidden:', await w.evaluate(() => document.querySelector('#w > .bar').style.display === 'none'));
+  await ed.evaluate(() => { const h = document.querySelector('.gogh-wrap h2, .gogh-wrap h1'); h.click(); });
+  await sleep(800);
+  console.log('editor point:', (await p.evaluate(() => window.__ctx.slice(-1)[0] || '')).split('\n')[1]);
+  await p.screenshot({ path: out + '-editor.png' });
+  await ed.evaluate(() => { document.querySelector('#wp-admin-bar-gogh-done a').click(); });
+  await sleep(5000);
+  console.log('after Done, panel bar back:', await w.evaluate(() => document.querySelector('#w > .bar').style.display !== 'none' && !!document.querySelector('#gw-page')));
 }
 if (mode === 'edit') {
   // type over the hero's heading
