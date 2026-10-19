@@ -1183,6 +1183,8 @@ add_action( 'init', function () {
 		'pending' => (bool) gogh_ab_pending_backup( $post ),
 		'changes' => gogh_pg_changes_public( $id ),
 		'newer'   => $latest && $latest !== $token,
+		// the latest round of versions for the explore view
+		'explore' => get_transient( 'gogh_explore_' . $id ) ? get_transient( 'gogh_explore_' . $id ) : null,
 	) );
 }, 1 );
 

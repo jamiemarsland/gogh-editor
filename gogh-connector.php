@@ -167,6 +167,21 @@ function gogh_connector_app_tools() {
 			'_meta'       => array( 'ui' => array( 'resourceUri' => gogh_connector_widget_uri() ) ),
 		),
 		array(
+			'name'        => 'gogh_explore',
+			'title'       => 'Send versions to the explore view',
+			'description' => 'When the person explores a section in the page panel (you will be asked in their message), write 3 to 5 genuinely different versions of its words — different angles, not rewordings — using the same fields it has now (eyebrow, heading, text, text2, button, button2), and one or two dials that describe how the versions differ, in the site\'s own language (e.g. low "Plain", high "Poetic"). For each dial give every version a score from 0 (low end) to 1 (high end), in the same order as versions. The panel draws every version in gogh\'s designs at once and the person plays with the dials and chooses by pointing; wait for their choice. Called again with new versions, it starts a new round.',
+			'inputSchema' => array(
+				'type'       => 'object',
+				'properties' => array(
+					'page_id'     => array( 'type' => 'integer' ),
+					'section_key' => array( 'type' => 'string', 'description' => 'The section\'s key, from the request.' ),
+					'versions'    => array( 'type' => 'array', 'maxItems' => 6, 'items' => array( 'type' => 'object', 'properties' => array( 'eyebrow' => array( 'type' => 'string' ), 'heading' => array( 'type' => 'string' ), 'text' => array( 'type' => 'string' ), 'text2' => array( 'type' => 'string' ), 'button' => array( 'type' => 'string' ), 'button2' => array( 'type' => 'string' ) ) ) ),
+					'dials'       => array( 'type' => 'array', 'maxItems' => 2, 'items' => array( 'type' => 'object', 'properties' => array( 'low' => array( 'type' => 'string' ), 'high' => array( 'type' => 'string' ), 'scores' => array( 'type' => 'array', 'items' => array( 'type' => 'number' ) ) ), 'required' => array( 'low', 'high', 'scores' ) ) ),
+				),
+				'required'   => array( 'page_id', 'section_key', 'versions' ),
+			),
+		),
+		array(
 			'name'        => 'gogh_open_editor',
 			'title'       => 'Open gogh\'s editor in the panel',
 			'description' => 'Used by the page panel to open gogh\'s full editor, full screen, for one page.',
@@ -281,6 +296,52 @@ function gogh_connector_open_editor( $args ) {
 	);
 }
 
+// a round of versions for the explore view: plain words only, kept for an
+// hour beside the page, picked up by the open panel through ?gogh-state
+function gogh_connector_explore( $args ) {
+	$id = isset( $args['page_id'] ) ? (int) $args['page_id'] : 0;
+	if ( ! $id || ! current_user_can( 'edit_post', $id ) ) {
+		return array( 'content' => array( array( 'type' => 'text', 'text' => 'There is no page with that id that you can edit.' ) ), 'isError' => true );
+	}
+	$fields   = array( 'eyebrow', 'heading', 'text', 'text2', 'button', 'button2' );
+	$versions = array();
+	foreach ( array_slice( isset( $args['versions'] ) && is_array( $args['versions'] ) ? $args['versions'] : array(), 0, 6 ) as $v ) {
+		$one = array();
+		foreach ( $fields as $f ) {
+			if ( isset( $v[ $f ] ) && is_scalar( $v[ $f ] ) && '' !== trim( (string) $v[ $f ] ) ) {
+				$one[ $f ] = mb_substr( sanitize_text_field( (string) $v[ $f ] ), 0, 400 );
+			}
+		}
+		if ( $one ) {
+			$versions[] = $one;
+		}
+	}
+	if ( ! $versions ) {
+		return array( 'content' => array( array( 'type' => 'text', 'text' => 'Send at least one version with words.' ) ), 'isError' => true );
+	}
+	$dials = array();
+	foreach ( array_slice( isset( $args['dials'] ) && is_array( $args['dials'] ) ? $args['dials'] : array(), 0, 2 ) as $d ) {
+		if ( empty( $d['low'] ) || empty( $d['high'] ) ) {
+			continue;
+		}
+		$scores = array();
+		foreach ( $versions as $k => $unused ) {
+			$scores[] = isset( $d['scores'][ $k ] ) ? max( 0, min( 1, (float) $d['scores'][ $k ] ) ) : 0.5;
+		}
+		$dials[] = array( 'low' => mb_substr( sanitize_text_field( (string) $d['low'] ), 0, 30 ), 'high' => mb_substr( sanitize_text_field( (string) $d['high'] ), 0, 30 ), 'scores' => $scores );
+	}
+	$prev  = get_transient( 'gogh_explore_' . $id );
+	$round = is_array( $prev ) && isset( $prev['round'] ) ? (int) $prev['round'] + 1 : 1;
+	set_transient( 'gogh_explore_' . $id, array(
+		'key'      => sanitize_key( (string) ( isset( $args['section_key'] ) ? $args['section_key'] : '' ) ),
+		'versions' => $versions,
+		'dials'    => $dials,
+		'round'    => $round,
+		'at'       => time(),
+	), HOUR_IN_SECONDS );
+	return array( 'content' => array( array( 'type' => 'text', 'text' => sprintf( 'The panel is drawing %d versions (round %d). Wait for the person to choose, or to ask for more like one of them.', count( $versions ), $round ) ) ) );
+}
+
 function gogh_connector_open_page( $args ) {
 	$id = isset( $args['page_id'] ) ? (int) $args['page_id'] : 0;
 	if ( ! $id && 'page' === get_option( 'show_on_front' ) ) {
@@ -351,6 +412,9 @@ function gogh_connector_call( $name, $args ) {
 	if ( 'gogh_open_page' === $name ) {
 		return gogh_connector_open_page( $args );
 	}
+	if ( 'gogh_explore' === $name ) {
+		return gogh_connector_explore( $args );
+	}
 	if ( 'gogh_open_editor' === $name ) {
 		return gogh_connector_open_editor( $args );
 	}
@@ -400,7 +464,7 @@ function gogh_connector_message( $msg ) {
 			'capabilities'    => array( 'tools' => array( 'listChanged' => false ), 'resources' => array( 'listChanged' => false ) ),
 			'serverInfo'      => array( 'name' => 'gogh · ' . $site, 'version' => defined( 'GOGH_VERSION' ) ? GOGH_VERSION : '1' ),
 			'instructions'    => sprintf(
-				'This is %1$s, a real WordPress site drawn with gogh, and you act as %2$s. Start with gogh_describe_site, then gogh_read_page for the page in question. When the person wants to see or work on a page, open it with gogh_open_page: they can edit it there themselves, and the open panel redraws by itself when you change the page (no need to open it again). The panel tells you what they are pointing at: when they say "this", "here" or "it", that is what they mean. Address sections by their key (section_key), which stays the same when sections move. Every change goes into the page\'s change list with who made it; gogh_undo_change takes back the latest. After a change the panel also shows you a small picture of the section that changed: look at it the way a designer would (words too long for the design, words hard to read on a picture, a section that now feels crowded) and say so or fix it. Changes to a page are saved but not live: offer gogh_preview_page so the person can look, and use gogh_publish only when they say so. Remove sections or throw changes away only when asked.',
+				'This is %1$s, a real WordPress site drawn with gogh, and you act as %2$s. Start with gogh_describe_site, then gogh_read_page for the page in question. When the person explores a section in the panel, answer with gogh_explore (versions of its words and dials), not with a change. When the person wants to see or work on a page, open it with gogh_open_page: they can edit it there themselves, and the open panel redraws by itself when you change the page (no need to open it again). The panel tells you what they are pointing at: when they say "this", "here" or "it", that is what they mean. Address sections by their key (section_key), which stays the same when sections move. Every change goes into the page\'s change list with who made it; gogh_undo_change takes back the latest. After a change the panel also shows you a small picture of the section that changed: look at it the way a designer would (words too long for the design, words hard to read on a picture, a section that now feels crowded) and say so or fix it. Changes to a page are saved but not live: offer gogh_preview_page so the person can look, and use gogh_publish only when they say so. Remove sections or throw changes away only when asked.',
 				$site,
 				wp_get_current_user()->display_name
 			),

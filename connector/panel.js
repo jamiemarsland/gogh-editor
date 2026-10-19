@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var H = window.goghHost;
-  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"changes\" type=\"button\" hidden>0 changes</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"log\" id=\"log\" hidden><ol id=\"logList\"></ol><div class=\"logBar\"><button class=\"chip\" id=\"undo\" type=\"button\">Undo the latest</button><button class=\"chip\" id=\"logClose\" type=\"button\">Close</button></div></div><div class=\"stale\" id=\"stale\" hidden>There\u2019s a newer view of this page below. This one no longer takes edits.</div><div class=\"hint\" id=\"hint\">Click any words to change them. Drag a section by its handle to move it. Add a section from the + under any section.</div>\n  <div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
+  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"changes\" type=\"button\" hidden>0 changes</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"log\" id=\"log\" hidden><ol id=\"logList\"></ol><div class=\"logBar\"><button class=\"chip\" id=\"undo\" type=\"button\">Undo the latest</button><button class=\"chip\" id=\"logClose\" type=\"button\">Close</button></div></div><div class=\"stale\" id=\"stale\" hidden>There\u2019s a newer view of this page below. This one no longer takes edits.</div><div class=\"hint\" id=\"hint\">Click any words to change them. Drag a section by its handle to move it. Add a section from the + under any section.</div>\n  <div class=\"explore\" id=\"explore\" hidden></div><div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
   var st = null, busy = 0, frame = null, W = 1280, G = window.goghDraw, info = null;
 
   /* ---------- the chat: the loader holds the conversation ---------- */
@@ -196,6 +196,7 @@
       fetch(url + '&t=' + Date.now(), { credentials: 'omit' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
         if (!d) return;
         if (d.newer) { goStale(); return; }
+        if (d.explore) exploreRound(d.explore);
         showChanges(d.changes);
         if (d.pending !== st.pending || (d.status === 'publish') !== (st.page.status === 'publish')) { st.page.status = d.status; status(d.pending); }
         if (st.stamp === null || Date.now() - (st.ownAt || 0) < 6000) { st.stamp = d.stamp; return; } // ours, or the first look
@@ -450,7 +451,9 @@
     var t = doc.createElement('div'); t.className = 'gw-tools';
     t.setAttribute('contenteditable', 'false');
     var design = G && info && info.sections && info.sections[n - 1] && info.sections[n - 1].design && G.diceFaces(info.sections[n - 1].design);
+    var explorable = G && info && info.sections && info.sections[n - 1] && info.sections[n - 1].design;
     t.innerHTML = '<button class="gw-grip" draggable="true" title="Drag to move">⠿</button>' +
+      (explorable ? '<button data-a="explore" title="See this section many ways at once">Explore</button>' : '') +
       (design ? '<button data-a="design" title="Try this section in its other designs">Design</button>' : '') +
       (n > 1 ? '<button data-a="up" title="Move up">↑</button>' : '') +
       (n < count ? '<button data-a="down" title="Move down">↓</button>' : '') +
@@ -469,6 +472,7 @@
       if (a === 'up') move(n, n - 1);
       if (a === 'down') move(n, n + 1);
       if (a === 'design') chooseDesign(n);
+      if (a === 'explore') exploreStart(n);
       if (a === 'remove') { t.classList.add('on'); ask('Remove this section from the page? You can throw the change away until it is published.', 'Remove', function () { remove(n); }); }
     });
     var grip = t.querySelector('.gw-grip');
@@ -616,6 +620,158 @@
     if (f) f.style.height = editorHeight() + 'px';
   });
 
+  /* ---------- explore this section ---------- */
+  // Not one change per message: the agent writes a handful of versions and
+  // the dials that tell them apart, once; the panel draws every combination
+  // with gogh's own code, so the person plays at full speed and chooses by
+  // pointing ('choose, don't describe' — the hero picker, for any section)
+  var ex = null;
+  var SIZES = ['large', 'x-large', 'xx-large', '__disp-s', '__disp-m'];
+  function exploreStart(n) {
+    var s2 = info && info.sections && info.sections[n - 1];
+    if (!G || !s2 || !s2.design) return;
+    var fams = OPENERS.indexOf(s2.design) !== -1 ? OPENERS : [s2.design], faces = [];
+    fams.forEach(function (f) {
+      var fs = G.diceFaces(f);
+      if (!fs) { faces.push({ take: f, face: 'The original' }); return; }
+      fs.forEach(function (t, k) { faces.push({ take: f, face: k ? t.take : 'The original' }); });
+    });
+    var nowFace = s2.design_take ? (G.diceFaces(s2.design) || [])[s2.design_take] : null;
+    var cur = { take: s2.design, face: nowFace && nowFace.take ? nowFace.take : 'The original' };
+    faces.sort(function (a, b) { return (b.take === cur.take && b.face === cur.face) - (a.take === cur.take && a.face === cur.face); });
+    var w0 = wordsOf(s2);
+    ex = { n: n, key: s2.key, s: s2, faces: faces, versions: [w0], scores: [], dials: [], loud: null, ground: null, wd: [], round: null, shift: 0, focus: 0, waiting: true };
+    exploreDraw();
+    window.scrollTo(0, 0);
+    // the agent writes the versions; the person can play with designs and
+    // dials meanwhile
+    var name = 'the ' + s2.design + ' section' + (w0.heading ? ' ("' + w0.heading.slice(0, 60) + '")' : '');
+    request('ui/message', { role: 'user', content: [{ type: 'text', text: 'Explore ' + name + ' on "' + st.page.title + '" with me (page_id ' + st.page.id + ', section_key ' + (s2.key || '') + '). Its words now: ' + JSON.stringify(w0) + '. Write 4 genuinely different versions and up to two dials that say how they differ, and send them with gogh_explore.' }] }).catch(function () {});
+    tell('The person is exploring ' + name + ' in the panel.');
+  }
+  function exploreRound(r) {
+    if (!ex || !r || (ex.key && r.key && r.key !== ex.key) || r.round === ex.round) return;
+    ex.round = r.round;
+    ex.versions = [ex.versions[0]].concat(r.versions || []);
+    ex.dials = (r.dials || []).map(function (d) { return { low: d.low, high: d.high, scores: [0.5].concat(d.scores || []) }; });
+    ex.wd = ex.dials.map(function () { return null; });
+    ex.waiting = false; ex.focus = 0;
+    exploreDraw(true);
+  }
+  // the versions nearest what the word dials ask for, the original first
+  // until a dial moves
+  function exploreWords() {
+    var idx = ex.versions.map(function (v, i) { return i; });
+    var set = ex.wd.some(function (x) { return x != null; });
+    if (!set) return idx;
+    var dist = function (i) { var d = 0; ex.dials.forEach(function (dl, k) { if (ex.wd[k] != null) d += Math.pow(dl.scores[i] - ex.wd[k], 2); }); return d; };
+    return idx.sort(function (a, b) { return dist(a) - dist(b); });
+  }
+  function exploreTiles() {
+    var words = exploreWords(), faces = ex.faces.slice(ex.shift).concat(ex.faces.slice(0, ex.shift)), out = [];
+    if (ex.versions.length === 1) faces.slice(0, 6).forEach(function (f) { out.push({ f: f, v: 0 }); });
+    else words.slice(0, 2).forEach(function (vi) { faces.slice(0, 3).forEach(function (f) { out.push({ f: f, v: vi }); }); });
+    return out;
+  }
+  function exploreSec(tile, scope) {
+    var tpl = G.fillTake(Object.assign({ take: tile.f.take, face: tile.f.face }, ex.versions[tile.v]));
+    if (!tpl) return null;
+    var sec = secFrom(tpl, scope);
+    if (ex.loud != null) sec.els.forEach(function (e) { if (e.type === 'heading') e.fs = SIZES[Math.round(ex.loud * (SIZES.length - 1))]; });
+    if (ex.ground != null && ex.ground >= 0.34 && !sec.bgImage) {
+      if (ex.ground < 0.67) sec.bg = 'color-mix(in srgb, var(--wp--preset--color--contrast) 7%, var(--wp--preset--color--base))';
+      else {
+        sec.bg = 'var(--wp--preset--color--contrast)';
+        sec.els.forEach(function (e) {
+          if (e.kids && e.kids.length) return;
+          if (e.type === 'button') { if (e.ghost) e.color = 'base'; else { e.btnBg = 'base'; e.btnText = 'contrast'; } }
+          else if (e.type === 'heading' || e.type === 'para' || e.type === 'badge') e.color = 'base';
+        });
+      }
+    }
+    return sec;
+  }
+  function tileName(tile) {
+    var f = tile.f.face === 'The original' ? tile.f.take : tile.f.take + ' · ' + tile.f.face.replace(/^The /, '');
+    return f + (ex.versions.length > 1 ? ' — ' + (tile.v ? 'version ' + tile.v : 'as it is') : '');
+  }
+  function exploreDraw(fresh) {
+    var box = document.getElementById('explore');
+    var dialRow = function (label, low, high, val, id) {
+      return '<label class="dial"><span>' + low + '</span><input type="range" min="0" max="100" value="' + (val == null ? 50 : Math.round(val * 100)) + '" data-d="' + id + '" aria-label="' + label + '"><span>' + high + '</span></label>';
+    };
+    var dials = dialRow('Quiet to loud', 'Quiet', 'Loud', ex.loud, 'loud') + dialRow('Light to dark', 'Light', 'Dark', ex.ground == null ? 0 : ex.ground, 'ground');
+    ex.dials.forEach(function (d, k) { dials += dialRow(d.low + ' to ' + d.high, d.low, d.high, ex.wd[k], 'w' + k); });
+    box.innerHTML = '<div class="head"><span>Explore ' + (ex.s.design ? 'the ' + ex.s.design : 'this section') + '</span>' +
+      '<button class="chip" type="button" data-x="shuffle">Other designs</button><button class="chip" type="button" data-x="close">Done</button></div>' +
+      '<div class="note">' + (ex.waiting ? 'Claude is writing versions… play with the designs and dials meanwhile.' : 'Claude wrote ' + (ex.versions.length - 1) + ' versions' + (ex.round > 1 ? ' (round ' + ex.round + ')' : '') + '. Point to look, click to keep.') + '</div>' +
+      '<div class="dials">' + dials + '</div>' +
+      '<div class="big" id="exBig"></div><div class="tiles" id="exTiles"></div>';
+    box.hidden = false;
+    document.getElementById('hint').hidden = true;
+    [].forEach.call(box.querySelectorAll('input[type=range]'), function (r) {
+      r.addEventListener('input', function () {
+        var d = r.getAttribute('data-d'), v = +r.value / 100;
+        if (d === 'loud') ex.loud = v; else if (d === 'ground') ex.ground = v; else ex.wd[+d.slice(1)] = v;
+        exploreTilesDraw(false);
+      });
+    });
+    box.querySelector('[data-x="close"]').onclick = exploreClose;
+    box.querySelector('[data-x="shuffle"]').onclick = function () { ex.shift = (ex.shift + 3) % Math.max(1, ex.faces.length); exploreTilesDraw(true); };
+    exploreTilesDraw(fresh);
+  }
+  function exploreTilesDraw(fresh) {
+    var host = document.getElementById('exTiles'); if (!host) return;
+    var tiles = exploreTiles();
+    host.innerHTML = '';
+    tiles.forEach(function (tile, i) {
+      var sec = exploreSec(tile, 'gw-ex-' + i);
+      if (!sec) return;
+      var b = document.createElement('div');
+      b.className = 'tile' + (fresh ? ' arrive' : '') + (i === ex.focus ? ' on' : '');
+      b.style.animationDelay = (i * 70) + 'ms';
+      b.innerHTML = thumb(sec) + '<div class="name"><span></span><button type="button" class="more">More like this</button></div>';
+      b.querySelector('.name span').textContent = tileName(tile);
+      b.addEventListener('mouseenter', function () { exploreBig(tile); });
+      b.addEventListener('click', function (ev) { if (ev.target.closest('.more')) return; exploreKeep(tile); });
+      b.querySelector('.more').onclick = function () { exploreMore(tile); };
+      host.appendChild(b);
+    });
+    exploreBig(tiles[Math.min(ex.focus, tiles.length - 1)]);
+    if (document.fonts) document.fonts.ready.then(fitThumbs);
+    fitThumbs(); setTimeout(fitThumbs, 300);
+  }
+  function exploreBig(tile) {
+    var big = document.getElementById('exBig'); if (!big || !tile) return;
+    var sec = exploreSec(tile, 'gw-ex-big');
+    if (!sec) return;
+    big.innerHTML = thumb(sec);
+    fitThumbs();
+  }
+  function exploreKeep(tile) {
+    var sec = exploreSec(tile, ex.key && ex.key.indexOf('gogh-sec') === 0 ? ex.key : nextScope());
+    if (!sec) return;
+    var blocks = G.buildSectionBlocksV3(sec), n = ex.n, key = ex.key, label = tileName(tile), words = ex.versions[tile.v];
+    exploreClose();
+    tool('gogh_replace_section', key ? { page_id: st.page.id, section_key: key, blocks: blocks } : { page_id: st.page.id, section: n, blocks: blocks }).then(function () {
+      saying('Kept. Not live yet.'); status(true); st.snapAt = n; draw();
+      tell('In the explore view the person kept ' + label + ' for section ' + n + ', with the words ' + JSON.stringify(words) + '.');
+    }, oops);
+  }
+  function exploreMore(tile) {
+    var w = ex.versions[tile.v];
+    ex.waiting = true;
+    exploreDraw();
+    request('ui/message', { role: 'user', content: [{ type: 'text', text: 'More like this one: ' + JSON.stringify(w) + ' (in the ' + tileName(tile) + ' design). Write 4 new versions close to it, each still a little different, and send them with gogh_explore (page_id ' + st.page.id + ', section_key ' + (ex.key || '') + ').' }] }).catch(function () {});
+  }
+  function exploreClose() {
+    var key = ex && ex.key; ex = null;
+    document.getElementById('explore').hidden = true;
+    document.getElementById('explore').innerHTML = '';
+    document.getElementById('hint').hidden = false;
+    fit();
+  }
+
   /* ---------- new sections, drawn with gogh's own code ---------- */
   var INTENTS = [['introduce', 'Introduce'], ['showcase', 'Showcase'], ['sell', 'Sell'], ['share', 'Share']];
   var OPENERS = ['Hero', 'Cover', 'Big statement'];
@@ -641,7 +797,7 @@
     return '<div class="thumb"><style>' + shown(css) + '</style><div class="gw-stage gogh-wrap"><div class="gogh-section ' + sec.scope + '">' + shown(inner) + '</div></div></div>';
   }
   function fitThumbs() {
-    [].forEach.call(document.querySelectorAll('.pick .gw-stage'), function (s) { s.style.transform = 'scale(' + (s.parentNode.clientWidth / 1200) + ')'; });
+    [].forEach.call(document.querySelectorAll('.pick .gw-stage, .explore .gw-stage'), function (s) { s.style.transform = 'scale(' + (s.parentNode.clientWidth / 1200) + ')'; });
     sizeUp();
   }
   function showPick(title, tabs, onTab) {

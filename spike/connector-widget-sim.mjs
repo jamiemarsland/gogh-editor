@@ -23,6 +23,7 @@ window.addEventListener('message', async function (ev) {
   else if (m.method === 'ui/notifications/size-changed') f.style.height = m.params.height + 'px';
   else if (m.method === 'tools/call') reply(await window.mcpCall(m.params));
   else if (m.method === 'ui/update-model-context') { window.__ctx.push(m.params.content.map(function (c) { if (c.type === 'image') { window.__img = c.data; return '[image ' + Math.round(c.data.length * 0.75 / 1024) + 'KB]'; } return c.text; }).join(' || ')); reply({}); }
+  else if (m.method === 'ui/message') { window.__said = (window.__said || []).concat([m.params.content[0].text]); reply({}); }
   else if (m.method === 'ui/request-display-mode') { f.style.width = '1260px'; f.style.height = '860px'; reply({ mode: m.params.mode }); }
 });
 </script></body></html>`;
@@ -159,6 +160,32 @@ if (mode === 'see') {
   await ed.evaluate(() => { document.querySelector('#wp-admin-bar-gogh-done a').click(); });
   await sleep(5000);
   console.log('after Done, panel bar back:', await w.evaluate(() => document.querySelector('#w > .bar').style.display !== 'none' && !!document.querySelector('#gw-page')));
+}
+if (mode === 'explore') {
+  const agent = async (name, args) => (await rpc('tools/call', { name, arguments: args })).result;
+  const pid = +process.env.PAGE;
+  await p.setViewport({ width: 900, height: 1100 });
+  await w.evaluate(() => { document.querySelector('[data-gw-sec="1"] .gw-tools [data-a="explore"]').click(); });
+  await sleep(1500);
+  console.log('asked Claude:', JSON.stringify(await p.evaluate(() => (window.__said || []).slice(-1)[0] || '')).slice(0, 220));
+  console.log('tiles before Claude:', await w.evaluate(() => document.querySelectorAll('#exTiles .tile').length));
+  const key = (await agent('gogh_read_page', { page_id: pid })).structuredContent.sections[0].key;
+  await agent('gogh_explore', { page_id: pid, section_key: key, versions: [
+    { eyebrow: 'Saturday mornings', heading: 'Clay, coffee, and two hours of quiet', text: 'Sit at a wheel for a morning and leave with something you made.', button: 'Book a seat' },
+    { eyebrow: 'Beginners welcome', heading: 'Your first pot', text: 'No experience needed. We guide every step, from wedging to the wheel.', button: 'Find a date' },
+    { eyebrow: 'Small groups', heading: 'Get your hands dirty', text: 'Six people, six wheels, one very patient potter.', button: 'Join a class' },
+    { eyebrow: 'Since 2019', heading: 'Learn the wheel where we throw ours', text: 'Workshops in our railway-arch studio, the same wheels we use every day.', button: 'See dates' } ],
+    dials: [{ low: 'Plain', high: 'Poetic', scores: [0.8, 0.1, 0.3, 0.6] }, { low: 'Short', high: 'Story', scores: [0.5, 0.4, 0.2, 0.9] }] });
+  await sleep(4500);
+  console.log('after round:', JSON.stringify(await w.evaluate(() => ({ note: document.querySelector('.explore .note').textContent, tiles: [...document.querySelectorAll('#exTiles .tile .name span')].map((x) => x.textContent), dials: document.querySelectorAll('.explore .dial').length }))));
+  await w.evaluate(() => { const r = document.querySelector('.explore input[data-d="w0"]'); r.value = 100; r.dispatchEvent(new Event('input')); const g = document.querySelector('.explore input[data-d="ground"]'); g.value = 90; g.dispatchEvent(new Event('input')); });
+  await sleep(1200);
+  await p.screenshot({ path: out + '-explore.png', fullPage: false });
+  console.log('poetic + dark first tiles:', JSON.stringify(await w.evaluate(() => [...document.querySelectorAll('#exTiles .tile .name span')].slice(0, 3).map((x) => x.textContent))));
+  await w.evaluate(() => { document.querySelectorAll('#exTiles .tile')[0].click(); });
+  await sleep(5000);
+  const after = (await agent('gogh_read_page', { page_id: pid })).structuredContent.sections[0];
+  console.log('kept:', after.design, '|', (after.pieces.find((x) => x.role === 'heading') || {}).words);
 }
 if (mode === 'edit') {
   // type over the hero's heading
