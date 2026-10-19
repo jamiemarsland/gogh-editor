@@ -48,7 +48,11 @@ button[disabled] { opacity: .45; cursor: default; }
 .ask span { margin-right: auto; }
 .hint { font-size: 12px; color: var(--w-muted); }
 .stage { position: relative; width: 100%; overflow: hidden; border-radius: 8px; box-shadow: 0 0 0 1px var(--w-line); }
-.stage #gw-page { position: absolute; top: 0; left: 0; width: 1280px; transform-origin: 0 0; }
+.stage #gw-page { position: absolute; top: 0; left: 0; width: 1280px; transform-origin: 0 0;
+  /* the page wears its own ground and ink, whatever the panel's frame says
+     (the frame is transparent, so a dark site style lost its background
+     and its light words sat on white) */
+  background: var(--wp--preset--color--base, #fff); color: var(--wp--preset--color--contrast, #111); }
 /* the panel's own parts keep their own type, whatever the site's styles say */
 .w > .bar, .w > .ask, .w > .hint { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--w-ink); }
 .w > .bar :is(select, button), .w > .ask button { font: inherit; font-size: 13px; letter-spacing: normal; text-transform: none; }
