@@ -44,6 +44,8 @@
     }
     var ch = st.changes || [];
     if (ch.length) lines.push('Changes not live yet (oldest first): ' + ch.map(function (c) { return (c.who === 'you' ? 'the person' : 'you') + ': ' + c.what; }).join('; ') + '.');
+    if (st.exploring && ex) lines.push(st.exploring);
+    lines.push('If the person says "explore this", asks for options or versions, or says "more like this", answer by calling gogh_explore for the section they are pointing at (or exploring): 3 to 5 genuinely different versions of its words and up to two dials. The panel shows them; do not change the page yourself.');
     if (lastNote) lines.push('Latest in the panel: ' + lastNote);
     var content = [{ type: 'text', text: lines.join('\n') }];
     if (st.picture) {
@@ -197,7 +199,8 @@
       fetch(url + '&t=' + Date.now(), { credentials: 'omit' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
         if (!d) return;
         if (d.newer) { goStale(); return; }
-        if (d.explore) exploreRound(d.explore);
+        if (st.seenRound == null) st.seenRound = d.explore ? d.explore.round : 0;
+        else if (d.explore) exploreRound(d.explore);
         showChanges(d.changes);
         if (d.pending !== st.pending || (d.status === 'publish') !== (st.page.status === 'publish')) { st.page.status = d.status; status(d.pending); }
         if (st.stamp === null || Date.now() - (st.ownAt || 0) < 6000) { st.stamp = d.stamp; return; } // ours, or the first look
@@ -651,13 +654,31 @@
     // the agent writes the versions; the person can play with designs and
     // dials meanwhile
     var name = 'the ' + s2.design + ' section' + (w0.heading ? ' ("' + w0.heading.slice(0, 60) + '")' : '');
-    request('ui/message', { role: 'user', content: [{ type: 'text', text: 'Explore ' + name + ' on "' + st.page.title + '" with me (page_id ' + st.page.id + ', section_key ' + (s2.key || '') + '). Its words now: ' + JSON.stringify(w0) + '. Write 4 genuinely different versions and up to two dials that say how they differ, and send them with gogh_explore.' }] }).catch(function () {});
-    tell('The person is exploring ' + name + ' in the panel.');
+    // what the agent needs rides the panel's context; the message the person
+    // sends stays short and in their own words (a chat asks before a panel's
+    // message goes, so it must read like something they would say)
+    st.exploring = 'The person is exploring ' + name + ' on "' + st.page.title + '" (page_id ' + st.page.id + ', section_key ' + (s2.key || '') + '). Its words now: ' + JSON.stringify(w0) + '. Write 4 genuinely different versions with the same fields, and up to two dials that say how they differ, and send them with gogh_explore.';
+    ex.waiting = false; ex.askFirst = true;
+    exploreDraw();
+    tell('');
   }
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function exploreRound(r) {
-    if (!ex || !r || (ex.key && r.key && r.key !== ex.key) || r.round === ex.round) return;
+    if (!r) return;
+    if (st.seenRound == null || r.round <= st.seenRound) return;
+    st.seenRound = r.round;
+    // versions arrived for a section that is not open: open it, filled in
+    if (!ex || (ex.key && r.key && r.key !== ex.key)) {
+      var n0 = 0;
+      (info && info.sections || []).forEach(function (x) { if (!n0 && x.key === r.key) n0 = x.section; });
+      if (!n0) return;
+      exploreStart(n0);
+      if (!ex) return;
+    }
+    ex.askMore = null;
     ex.round = r.round;
     ex.versions = [ex.versions[0]].concat(r.versions || []);
+    saying('Claude sent ' + (r.versions || []).length + ' versions.');
     ex.dials = (r.dials || []).map(function (d) { return { low: d.low, high: d.high, scores: [0.5].concat(d.scores || []) }; });
     ex.wd = ex.dials.map(function () { return null; });
     ex.waiting = false; ex.focus = 0;
@@ -709,7 +730,9 @@
     ex.dials.forEach(function (d, k) { dials += dialRow(d.low + ' to ' + d.high, d.low, d.high, ex.wd[k], 'w' + k); });
     box.innerHTML = '<div class="head"><span>Explore ' + (ex.s.design ? 'the ' + ex.s.design : 'this section') + '</span>' +
       '<button class="chip" type="button" data-x="shuffle">Other designs</button><button class="chip" type="button" data-x="close">Done</button></div>' +
-      '<div class="note">' + (ex.waiting ? 'Claude is writing versions… play with the designs and dials meanwhile.' : 'Claude wrote ' + (ex.versions.length - 1) + ' versions' + (ex.round > 1 ? ' (round ' + ex.round + ')' : '') + '. Point to look, click to keep.') + '</div>' +
+      '<div class="note">' + (ex.askMore ? 'Say <b>“more like this”</b> to Claude for new versions around “' + esc(ex.askMore) + '”.'
+        : ex.versions.length > 1 ? 'Claude wrote ' + (ex.versions.length - 1) + ' versions' + (ex.round > 1 ? ' (round ' + ex.round + ')' : '') + '. Point to look, click to keep.'
+        : 'Point to look, click to keep. For new words too, say <b>“explore this”</b> to Claude.') + '</div>' +
       '<div class="dials">' + dials + '</div>' +
       '<div class="big" id="exBig"></div><div class="tiles" id="exTiles"></div>';
     box.hidden = false;
@@ -765,12 +788,13 @@
   }
   function exploreMore(tile) {
     var w = ex.versions[tile.v];
-    ex.waiting = true;
+    st.exploring = 'The person wants more like this version of the ' + (ex.s.design || 'section') + ' (page_id ' + st.page.id + ', section_key ' + (ex.key || '') + '): ' + JSON.stringify(w) + ', in the ' + tileName(tile) + ' design. Write 4 new versions close to it, each still a little different, and send them with gogh_explore.';
+    ex.waiting = false; ex.askMore = String(w.heading || w.text || '').slice(0, 50);
     exploreDraw();
-    request('ui/message', { role: 'user', content: [{ type: 'text', text: 'More like this one: ' + JSON.stringify(w) + ' (in the ' + tileName(tile) + ' design). Write 4 new versions close to it, each still a little different, and send them with gogh_explore (page_id ' + st.page.id + ', section_key ' + (ex.key || '') + ').' }] }).catch(function () {});
+    tell('');
   }
   function exploreClose() {
-    var key = ex && ex.key; ex = null;
+    var key = ex && ex.key; ex = null; st.exploring = null;
     document.getElementById('explore').hidden = true;
     document.getElementById('explore').innerHTML = '';
     document.getElementById('hint').hidden = false;

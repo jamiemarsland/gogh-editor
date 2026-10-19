@@ -187,6 +187,22 @@ if (mode === 'explore') {
   const after = (await agent('gogh_read_page', { page_id: pid })).structuredContent.sections[0];
   console.log('kept:', after.design, '|', (after.pieces.find((x) => x.role === 'heading') || {}).words);
 }
+if (mode === 'explore2') {
+  // no message from the panel: the person asks in their own words, the round
+  // arrives, and the panel opens the explore view by itself
+  const agent = async (name, args) => (await rpc('tools/call', { name, arguments: args })).result;
+  const pid = +process.env.PAGE;
+  await p.setViewport({ width: 900, height: 1100 });
+  await sleep(4000); // the panel's first look at the page's state
+  await w.evaluate(() => { document.querySelector('[data-gw-sec="2"]').click(); });
+  await sleep(600);
+  console.log('bar button:', await w.evaluate(() => { const b = document.getElementById('exploreBtn'); return b.hidden ? 'hidden' : b.textContent; }));
+  const key = (await agent('gogh_read_page', { page_id: pid })).structuredContent.sections[1].key;
+  await agent('gogh_explore', { page_id: pid, section_key: key, versions: [{ heading: 'Choose your morning' }, { heading: 'Three ways in' }, { heading: 'Book a wheel' }], dials: [{ low: 'Calm', high: 'Lively', scores: [0.2, 0.5, 0.9] }] });
+  await sleep(5000);
+  console.log('auto-opened:', JSON.stringify(await w.evaluate(() => ({ open: !document.getElementById('explore').hidden, note: (document.querySelector('.explore .note') || {}).textContent, tiles: document.querySelectorAll('#exTiles .tile').length }))));
+  console.log('messages sent by the panel:', JSON.stringify(await p.evaluate(() => window.__said || [])));
+}
 if (mode === 'edit') {
   // type over the hero's heading
   await pg().evaluate(() => { const h = document.querySelector('[data-gw-sec="1"] h1, [data-gw-sec="1"] h2'); h.focus(); h.innerText = 'Stoneware for every day.'; h.blur(); });
