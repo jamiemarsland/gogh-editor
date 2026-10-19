@@ -2,16 +2,28 @@
 (function () {
   'use strict';
   var H = window.goghHost;
-  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"go\" id=\"exploreBtn\" type=\"button\" hidden>Explore this section</button><button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"changes\" type=\"button\" hidden>0 changes</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"choices\" id=\"choices\" hidden></div><div class=\"log\" id=\"log\" hidden><ol id=\"logList\"></ol><div class=\"logBar\"><button class=\"chip\" id=\"undo\" type=\"button\">Undo the latest</button><button class=\"chip\" id=\"logClose\" type=\"button\">Close</button></div></div><div class=\"stale\" id=\"stale\" hidden>There\u2019s a newer view of this page below. This one no longer takes edits.</div><div class=\"hint\" id=\"hint\">Click a section, then Explore it to see it many ways at once. Click any words to change them; drag a section by its handle to move it.</div>\n  <div class=\"explore\" id=\"explore\" hidden></div><div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
+  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"go\" id=\"exploreBtn\" type=\"button\" hidden>Explore this section</button><button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"changes\" type=\"button\" hidden>0 changes</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"choices\" id=\"choices\" hidden></div><div class=\"log\" id=\"log\" hidden><ol id=\"logList\"></ol><div class=\"logBar\"><button class=\"chip\" id=\"undo\" type=\"button\">Undo the latest</button><button class=\"chip\" id=\"logClose\" type=\"button\">Close</button></div></div><div class=\"stale\" id=\"stale\" hidden>There\u2019s a newer view of this page below. This one no longer takes edits.</div><div class=\"hint\" id=\"hint\">Tap Do it on Claude\u2019s notes, or change things yourself: click any words to type over them, drag a section by its handle to move it.</div>\n  <div class=\"explore\" id=\"explore\" hidden></div><div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
   var st = null, busy = 0, frame = null, W = 1280, G = window.goghDraw, info = null;
+  // the page and Claude's notes side by side (stacked when the chat is narrow)
+  (function besideThePage() {
+    var w = document.getElementById('w'), stage = document.getElementById('stage');
+    var duo = document.createElement('div'); duo.className = 'duo'; duo.id = 'duo';
+    var col = document.createElement('div'); col.className = 'pagecol'; col.id = 'pagecol';
+    var th = document.createElement('aside'); th.className = 'thread'; th.id = 'thread'; th.setAttribute('aria-label', 'Claude\u2019s notes');
+    th.innerHTML = '<div class="th-head"><span class="me" aria-hidden="true"></span><div><b>Claude</b><small>Your page\u2019s editor</small></div></div>' +
+      '<div class="msgs" id="msgs" aria-live="polite"></div>' +
+      '<div class="th-foot"><div class="about" id="about" hidden></div><div class="quick"><button class="chip" type="button" id="undoThat">Undo that</button></div>' +
+      '<p class="tip">Anything else? Tell Claude in the chat. Tap part of your page first and say \u201cthis\u201d.</p></div>';
+    w.insertBefore(duo, stage); col.appendChild(stage); duo.appendChild(col); duo.appendChild(th);
+  })();
   (function simplerBar() {
     var bar = document.querySelector('#w > .bar'), pub = document.getElementById('publish');
-    var dots = document.createElement('span'); dots.className = 'qdots'; dots.id = 'qdots';
     var mb = document.createElement('button'); mb.className = 'chip'; mb.id = 'moreBtn'; mb.type = 'button'; mb.textContent = 'More';
     var menu = document.createElement('div'); menu.className = 'moremenu'; menu.id = 'moreMenu'; menu.hidden = true;
     document.getElementById('editor').textContent = 'Edit by hand';
     ['exploreBtn', 'editor', 'changes', 'discard'].forEach(function (id) { var el = document.getElementById(id); if (el) menu.appendChild(el); });
-    bar.insertBefore(dots, pub);
+    var sb = document.createElement('button'); sb.className = 'chip'; sb.id = 'sideBtn'; sb.type = 'button'; sb.textContent = 'Full screen'; sb.hidden = true;
+    bar.insertBefore(sb, pub);
     bar.appendChild(pub); bar.appendChild(mb); bar.appendChild(menu);
     mb.onclick = function () { menu.hidden = !menu.hidden; sizeUp(); };
     menu.addEventListener('click', function (ev) { if (ev.target.closest('button')) setTimeout(function () { menu.hidden = true; }, 0); });
@@ -23,7 +35,7 @@
   H.handle = function (m) {
     var a = m.params || {};
     if (m.method === 'ui/notifications/tool-result' && a.structuredContent && a.structuredContent.preview) open(a.structuredContent);
-    else if (m.method === 'ui/notifications/host-context-changed') theme(a);
+    else if (m.method === 'ui/notifications/host-context-changed') { theme(a); if (a.displayMode) { full = a.displayMode === 'fullscreen'; layout(); } }
   };
   function theme(ctx) { if (ctx && (ctx.theme === 'dark' || ctx.theme === 'light')) document.documentElement.setAttribute('data-theme', ctx.theme); }
   var lastH = 0;
@@ -56,9 +68,9 @@
     }
     var ch = st.changes || [];
     if (ch.length) lines.push('Changes not live yet (oldest first): ' + ch.map(function (c) { return (c.who === 'you' ? 'the person' : 'you') + ': ' + c.what; }).join('; ') + '.');
-    if (st.taste && st.taste.length) lines.push('The person\'s taste so far, from the versions they tapped: ' + st.taste.join(', ') + '.');
-    if (st.deck && st.deck.length) lines.push('The panel is asking them: "' + st.deck[0].q + '"');
-    else if (st.deckBuilt) lines.push('The panel has run out of questions. If they say "more", call gogh_prepare_choices with new ones that follow their taste.');
+    if (ed.notes.length) {
+      lines.push('Beside the page the panel shows your notes as a conversation' + (ed.goal ? ' (you read the page for: ' + ed.goal + ')' : '') + ': ' + ed.notes.map(function (n, i) { return (i + 1) + '. ' + n.q + ' (' + (ed.done[i] ? 'done' : ed.skipped[i] ? 'not now' : i === ed.cur ? 'showing now' : 'waiting') + ')'; }).join('; ') + '. When the person taps Do it the panel makes the change; do not make it yourself. If they ask for something else, do it with your tools: the panel shows it in the conversation. For new notes, call gogh_prepare_choices again (it replaces these).');
+    } else lines.push('There are no notes beside the page yet. Right after opening a page, or when the person wants it better, read it and look at it as a visitor would and send your notes with gogh_prepare_choices: one card per note, most helpful first, with the goal you read the page for.');
     if (st.exploring && ex) lines.push(st.exploring);
     lines.push('If the person says "explore this", asks for options or versions, or says "more like this", answer by calling gogh_explore for the section they are pointing at (or exploring): 3 to 5 genuinely different versions of its words and up to two dials. The panel shows them; do not change the page yourself.');
     if (lastNote) lines.push('Latest in the panel: ' + lastNote);
@@ -82,6 +94,7 @@
   function saying(t) { document.getElementById('saving').textContent = t || ''; }
   function showChanges(list) {
     st.changes = list || [];
+    receipts(st.changes);
     var b = document.getElementById('changes'), n = st.changes.length;
     b.hidden = !n || editing;
     b.textContent = n + (n === 1 ? ' change' : ' changes');
@@ -156,6 +169,7 @@
 
   /* ---------- the page ---------- */
   function open(d) {
+    if (!ed.page || ed.page !== d.page.id) resetNotes(d.page.id);
     st = d;
     var sel = document.getElementById('pages');
     sel.innerHTML = '';
@@ -166,7 +180,7 @@
     });
     status(d.unpublished_changes);
     showChanges(d.changes || []);
-    st.sel = null; st.deck = []; st.deckBuilt = false; st.answered = []; st.taste = st.taste || []; st.deckSeen = null;
+    st.sel = null;
     watch();
     if (G && d.pictures) { G.mediaPool.imgs = d.pictures.imgs || []; G.mediaPool.bgs = d.pictures.bgs || []; G.mediaPool.fetched = true; }
     // sections waiting in words are drawn once the page is on screen, so
@@ -216,6 +230,7 @@
         if (!d) return;
         if (d.newer) { goStale(); return; }
         if (d.deck) takeDeck(d.deck);
+        if (!ed.looked) { ed.looked = true; if (!ed.notes.length) intro(); }
         if (st.seenRound == null) st.seenRound = d.explore ? d.explore.round : 0;
         else if (d.explore) exploreRound(d.explore);
         showChanges(d.changes);
@@ -355,7 +370,7 @@
       reread().then(function () {
         wire(page);
         flashChanged();
-        if (!st.deckBuilt && G) { st.deckBuilt = true; st.deck = localCards().concat(st.deck || []); showCard(); }
+        pins();
         if (st.snapAt) { var at = st.snapAt; st.snapAt = null; var el2 = document.querySelector('#gw-page [data-gw-sec="' + at + '"]'); if (el2) snap(el2); }
         if (st.stale) goStale();
         if (st.waiting) { var l = st.waiting; st.waiting = null; compose(l); }
@@ -391,7 +406,7 @@
     page.addEventListener('click', function (ev) { var a = ev.target.closest && ev.target.closest('a'); if (a) ev.preventDefault(); }, true);
     // point and say: what they click is what "this" means to the agent
     page.addEventListener('click', function (ev) {
-      if (!ev.target.closest || ev.target.closest('.gw-tools, .gw-seam, .gw-empty')) return;
+      if (!ev.target.closest || ev.target.closest('.gw-tools, .gw-seam, .gw-empty, .gw-pin')) return;
       var sec = ev.target.closest('[data-gw-sec]');
       choose(sec, sec && ev.target.closest('[class*="gogh-el-"]'));
     });
@@ -417,7 +432,7 @@
   }
   function choose(sec, el) {
     [].forEach.call(document.querySelectorAll('#gw-page .gw-chosen'), function (x) { x.classList.remove('gw-chosen'); });
-    if (!sec) { st.sel = null; document.getElementById('exploreBtn').hidden = true; pushContext(); return; }
+    if (!sec) { st.sel = null; document.getElementById('exploreBtn').hidden = true; about(null); pushContext(); return; }
     var n = +sec.getAttribute('data-gw-sec'), key = secKey(sec);
     var s2 = info && info.sections ? info.sections.filter(function (x) { return x.key === key; })[0] || info.sections[n - 1] : null;
     var name = (s2 && s2.design ? 'the ' + s2.design + ' section' : 'section ' + n);
@@ -436,6 +451,7 @@
     }
     (piece ? el : sec).classList.add('gw-chosen');
     st.sel = { n: n, key: key.indexOf('gogh-sec') === 0 ? key : null, piece: piece, label: label };
+    about(label);
     var eb = document.getElementById('exploreBtn');
     eb.hidden = !(s2 && s2.design) || editing;
     eb.textContent = s2 && s2.design ? 'Explore the ' + s2.design : 'Explore this section';
@@ -559,6 +575,8 @@
     editing = on;
     ['pages', 'pill', 'saving', 'discard', 'publish', 'editor'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = on ? 'none' : ''; });
     document.getElementById('back').hidden = !on;
+    document.getElementById('w').classList.toggle('editing', on);
+    layout();
     document.getElementById('hint').hidden = on;
   }
   function editorHeight() { return Math.max(520, window.innerHeight - document.getElementById('stage').getBoundingClientRect().top - 8); }
@@ -636,7 +654,7 @@
     }, true);
   }
   document.getElementById('back').onclick = function () {
-    request('ui/request-display-mode', { mode: 'inline' }).catch(function () {});
+    request('ui/request-display-mode', { mode: 'inline' }).then(function (r) { full = !!(r && r.mode === 'fullscreen'); layout(); }, function () {});
     document.querySelector('#w > .bar').style.display = '';
     editorOn(false);
     // what the editor did is on the site now: start from it
@@ -655,41 +673,11 @@
   function secInfo(key) { return info && info.sections ? info.sections.filter(function (x) { return x.key === key; })[0] : null; }
   function faceNow(s2) { var fs = G.diceFaces(s2.design); return fs && s2.design_take && fs[s2.design_take] ? fs[s2.design_take].take : 'The original'; }
   function headOf(s2) { var h = (s2.pieces || []).filter(function (p) { return p.role === 'heading'; })[0]; return h && h.words ? h.words : s2.design; }
-  function localCards() {
-    var list = (info && info.sections || []).filter(function (x) { return x.design && x.key; }), cards = [];
-    var first = list[0];
-    if (first && OPENERS.indexOf(first.design) !== -1) {
-      var alt = first.design === 'Cover' ? 'Hero' : 'Cover';
-      cards.push({ key: first.key, q: 'Which feels more like walking in?', hint: alt === 'Cover' ? 'Your picture beside the words, or all around them.' : 'Your picture all around the words, or beside them.', la: 'As it is', lb: alt === 'Cover' ? 'Photo all around' : 'Photo beside', ta: alt === 'Cover' ? 'calm' : 'bold', tb: alt === 'Cover' ? 'bold' : 'calm', b: { take: alt } });
-      if (first.design !== 'Cover' && !first.background_picture) cards.push({ key: first.key, q: 'Light and airy, or deep and rich?', hint: 'The colour behind your opening.', la: 'Light', lb: 'Deep', ta: 'light', tb: 'deep', b: { ground: 'dark' } });
-    }
-    list.slice(1).forEach(function (s2) {
-      if (cards.length >= 5) return;
-      var fs = G.diceFaces(s2.design); if (!fs || fs.length < 2) return;
-      var k = ((s2.design_take || 0) + 1) % fs.length, face = k ? fs[k].take : 'The original';
-      cards.push({ key: s2.key, q: 'Which shape suits “' + headOf(s2).slice(0, 40) + '”?', la: 'As it is', lb: face === 'The original' ? s2.design : face.replace(/^The /, 'The '), ta: '', tb: '', b: { face: face } });
-    });
-    if (list.length >= 4) cards.push({ kind: 'order', key: list[1].key, other: list[2].key, q: 'What should people see right after your opening?', la: headOf(list[1]).slice(0, 30), lb: headOf(list[2]).slice(0, 30), ta: '', tb: '' });
-    return cards;
-  }
-  function takeDeck(dk) {
-    if (st.deckSeen == null) { st.deckSeen = dk.at && (Date.now() / 1000 - dk.at) > 600 ? dk.round : 0; }
-    if (dk.round <= st.deckSeen) return;
-    st.deckSeen = dk.round;
-    var mine = (dk.cards || []).filter(function (c) { return secInfo(c.key); });
-    if (!mine.length) return;
-    var showing = st.deck && st.deck.length ? st.deck[0] : null;
-    st.deck = (showing ? [showing] : []).concat(mine, (st.deck || []).slice(showing ? 1 : 0));
-    saying('Claude prepared ' + mine.length + ' ideas.');
-    if (!showing) showCard();
-    else qdots();
-    pushContext();
-  }
   function cardSec(card, scope) {
     var s2 = secInfo(card.key); if (!s2) return null;
     var spec = Object.assign({ take: s2.design, face: faceNow(s2) }, wordsOf(s2));
     var b = card.b || {};
-    Object.keys(b).forEach(function (k) { if (k !== 'ground') spec[k] = b[k]; });
+    Object.keys(b).forEach(function (k) { if (k !== 'ground' && k !== 'after') spec[k] = b[k]; });
     if (b.take && b.take !== s2.design && !b.face) delete spec.face;
     var tpl = null;
     try { tpl = G.fillTake(spec); } catch (e) {}
@@ -716,95 +704,233 @@
     [].forEach.call(c.querySelectorAll('[contenteditable]'), function (x) { x.removeAttribute('contenteditable'); });
     return '<div class="thumb live"><div class="gw-stage gw-live">' + c.outerHTML + '</div></div>';
   }
-  function outlineOf(order) {
-    return '<div class="outline">' + order.map(function (k, i) { var s2 = secInfo(k); return '<div' + (i === 1 ? ' class="hi"' : '') + '>' + (i + 1) + '. ' + (s2 ? headOf(s2).slice(0, 34) : k) + '</div>'; }).join('') + '</div>';
-  }
   function keysNow() { return (info && info.sections || []).map(function (x) { return x.key || ('n' + x.section); }); }
-  function qdots() {
-    var el = document.getElementById('qdots'); if (!el) return;
-    var done = (st.answered || []).length, left = (st.deck || []).length, total = Math.min(12, done + left);
-    var h = '';
-    for (var i = 0; i < total; i++) h += '<i class="' + (i < done ? 'past' : (i === done && left ? 'now' : '')) + '"></i>';
-    el.innerHTML = h;
-  }
-  function showCard() {
-    var box = document.getElementById('choices');
-    var card = st.deck && st.deck[0];
-    qdots();
-    if (!card) {
-      if (!st.deckBuilt) { box.hidden = true; return; }
-      box.innerHTML = '<div class="say"><span class="me" aria-hidden="true"></span><p>That’s your page.<small>Press <b>Show the world</b> when you’re happy, or tell Claude <b>“more”</b> for new ideas.</small></p></div>';
-      box.hidden = false; document.getElementById('hint').hidden = true; sizeUp(); pushContext();
-      return;
-    }
-    var body;
-    if (card.kind === 'order') {
-      var now = keysNow(), swapped = now.slice(), i1 = now.indexOf(card.key), i2 = now.indexOf(card.other);
-      if (i1 < 0 || i2 < 0) { st.deck.shift(); showCard(); return; }
-      swapped[i1] = card.other; swapped[i2] = card.key;
-      body = '<button class="opt" type="button" data-pick="a"><span class="lab">' + esc(card.la) + ' <em>This one</em></span>' + outlineOf(now) + '</button>' +
-        '<button class="opt" type="button" data-pick="b"><span class="lab">' + esc(card.lb) + ' <em>This one</em></span>' + outlineOf(swapped) + '</button>';
-    } else {
-      // a question that no longer fits what they already chose is skipped
-      var s3 = secInfo(card.key), cb = card.b || {};
-      if (s3 && ((cb.take && cb.take === s3.design && !cb.face) || (cb.ground && (s3.design === 'Cover' || s3.background_picture)) || (cb.face && cb.face === faceNow(s3) && (!cb.take || cb.take === s3.design)))) { st.deck.shift(); showCard(); return; }
-      var bsec = cardSec(card, 'gw-q-b');
-      if (!bsec || !secInfo(card.key)) { st.deck.shift(); showCard(); return; }
-      body = '<button class="opt" type="button" data-pick="a"><span class="lab">' + esc(card.la || 'As it is') + ' <em>This one</em></span>' + asIs(card.key) + '</button>' +
-        '<button class="opt" type="button" data-pick="b"><span class="lab">' + esc(card.lb || 'New') + ' <em>This one</em></span>' + thumb(bsec) + '</button>';
-    }
-    box.innerHTML = '<div class="say"><span class="me" aria-hidden="true"></span><p>' + esc(card.q) + (card.hint ? '<small>' + esc(card.hint) + '</small>' : '') + '</p></div>' +
-      '<div class="pair">' + body + '</div>' +
-      '<div class="under"><button class="link" type="button" data-x="neither">Neither</button>' + ((st.answered || []).length ? '<button class="link" type="button" data-x="undo">Undo my last choice</button>' : '') +
-      (st.taste && st.taste.length ? '<span class="taste">Your taste: ' + st.taste.slice(-4).map(function (t) { return '<b>' + esc(t) + '</b>'; }).join(' ') + '</span>' : '') + '</div>';
-    box.hidden = false;
-    document.getElementById('hint').hidden = true;
-    box.querySelector('[data-pick="a"]').onclick = function () { answer(card, 'a', this); };
-    box.querySelector('[data-pick="b"]').onclick = function () { answer(card, 'b', this); };
-    box.querySelector('[data-x="neither"]').onclick = function () { st.deck.shift(); st.answered.push({ card: card, changed: false }); showCard(); pushContext(); };
-    var u = box.querySelector('[data-x="undo"]'); if (u) u.onclick = undoAnswer;
-    fitLive(); fitThumbs(); setTimeout(function () { fitLive(); fitThumbs(); }, 300);
-    pushContext();
-  }
   function fitLive() {
-    [].forEach.call(document.querySelectorAll('.choices .gw-live'), function (s) {
+    [].forEach.call(document.querySelectorAll('.choices .gw-live, .thread .gw-live'), function (s) {
       var k = s.parentNode.clientWidth / W;
       s.style.transform = 'scale(' + k + ')';
       s.parentNode.style.height = Math.ceil(s.offsetHeight * k) + 'px';
     });
     sizeUp();
   }
-  function answer(card, which, btn) {
-    btn.classList.add('chosen');
-    var word = which === 'a' ? card.ta : card.tb;
-    if (word && st.taste.indexOf(word) === -1) st.taste.push(word);
-    var done = function (changed) { st.deck.shift(); st.answered.push({ card: card, changed: changed, word: word }); showCard(); };
-    if (which === 'a') { setTimeout(function () { done(false); }, 220); return; }
-    var p;
-    if (card.kind === 'order') {
-      var now = keysNow(), to = now.indexOf(card.key) + 1;
-      p = tool('gogh_move_section', { page_id: st.page.id, section_key: card.other, to: to });
-    } else {
-      var sec = cardSec(card, card.key);
-      if (!sec) { done(false); return; }
-      p = tool('gogh_replace_section', { page_id: st.page.id, section_key: card.key, blocks: G.buildSectionBlocksV3(sec) });
+
+  /* ---------- Claude as the page's editor ---------- */
+  // Claude reads the page for a goal and sends a few notes, most helpful
+  // first (gogh_prepare_choices). They arrive here as a conversation beside
+  // the page, numbered on the page too: each with the section now and with
+  // the fix, and Do it / Another way / Not now. Every change, whoever made
+  // it, gets a receipt here while the page lights it up. What the person
+  // wants beyond the notes they say to Claude in the chat itself: the panel
+  // never writes in their message box
+  var ed = { page: null, notes: [] }, full = false;
+  function resetNotes(pageId) {
+    ed = { page: pageId, goal: '', notes: [], done: {}, skipped: {}, opt: {}, cur: -1, seen: null, seenCh: null, applying: 0, stack: [], looked: false };
+    var m = document.getElementById('msgs'); if (m) m.innerHTML = '';
+    layout();
+  }
+  function layout() {
+    var w = document.getElementById('w'); if (!w) return;
+    w.classList.toggle('side', window.innerWidth >= 720);
+    w.classList.toggle('full', full);
+    var sb = document.getElementById('sideBtn');
+    if (sb) { sb.hidden = editing; sb.textContent = full ? 'Back to the chat' : 'Full screen'; }
+  }
+  document.getElementById('sideBtn').onclick = function () {
+    request('ui/request-display-mode', { mode: full ? 'inline' : 'fullscreen' }).then(function (r) {
+      full = !!(r && r.mode === 'fullscreen'); layout(); fit(); fitLive(); fitThumbs();
+    }, function () {});
+  };
+  function say(who, html) {
+    var box = document.getElementById('msgs');
+    var m = document.createElement('div');
+    m.className = 'm ' + who;
+    m.innerHTML = html;
+    box.appendChild(m);
+    box.scrollTop = box.scrollHeight;
+    fitLive(); fitThumbs(); sizeUp();
+    return m;
+  }
+  function you(text) { say('you', esc(text)); }
+  function retire() { [].forEach.call(document.querySelectorAll('#msgs .note button'), function (b) { b.disabled = true; }); }
+  function about(label) {
+    var a = document.getElementById('about'); if (!a) return;
+    a.hidden = !label; a.textContent = label ? 'You’re pointing at ' + label.replace(/ \(in the full editor\)$/, '') : '';
+  }
+  function intro() {
+    say('claude', '<p>I’m your page’s editor. Ask me in the chat what would make this page better: I’ll read it the way a visitor would, and my notes will appear here, numbered on your page.</p>');
+  }
+  function secName(key) {
+    var s2 = secInfo(key); if (!s2) return 'that section';
+    var h = headOf(s2);
+    return h && h !== s2.design ? '“' + h.slice(0, 40) + (h.length > 40 ? '…' : '') + '”' : 'the ' + (s2.design || 'section');
+  }
+  // cards that share a section and a question are one note, other ways to fix it
+  function takeDeck(dk) {
+    if (ed.seen == null) ed.seen = dk.at && (Date.now() / 1000 - dk.at) > 600 ? dk.round : 0;
+    if (dk.round <= ed.seen) return;
+    ed.seen = dk.round;
+    var list = [], at = {};
+    (dk.cards || []).forEach(function (c) {
+      if (!secInfo(c.key)) return;
+      var id = c.key + '|' + c.q;
+      if (at[id] == null) { at[id] = list.length; list.push({ key: c.key, q: c.q, hint: c.hint, fixes: [] }); }
+      list[at[id]].fixes.push(c);
+    });
+    if (!list.length) return;
+    retire();
+    var again = ed.notes.length > 0;
+    ed.notes = list; ed.done = {}; ed.skipped = {}; ed.opt = {}; ed.cur = -1; ed.goal = dk.goal || '';
+    say('claude', '<p>' + (again ? 'Here are ' + list.length + ' new ' + (list.length === 1 ? 'note' : 'notes') : 'I read your page' + (ed.goal ? ' as someone who wants to ' + esc(ed.goal.replace(/^to /i, '')) : ' the way a visitor would') + '. ' + list.length + (list.length === 1 ? ' thing' : ' things') + ' would help most') + ', most helpful first. They’re numbered on your page too.</p>' +
+      '<ol class="list">' + list.map(function (n, i) { return '<li><span class="num">' + (i + 1) + '</span><span>' + esc(n.q) + '</span></li>'; }).join('') + '</ol>');
+    pins();
+    setTimeout(function () { offer(0); }, 500);
+    pushContext();
+  }
+  function nextNote(from) {
+    for (var i = 0; i < ed.notes.length; i++) { var k = (from + i) % ed.notes.length; if (!ed.done[k] && !ed.skipped[k]) return k; }
+    return -1;
+  }
+  function mini(n, f, i) {
+    var b = f.b || {};
+    if (b.after) {
+      var now = keysNow(), moved = now.filter(function (k) { return k !== f.key; }), to = b.after === 'top' ? 0 : moved.indexOf(b.after) + 1;
+      moved.splice(Math.max(0, to), 0, f.key);
+      return '<div><div class="lab">Now</div>' + outlineOf(now, now.indexOf(f.key)) + '</div><div><div class="lab">With the fix</div>' + outlineOf(moved, moved.indexOf(f.key)) + '</div>';
     }
-    p.then(function () {
-      saying(''); status(true);
-      var n2 = (secInfo(card.kind === 'order' ? card.other : card.key) || {}).section;
-      st.snapAt = n2 || null;
-      st.afterDraw = function () { done(true); };
+    var sec = cardSec(f, 'gw-n' + i + '-' + (ed.opt[i] || 0));
+    return '<div><div class="lab">Now</div>' + asIs(n.key) + '</div><div><div class="lab">With the fix</div>' + (sec ? thumb(sec) : '') + '</div>';
+  }
+  function outlineOf(order, hi) {
+    return '<div class="outline">' + order.map(function (k, i) { var s2 = secInfo(k); return '<div' + (i === hi ? ' class="hi"' : '') + '>' + (i + 1) + '. ' + esc(s2 ? headOf(s2).slice(0, 30) : k) + '</div>'; }).join('') + '</div>';
+  }
+  function offer(i) {
+    if (i < 0) { finish(); return; }
+    var n = ed.notes[i];
+    if (!secInfo(n.key)) { ed.skipped[i] = true; offer(nextNote(i + 1)); return; }
+    ed.cur = i; pins();
+    var f = n.fixes[ed.opt[i] || 0];
+    var m = say('claude', '<div class="note"><h4><span class="num">' + (i + 1) + '</span>' + esc(n.q) + '</h4>' + (n.hint ? '<p class="why">' + esc(n.hint) + '</p>' : '') +
+      '<p class="why">My suggestion: <b data-label>' + esc(f.lb || 'A new version') + '</b></p><div class="mini" data-mini>' + mini(n, f, i) + '</div>' +
+      '<div class="btns"><button class="go" type="button" data-do>Do it</button>' + (n.fixes.length > 1 ? '<button class="chip" type="button" data-other>Another way</button>' : '') + '<button class="chip" type="button" data-not>Not now</button></div></div>');
+    m.querySelector('[data-do]').onclick = function () { doIt(i); };
+    m.querySelector('[data-not]').onclick = function () {
+      retire(); you('Not now'); ed.skipped[i] = true;
+      tell('The person said "not now" to your note ' + (i + 1) + ' ("' + n.q + '").');
+      offer(nextNote(i + 1));
+    };
+    var other = m.querySelector('[data-other]');
+    if (other) other.onclick = function () {
+      ed.opt[i] = ((ed.opt[i] || 0) + 1) % n.fixes.length;
+      var f2 = n.fixes[ed.opt[i]];
+      m.querySelector('[data-label]').textContent = f2.lb || 'Another version';
+      m.querySelector('[data-mini]').innerHTML = mini(n, f2, i);
+      fitLive(); fitThumbs(); setTimeout(function () { fitLive(); fitThumbs(); }, 300);
+    };
+    setTimeout(function () { fitLive(); fitThumbs(); }, 300);
+    showOnPage(n.key, false);
+    pushContext();
+  }
+  // a fix is a new look for the section (words, design, ground) and/or a move
+  function applyFix(f) {
+    var b = f.b || {}, steps = [];
+    if (Object.keys(b).some(function (k) { return k !== 'after'; })) steps.push(function () {
+      var sec = cardSec(f, f.key);
+      if (!sec) throw new Error('That note no longer fits this section.');
+      return tool('gogh_replace_section', { page_id: st.page.id, section_key: f.key, blocks: G.buildSectionBlocksV3(sec) });
+    });
+    if (b.after) steps.push(function () {
+      var keys = keysNow().filter(function (k) { return k !== f.key; }), to = b.after === 'top' ? 1 : keys.indexOf(b.after) + 2;
+      if (to < 1) throw new Error('The section to move it under is no longer on the page.');
+      return tool('gogh_move_section', { page_id: st.page.id, section_key: f.key, to: to });
+    });
+    ed.applying += steps.length;
+    return steps.reduce(function (p, s) { return p.then(s); }, Promise.resolve()).then(function () { return steps.length; });
+  }
+  function doIt(i) {
+    var n = ed.notes[i], f = n.fixes[ed.opt[i] || 0];
+    retire(); you(ed.opt[i] ? f.lb : 'Do it');
+    applyFix(f).then(function (count) {
+      status(true);
+      ed.done[i] = true; ed.cur = -1; ed.stack.push({ i: i, count: count }); ed.since = 0;
+      var s2 = secInfo(n.key); st.snapAt = s2 ? s2.section : null;
+      st.afterDraw = function () {
+        say('claude', '<p>Done: ' + esc(f.lb || 'the new version') + '.</p><span class="receipt">Changed ' + esc(secName(n.key)) + ' · not live yet</span>');
+        showOnPage(n.key, true);
+        setTimeout(function () { offer(nextNote(i + 1)); }, 1400);
+      };
       draw();
-      tell('The person chose "' + card.lb + '" for: ' + card.q);
+      tell('The person tapped Do it on your note ' + (i + 1) + ' ("' + n.q + '"): the panel made the change "' + (f.lb || '') + '". It is saved, not live yet.');
+    }, function (e) { ed.applying = 0; oops(e); });
+  }
+  function finish() {
+    ed.cur = -1; pins();
+    var done = Object.keys(ed.done).length;
+    say('claude', '<p>' + (done ? 'That’s my notes done. Have a look, then press <b>Show the world</b> when you’re happy.' : 'That’s all my notes for now.') + '</p><p>Want more ideas, or something else changed? Tell me in the chat.</p>');
+    pushContext();
+  }
+  // every change gets a receipt: the notes' own above, everyone else's here
+  function receipts(list) {
+    var n = list.length;
+    if (ed.seenCh == null || n < ed.seenCh) { ed.seenCh = n; return; }
+    list.slice(ed.seenCh).forEach(function (c) {
+      if (ed.applying > 0) { ed.applying--; return; }
+      ed.since = (ed.since || 0) + 1;
+      say('line', '<span class="receipt">' + (c.who === 'you' ? 'You' : 'Claude') + ': ' + esc(c.what) + '</span>');
+    });
+    ed.seenCh = n;
+  }
+  document.getElementById('undoThat').onclick = function () {
+    if (!st) return;
+    you('Undo that');
+    tool('gogh_undo_change', { page_id: st.page.id }).then(function (r) {
+      status(!!r.left);
+      if (!r.undone) { say('claude', '<p>There’s nothing to undo.</p>'); return; }
+      // a note comes undone only when its own change was the latest
+      var top = ed.stack[ed.stack.length - 1];
+      if (ed.since > 0) ed.since--;
+      else if (top) { top.count--; if (top.count <= 0) { ed.stack.pop(); delete ed.done[top.i]; } }
+      say('claude', '<p>Undone: ' + esc(r.undone) + '.</p>');
+      st.afterDraw = pins;
+      draw();
+      tell('The person undid the latest change (' + r.undone + ').');
     }, oops);
+  };
+  // the notes on the page: a numbered marker on each section a note is about
+  function pins() {
+    [].forEach.call(document.querySelectorAll('#gw-page .gw-pin'), function (p) { p.remove(); });
+    ed.notes.forEach(function (n, i) {
+      var el = null;
+      [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (x) { if (!el && secKey(x) === n.key) el = x; });
+      if (!el) return;
+      var others = el.querySelectorAll('.gw-pin').length;
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'gw-pin' + (ed.done[i] ? ' done' : '') + (ed.cur === i ? ' now' : '');
+      b.setAttribute('contenteditable', 'false');
+      b.setAttribute('aria-label', 'Note ' + (i + 1));
+      b.textContent = ed.done[i] ? '✓' : String(i + 1);
+      b.style.left = (24 + others * 76) + 'px';
+      b.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); pinTap(i); };
+      el.appendChild(b);
+    });
   }
-  function undoAnswer() {
-    var last = st.answered.pop(); if (!last) return;
-    if (last.word) { var i = st.taste.lastIndexOf(last.word); if (i !== -1) st.taste.splice(i, 1); }
-    st.deck.unshift(last.card);
-    if (!last.changed) { showCard(); pushContext(); return; }
-    tool('gogh_undo_change', { page_id: st.page.id }).then(function () { saying('Undone.'); st.afterDraw = showCard; draw(); }, oops);
+  function pinTap(i) {
+    if (ed.done[i]) { say('claude', '<p>Note ' + (i + 1) + ' is done. Tap <b>Undo that</b> if it was the latest, or tell me in the chat.</p>'); return; }
+    if (ed.cur === i) return;
+    retire(); you('Show me note ' + (i + 1)); delete ed.skipped[i]; offer(i);
   }
+  // full screen: bring the section into view in the page's own column
+  function showOnPage(key, light) {
+    var el = null;
+    [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (x) { if (!el && secKey(x) === key) el = x; });
+    if (!el) return;
+    if (light) { el.classList.remove('gw-flash'); void el.offsetWidth; el.classList.add('gw-flash'); setTimeout(function () { el.classList.remove('gw-flash'); }, 2600); }
+    var col = document.getElementById('pagecol');
+    if (full && col && frame) {
+      var k = document.getElementById('stage').clientWidth / W;
+      col.scrollTo({ top: Math.max(0, el.offsetTop * k - 40), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
+  }
+
 
   /* ---------- explore this section ---------- */
   // Not one change per message: the agent writes a handful of versions and
@@ -1004,7 +1130,7 @@
     return '<div class="thumb"><style>' + shown(css) + '</style><div class="gw-stage gogh-wrap"><div class="gogh-section ' + sec.scope + '">' + shown(inner) + '</div></div></div>';
   }
   function fitThumbs() {
-    [].forEach.call(document.querySelectorAll('.pick .gw-stage, .explore .gw-stage, .choices .gw-stage:not(.gw-live)'), function (s) { s.style.transform = 'scale(' + (s.parentNode.clientWidth / 1200) + ')'; });
+    [].forEach.call(document.querySelectorAll('.pick .gw-stage, .explore .gw-stage, .choices .gw-stage:not(.gw-live), .thread .gw-stage:not(.gw-live)'), function (s) { s.style.transform = 'scale(' + (s.parentNode.clientWidth / 1200) + ')'; });
     sizeUp();
   }
   function showPick(title, tabs, onTab) {
@@ -1102,7 +1228,7 @@
     });
   }
 
-  window.addEventListener('resize', fit);
+  window.addEventListener('resize', function () { layout(); fit(); });
   window.__goghPage = function () { return st; };
   theme(H.context);
   if (H.result && H.result.structuredContent && H.result.structuredContent.preview) open(H.result.structuredContent);
