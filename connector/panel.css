@@ -175,7 +175,8 @@ button[disabled] { opacity: .45; cursor: default; }
 .w.side .thread { order: 0; position: sticky; top: 0; }
 .w.editing .thread { display: none; }
 .w.editing .duo { display: block; }
-.w.full { height: 100vh; }
+.w.full { height: calc(100vh - var(--gw-safe-b, 104px)); } /* Claude's own message box floats over the foot of a full-screen panel: leave it room */
+.w.full .th-foot .tip { font-size: 13px; font-weight: 600; color: var(--w-ink); }
 .w.full .duo { flex: 1; min-height: 0; }
 .w.full .pagecol { height: 100%; overflow-y: auto; padding-right: 4px; }
 .w.full .thread { height: 100%; }

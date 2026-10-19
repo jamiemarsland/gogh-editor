@@ -734,6 +734,12 @@
     w.classList.toggle('full', full);
     var sb = document.getElementById('sideBtn');
     if (sb) { sb.hidden = editing; sb.textContent = full ? 'Back to the chat' : 'Full screen'; }
+    // in full screen the chat's own message box sits just below the notes:
+    // point at it (a panel cannot hold the chat's box, and never types in it)
+    var ins = H.context && H.context.safeAreaInsets;
+    w.style.setProperty('--gw-safe-b', (ins && ins.bottom > 0 ? ins.bottom : 104) + 'px');
+    var tip = document.querySelector('.th-foot .tip');
+    if (tip) tip.textContent = full ? 'Anything else? Type to Claude in the box below \u2193 Tap part of your page first and say \u201cthis\u201d.' : 'Anything else? Tell Claude in the chat. Tap part of your page first and say \u201cthis\u201d.';
   }
   document.getElementById('sideBtn').onclick = function () {
     request('ui/request-display-mode', { mode: full ? 'inline' : 'fullscreen' }).then(function (r) {
