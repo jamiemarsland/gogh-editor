@@ -763,7 +763,7 @@
   function cardsTypeDecls(spec, ew) {
     var d = [], k = W / Math.max(80, ew || W), tf = spec.tf || {};
     if (spec.fs) {
-      if (DISPLAY_FS[spec.fs]) d.push('font-size: ' + DISPLAY_FS[spec.fs].replace(/([\d.]+)cqw/, function (m0, n0) { return (n0 * k).toFixed(3) + 'cqw'; }) + ' !important');
+      if (Object.prototype.hasOwnProperty.call(DISPLAY_FS, spec.fs)) d.push('font-size: ' + DISPLAY_FS[spec.fs].replace(/([\d.]+)cqw/, function (m0, n0) { return (n0 * k).toFixed(3) + 'cqw'; }) + ' !important');
       else d.push('font-size: var(--wp--preset--font-size--' + spec.fs + ') !important');
     }
     if (tf.ff) d.push('font-family: ' + tf.ff);
@@ -785,6 +785,7 @@
   }
   var CARD_FIELD_SEL = { k: '.gogh-cs-k', t: '.gogh-cs-t', d: '.gogh-cs-d', role: '.gogh-cs-role', n: '.gogh-cs-n', price: '.gogh-cs-price strong', link: '.gogh-cs-link' };
   function cardsTypeCss(out, sec, clsSel, e) {
+    e.cards = cardsNorm(e.cards); // a saved or pasted set is filtered here too
     var c = e.cards, base = sec + clsSel;
     if (!c) return;
     if (c.type) Object.keys(c.type).forEach(function (f) {
@@ -2471,13 +2472,22 @@
     // the paragraph up under the headline, which had not — James: 'the
     // missprint home page looks a bit wonky still')
     if (delta < 0) {
-      var newBottom = e.y + e.h;
-      pushed = pushed.filter(function (o) {
-        return !sec.els.some(function (q) {
-          return q !== e && q !== o && pushed.indexOf(q) === -1 && (!only || only.indexOf(q) !== -1) &&
-            q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y && q.y + q.h <= o.y + 8 && q.y + q.h > newBottom;
+      var newBottom = e.y + e.h, held = [];
+      var holds = function (q, o) { return q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y && q.y + q.h <= o.y + 8 && q.y + q.h > newBottom; };
+      // a held piece holds what sits under it in turn, and a row lined up
+      // with a held piece stays whole (the review of v0.99.764–771)
+      for (var changed = true; changed;) {
+        changed = false;
+        pushed.forEach(function (o) {
+          if (held.indexOf(o) !== -1) return;
+          var by = sec.els.some(function (q) {
+            if (q === e || q === o || (only && only.indexOf(q) === -1)) return false;
+            return (pushed.indexOf(q) === -1 || held.indexOf(q) !== -1) && holds(q, o);
+          }) || held.some(function (hp) { return aligned(o, hp); });
+          if (by) { held.push(o); changed = true; }
         });
-      });
+      }
+      pushed = pushed.filter(function (o) { return held.indexOf(o) === -1; });
     }
     pushed.forEach(function (o) { o.y = Math.max(0, o.y + delta); });
     return true;
@@ -5504,17 +5514,23 @@
     var e = sec.els[i], node = sec.nodes && sec.nodes[i];
     var link = node && node.querySelector('.wp-block-button__link');
     if (!link) return;
+    if (deviceMode === 'phone') return; // the phone layout sizes buttons to their words
     var s = measureScaleOf(sec);
     if (!(s > 0.2)) return;
-    var need = Math.ceil(link.scrollWidth / s) + 2;
-    var grow = Math.min(need, W - e.x) - e.w;
-    if (!(grow > 0)) return;
+    // the words' own width (a centred link spills both ways, so its
+    // scrollWidth sees only half the overflow)
+    var rg = document.createRange(); rg.selectNodeContents(link);
+    var cs = getComputedStyle(link);
+    var over = rg.getBoundingClientRect().width + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) - link.clientWidth;
+    if (!(over > 1)) return; // the words fit
     var oldRight = e.x + e.w;
+    var mates = sec.els.filter(function (o) { return o !== e && o.x >= oldRight - 8 && o.y < e.y + e.h && o.y + o.h > e.y; });
+    var grow = Math.ceil(over / s) + 2;
+    grow = Math.min(grow, W - oldRight);
+    mates.forEach(function (o) { grow = Math.min(grow, W - (o.x + o.w)); });
+    if (!(grow > 0)) return;
     e.w += grow;
-    sec.els.forEach(function (o) {
-      if (o === e || o.x < oldRight - 8) return;
-      if (o.y < e.y + e.h && o.y + o.h > e.y) o.x = Math.min(W - o.w, o.x + grow);
-    });
+    mates.forEach(function (o) { o.x += grow; });
     resolveAndApply(sec);
   }
   function onTextInput(ev) {
@@ -9120,7 +9136,8 @@
     piece.x = Math.max(0, Math.min(W - piece.w, piece.x));
     // (a stack keeps the page's rhythm; the tighter gap is a button pair's)
     piece.y = anchor.y + anchor.h + RHYTHM;
-    makeRoomUnder(sec, anchor, piece.h + RHYTHM);
+    var colX = Math.min(anchor.x, piece.x);
+    makeRoomUnder(sec, { x: colX, y: anchor.y, w: Math.max(anchor.x + anchor.w, piece.x + piece.w) - colX, h: anchor.h }, piece.h + RHYTHM, [anchor]);
     return 'under';
   }
   // Add with a piece chosen in this section: the new piece arrives next to
@@ -11781,7 +11798,19 @@
   // was made from: size, face, weight, case, colour)
   var CARD_TYPED = ['k', 't', 'd', 'role', 'n', 'price', 'link'];
   var CARD_TF_KEYS = ['fs', 'fs2', 'fsMin', 'fw', 'fst', 'lh', 'ls', 'ls2', 'tt', 'col', 'ff'];
-  function cardsSafeCss(v) { v = String(v == null ? '' : v); return /[;{}<>\\]/.test(v) || v.length > 160 ? '' : v; }
+  function cardsSafeCss(v) {
+    v = String(v == null ? '' : v);
+    if (/[;{}<>\\\[\]\n\r]|\/\*|\*\//.test(v) || v.length > 160) return '';
+    // quotes (a font's name) are fine when they pair up
+    if ((v.split('"').length - 1) % 2 || (v.split("'").length - 1) % 2) return '';
+    // an unbalanced bracket would swallow the rules after it
+    var depth = 0;
+    for (var ci = 0; ci < v.length; ci++) {
+      if (v[ci] === '(') depth++;
+      else if (v[ci] === ')' && --depth < 0) return '';
+    }
+    return depth ? '' : v;
+  }
   function cardsTypeNorm(spec) {
     if (!spec || typeof spec !== 'object') return null;
     var out = {};
@@ -24399,7 +24428,7 @@
     }
     if (!editing || panelOpen || !picker.hidden) return;
     var a = document.activeElement;
-    var typing = a && (a.isContentEditable || /INPUT|TEXTAREA/.test(a.tagName));
+    var typing = a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName));
     if (ev.key === '/' && !typing && cmd.hidden) {
       ev.preventDefault();
       openCmd();
@@ -26500,8 +26529,13 @@
     if (ch) toast(ch.els.length === 1 ? 'Copied. ⌘V puts it in any section, on any page.' : 'Copied ' + ch.els.length + ' pieces.', { ttl: 2600 });
   });
   document.addEventListener('cut', function (ev) {
+    // a card chosen inside a set: cut would take the whole set, so it only
+    // copies it and says how to remove things
+    var oneCard = sel && !multiSel && sel.sec.els[sel.i] && sel.sec.els[sel.i].cards && cardFocusOn(sel.sec, sel.i);
     var ch = copyPieces(ev);
-    if (ch) deleteSelected();
+    if (!ch) return;
+    if (oneCard) { toast('Copied the whole set. Delete removes just this card.', { ttl: 3500 }); return; }
+    deleteSelected();
   });
   function pasteTarget() {
     if (sel && sel.sec) return sel.sec;
@@ -26510,8 +26544,41 @@
     var v = viewportSection();
     return v && !v.chrome ? v : null;
   }
+  // what can EXECUTE goes from markup that arrived on the clipboard: script,
+  // meta and base elements, on* handlers, srcdoc, and javascript:/vbscript:
+  // URLs (a hostile page can write a pieces payload to the clipboard)
+  function cleanClipMarkup(html) {
+    var t = document.createElement('template');
+    t.innerHTML = String(html == null ? '' : html);
+    [].slice.call(t.content.querySelectorAll('script, meta, base, object, embed')).forEach(function (n) { n.remove(); });
+    [].slice.call(t.content.querySelectorAll('*')).forEach(function (el) {
+      [].slice.call(el.attributes).forEach(function (a) {
+        var n = a.name.toLowerCase();
+        if (n.indexOf('on') === 0 || n === 'srcdoc') el.removeAttribute(a.name);
+        else if (/^(href|src|xlink:href|action|formaction|data|poster)$/.test(n) && /^(javascript|vbscript|data):/i.test(String(a.value).replace(/[\x00-\x20]/g, '')) && !(n === 'src' && /^data:image\//i.test(a.value.trim()))) el.removeAttribute(a.name);
+      });
+    });
+    return t.innerHTML;
+  }
+  function cleanPastedEls(els) {
+    var badUrl = function (v) { return /^(javascript|vbscript|data):/i.test(String(v).replace(/[\x00-\x20]/g, '')); };
+    var walk = function (e) {
+      if (!e || typeof e !== 'object') return;
+      if (typeof e.text === 'string') e.text = cleanClipMarkup(e.text);
+      ['href', 'url', 'vurl', 'expUrl'].forEach(function (k) { if (typeof e[k] === 'string' && badUrl(e[k])) delete e[k]; });
+      ['src', 'poster', 'boxImg'].forEach(function (k) { if (typeof e[k] === 'string' && badUrl(e[k]) && !/^data:image\//i.test(e[k].trim())) delete e[k]; });
+      if (e.cards) composeCardsData(e); // rebuilt from its normalised data, never its old markup
+      else {
+        if (typeof e.whtml === 'string') e.whtml = cleanClipMarkup(e.whtml);
+        if (typeof e.wsrc === 'string') e.wsrc = cleanClipMarkup(e.wsrc);
+      }
+      (e.kids || []).forEach(walk);
+    };
+    els.forEach(walk);
+    return els;
+  }
   function pastePieces(sec, els) {
-    var copies = diceFreshIds(JSON.parse(JSON.stringify(els)));
+    var copies = cleanPastedEls(diceFreshIds(JSON.parse(JSON.stringify(els))));
     var anchors = sel && sel.sec === sec && sec.els[sel.i] ? [sec.els[sel.i]]
       : (multiSel && multiSel.sec === sec ? multiSel.idxs.map(function (j) { return sec.els[j]; }) : null);
     var said = 'Pasted.';
@@ -26558,6 +26625,9 @@
       fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd })
         .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
         .then(function (item) {
+          var at = S.indexOf(target);
+          if (!editing || at < 0) { toast('The picture is in your media library.', { ttl: 3000 }); return; }
+          idx = at;
           var e = DEFAULTS.image();
           e.src = item.source_url; e.mediaId = item.id; e.alt = item.alt_text || '';
           var md = item.media_details || {};

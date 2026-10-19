@@ -4041,6 +4041,10 @@
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
       expect(s0.els.indexOf(e) !== -1 && e.cards.items.length === 2 && e.cards.items.every(function (it) { return it.t !== t2; }), 'Backspace on a chosen card should delete only that card: ' + e.cards.items.length);
       expect(G.cards.focus() && G.cards.focus().k === 1, 'the next card should be chosen, so a second press takes a card, not the set');
+      // Cmd+X with a card chosen copies the set but never cuts it away
+      document.dispatchEvent(new ClipboardEvent('cut', { clipboardData: new DataTransfer(), bubbles: true, cancelable: true }));
+      expect(s0.els.indexOf(e) !== -1 && e.cards.items.length === 2, 'cut with a card chosen should leave the set where it is');
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) { t.remove(); });
       pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
       card2 = s0.nodes[s0.els.indexOf(e)].querySelectorAll('.gogh-cs-card')[1]; r = card2.getBoundingClientRect();
       if (!G.cards.focus()) { pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5); }
@@ -4304,6 +4308,50 @@
       return 'copy, paste beside, words as a paragraph';
     });
 
+    test('Pasted pieces are cleaned: no scripts, no handlers, no script links', function () {
+      var s0 = sec(), n0 = s0.els.length;
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      var bad = { v: 1, els: [
+        { type: 'para', x: 80, y: base, w: 400, h: 48, text: 'Hi<img src="x" onerror="window.__goghPwned=1"><script>window.__goghPwned=1<\/script>' },
+        { type: 'button', x: 520, y: base, w: 200, h: 48, text: 'Go', href: ' javascript:window.__goghPwned=1' },
+        { type: 'image', x: 80, y: base + 96, w: 200, h: 120, src: 'data:text/html,<b>x</b>' },
+        { type: 'widget', x: 320, y: base + 96, w: 400, h: 120, whtml: '<a href="javascript:x()" onclick="y()">ok</a><iframe srcdoc="<script>1<\/script>"></iframe><object data="x"></object>' }
+      ] };
+      var b64 = btoa(unescape(encodeURIComponent(JSON.stringify(bad))));
+      var dt = new DataTransfer(); dt.setData('text/html', '<meta data-gogh-pieces="' + b64 + '">x');
+      G.cards.drop();
+      G.placeHandles(s0, s0.els.length - 1);
+      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      var got = s0.els.slice(n0);
+      var all = JSON.stringify(got);
+      expect(got.length === 4, 'all four pieces should paste: ' + got.length);
+      expect(!/onerror|onclick|<script|srcdoc|<object|javascript:|data:text/i.test(all), 'the pasted pieces should carry nothing that runs: ' + all.slice(0, 300));
+      expect(/Hi/.test(got[0].text) && /ok/.test(got[3].whtml), 'the harmless words should survive');
+      expect(!window.__goghPwned, 'nothing in the paste should have run');
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) { t.remove(); });
+      G.cards.drop();
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'scripts, handlers, javascript: and data:text links dropped';
+    });
+
+    test('Room under a chosen piece: the piece itself stays put, and a wider arrival moves what sits under its full width', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      // a narrow centred heading, with words under it reaching past its edges
+      s0.els.push({ type: 'button', x: 500, y: base, w: 140, h: 48, text: 'Go', align: 'center' });
+      s0.els.push({ type: 'para', x: 160, y: base + 96, w: 200, h: 48, text: 'Off to the left.' });
+      G.renderSection(s0); G.pushState();
+      var a = s0.els[n0], left = s0.els[n0 + 1], ay = a.y, ly = left.y;
+      G.placeHandles(s0, n0);
+      var np = G.addElementToSection(idx, 'para');
+      expect(a.y === ay, 'the chosen piece should not move: ' + [ay, a.y].join(','));
+      var hits = np.x < left.x + left.w && np.x + np.w > left.x;
+      expect(!hits || left.y >= np.y + np.h, 'what sits under the new piece\u2019s width should move down: ' + JSON.stringify({ np: [np.x, np.y, np.w, np.h], left: [left.x, ly, left.y] }));
+      G.cards.drop();
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return hits ? 'anchor still, wide arrival made room' : 'anchor still (arrival narrower than the words to its left)';
+    });
+
     test('Small kindnesses: delete closes the gap, new words match their neighbours, a growing button makes room', function () {
       var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
       var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
@@ -4331,6 +4379,11 @@
       tgt.textContent = 'Book your free consultation today';
       tgt.dispatchEvent(new Event('input', { bubbles: true }));
       expect(b1.w > 120 && b2.x >= b1.x + b1.w && b2.x > b2x, 'a button that grows should widen and move its neighbour along: ' + [b1.w, b2.x, b2x].join(','));
+      // words that already fit never grow it again, keystroke after keystroke
+      var w1 = b1.w;
+      tgt.dispatchEvent(new Event('input', { bubbles: true }));
+      tgt.textContent = 'Go'; tgt.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(b1.w === w1, 'a button whose words fit should keep its width: ' + [w1, b1.w].join(','));
       G.cards.drop();
       [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t2) { t2.remove(); });
       s0.els.splice(n0); G.renderSection(s0); G.pushState();

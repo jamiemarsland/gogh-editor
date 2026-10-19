@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.776",
+    "plugin_version": "0.99.777",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.776-chrome"
+    "asset_version": "0.99.777-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -736,6 +736,7 @@
     "Backup restored — publish when ready.",
     "Button updated.",
     "Card deleted.",
+    "Copied the whole set. Delete removes just this card.",
     "Copied. Paste it into the site definition, beside pages.",
     "Could not add that section.",
     "Could not apply that style.",
@@ -810,6 +811,7 @@
     "The header and footer stay — edit them instead.",
     "The name didn’t save — try again.",
     "The picture could not be added: ",
+    "The picture is in your media library.",
     "The type before is back.",
     "Theme style applied: ",
     "This ",
@@ -1616,5 +1618,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 389
+  "test_count": 391
 }

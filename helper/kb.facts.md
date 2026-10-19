@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.776**
+- Plugin version: **0.99.777**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.776`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.777`). Quote the plugin header version.
 
 ## Design constants
 
@@ -516,6 +516,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Backup restored — publish when ready."
 - "Button updated."
 - "Card deleted."
+- "Copied the whole set. Delete removes just this card."
 - "Copied. Paste it into the site definition, beside pages."
 - "Could not add that section."
 - "Could not apply that style."
@@ -590,6 +591,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The header and footer stay — edit them instead."
 - "The name didn’t save — try again."
 - "The picture could not be added: "
+- "The picture is in your media library."
 - "The type before is back."
 - "Theme style applied: "
 - "This "
@@ -633,5 +635,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`389` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`391` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
