@@ -62,7 +62,7 @@ if (mode === 'editor') {
   await p.setViewport({ width: 1300, height: 900 });
   await w.evaluate(() => { document.getElementById('editor').click(); });
   await sleep(14000);
-  const ed = p.frames().find((x) => /gogh-editor=/.test(x.url()));
+  const ed = p.frames().find((x) => /gogh-editor=|about:srcdoc/.test(x.url()) && x.parentFrame() && x.parentFrame().parentFrame());
   console.log('editor frame', !!ed);
   if (ed) console.log('editor', JSON.stringify(await ed.evaluate(() => ({ editing: document.documentElement.classList.contains('gogh-editing'), sections: window.__gogh ? window.__gogh.sections().length : -1, user: !!document.getElementById('wpadminbar'), title: document.title }))));
   // a real REST call from inside the editor, as the signed-in person
@@ -75,7 +75,7 @@ if (mode === 'editor-publish') {
   await p.setViewport({ width: 1300, height: 900 });
   await w.evaluate(() => { document.getElementById('editor').click(); });
   await sleep(14000);
-  const ed = p.frames().find((x) => /gogh-editor=/.test(x.url()));
+  const ed = p.frames().find((x) => /gogh-editor=|about:srcdoc/.test(x.url()) && x.parentFrame() && x.parentFrame().parentFrame());
   // change the first heading through the editor itself, then its own Publish
   console.log('publish', await ed.evaluate(async () => { const G = window.__gogh; const s0 = G.sections()[0]; const h = s0.els.find((e) => e.type === 'heading'); h.text = 'Watch us throw on Tuesdays'; G.renderSection(s0); G.pushState(); const ok = await G.publish(); return String(ok); }));
   await sleep(2000);
@@ -90,7 +90,7 @@ if (mode === 'editor-restore') {
   await p.setViewport({ width: 1300, height: 900 });
   await w.evaluate(() => { document.getElementById('editor').click(); });
   await sleep(16000);
-  const ed = p.frames().find((x) => /gogh-editor=/.test(x.url()));
+  const ed = p.frames().find((x) => /gogh-editor=|about:srcdoc/.test(x.url()) && x.parentFrame() && x.parentFrame().parentFrame());
   console.log('restore in url', /gogh-restore=1/.test(ed.url()));
   console.log('editor shows', JSON.stringify(await ed.evaluate(() => window.__gogh.sections().map((s) => (s.els.find((e) => e.type === 'heading') || {}).text))));
 }

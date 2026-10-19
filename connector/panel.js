@@ -99,7 +99,29 @@
     });
     status(d.unpublished_changes);
     if (G && d.pictures) { G.mediaPool.imgs = d.pictures.imgs || []; G.mediaPool.bgs = d.pictures.bgs || []; G.mediaPool.fetched = true; }
+    // sections waiting in words are drawn once the page is on screen, so
+    // their names never clash with the sections already there
+    st.waiting = (G && d.compose && d.compose.sections && d.compose.sections.length) ? d.compose.sections : null;
     draw();
+  }
+  // sections the agent described in words: drawn here with gogh's own code,
+  // then stored all at once
+  function compose(list) {
+    saying('Drawing ' + list.length + (list.length === 1 ? ' section…' : ' sections…'));
+    var used = {}, blocks = [];
+    list.forEach(function (sc) {
+      var tpl = null;
+      try { tpl = G.fillTake(sc); } catch (e) {}
+      if (!tpl) return;
+      var scope = nextScope();
+      while (used[scope]) scope = nextScope();
+      used[scope] = 1;
+      try { blocks.push(G.buildSectionBlocksV3(secFrom(tpl, scope))); } catch (e) {}
+    });
+    tool('gogh_compose_page', { page_id: st.page.id, blocks: blocks }).then(function (r) {
+      saying('Drawn. Click any words to change them.'); status(true); draw();
+      tell('The panel drew ' + (r.composed || blocks.length) + ' new section(s) on "' + st.page.title + '" from the description. They are saved, not live yet.');
+    }, function (e) { draw(); oops(e); });
   }
   // what each section is and says, for redrawing one in another design
   function reread() {
@@ -145,7 +167,10 @@
       stage.innerHTML = '';
       stage.appendChild(page);
       frame = page;
-      reread().then(function () { wire(page); });
+      reread().then(function () {
+        wire(page);
+        if (st.waiting) { var l = st.waiting; st.waiting = null; compose(l); }
+      });
       window.scrollTo(0, keep);
     }).catch(oops);
   }
@@ -175,6 +200,15 @@
     // a click on a link inside the page never leaves the panel
     page.addEventListener('click', function (ev) { var a = ev.target.closest && ev.target.closest('a'); if (a) ev.preventDefault(); }, true);
     var secs = sections(page);
+    // an empty page: a way in
+    if (!secs.length && G) {
+      var host = page.querySelector('.wp-block-post-content, .entry-content, main') || page;
+      var b = document.createElement('div');
+      b.className = 'gw-empty';
+      b.innerHTML = '<button type="button">+ Add a section</button>';
+      b.querySelector('button').onclick = function () { chooseNew(1); };
+      host.appendChild(b);
+    }
     secs.forEach(function (el) {
       var n = +el.getAttribute('data-gw-sec');
       if (el.classList.contains('wp-block-gogh-section')) words(el, n);

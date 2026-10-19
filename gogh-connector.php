@@ -305,6 +305,8 @@ function gogh_connector_open_page( $args ) {
 		'unpublished_changes' => $pv['unpublished_changes'],
 		'can_publish'         => current_user_can( 'publish_pages' ),
 		'pictures'            => gogh_pg_pictures(),
+		// sections described in words, waiting for the panel to draw them
+		'compose'             => json_decode( (string) get_post_meta( $post->ID, '_gogh_compose', true ), true ),
 	);
 	return array(
 		'content'           => array( array( 'type' => 'text', 'text' => sprintf( 'Showing "%s" in the panel. The person can change words, move and remove sections, and publish there. Their edits are saved as they go; read the page again with gogh_read_page before changing it yourself.', $data['page']['title'] ) ) ),

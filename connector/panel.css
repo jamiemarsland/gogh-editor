@@ -82,3 +82,5 @@ button[disabled] { opacity: .45; cursor: default; }
 .pick .thumb > .gw-stage { position: absolute; top: 0; left: 0; width: 1200px; transform-origin: 0 0; container-type: inline-size; }
 .pick .thumb > .gw-stage > .gogh-section { display: grid; }
 .msg { padding: 28px; text-align: center; color: var(--w-muted); }
+#gw-page .gw-empty { padding: 120px 0; text-align: center; }
+#gw-page .gw-empty button { all: unset; cursor: pointer; background: #2271b1; color: #fff; border-radius: 999px; padding: 16px 30px; font: 600 26px/1 system-ui, sans-serif; }

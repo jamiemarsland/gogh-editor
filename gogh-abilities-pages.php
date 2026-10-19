@@ -170,6 +170,154 @@ function gogh_pg_pictures() {
 	return array( 'imgs' => array_values( array_unique( $imgs ) ), 'bgs' => array_values( array_unique( $bgs ) ) );
 }
 
+
+// ---- new pages and the menu: helpers --------------------------------------
+
+// the designs a section described in words can name (gogh's own takes)
+const GOGH_PG_TAKES = array( 'Hero', 'Cover', 'Big statement', 'Story', 'Article', 'Numbers', 'Feature cards', 'Pricing', 'Quote', 'Testimonials', 'Call to action', 'Get in touch', 'Team', 'Gallery', 'Photo wall', 'Carousel', 'FAQ', 'Menu', 'Portfolio', 'Profile card', 'Place card', 'Job card' );
+
+// sections in words, as plain data only: known keys, short strings, a known
+// design — the panel turns them into blocks with gogh's own code
+function gogh_pg_clean_designed( $list ) {
+	if ( ! is_array( $list ) ) {
+		return new WP_Error( 'gogh_bad_sections', __( 'sections must be a list.', 'gogh-editor' ), array( 'status' => 400 ) );
+	}
+	$keys  = array( 'take', 'face', 'eyebrow', 'heading', 'text', 'text2', 'text3', 'button', 'button2', 'link', 'image', 'badge', 'name', 'quote' );
+	$ikeys = array( 'title', 'text', 'name', 'role', 'quote', 'price', 'button', 'link', 'image', 'value', 'label', 'q', 'a', 'eyebrow', 'caption' );
+	$out   = array();
+	foreach ( array_slice( $list, 0, 12 ) as $i => $sc ) {
+		if ( ! is_array( $sc ) || empty( $sc['take'] ) || ! in_array( $sc['take'], GOGH_PG_TAKES, true ) ) {
+			return new WP_Error( 'gogh_bad_take', sprintf( __( 'Section %1$d needs a take, one of: %2$s.', 'gogh-editor' ), $i + 1, implode( ', ', GOGH_PG_TAKES ) ), array( 'status' => 400 ) );
+		}
+		$one = array();
+		foreach ( $keys as $k ) {
+			if ( isset( $sc[ $k ] ) && is_scalar( $sc[ $k ] ) && '' !== trim( (string) $sc[ $k ] ) ) {
+				$one[ $k ] = in_array( $k, array( 'link', 'image' ), true ) ? esc_url_raw( (string) $sc[ $k ] ) : mb_substr( sanitize_text_field( (string) $sc[ $k ] ), 0, 600 );
+			}
+		}
+		if ( ! empty( $sc['items'] ) && is_array( $sc['items'] ) ) {
+			$one['items'] = array();
+			foreach ( array_slice( $sc['items'], 0, 12 ) as $it ) {
+				if ( ! is_array( $it ) ) {
+					continue;
+				}
+				$c = array();
+				foreach ( $ikeys as $k ) {
+					if ( isset( $it[ $k ] ) && is_scalar( $it[ $k ] ) && '' !== trim( (string) $it[ $k ] ) ) {
+						$c[ $k ] = in_array( $k, array( 'link', 'image' ), true ) ? esc_url_raw( (string) $it[ $k ] ) : mb_substr( sanitize_text_field( (string) $it[ $k ] ), 0, 400 );
+					}
+				}
+				if ( $c ) {
+					$one['items'][] = $c;
+				}
+			}
+		}
+		$out[] = $one;
+	}
+	return $out;
+}
+
+// the menu the header shows: its navigation block's own menu
+function gogh_pg_menu_post() {
+	$part = function_exists( 'get_block_template' ) ? get_block_template( get_stylesheet() . '//header', 'wp_template_part' ) : null;
+	if ( $part && preg_match( '/wp:navigation \{[^}]*"ref":(\d+)/', (string) $part->content, $m ) ) {
+		$p = get_post( (int) $m[1] );
+		if ( $p && 'wp_navigation' === $p->post_type ) {
+			return $p;
+		}
+	}
+	$all = get_posts( array( 'post_type' => 'wp_navigation', 'numberposts' => 1, 'orderby' => 'date', 'order' => 'DESC' ) );
+	return $all ? $all[0] : null;
+}
+
+function gogh_pg_menu_items( $content ) {
+	$walk = function ( $blocks ) use ( &$walk ) {
+		$out = array();
+		foreach ( $blocks as $b ) {
+			$a = $b['attrs'];
+			if ( 'core/navigation-link' === $b['blockName'] || 'core/navigation-submenu' === $b['blockName'] ) {
+				$one = array( 'label' => isset( $a['label'] ) ? wp_strip_all_tags( $a['label'] ) : '' );
+				if ( ! empty( $a['id'] ) && ( empty( $a['kind'] ) || 'post-type' === $a['kind'] ) ) {
+					$one['page_id'] = (int) $a['id'];
+				}
+				if ( ! empty( $a['url'] ) ) {
+					$one['url'] = (string) $a['url'];
+				}
+				if ( 'core/navigation-submenu' === $b['blockName'] ) {
+					$one['items'] = $walk( $b['innerBlocks'] );
+				}
+				$out[] = $one;
+			} elseif ( 'core/page-list' === $b['blockName'] ) {
+				$out[] = array( 'kind' => 'every page', 'label' => __( '(every published page, automatically)', 'gogh-editor' ) );
+			} elseif ( $b['blockName'] ) {
+				$out[] = array( 'kind' => 'other', 'block' => $b['blockName'] );
+			}
+		}
+		return $out;
+	};
+	return $walk( parse_blocks( (string) $content ) );
+}
+
+function gogh_pg_menu_markup( $items, $depth ) {
+	$out = '';
+	foreach ( (array) $items as $it ) {
+		if ( ! is_array( $it ) ) {
+			continue;
+		}
+		if ( isset( $it['kind'] ) && 'every page' === $it['kind'] ) {
+			$out .= '<!-- wp:page-list /-->';
+			continue;
+		}
+		$label = isset( $it['label'] ) ? trim( sanitize_text_field( (string) $it['label'] ) ) : '';
+		$attrs = array();
+		if ( ! empty( $it['page_id'] ) ) {
+			$p = get_post( (int) $it['page_id'] );
+			if ( ! $p || 'page' !== $p->post_type ) {
+				return new WP_Error( 'gogh_no_page', sprintf( __( 'There is no page %d for the menu.', 'gogh-editor' ), (int) $it['page_id'] ), array( 'status' => 400 ) );
+			}
+			$attrs = array( 'label' => '' !== $label ? $label : get_the_title( $p ), 'type' => 'page', 'id' => (int) $p->ID, 'url' => get_permalink( $p ), 'kind' => 'post-type' );
+		} elseif ( ! empty( $it['url'] ) ) {
+			$url = esc_url_raw( (string) $it['url'] );
+			if ( '' === $url || '' === $label ) {
+				return new WP_Error( 'gogh_bad_link', __( 'A link needs a label and an address.', 'gogh-editor' ), array( 'status' => 400 ) );
+			}
+			$attrs = array( 'label' => $label, 'url' => $url, 'kind' => 'custom', 'isTopLevelLink' => 0 === $depth );
+		} else {
+			return new WP_Error( 'gogh_bad_link', __( 'Each menu item needs a page_id or a url.', 'gogh-editor' ), array( 'status' => 400 ) );
+		}
+		if ( ! empty( $it['items'] ) && is_array( $it['items'] ) && 0 === $depth ) {
+			$inner = gogh_pg_menu_markup( $it['items'], 1 );
+			if ( is_wp_error( $inner ) ) {
+				return $inner;
+			}
+			$out .= '<!-- wp:navigation-submenu ' . wp_json_encode( $attrs ) . ' -->' . $inner . '<!-- /wp:navigation-submenu -->';
+		} else {
+			$out .= '<!-- wp:navigation-link ' . wp_json_encode( $attrs ) . ' /-->';
+		}
+	}
+	return $out;
+}
+
+// a page made with menu: true joins the menu the moment it goes live
+add_action( 'transition_post_status', function ( $new, $old, $post ) {
+	if ( 'publish' !== $new || 'publish' === $old || 'page' !== $post->post_type || ! get_post_meta( $post->ID, '_gogh_menu_on_publish', true ) ) {
+		return;
+	}
+	delete_post_meta( $post->ID, '_gogh_menu_on_publish' );
+	$nav = gogh_pg_menu_post();
+	if ( ! $nav ) {
+		return;
+	}
+	$items = gogh_pg_menu_items( $nav->post_content );
+	foreach ( $items as $it ) {
+		if ( ( isset( $it['page_id'] ) && (int) $it['page_id'] === (int) $post->ID ) || ( isset( $it['kind'] ) && 'every page' === $it['kind'] ) ) {
+			return; // already there, or the menu lists every page anyway
+		}
+	}
+	$link = '<!-- wp:navigation-link ' . wp_json_encode( array( 'label' => get_the_title( $post ), 'type' => 'page', 'id' => (int) $post->ID, 'url' => get_permalink( $post ), 'kind' => 'post-type' ) ) . ' /-->';
+	wp_update_post( array( 'ID' => $nav->ID, 'post_content' => wp_slash( $nav->post_content . $link ) ) );
+}, 10, 3 );
+
 // ---------- the abilities ---------------------------------------------------
 
 add_action( 'wp_abilities_api_init', function () {
@@ -515,6 +663,214 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 	) );
 
+	// ---- new pages, and sections described in words ----------------------
+	// The agent describes sections the way a site definition does (a design
+	// and its words); gogh's own code in the page panel draws them the next
+	// time the page is opened, and gogh/compose-page stores the result.
+	$designed = array(
+		'type'        => 'array',
+		'description' => 'Sections, top to bottom, each { take, face?, eyebrow?, heading?, text?, text2?, button?, button2?, link?, image?, items? } as in a gogh site definition. take is one of gogh\'s designs: ' . implode( ', ', GOGH_PG_TAKES ) . '. items fill repeated parts: Feature cards { title, text }, Testimonials { quote, name }, Team { name, role, image }, Pricing { title, text, price, button }, Numbers { value, label }, FAQ { q, a }, Gallery / Photo wall { image }. image is a picture address; leave it out to use the site\'s own pictures.',
+		'items'       => array( 'type' => 'object' ),
+		'maxItems'    => 12,
+	);
+
+	wp_register_ability( 'gogh/create-page', array(
+		'label'               => __( 'Create a page', 'gogh-editor' ),
+		'description'         => __( 'Makes a new page as a draft, optionally with sections described in words (gogh draws them in its own designs when the page is opened with gogh_open_page — open it straight away so the person sees it). menu: true puts it in the site\'s menu when it is published. It is not live until gogh/publish.', 'gogh-editor' ),
+		'category'            => 'gogh',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'properties'           => array(
+				'title'    => array( 'type' => 'string', 'description' => 'The page\'s name, as the menu would show it.' ),
+				'sections' => $designed,
+				'menu'     => array( 'type' => 'boolean', 'description' => 'Add it to the site\'s menu when it is published. Default true.' ),
+			),
+			'required'             => array( 'title' ),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array( 'type' => 'object' ),
+		'execute_callback'    => function ( $input ) {
+			$title = trim( sanitize_text_field( (string) $input['title'] ) );
+			if ( '' === $title ) {
+				return new WP_Error( 'gogh_no_title', __( 'A page needs a name.', 'gogh-editor' ), array( 'status' => 400 ) );
+			}
+			$sections = gogh_pg_clean_designed( isset( $input['sections'] ) ? $input['sections'] : array() );
+			if ( is_wp_error( $sections ) ) {
+				return $sections;
+			}
+			$id = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => $title, 'post_content' => '' ), true );
+			if ( is_wp_error( $id ) ) {
+				return $id;
+			}
+			// it wears the home page's template, so it looks like its siblings
+			$front = (int) get_option( 'page_on_front' );
+			$tpl   = $front ? get_page_template_slug( $front ) : '';
+			if ( $tpl ) {
+				update_post_meta( $id, '_wp_page_template', $tpl );
+			}
+			if ( $sections ) {
+				update_post_meta( $id, '_gogh_compose', wp_slash( wp_json_encode( array( 'at' => 0, 'sections' => $sections ) ) ) );
+			}
+			if ( ! isset( $input['menu'] ) || $input['menu'] ) {
+				update_post_meta( $id, '_gogh_menu_on_publish', 1 );
+			}
+			return array( 'page_id' => (int) $id, 'title' => $title, 'status' => 'draft', 'sections_to_draw' => count( $sections ), 'next' => __( 'Open it with gogh_open_page: its sections are drawn there.', 'gogh-editor' ) );
+		},
+		'permission_callback' => function () {
+			return current_user_can( 'edit_pages' );
+		},
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => false ),
+			'mcp'          => $mcp,
+		),
+	) );
+
+	wp_register_ability( 'gogh/add-designed-sections', array(
+		'label'               => __( 'Add sections in words', 'gogh-editor' ),
+		'description'         => __( 'Adds sections described in words to an existing page, at a place (counting from 1; leave out for the end). gogh draws them in its own designs when the page is next opened with gogh_open_page — open it straight away. Saved as a change that is not live yet.', 'gogh-editor' ),
+		'category'            => 'gogh',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'properties'           => array(
+				'page_id'  => $page,
+				'sections' => $designed,
+				'at'       => array( 'type' => 'integer', 'description' => 'Where the first goes, counting from 1. Leave out for the end of the page.' ),
+			),
+			'required'             => array( 'page_id', 'sections' ),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array( 'type' => 'object' ),
+		'execute_callback'    => function ( $input ) {
+			$post = gogh_pg_page( $input );
+			if ( is_wp_error( $post ) ) {
+				return $post;
+			}
+			$sections = gogh_pg_clean_designed( $input['sections'] );
+			if ( is_wp_error( $sections ) ) {
+				return $sections;
+			}
+			if ( ! $sections ) {
+				return new WP_Error( 'gogh_no_sections', __( 'Describe at least one section.', 'gogh-editor' ), array( 'status' => 400 ) );
+			}
+			update_post_meta( $post->ID, '_gogh_compose', wp_slash( wp_json_encode( array( 'at' => isset( $input['at'] ) ? max( 0, (int) $input['at'] ) : 0, 'sections' => $sections ) ) ) );
+			return array( 'waiting' => count( $sections ), 'next' => __( 'Open the page with gogh_open_page: the sections are drawn there.', 'gogh-editor' ) );
+		},
+		'permission_callback' => $can,
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => false ),
+			'mcp'          => $mcp,
+		),
+	) );
+
+	wp_register_ability( 'gogh/compose-page', array(
+		'label'               => __( 'Store drawn sections', 'gogh-editor' ),
+		'description'         => __( 'The page panel hands over the sections it drew for a page\'s waiting description; they go in where the description asked, all at once.', 'gogh-editor' ),
+		'category'            => 'gogh',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'properties'           => array( 'page_id' => $page, 'blocks' => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ) ),
+			'required'             => array( 'page_id', 'blocks' ),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array( 'type' => 'object' ),
+		'execute_callback'    => function ( $input ) {
+			$post = gogh_pg_page( $input );
+			if ( is_wp_error( $post ) ) {
+				return $post;
+			}
+			$want = json_decode( (string) get_post_meta( $post->ID, '_gogh_compose', true ), true );
+			if ( ! is_array( $want ) ) {
+				return array( 'composed' => false, 'note' => __( 'Nothing was waiting.', 'gogh-editor' ) );
+			}
+			$new = array();
+			foreach ( (array) $input['blocks'] as $markup ) {
+				$one = gogh_pg_one_section( $markup );
+				if ( is_wp_error( $one ) ) {
+					return $one;
+				}
+				$new[] = $one;
+			}
+			$blocks = gogh_pg_blocks( gogh_pg_current( $post ) );
+			$at     = ! empty( $want['at'] ) ? max( 0, min( count( $blocks ), (int) $want['at'] - 1 ) ) : count( $blocks );
+			array_splice( $blocks, $at, 0, $new );
+			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ) );
+			if ( is_wp_error( $r ) ) {
+				return $r;
+			}
+			delete_post_meta( $post->ID, '_gogh_compose' );
+			return array( 'composed' => count( $new ), 'live' => false );
+		},
+		'permission_callback' => $can,
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => false ),
+			'mcp'          => array( 'public' => true, 'app_only' => true ),
+		),
+	) );
+
+	// ---- the menu ---------------------------------------------------------
+	wp_register_ability( 'gogh/read-menu', array(
+		'label'               => __( 'Read the menu', 'gogh-editor' ),
+		'description'         => __( 'The site\'s main menu (the one in the header): its links in order, each with its label and the page it opens (page_id) or its address, and any dropdowns with their links.', 'gogh-editor' ),
+		'category'            => 'gogh',
+		'input_schema'        => array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false, 'default' => array() ),
+		'output_schema'       => array( 'type' => 'object' ),
+		'execute_callback'    => function () {
+			$nav = gogh_pg_menu_post();
+			if ( ! $nav ) {
+				return new WP_Error( 'gogh_no_menu', __( 'This site\'s header has no menu of its own to change.', 'gogh-editor' ), array( 'status' => 404 ) );
+			}
+			$items = gogh_pg_menu_items( $nav->post_content );
+			return array( 'menu' => html_entity_decode( get_the_title( $nav ), ENT_QUOTES, 'UTF-8' ), 'items' => $items, 'lists_every_page' => in_array( 'every page', array_column( $items, 'kind' ), true ) );
+		},
+		'permission_callback' => function () {
+			return current_user_can( 'edit_theme_options' );
+		},
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
+			'mcp'          => $mcp,
+		),
+	) );
+
+	wp_register_ability( 'gogh/set-menu', array(
+		'label'               => __( 'Change the menu', 'gogh-editor' ),
+		'description'         => __( 'Sets the site\'s main menu: the whole list of links, in order. Each item is { label, page_id } for one of the site\'s pages, or { label, url } for another address, and may carry items: [...] to make it a dropdown. Read the menu first and keep what the person did not ask to change. This changes the live site at once (a menu has no draft), so say what will change and ask first.', 'gogh-editor' ),
+		'category'            => 'gogh',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'properties'           => array( 'items' => array( 'type' => 'array', 'items' => array( 'type' => 'object' ), 'maxItems' => 20 ) ),
+			'required'             => array( 'items' ),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array( 'type' => 'object' ),
+		'execute_callback'    => function ( $input ) {
+			$nav = gogh_pg_menu_post();
+			if ( ! $nav ) {
+				return new WP_Error( 'gogh_no_menu', __( 'This site\'s header has no menu of its own to change.', 'gogh-editor' ), array( 'status' => 404 ) );
+			}
+			$markup = gogh_pg_menu_markup( $input['items'], 0 );
+			if ( is_wp_error( $markup ) ) {
+				return $markup;
+			}
+			$r = wp_update_post( array( 'ID' => $nav->ID, 'post_content' => wp_slash( $markup ) ), true );
+			if ( is_wp_error( $r ) ) {
+				return $r;
+			}
+			return array( 'changed' => true, 'items' => gogh_pg_menu_items( get_post( $nav->ID )->post_content ), 'live' => true );
+		},
+		'permission_callback' => function () {
+			return current_user_can( 'edit_theme_options' );
+		},
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ),
+			'mcp'          => $mcp,
+		),
+	) );
+
 	wp_register_ability( 'gogh/discard-changes', array(
 		'label'               => __( 'Throw away changes', 'gogh-editor' ),
 		'description'         => __( 'Throws away a page\'s changes that are not live yet, so it is exactly as visitors see it. Ask first.', 'gogh-editor' ),
@@ -579,12 +935,29 @@ add_action( 'wp_abilities_api_init', function () {
 // a preview link shows the page with its pending changes, to anyone holding
 // the token, for two hours — nothing else about the site changes
 add_filter( 'the_posts', function ( $posts, $q ) {
-	if ( is_admin() || empty( $_GET['gogh-preview'] ) || ! $q->is_main_query() || 1 !== count( $posts ) ) {
+	if ( is_admin() || empty( $_GET['gogh-preview'] ) || ! $q->is_main_query() || count( $posts ) > 1 ) {
 		return $posts;
 	}
 	$token = preg_replace( '/[^A-Za-z0-9]/', '', (string) wp_unslash( $_GET['gogh-preview'] ) );
 	$id    = $token ? (int) get_transient( 'gogh_pv_' . $token ) : 0;
-	if ( ! $id || (int) $posts[0]->ID !== $id || ! function_exists( 'gogh_ab_pending_backup' ) ) {
+	if ( ! $id || ! function_exists( 'gogh_ab_pending_backup' ) ) {
+		return $posts;
+	}
+	// a draft page is no one's to see — except through its preview link
+	if ( ! $posts && (int) $q->get( 'page_id' ) === $id ) {
+		$draft = get_post( $id );
+		if ( $draft && 'page' === $draft->post_type && in_array( $draft->post_status, array( 'draft', 'pending', 'private' ), true ) ) {
+			$posts           = array( $draft );
+			$q->found_posts  = 1;
+			$q->post_count   = 1;
+			$q->is_404       = false;
+			$q->is_page      = true;
+			$q->is_singular  = true;
+			$q->queried_object    = $draft;
+			$q->queried_object_id = $id;
+		}
+	}
+	if ( ! $posts || (int) $posts[0]->ID !== $id ) {
 		return $posts;
 	}
 	$pending = gogh_ab_pending_backup( $posts[0] );
