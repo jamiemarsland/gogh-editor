@@ -757,6 +757,84 @@
 
   // one element's scoped rules — shared by sections (.gogh-el-N) and the
   // kids inside a card (.gogh-k-N)
+  // a set's carried type and its own card, in the section's stylesheet:
+  // sizes in cqw are the section's, so inside the set (its own container)
+  // they scale by the set's share of the page
+  function cardsTypeDecls(spec, ew) {
+    var d = [], k = W / Math.max(80, ew || W), tf = spec.tf || {};
+    if (spec.fs) {
+      if (DISPLAY_FS[spec.fs]) d.push('font-size: ' + DISPLAY_FS[spec.fs].replace(/([\d.]+)cqw/, function (m0, n0) { return (n0 * k).toFixed(3) + 'cqw'; }) + ' !important');
+      else d.push('font-size: var(--wp--preset--font-size--' + spec.fs + ') !important');
+    }
+    if (tf.ff) d.push('font-family: ' + tf.ff);
+    else if (spec.body) d.push('font-family: inherit !important');
+    if (spec.body) {
+      if (tf.fw == null) d.push('font-weight: 400');
+      if (tf.ls == null && tf.ls2 == null) d.push('letter-spacing: normal');
+      if (!tf.tt) d.push('text-transform: none');
+    }
+    if (tf.fs2) d.push('font-size: max(' + (tf.fs2 * k).toFixed(3) + 'cqw, ' + (tf.fsMin || Math.min(Math.round(tf.fs2 * 12), 15)) + 'px) !important');
+    else if (tf.fs) d.push('font-size: ' + tf.fs + 'px !important');
+    if (tf.fw) d.push('font-weight: ' + tf.fw);
+    if (tf.fst) d.push('font-style: ' + tf.fst);
+    if (tf.lh) d.push('line-height: ' + tf.lh + ' !important');
+    if (tf.ls2 != null) d.push('letter-spacing: ' + tf.ls2 + 'em');
+    else if (tf.ls) d.push('letter-spacing: ' + tf.ls + 'px');
+    if (tf.tt) d.push('text-transform: ' + tf.tt);
+    return d;
+  }
+  var CARD_FIELD_SEL = { k: '.gogh-cs-k', t: '.gogh-cs-t', d: '.gogh-cs-d', role: '.gogh-cs-role', n: '.gogh-cs-n', price: '.gogh-cs-price strong', link: '.gogh-cs-link' };
+  function cardsTypeCss(out, sec, clsSel, e) {
+    var c = e.cards, base = sec + clsSel;
+    if (!c) return;
+    if (c.type) Object.keys(c.type).forEach(function (f) {
+      var sp = c.type[f], sel = CARD_FIELD_SEL[f];
+      if (!sp || !sel) return;
+      var d = cardsTypeDecls(sp, e.w);
+      if (d.length) out.push(base + ' ' + sel + ' { ' + d.join('; ') + '; }');
+      // a carried colour is the plain cards'; the featured card keeps its own
+      // (on a photo card the words are white over the veil, whatever ink
+      // they carried)
+      if (sp.tf && sp.tf.col && c.layout !== 'over') out.push(base + ' .gogh-cs-card:not(.is-featured) ' + sel + ' { color: ' + sp.tf.col + ' !important; }');
+    });
+    var b = c.box;
+    if (b && b.look === c.look) {
+      if (b.bg && c.layout !== 'over') out.push(base + ' .gogh-cs-card:not(.is-featured) { background: ' + b.bg + ' !important; }');
+      // the carried corners hold while Rounded corners is on; off is square
+      // (James: 'dont think rounded corners does anthing')
+      if (b.radius != null && c.round) out.push(base + ' .gogh-cardset:not(.gogh-cardset-index):not(.gogh-cardset-ledger) > .gogh-cs-card { border-radius: ' + b.radius + 'px !important; }');
+      else if (b.radius != null) out.push(base + ' .gogh-cardset:not(.gogh-cardset-index):not(.gogh-cardset-ledger) > .gogh-cs-card, ' + base + ' .gogh-cs-pic img { border-radius: 0 !important; }');
+      // padding and spacing grow with the set, as the freeform card's did
+      // (its pieces sat in section units), with a floor for phones
+      var cq = function (v) { return (v * 100 / Math.max(80, e.w)).toFixed(2) + 'cqw'; };
+      // (a ledger's padding is the space above and below each row)
+      if (b.pad != null && c.layout === 'ledger') out.push(base + ' .gogh-cardset-ledger > .gogh-cs-card { padding: 0 !important; } ' + base + ' .gogh-cardset-ledger .gogh-cs-body { padding: max(8px, ' + cq(b.pad) + ') 0 !important; }');
+      else if (b.pad != null) out.push(base + ' .gogh-cs-card .gogh-cs-body { padding: max(' + Math.min(b.pad, 16) + 'px, ' + cq(b.pad) + ') !important; }');
+      if (b.gap != null) out.push(base + ' .gogh-cs-body { gap: max(' + Math.min(b.gap, 6) + 'px, ' + cq(b.gap) + '); }');
+      // (a photo card takes its height from its shape: a carried height
+      // there would force it wider than its column — James: 'photo cards
+      // looks broken on elliot grey')
+      if (b.minH && c.layout !== 'over') out.push(base + ' .gogh-cardset > .gogh-cs-card { min-height: ' + (b.minH * 100 / Math.max(80, e.w)).toFixed(2) + 'cqw; }');
+      if (b.tight && b.gap != null) Object.keys(b.tight).forEach(function (f) {
+        var pre = f === 't' ? '.gogh-cs-k + .gogh-cs-t' : '.gogh-cs-role + .gogh-cs-n';
+        out.push(base + ' .gogh-cs-body > ' + pre + ' { margin-top: calc(' + cq(b.tight[f]) + ' - ' + cq(b.gap) + ') !important; }');
+      });
+      if (b.foot && CARD_FIELD_SEL[b.foot]) out.push(base + ' .gogh-cs-body > ' + CARD_FIELD_SEL[b.foot].split(' ')[0] + ' { margin-top: auto !important; }');
+      // a ledger's rules in the colour its rows were drawn with
+      if (b.ruleCol && c.layout === 'ledger') out.push(base + ' .gogh-cardset-ledger, ' + base + ' .gogh-cardset-ledger > .gogh-cs-card { border-color: ' + b.ruleCol + ' !important; }');
+      if (b.rule) out.push(base + ' .gogh-cardset > .gogh-cs-card { border-top: 1px solid ' + (b.ruleCol || 'color-mix(in srgb, currentColor 18%, transparent)') + ' !important; } ' +
+        base + ' .gogh-cardset > .gogh-cs-card > .gogh-cs-body { padding-top: max(10px, ' + cq(b.rule) + ') !important; }');
+      if (b.btnFull) out.push(base + ' .gogh-cs-btns > .wp-block-button { flex: 1 1 100%; width: 100% !important; display: block !important; } ' + base + ' .gogh-cs-btns .wp-block-button__link { display: block !important; width: 100% !important; box-sizing: border-box; text-align: center; }');
+    }
+    // photo cards (on the photo) read from freeform keep their columns and
+    // their shape while the set stays on the photo in the wide shape
+    // (a ledger can run in two columns side by side, a menu's two tops)
+    if (b && c.layout === 'ledger' && b.cols) out.push('@container (min-width: 761px) { ' + base + ' .gogh-cardset-ledger { grid-template-columns: repeat(' + b.cols + ', minmax(0, 1fr)); column-gap: 6cqw; } }');
+    if (b && c.layout === 'over') {
+      if (b.cols) out.push('@container (min-width: ' + (b.cols > 2 ? 761 : 541) + 'px) { ' + base + ' .gogh-cardset-over { grid-template-columns: repeat(' + b.cols + ', minmax(0, 1fr)); } }');
+      if (b.ratio && c.pic === 'wide') out.push(base + ' .gogh-cardset-over > .gogh-cs-card { aspect-ratio: ' + b.ratio + '; }');
+    }
+  }
   function emitElCSS(out, sec, clsSel, e, i, a) {
       var extra = TYPE_RULES[e.type];
       // fill-the-width text: the fitted size lives in cqw so it scales with
@@ -777,6 +855,7 @@
           ' text-box: trim-both cap ' + tbEdge + ';';
       }
       if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
+      if (e.type === 'widget' && e.cards) cardsTypeCss(out, sec, clsSel, e);
       if (e.type === 'icon') extra += iconMaskCss(e.icon);
       if (e.type === 'embed' && e.w > 0 && e.h > 0) extra += ' aspect-ratio: ' + e.w + ' / ' + e.h + ';';
       if (e.type === 'rule') {
@@ -1205,7 +1284,13 @@
       opts.bg && !/gradient\(/.test(String(opts.bg)) ? sec + ' .gogh-widget { color: ' + ghostInkCss(opts) + '; } ' +
         sec + ' .gogh-widget :is(.wp-block-post-title, .wp-block-post-title a, .wc-block-components-product-price, .wc-block-grid__product-price, .gogh-shopprev-price, .gogh-shopprev-body h3, .gogh-shopprev-emptycard a) { color: inherit; } ' +
         // and its buttons turn over: the ink becomes the button, the section's colour its words
-        sec + ' .gogh-widget :is(.wc-block-components-product-button__button, .gogh-postsprev-btn, .wp-block-button__link) { background: ' + ghostInkCss(opts) + ' !important; color: ' + opts.bg + ' !important; }' : '',
+        sec + ' .gogh-widget :is(.wc-block-components-product-button__button, .gogh-postsprev-btn, .wp-block-button__link) { background: ' + ghostInkCss(opts) + ' !important; color: ' + opts.bg + ' !important; } ' +
+        // a card set's featured card turns over too (dark on a dark band
+        // vanished), and a raised card keeps its own paper's button
+        sec + ' .gogh-widget .gogh-cs-card.is-featured { background: ' + ghostInkCss(opts) + ' !important; color: ' + opts.bg + ' !important; } ' +
+        sec + ' .gogh-widget .gogh-cs-card.is-featured .wp-block-button__link { background: ' + opts.bg + ' !important; color: ' + ghostInkCss(opts) + ' !important; } ' +
+        sec + ' .gogh-widget .gogh-cs-btns .is-style-outline > .wp-block-button__link { background: transparent !important; color: ' + ghostInkCss(opts) + ' !important; border: 1.5px solid currentColor; } ' +
+        sec + ' .gogh-widget .gogh-cardset-look-raised > .gogh-cs-card:not(.is-featured) .wp-block-button__link { background: var(--wp--preset--color--contrast, #111) !important; color: var(--wp--preset--color--base, #fff) !important; }' : '',
       sec + ' .gogh-embed .wp-block-embed__wrapper { height: 100%; }',
       '',
       '@container (max-width: 700px) {',
@@ -1344,8 +1429,14 @@
     var rest = userCls(e.cls).split(' ').filter(function (c) { return c && !mine[c]; });
     if (lk) rest.unshift('is-style-' + lk.slug);
     e.cls = userCls(rest.join(' ')) || null;
+    // a design's button style says solid or outline itself: an outline left
+    // on from before would paint over it (James: 'if a button is set to
+    // outline on misprint - cant use any of the other styles')
+    if (lk && e.type === 'button') e.ghost = false;
     return e;
   }
+  // outline only counts on a button that wears no design style
+  function ghostShows(e) { return !!e.ghost && !lookOf(e); }
   // ---------- styles the designer saves (Save this look as a style) ----------
   // A piece styled by hand on the canvas (a colour, a weight, capitals, a
   // hover fill) can become one of the design's looks: the CSS is written
@@ -1564,6 +1655,7 @@
       mood: e.mood || null,
       faq: e.faq || null, tabs: e.tabs || null, slides: e.slides || null, copt: e.copt || null,
       wall: e.wall || null, wopt: e.wopt || null,
+      cards: e.cards || null,
       ph: e.ph || null,
       expId: e.expId || null, expUrl: e.expUrl || null,
       m: (e.m && Object.keys(e.m).length) ? e.m : null, // sparse mobile overrides (hidden, …)
@@ -1622,7 +1714,7 @@
           // the Buttons wrapper gogh places
           var bSty = cls.split(' ').filter(function (c) { return /^is-style-/.test(c); }).join(' ');
           cls = cls.split(' ').filter(function (c) { return !/^is-style-/.test(c); }).join(' ');
-          var btnCls = [bSty, e.ghost ? 'gogh-ghost' : ''].filter(Boolean).join(' ');
+          var btnCls = [bSty, ghostShows(e) ? 'gogh-ghost' : ''].filter(Boolean).join(' ');
           if (btnCls) attrs.className = btnCls;
           if (e.href) attrs.url = e.href;
           if (e.btnBg) attrs.backgroundColor = e.btnBg;
@@ -2105,7 +2197,7 @@
         var nSty = cls.split(' ').filter(function (c) { return /^is-style-/.test(c); }).join(' ');
         n = document.createElement('div');
         n.className = 'wp-block-buttons ' + cls.split(' ').filter(function (c) { return !/^is-style-/.test(c); }).join(' ');
-        n.innerHTML = '<div class="wp-block-button' + (nSty ? ' ' + nSty : '') + (e.ghost ? ' gogh-ghost' : '') + '">' +
+        n.innerHTML = '<div class="wp-block-button' + (nSty ? ' ' + nSty : '') + (ghostShows(e) ? ' gogh-ghost' : '') + '">' +
           '<a class="wp-block-button__link' +
           (e.btnText ? ' has-' + e.btnText + '-color has-text-color' : '') +
           (e.btnBg ? ' has-' + e.btnBg + '-background-color has-background' : '') +
@@ -2265,7 +2357,7 @@
     if (!editing || !img || img.tagName !== 'IMG') return;
     var sec = S.filter(function (s2) { return s2.sectionEl && s2.sectionEl.contains(img); })[0];
     if (!sec) return;
-    setTimeout(function () { measureTextHeights(sec); resolveAndApply(sec); }, 60);
+    setTimeout(function () { fitCards(sec); measureTextHeights(sec); resolveAndApply(sec); }, 60);
   }, true);
   // a RICH background (photo, effect layer, gradient composition) cannot
   // be represented by a flat divider band — the transition must be carved
@@ -2374,6 +2466,19 @@
         }
       });
     }
+    // a shrink pulls up only what nothing else is holding: a piece under
+    // another that did not move (Misprint's outline PRINT shrank and pulled
+    // the paragraph up under the headline, which had not — James: 'the
+    // missprint home page looks a bit wonky still')
+    if (delta < 0) {
+      var newBottom = e.y + e.h;
+      pushed = pushed.filter(function (o) {
+        return !sec.els.some(function (q) {
+          return q !== e && q !== o && pushed.indexOf(q) === -1 && (!only || only.indexOf(q) !== -1) &&
+            q.x < o.x + o.w && q.x + q.w > o.x && q.y < o.y && q.y + q.h <= o.y + 8 && q.y + q.h > newBottom;
+        });
+      });
+    }
     pushed.forEach(function (o) { o.y = Math.max(0, o.y + delta); });
     return true;
   }
@@ -2408,6 +2513,7 @@
         }
       });
     }
+    fitCards(sec);
     measureTextHeights(sec);
     resolveAndApply(sec);
   }
@@ -2518,7 +2624,7 @@
     var scopeOf = function (e) { var h2 = holders.filter(function (H) { return H.inner.indexOf(e) !== -1; })[0]; return h2 ? h2.inner : null; };
     // shop rails, questions and tabs draw their real height once they render
     sec.els.forEach(function (e, i) {
-      if (e.type !== 'widget' || !(e.rails || e.faq || e.tabs || e.wall || e.slides) || !sec.nodes[i]) return;
+      if (e.type !== 'widget' || !(e.rails || e.faq || e.tabs || e.wall || e.slides || e.cards) || !sec.nodes[i]) return;
       var inner = sec.nodes[i].firstElementChild;
       if (!inner) return;
       var h = Math.round(inner.getBoundingClientRect().height / s);
@@ -2568,7 +2674,9 @@
     // the air under the design as drawn, on the 8 grid (24 rounding stacked
     // up to a deeper floor than the top)
     // (a picture section keeps its height: its words sit in its middle)
-    if (sec.minH && !(sec.bgImage || sec.fill || sec.bgVideo)) sec.minH = Math.max(MIN_H / 2, Math.ceil((bottomOf(sec.els) + Math.min(padB, 104)) / BASE) * BASE);
+    // (the floor never lifts a band drawn shorter than it: Misprint's
+    // ticker, drawn 160 tall, arrived 288)
+    if (sec.minH && !(sec.bgImage || sec.fill || sec.bgVideo)) sec.minH = Math.max(Math.min(MIN_H / 2, sec.minH), Math.ceil((bottomOf(sec.els) + Math.min(padB, 104)) / BASE) * BASE);
     resolveAndApply(sec);
   }
   // fonts land late: settle again a few times while nobody has touched it
@@ -2973,6 +3081,7 @@
     '<button type="button" class="gogh-sitem" data-add="rule" title="A line — a thin rule between things"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12h18"/></svg>Line</button>' +
     '<button type="button" class="gogh-sitem" data-add="write" title="Start writing — a reading column, cursor ready"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Write</button>' +
     '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop pieces inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
+    '<button type="button" class="gogh-sitem" data-add="cards" title="A set of cards that share one design \u2014 type on any card, add more in a click"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="5" width="5.5" height="14" rx="1.5"/><rect x="9.25" y="5" width="5.5" height="14" rx="1.5"/><rect x="16" y="5" width="5.5" height="14" rx="1.5"/></svg>Cards</button>' +
     '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
     (cfg.canExp ? '<button type="button" class="gogh-sitem" data-add="exp" title="Upload a self-contained HTML experience — it runs sandboxed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/></svg>Experience</button>' : '') +
     '<button type="button" class="gogh-sitem" data-add="form" title="Name, email and a message — straight into your own site, no plugin"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/><rect x="14" y="15" width="4" height="2.5" rx="1"/></svg>Form</button>' +
@@ -3798,6 +3907,14 @@
     '<button type="button" class="gogh-eb gogh-eb-look" title="Choose a style"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
+    // inside a set: where you are, and the way back out to the set
+    '<button type="button" class="gogh-eb gogh-eb-cardstrail" title="Back to the whole set (Esc)" style="display:none"></button>' +
+    // a card set's two everyday doors, in the shelf's order (Edit design ·
+    // Manage products): the design of every card, its layout and style in
+    // the sidebar, then one more card (James: 'i wonder if these should be
+    // the other way around')
+    '<button type="button" class="gogh-eb gogh-eb-cardslayout" title="Layout and style for every card" aria-haspopup="dialog" aria-expanded="false" style="display:none">Edit design</button>' +
+    '<button type="button" class="gogh-eb gogh-eb-addcard" title="Add a card" style="display:none"><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>Add card</button>' +
     // text size, the way Canva and Docs do it: a step smaller, the size by
     // name (a click opens every size), a step bigger
     // one small pill, [ − 85 + ]: a number needs no explaining (James:
@@ -3822,6 +3939,7 @@
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/><path class="gogh-eb-phone-slash" d="M4 20L20 4"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-dup" title="Duplicate (or Alt-drag)">⧉</button>' +
     '<button type="button" class="gogh-eb gogh-eb-del" title="Delete (Del)">🗑</button>' +
+    '<button type="button" class="gogh-eb gogh-eb-cardsmore" title="More for this set" aria-label="More for this set" aria-haspopup="dialog" aria-expanded="false" style="display:none">\u2022\u2022\u2022</button>' +
     // a card's own Line up: its pieces, lined up with each other or centred
     // on the card, and spaced evenly down it — the group bar's verbs, one
     // level in (James: "a line up option once the card has been made")
@@ -3881,6 +3999,22 @@
   var lstBtn = elbar.querySelector('.gogh-eb-lst');
   var LIST_ICON = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>';
   var LIST_ICON_OL = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 5.5l1.5-1v4M3 11.5c0-1 2-1.4 2 0 0 .8-2 1.6-2 2.5h2.2M3 16.5h2c1 0 1 2-.4 2 1.4 0 1.4 2 0 2H3" stroke-width="1.8"/></svg>';
+  elbar.querySelector('.gogh-eb-cardstrail').addEventListener('click', function () { unfocusCard(); });
+  elbar.querySelector('.gogh-eb-cardslayout').addEventListener('click', function () {
+    // a second press puts the sidebar away
+    if (panelOpen && panel.querySelector('.gogh-cards-pane')) { closePanel(); return; }
+    if (!sel || !sel.sec.els[sel.i].cards) return;
+    openCardsSide(sel.sec, sel.i, 'layout');
+  });
+  elbar.querySelector('.gogh-eb-cardsmore').addEventListener('click', function () {
+    if (!sel || !sel.sec.els[sel.i].cards) return;
+    openCardsMorePop(sel.sec, sel.i, this);
+  });
+  elbar.querySelector('.gogh-eb-addcard').addEventListener('click', function () {
+    if (!sel || !sel.sec.els[sel.i].cards) return;
+    // after the chosen card, or at the end of the set
+    cardsDo(sel.sec, sel.sec.els[sel.i], 'add', cardFocusOn(sel.sec, sel.i) ? cardFocus.k + 1 : -1);
+  });
   elbar.querySelector('.gogh-eb-manage').addEventListener('click', function () {
     if (!sel) return;
     var e2 = sel.sec.els[sel.i];
@@ -4419,6 +4553,9 @@
   mbar.hidden = true;
   mbar.innerHTML =
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-card" title="Make these one card — it holds together on phones">Make a card</button>' +
+    // matching freeform cards become one Cards set (add, move and restyle
+    // them together); this leads instead of Make a card when it applies
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-set" hidden title="Make these cards one set: add, move and restyle them together">Make these a set</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-dup" title="Duplicate the selection">Duplicate</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-del" title="Delete the selection">Delete</button>' +
     // the one-click fix sits where it can be seen: Tidy up lines the rows up,
@@ -4700,8 +4837,11 @@
       if (planOverlaps(sec, idxs, plan)) return 'Would put words on words';
       return '';
     };
+    var setable = selectionAsSet(els);
+    mbar.querySelector('.gogh-mb-set').hidden = !setable;
+    mbar.querySelector('.gogh-mb-card').hidden = !!setable;
     grey(mbar.querySelector('.gogh-mb-card'),
-      els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
+      els.some(function (e) { return e.type === 'box' || e.rails || e.cards || e.type === 'exp' || e.type === 'embed'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
       'Make these one card — it holds together on phones');
     mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
       grey(b, judge(alignPlan(els, b.dataset.how), ALIGN_DONE[b.dataset.how]), ALIGN_WORD[b.dataset.how]);
@@ -4726,11 +4866,34 @@
   }
   var ARRANGE_SAID = { left: 'Lined up on the left.', center: 'Centred.', right: 'Lined up on the right.',
     top: 'Tops lined up.', middle: 'Middles lined up.', bottom: 'Bottoms lined up.', page: 'Centred on the page.' };
+  // the selection read as one set: two or more freeform cards, every one a
+  // card with the same pieces (null otherwise)
+  function selectionAsSet(els) {
+    if (els.length < 2 || !els.every(function (e) { return e.type === 'box' && e.kids && e.kids.length; })) return null;
+    var got = cardsSetFromEls(els);
+    return got && got.boxes.length === els.length ? got : null;
+  }
+  function makeSetFromSelection() {
+    if (!multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    var got = selectionAsSet(idxs.map(function (j) { return sec.els[j]; }));
+    if (!got) return;
+    clearMulti();
+    var at = Math.min.apply(null, idxs);
+    idxs.slice().sort(function (a, b) { return b - a; }).forEach(function (j) { sec.els.splice(j, 1); });
+    sec.els.splice(at, 0, got.set);
+    renderSection(sec);
+    fitCards(sec);
+    placeHandles(sec, sec.els.indexOf(got.set));
+    pushState();
+    toast('One set now: add, move and restyle the cards together.',
+      { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
   function makeCardFromSelection() {
     if (!multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
     var members = idxs.map(function (j) { return sec.els[j]; });
-    if (members.length < 2 || members.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; })) return;
+    if (members.length < 2 || members.some(function (e) { return e.type === 'box' || e.rails || e.cards || e.type === 'exp' || e.type === 'embed'; })) return;
     var bb = bboxOf(members), pad = 24;
     var box = { type: 'box', x: Math.max(0, bb.x - pad), y: Math.max(0, bb.y - pad), radius: 12, kids: [] };
     box.w = Math.min(W - box.x, bb.x + bb.w + pad - box.x);
@@ -4753,15 +4916,21 @@
   function duplicateSelection() {
     if (!multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
-    var copies = diceFreshIds(idxs.map(function (j) { return JSON.parse(JSON.stringify(sec.els[j])); }));
-    copies.forEach(function (c) { c.x = Math.min(W - c.w, c.x + 24); c.y = c.y + 24; });
+    var origs = idxs.map(function (j) { return sec.els[j]; });
+    var copies = diceFreshIds(origs.map(function (o) { return JSON.parse(JSON.stringify(o)); }));
+    // as one block under the originals, what was below moving down
+    var bb = bboxOf(origs), dy = bb.h + RHYTHM;
+    makeRoomUnder(sec, bb, dy, origs);
+    copies.forEach(function (c) { c.y = c.y + dy; });
     var start = sec.els.length;
     copies.forEach(function (c) { sec.els.push(c); });
     renderSection(sec);
     setMulti(sec, copies.map(function (c, k) { return start + k; }));
     pushState();
+    toast('Duplicated, under them.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
   }
   mbar.querySelector('.gogh-mb-card').addEventListener('click', makeCardFromSelection);
+  mbar.querySelector('.gogh-mb-set').addEventListener('click', makeSetFromSelection);
   mbar.querySelector('.gogh-mb-dup').addEventListener('click', duplicateSelection);
   mbar.querySelector('.gogh-mb-del').addEventListener('click', function () { deleteSelected(); });
   mbar.querySelector('.gogh-mb-more').addEventListener('click', function () {
@@ -4818,6 +4987,11 @@
   }
   function hideHandles() {
     grip.hidden = selBox.hidden = true;
+    if (cardChip) cardChip.hidden = true;
+    if (cardGhost) cardGhost.hidden = true;
+    if (cardSeam) cardSeam.hidden = true;
+    closeCardPop();
+    if (cardFocus) unfocusCard();
     goghFadeOut(elbar);
   }
   function hideGuides() { guideV.hidden = guideH.hidden = true; }
@@ -4856,8 +5030,11 @@
     // huge purple circle over the card whenever it was chosen (James: "these
     // card styles ... are kinda weird")
     var isCardSel = !!(e.type === 'box' && e.kids && e.kids.length);
-    selTag.textContent = isCardSel ? 'Card' : '';
-    selTag.hidden = !isCardSel;
+    // a set says what it is too, and how many cards it holds
+    var setCount = e.cards && e.cards.items ? e.cards.items.length : 0;
+    selTag.textContent = isCardSel ? 'Card' : e.cards ? 'Cards \u00b7 ' + setCount : '';
+    selTag.hidden = !isCardSel && !e.cards;
+    selTag.classList.toggle('is-set', !!e.cards);
     selBox.hidden = false;
     grip.style.left = (bx - 26) + 'px';
     grip.style.top = (byy - 26) + 'px';
@@ -4877,7 +5054,7 @@
       // a photo wall, carousel, questions or tabs: an Edit in words, so it
       // is plain how to change what is inside (James: 'we should have a
       // little edit option on it so its clear to users how to change')
-      var what = e.wall ? 'Edit photos' : e.slides ? 'Edit slides' : e.faq ? 'Edit questions' : e.tabs ? 'Edit tabs' : 'Edit';
+      var what = e.cards ? 'Edit cards' : e.wall ? 'Edit photos' : e.slides ? 'Edit slides' : e.faq ? 'Edit questions' : e.tabs ? 'Edit tabs' : 'Edit';
       ctxBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>' + what + '</span>';
       ctxBtn.title = what;
       ctxBtn.style.display = '';
@@ -4890,6 +5067,32 @@
     if (!isCardSel) { elbar.querySelector('.gogh-elbar-more').hidden = true; elbar.classList.remove('gogh-elbar-open'); }
     else refreshCardLineup(sec, i);
     var railsEl = !!(e.rails && (e.shop || e.posts));
+    // a card set's bar: Layout, Style, Add card and its own ••• — the
+    // generic layer, copy and bin buttons live in that ••• for a set, and
+    // its words are typed on the cards, so there is no Edit door (James:
+    // 'do you think it makes sense to have edit cards, and 2 across?')
+    var cardsLay = elbar.querySelector('.gogh-eb-cardslayout'), cardsAdd = elbar.querySelector('.gogh-eb-addcard');
+    var cardsMore = elbar.querySelector('.gogh-eb-cardsmore');
+    cardsLay.style.display = cardsAdd.style.display = cardsMore.style.display = e.cards ? '' : 'none';
+    // a set never turns (its cards line up with the page); its Add card
+    // pill sits where the turn handle would
+    rotGrip.style.display = e.cards ? 'none' : '';
+    ['.gogh-eb-bck', '.gogh-eb-fwd', '.gogh-eb-dup', '.gogh-eb-del'].forEach(function (q2) { elbar.querySelector(q2).style.display = e.cards ? 'none' : ''; });
+    if (e.cards) {
+      ctxBtn.style.display = 'none';
+      // no \u25be, which promises a dropdown: Edit design opens the
+      // sidebar, and stays pressed while it is open
+      placeCardGhost(sec, i);
+      if (cardFocus && !cardFocusOn(sec, i)) unfocusCard();
+      placeCardFocus();
+      dressCardsTrail();
+      setHover.hidden = true;
+      if (cardPop && cardPop.__anchor && elbar.contains(cardPop.__anchor)) placeCardPop();
+    } else {
+      hideCardGhost();
+      closeCardPop();
+      if (cardFocus) unfocusCard();
+    }
     var manageBtn = elbar.querySelector('.gogh-eb-manage');
     // the bar is about the design on the page (James: 'i don't think we need
     // manage products so prominent here (or at all)'): the way to the
@@ -5031,9 +5234,76 @@
     clearTimeout(textTimer);
     textTimer = setTimeout(pushState, 800);
   }
+  // a card's words: the leaf under the pointer that carries a card field
+  function cardsLeafAt(sec, i, ev) {
+    var node = sec.nodes && sec.nodes[i];
+    if (!node || !ev) return null;
+    var at = (ev.target instanceof Element && node.contains(ev.target)) ? ev.target : document.elementFromPoint(ev.clientX, ev.clientY);
+    if (!at || !node.contains(at)) return null;
+    var leaf = at.closest('[data-cf]');
+    if (!leaf) {
+      // a click in the line's own box (the heading's padding, a price's
+      // gap) still lands on the words it holds
+      var holder = at.closest('.gogh-cs-t, .gogh-cs-d, .gogh-cs-role, .gogh-cs-k, .gogh-cs-n, .gogh-cs-link, .gogh-cs-price, .wp-block-button__link');
+      leaf = holder && holder.querySelector('[data-cf]');
+    }
+    return leaf && node.contains(leaf) ? leaf : null;
+  }
+  // typing on a card writes the card's field and the set's saved blocks;
+  // the canvas is already showing the words, so nothing redraws mid-word
+  function syncCardsEdit(done) {
+    var te = textEditing;
+    if (!te || !te.card) return;
+    var e = te.sec.els[te.i], leaf = te.target;
+    if (!e || !e.cards) return;
+    var it = e.cards.items[+leaf.dataset.ck], f = leaf.dataset.cf;
+    if (!it || CARD_FIELDS.indexOf(f) === -1) return;
+    var v = leaf.textContent.replace(/[\r\n]+/g, ' ');
+    it[f] = done === true ? v.replace(/\s+/g, ' ').trim() : v;
+    e.wsrc = composeCards(e.cards, false);
+    e.whtml = composeCards(e.cards, true);
+    if (fitCards(te.sec)) resolveAndApply(te.sec);
+    if (cardFocus) placeCardFocus();
+    clearTimeout(textTimer);
+    if (done === true) pushState(); else textTimer = setTimeout(pushState, 800);
+  }
+  function cardsEditKey(ev) {
+    // one line per field: Enter (and Escape) finish the words; the card
+    // stays chosen (the next Esc steps out to the set)
+    if (ev.key === 'Enter' || ev.key === 'Escape') {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var te = textEditing;
+      exitTextEdit();
+      if (te && sel && sel.sec === te.sec) placeHandles(te.sec, sel.i);
+    }
+  }
+  // a set's height is its cards': measured, and what sits below it moves
+  // with it (never on the phone view, where the set is drawn narrower)
+  function fitCards(sec) {
+    if (!sec || !sec.nodes || deviceMode === 'phone') return false;
+    var s = measureScaleOf(sec);
+    if (!(s > 0.2)) return false;
+    var moved = false;
+    sec.els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
+      if (e.type !== 'widget' || !e.cards) return;
+      var node = sec.nodes[sec.els.indexOf(e)];
+      var inner = node && node.querySelector('.gogh-cardset');
+      if (!inner || !node.offsetParent) return;
+      var h = Math.round(inner.offsetHeight / s);
+      if (!(h > 24) || Math.abs(h - e.h) <= 2) return;
+      var oldH = e.h;
+      e.h = h;
+      reflowPush(sec, e, oldH);
+      moved = true;
+    });
+    return moved;
+  }
   function enterTextEdit(sec, i, ev) {
-    var widgetLeaf = widgetEditableLeaf(sec, i, ev);
-    var t = widgetLeaf || editableTarget(sec, i);
+    var cardLeaf = sec.els[i] && sec.els[i].cards ? cardsLeafAt(sec, i, ev) : null;
+    if (sec.els[i] && sec.els[i].cards && !cardLeaf) return;
+    var widgetLeaf = cardLeaf ? null : widgetEditableLeaf(sec, i, ev);
+    var t = cardLeaf || widgetLeaf || editableTarget(sec, i);
     if (!t) return;
     exitTextEdit();
     var e = sec.els[i];
@@ -5042,7 +5312,7 @@
     // writing wants a CLEAN page: the selection box and handles fade out
     // while the caret is live (the floating toolbar stays)
     document.documentElement.classList.add('gogh-textediting');
-    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t, widget: !!widgetLeaf, at: Date.now() };
+    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t, widget: !!widgetLeaf, card: !!cardLeaf, at: Date.now() };
     // the click that opened the edit is often the second of two, and a third
     // lands while the words are already live: the browser's triple-click
     // then selects the whole paragraph and the next keystroke replaces it
@@ -5051,6 +5321,13 @@
     // click keeps the caret where it is; a deliberate double-click on a word
     // later still selects the word.
     t.addEventListener('mousedown', guardEntryClicks);
+    if (cardLeaf) {
+      t.addEventListener('input', syncCardsEdit);
+      t.addEventListener('keydown', cardsEditKey);
+      var clk = t.closest('a');
+      textEditing.link = clk;
+      if (clk) clk.addEventListener('click', preventNav);
+    }
     if (widgetLeaf) {
       t.addEventListener('input', syncWidgetEdit);
       var lk = t.closest('a');
@@ -5074,6 +5351,12 @@
     if (textEditing.widget) {
       syncWidgetEdit();
       t.removeEventListener('input', syncWidgetEdit);
+      if (textEditing.link) textEditing.link.removeEventListener('click', preventNav);
+    }
+    if (textEditing.card) {
+      syncCardsEdit(true);
+      t.removeEventListener('input', syncCardsEdit);
+      t.removeEventListener('keydown', cardsEditKey);
       if (textEditing.link) textEditing.link.removeEventListener('click', preventNav);
     }
     t.removeEventListener('mousedown', guardEntryClicks);
@@ -5107,7 +5390,22 @@
     node.addEventListener('pointerdown', function (ev) {
       if (!editing || drag || resize) return;
       if (designMode()) return; // birds-eye = arrange sections, not edit elements
-      if (textEditing && textEditing.node === node) return; // native caret/selection
+      if (textEditing && textEditing.node === node) {
+        // in a card set the caret lives in one card's words: a press on
+        // other words moves it there, a press on a picture opens that card
+        if (textEditing.card && !textEditing.target.contains(ev.target)) {
+          var nextLeaf = cardsLeafAt(sec, i, ev);
+          var picHit = ev.target.closest && ev.target.closest('[data-cpic]');
+          var cardHit2 = ev.target.closest && ev.target.closest('.gogh-cs-card[data-ck]');
+          exitTextEdit();
+          if (cardHit2) focusCard(sec, i, +cardHit2.dataset.ck); else unfocusCard();
+          var linkHit2 = ev.target.closest && ev.target.closest('.gogh-cs-link a, .gogh-cs-btns .wp-block-button__link');
+          if (linkHit2 && cardHit2) openCardLinkBar(sec, i, +cardHit2.dataset.ck, linkHit2);
+          else if (nextLeaf) enterTextEdit(sec, i, ev);
+          else if (picHit) openCardPicPop(sec, i, +picHit.dataset.ck, picHit);
+        }
+        return; // native caret/selection
+      }
       if (textEditing) exitTextEdit();
       if (ev.shiftKey && !ev.metaKey && !ev.ctrlKey) {
         // shift-click gathers a group (and shift-clicking again drops one)
@@ -5172,6 +5470,22 @@
         openPanel(pd.sec, pd.i);
         return;
       }
+      // a card set: words take the caret, a picture opens that card's page
+      // of the panel, anything else the panel itself
+      if (pe && pe.cards) {
+        // the second press goes into the card it lands on (the gap between
+        // cards steps back out to the set); a press on its words also puts
+        // the caret there, on its picture opens the picture chooser
+        var cardHit = ev.target && ev.target.closest ? ev.target.closest('.gogh-cs-card[data-ck]') : null;
+        if (!cardHit || !pd.node.contains(cardHit)) { unfocusCard(); return; }
+        focusCard(pd.sec, pd.i, +cardHit.dataset.ck);
+        var linkHit = ev.target.closest('.gogh-cs-link a, .gogh-cs-btns .wp-block-button__link');
+        if (linkHit && cardHit.contains(linkHit)) { openCardLinkBar(pd.sec, pd.i, +cardHit.dataset.ck, linkHit); return; }
+        if (cardsLeafAt(pd.sec, pd.i, ev)) { enterTextEdit(pd.sec, pd.i, ev); return; }
+        var picAt = ev.target.closest('[data-cpic]');
+        if (picAt) openCardPicPop(pd.sec, pd.i, +picAt.dataset.ck, picAt);
+        return;
+      }
       enterTextEdit(pd.sec, pd.i, ev);
     }
   });
@@ -5184,6 +5498,25 @@
     return null;
   }
   function preventNav(ev) { ev.preventDefault(); }
+  // a button's words never spill past its edges: it widens to fit them, and
+  // a piece beside it in its row moves along (the arrivals paper, row 9)
+  function growButtonToWords(sec, i) {
+    var e = sec.els[i], node = sec.nodes && sec.nodes[i];
+    var link = node && node.querySelector('.wp-block-button__link');
+    if (!link) return;
+    var s = measureScaleOf(sec);
+    if (!(s > 0.2)) return;
+    var need = Math.ceil(link.scrollWidth / s) + 2;
+    var grow = Math.min(need, W - e.x) - e.w;
+    if (!(grow > 0)) return;
+    var oldRight = e.x + e.w;
+    e.w += grow;
+    sec.els.forEach(function (o) {
+      if (o === e || o.x < oldRight - 8) return;
+      if (o.y < e.y + e.h && o.y + o.h > e.y) o.x = Math.min(W - o.w, o.x + grow);
+    });
+    resolveAndApply(sec);
+  }
   function onTextInput(ev) {
     var t = ev.target;
     S.forEach(function (sec) {
@@ -5192,6 +5525,7 @@
         e.text = (e.type === 'para' && e.list) ? listText(t)
           : (e.type === 'heading' || e.type === 'para') ? cleanInline(t.innerHTML) : t.textContent;
         if (e.fitW) refitText(sec, i); // fitted text follows the words as they change
+        if (e.type === 'button') growButtonToWords(sec, i);
         var oldH = e.h;
         measureTextHeights(sec);
         if (isText(e) && reflowPush(sec, e, oldH)) resolveAndApply(sec);
@@ -5754,6 +6088,7 @@
     panel.style.top = ''; panel.style.right = ''; panel.style.bottom = ''; panel.style.left = '';
     panel.style.width = ''; // a hand-resized width belongs to that panel only
     panelOpen = false;
+    dressCardsChips(); // Edit design lets go when its sidebar goes
     // a style audition must never outlive its panel
     if (typeof clearVariationPreview === 'function') clearVariationPreview();
     // an ACTIVE cycle owns its preview — defensive closePanel calls from
@@ -5894,7 +6229,7 @@
     }
     panelOpen = true;
     // the Q&A editors are typing surfaces — outside clicks pass through
-    if (e.type === 'widget' && ((e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length))) panelSticky = true;
+    if (e.type === 'widget' && (e.cards || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length))) panelSticky = true;
   }
   // a panel of many rows (a product grid, category tiles, posts, an FAQ)
   // docks down the left side and the page steps over beside it (James: 'do
@@ -5908,7 +6243,7 @@
     return lp.i < 0 ? (lp.sec.sectionEl || lp.sec.wrapEl) : lp.sec.nodes[lp.i];
   }
   function isLongPanel(e) {
-    return !!(e && e.type === 'widget' && (e.shop || e.posts || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length)));
+    return !!(e && e.type === 'widget' && (e.shop || e.posts || e.cards || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length)));
   }
   function dockLongPanel(sec, i) {
     var own = panel.querySelector('.gogh-panel-title');
@@ -6650,8 +6985,1048 @@
         });
       });
   }
+  // ---------- a card's own handle on the canvas ----------
+  // over a chosen set, the card under the pointer wears a small handle: a
+  // grip to drag the card to another place in the set, and a ••• that
+  // opens its menu (featured, link, duplicate, move, delete)
+  var CARD_GRIP_SVG = '<svg width="10" height="14" viewBox="0 0 12 14" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="3" r="1.4"/><circle cx="9" cy="3" r="1.4"/><circle cx="3" cy="7" r="1.4"/><circle cx="9" cy="7" r="1.4"/><circle cx="3" cy="11" r="1.4"/><circle cx="9" cy="11" r="1.4"/></g></svg>';
+  var cardChip = document.createElement('div');
+  cardChip.className = 'gogh-cardchip';
+  cardChip.innerHTML = '<button type="button" class="gogh-cardchip-grip" aria-label="Drag to move this card" title="Drag to move this card">' + CARD_GRIP_SVG + '</button>' +
+    '<button type="button" class="gogh-cardchip-more" aria-label="Card options" title="Card options">•••</button>';
+  cardChip.hidden = true;
+  document.body.appendChild(cardChip);
+  var cardChipFor = null, cardDrag = null;
+  cardChip.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); ev.preventDefault(); });
+  cardChip.querySelector('.gogh-cardchip-more').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    if (!cardChipFor) return;
+    var f = cardChipFor, e = f.sec.els[f.i];
+    if (e && e.cards) openCardMenu(cardChip, f.sec, e, f.k);
+  });
+  cardChip.querySelector('.gogh-cardchip-grip').addEventListener('pointerdown', function (ev) {
+    if (ev.button !== 0 || !cardChipFor) return;
+    startCardDrag(ev, cardChipFor);
+  });
+  // the handle sits on the chosen card's top-right corner, astride its
+  // ring, so it never covers the card's title
+  function placeCardChip(card, f) {
+    var r = card.getBoundingClientRect();
+    cardChip.hidden = false;
+    cardChip.style.left = (r.right + window.scrollX - cardChip.offsetWidth - 12) + 'px';
+    cardChip.style.top = (r.top + window.scrollY - 15) + 'px';
+    cardChipFor = f;
+  }
+  // ---------- a set first, then one card in it ----------
+  // (James: 'its hard to select the card component - its easy to select
+  // individual cards'). Pointing at a set outlines the whole set and names
+  // it; the first press chooses the set; a second press goes into one card
+  // (a ring, its grip and •••, 'Cards › Card 2' on the bar); Esc steps out
+  // a level at a time: words, card, set
+  var cardFocus = null; // { sec, i, k }
+  var cardRing = document.createElement('div');
+  cardRing.className = 'gogh-cardring';
+  cardRing.hidden = true;
+  document.body.appendChild(cardRing);
+  var setHover = document.createElement('div');
+  setHover.className = 'gogh-sethover';
+  setHover.innerHTML = '<span class="gogh-sethover-tag"></span>';
+  setHover.hidden = true;
+  document.body.appendChild(setHover);
+  function cardFocusOn(sec, i) { return !!(cardFocus && cardFocus.sec === sec && cardFocus.i === i); }
+  function focusCard(sec, i, k) {
+    cardFocus = { sec: sec, i: i, k: k };
+    placeCardFocus();
+    dressCardsTrail();
+  }
+  function unfocusCard() {
+    cardFocus = null;
+    cardRing.hidden = true;
+    if (!cardMenu) { cardChip.hidden = true; cardChipFor = null; }
+    dressCardsTrail();
+  }
+  function placeCardFocus() {
+    var f = cardFocus;
+    if (!f) { cardRing.hidden = true; return; }
+    var e = f.sec.els[f.i], node = f.sec.nodes && f.sec.nodes[f.i];
+    var card = e && e.cards && node ? node.querySelector('.gogh-cs-card[data-ck="' + f.k + '"]') : null;
+    if (!card) { unfocusCard(); return; }
+    var r = card.getBoundingClientRect();
+    cardRing.style.left = (r.left + window.scrollX - 5) + 'px';
+    cardRing.style.top = (r.top + window.scrollY - 5) + 'px';
+    cardRing.style.width = (r.width + 10) + 'px';
+    cardRing.style.height = (r.height + 10) + 'px';
+    cardRing.hidden = false;
+    placeCardChip(card, { sec: f.sec, i: f.i, k: f.k });
+  }
+  function dressCardsTrail() {
+    var tr = elbar.querySelector('.gogh-eb-cardstrail');
+    if (!tr) return;
+    var on = !!(cardFocus && sel && sel.sec === cardFocus.sec && sel.i === cardFocus.i);
+    tr.style.display = on ? '' : 'none';
+    if (on) tr.innerHTML = '<span class="gogh-trail-set">Cards</span><span class="gogh-trail-sep" aria-hidden="true">\u203a</span><b>Card ' + (cardFocus.k + 1) + '</b>';
+  }
+  // pointing at a set that is not chosen: one outline round the whole set, named
+  var setHoverNode = null;
+  document.addEventListener('pointermove', function (ev) {
+    if (!editing || drag || resize || cardDrag || ev.pointerType === 'touch') { setHover.hidden = true; return; }
+    var t = ev.target instanceof Element ? ev.target : null;
+    var cs = t && t.closest('.gogh-cardset');
+    var node = cs && cs.parentElement && cs.parentElement.classList.contains('gogh-widget') ? cs.parentElement : null;
+    if (!node || (sel && sel.sec.nodes && sel.sec.nodes[sel.i] === node) || designMode()) { setHover.hidden = true; setHoverNode = null; return; }
+    if (setHoverNode !== node || setHover.hidden) {
+      var r = node.getBoundingClientRect();
+      setHover.style.left = (r.left + window.scrollX - 8) + 'px';
+      setHover.style.top = (r.top + window.scrollY - 8) + 'px';
+      setHover.style.width = (r.width + 16) + 'px';
+      setHover.style.height = (r.height + 16) + 'px';
+      var n = cs.querySelectorAll(':scope > .gogh-cs-card').length;
+      setHover.firstChild.textContent = 'Cards \u00b7 ' + n;
+      setHover.hidden = false;
+      setHoverNode = node;
+    }
+  }, true);
+  // dragging a card: it lifts and follows the pointer, the slot it will
+  // land in is marked, and on release the set is redrawn in the new order
+  function startCardDrag(ev, f) {
+    var sec = f.sec, e = sec.els[f.i], node = sec.nodes && sec.nodes[f.i];
+    if (!e || !e.cards || !node || e.cards.items.length < 2) return;
+    exitTextEdit();
+    closeCardMenu();
+    closeCardPop();
+    var cards = [].slice.call(node.querySelectorAll('.gogh-cs-card[data-ck]'));
+    var from = f.k, card = cards[from];
+    if (!card) return;
+    var rects = cards.map(function (c) { return c.getBoundingClientRect(); });
+    cardDrag = { sec: sec, e: e, from: from, to: from, x0: ev.clientX, y0: ev.clientY, card: card, cards: cards, rects: rects };
+    card.classList.add('is-lifting');
+    cardChip.hidden = true;
+    hideCardGhost();
+    var move = function (mv) {
+      var d = cardDrag;
+      if (!d) return;
+      d.card.style.transform = 'translate(' + (mv.clientX - d.x0) + 'px,' + (mv.clientY - d.y0) + 'px) rotate(1.5deg)';
+      // the slot under the pointer, else the nearest one
+      var best = d.from, bd = Infinity;
+      d.rects.forEach(function (r, k) {
+        var inside = mv.clientX >= r.left && mv.clientX <= r.right && mv.clientY >= r.top && mv.clientY <= r.bottom;
+        var dist = inside ? -1 : Math.hypot(mv.clientX - (r.left + r.width / 2), mv.clientY - (r.top + r.height / 2));
+        if (dist < bd) { bd = dist; best = k; }
+      });
+      d.to = best;
+      d.cards.forEach(function (c, k) { c.classList.toggle('is-dropslot', k === best && k !== d.from); });
+    };
+    var up = function () {
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+      var d = cardDrag;
+      cardDrag = null;
+      if (!d) return;
+      d.card.classList.remove('is-lifting');
+      d.card.style.transform = '';
+      d.cards.forEach(function (c) { c.classList.remove('is-dropslot'); });
+      if (d.to !== d.from) cardsDo(d.sec, d.e, 'move', d.from, d.to);
+      else placeCardGhost(d.sec, d.sec.els.indexOf(d.e));
+    };
+    window.addEventListener('pointermove', move, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+  }
+  // ---------- the ghost card: one more, where it will land ----------
+  var cardGhost = document.createElement('button');
+  cardGhost.type = 'button';
+  cardGhost.className = 'gogh-cardghost';
+  cardGhost.innerHTML = '<span class="gogh-cardghost-plus"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" fill="none"/></svg></span><span class="gogh-cardghost-tx">Add card</span>';
+  cardGhost.hidden = true;
+  document.body.appendChild(cardGhost);
+  var cardGhostFor = null;
+  cardGhost.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
+  cardGhost.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var f = cardGhostFor, e = f && f.sec.els[f.i];
+    if (e && e.cards) cardsDo(f.sec, e, 'add', -1);
+  });
+  function hideCardGhost() { cardGhost.hidden = true; cardGhostFor = null; }
+  // beside the last card when the row has room, else a strip under the set
+  function placeCardGhost(sec, i) {
+    var e = sec && sec.els[i], node = e && e.cards && sec.nodes ? sec.nodes[i] : null;
+    var cards = node ? node.querySelectorAll('.gogh-cs-card[data-ck]') : [];
+    if (!node || !cards.length || deviceMode === 'phone') { hideCardGhost(); return; }
+    // only in the slot a part-filled grid row leaves empty, exactly where
+    // the card will land; never a row of its own (the bar and the + in the
+    // gaps do the rest: the Add a card paper, 2026-10-17)
+    if (!/^(g2|g3|g4|steps|small|big|over)$/.test(e.cards.layout)) { hideCardGhost(); return; }
+    var grid = node.querySelector('.gogh-cardset');
+    var cols = (getComputedStyle(grid).gridTemplateColumns || '').split(' ').filter(Boolean).length;
+    var lastEl = cards[cards.length - 1], last = lastEl.getBoundingClientRect();
+    var setR = grid.getBoundingClientRect();
+    var gapPx = parseFloat(getComputedStyle(grid).columnGap) || 20;
+    if (cols < 2 || last.right + gapPx + last.width > setR.right + 2) { hideCardGhost(); return; }
+    cardGhost.classList.remove('is-strip');
+    cardGhost.style.left = (last.right + gapPx + window.scrollX) + 'px';
+    cardGhost.style.top = (last.top + window.scrollY) + 'px';
+    cardGhost.style.width = last.width + 'px';
+    cardGhost.style.height = last.height + 'px';
+    cardGhost.hidden = false;
+    cardGhostFor = { sec: sec, i: i };
+  }
+  // ---------- a + in the gap: a card goes in exactly there ----------
+  // pointing at the gap between two cards of the chosen set shows a line
+  // and a +, the same gesture as the + between sections
+  var cardSeam = document.createElement('div');
+  cardSeam.className = 'gogh-cardseam';
+  cardSeam.innerHTML = '<span class="gogh-cardseam-line"></span><button type="button" class="gogh-cardseam-add" aria-label="Add a card here" title="Add a card here">+</button>';
+  cardSeam.hidden = true;
+  document.body.appendChild(cardSeam);
+  var cardSeamAt = null;
+  cardSeam.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); ev.preventDefault(); });
+  cardSeam.querySelector('.gogh-cardseam-add').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var f = cardSeamAt, e = f && f.sec.els[f.i];
+    cardSeam.hidden = true;
+    if (e && e.cards) cardsDo(f.sec, e, 'add', f.k);
+  });
+  function cardSeamsOf(node) {
+    var cards = [].slice.call(node.querySelectorAll('.gogh-cs-card[data-ck]'));
+    var rs = cards.map(function (c) { return c.getBoundingClientRect(); }), out = [];
+    for (var k = 0; k + 1 < rs.length; k++) {
+      var a = rs[k], b = rs[k + 1];
+      if (Math.abs(a.top - b.top) < 30 && b.left > a.right - 2) {
+        out.push({ vert: true, x: (a.right + b.left) / 2, y1: Math.max(a.top, b.top), y2: Math.min(a.bottom, b.bottom), k: k + 1 });
+      } else if (Math.abs(a.left - b.left) < 4 && b.top > a.bottom - 2) {
+        out.push({ vert: false, y: (a.bottom + b.top) / 2, x1: Math.max(a.left, b.left), x2: Math.min(a.right, b.right), k: k + 1 });
+      }
+    }
+    return out;
+  }
+  document.addEventListener('pointermove', function (ev) {
+    if (!editing || drag || resize || cardDrag || textEditing || ev.pointerType === 'touch') { cardSeam.hidden = true; return; }
+    if (cardSeam.contains(ev.target)) return;
+    var e = sel && sel.sec.els[sel.i];
+    var node = e && e.cards && sel.sec.nodes ? sel.sec.nodes[sel.i] : null;
+    if (!node || cardPop || cardMenu) { cardSeam.hidden = true; return; }
+    var best = null;
+    cardSeamsOf(node).forEach(function (sm) {
+      var d = sm.vert ? (ev.clientY >= sm.y1 && ev.clientY <= sm.y2 ? Math.abs(ev.clientX - sm.x) : Infinity)
+        : (ev.clientX >= sm.x1 && ev.clientX <= sm.x2 ? Math.abs(ev.clientY - sm.y) : Infinity);
+      if (d < 18 && (!best || d < best.d)) best = { sm: sm, d: d };
+    });
+    if (!best) { cardSeam.hidden = true; cardSeamAt = null; return; }
+    var sm = best.sm;
+    cardSeam.classList.toggle('is-vert', sm.vert);
+    if (sm.vert) {
+      cardSeam.style.left = (sm.x + window.scrollX - 14) + 'px';
+      cardSeam.style.top = (sm.y1 + window.scrollY) + 'px';
+      cardSeam.style.width = '28px';
+      cardSeam.style.height = (sm.y2 - sm.y1) + 'px';
+    } else {
+      cardSeam.style.left = (sm.x1 + window.scrollX) + 'px';
+      cardSeam.style.top = (sm.y + window.scrollY - 14) + 'px';
+      cardSeam.style.width = (sm.x2 - sm.x1) + 'px';
+      cardSeam.style.height = '28px';
+    }
+    cardSeam.hidden = false;
+    cardSeamAt = { sec: sel.sec, i: sel.i, k: sm.k };
+  }, true);
+  // ---------- the set's own popovers: Layout, Style, its •••, a picture ----------
+  var cardPop = null;
+  function closeCardPop() {
+    if (!cardPop) return;
+    var p = cardPop;
+    cardPop = null;
+    p.remove();
+    if (p.__onClose) p.__onClose();
+    elbar.querySelectorAll('.gogh-eb-cardsmore').forEach(function (b) { b.classList.remove('is-open'); b.setAttribute('aria-expanded', 'false'); });
+  }
+  function openCardPop(anchor, cls, label, side) {
+    closeCardPop();
+    closeCardMenu();
+    var p = document.createElement('div');
+    p.className = 'gogh-cardpop ' + cls;
+    p.setAttribute('role', 'dialog');
+    p.setAttribute('aria-label', label);
+    p.__anchor = anchor;
+    p.__side = side || 'below';
+    document.body.appendChild(p);
+    p.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
+    cardPop = p;
+    if (anchor.classList.contains('gogh-eb')) { anchor.classList.add('is-open'); anchor.setAttribute('aria-expanded', 'true'); }
+    setTimeout(function () {
+      document.addEventListener('pointerdown', function away(ev) {
+        if (cardPop !== p) { document.removeEventListener('pointerdown', away, true); return; }
+        if (p.contains(ev.target) || anchor.contains(ev.target)) return;
+        document.removeEventListener('pointerdown', away, true);
+        closeCardPop();
+      }, true);
+    }, 0);
+    return p;
+  }
+  function placeCardPop() {
+    var p = cardPop;
+    if (!p || !p.__anchor || !p.__anchor.isConnected) return;
+    var r = p.__anchor.getBoundingClientRect();
+    var w = p.offsetWidth, h = p.offsetHeight, left, top;
+    if (p.__side === 'right') {
+      left = r.right + 14;
+      if (left + w > window.innerWidth - 8) left = Math.max(8, r.left - w - 14);
+      top = Math.min(Math.max(8, r.top), Math.max(8, window.innerHeight - h - 8));
+    } else {
+      left = Math.min(window.innerWidth - w - 8, Math.max(8, r.left));
+      top = r.bottom + 8;
+    }
+    p.style.left = (left + window.scrollX) + 'px';
+    p.style.top = (top + window.scrollY) + 'px';
+  }
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape') return;
+    // a card's words, then the card, then the set: one level per Esc
+    if (!cardPop && !cardMenu && cardFocus && !textEditing) {
+      ev.stopPropagation();
+      ev.preventDefault();
+      unfocusCard();
+      return;
+    }
+    if (!(cardPop || cardMenu)) return;
+    ev.stopPropagation();
+    closeCardPop();
+    closeCardMenu();
+  }, true);
+  // the layouts drawn around pictures (round faces, words on the photo, one
+  // big leader) mean nothing on a set with Picture: None, so choosing one
+  // switches pictures on; a card with none shows a spot to choose one (James:
+  // 'small and centered doesnt seem to work' — it did, with no pictures)
+  var CARD_PIC_LAYOUTS = { small: 1, over: 1, big: 1 };
+  function cardsSetLayout(c, v) {
+    c.layout = v;
+    if (CARD_PIC_LAYOUTS[v] && c.pic === 'none') c.pic = 'wide';
+  }
+  // a set's layout or look, worn for a moment by the canvas only
+  function cardsWear(sec, e, key, v) {
+    var trial = JSON.parse(JSON.stringify(e.cards));
+    if (key === 'layout') cardsSetLayout(trial, v); else trial[key] = v;
+    e.whtml = composeCards(trial, true);
+    renderSection(sec);
+    var i = sec.els.indexOf(e);
+    if (i !== -1 && sel && sel.sec === sec && sel.i === i) placeHandles(sec, i);
+  }
+  var CARD_LAYOUT_DRAW = {
+    g3: '<i class="cl-row">' + '<i class="cl-card"><i class="cl-pic"></i></i>'.repeat(3) + '</i>',
+    g2: '<i class="cl-row">' + '<i class="cl-card"><i class="cl-pic"></i></i>'.repeat(2) + '</i>',
+    g4: '<i class="cl-row cl-tight">' + '<i class="cl-card"><i class="cl-pic"></i></i>'.repeat(4) + '</i>',
+    steps: '<i class="cl-row cl-steps">' + '<i class="cl-card"></i>'.repeat(3) + '</i>',
+    rows: '<i class="cl-col">' + '<i class="cl-line"><i class="cl-pic cl-side"></i><i class="cl-fill"></i></i>'.repeat(3) + '</i>',
+    zig: '<i class="cl-col cl-zig">' + '<i class="cl-line"><i class="cl-pic cl-half"></i><i class="cl-fill"></i></i>'.repeat(3) + '</i>',
+    over: '<i class="cl-row">' + '<i class="cl-card cl-dark"><i class="cl-w1"></i><i class="cl-w2"></i></i>'.repeat(3) + '</i>',
+    slider: '<i class="cl-row cl-slide">' + '<i class="cl-card"></i>'.repeat(4) + '<i class="cl-next">›</i></i>',
+    big: '<i class="cl-big"><i class="cl-pic"></i><i class="cl-card"></i><i class="cl-card"></i></i>',
+    index: '<i class="cl-col cl-index">' + '<i class="cl-rule"><i class="cl-w1"></i><i class="cl-arrow">→</i></i>'.repeat(3) + '</i>',
+    ledger: '<i class="cl-col cl-index cl-ledger">' + '<i class="cl-rule"><i class="cl-lead"></i><i class="cl-w1"></i><i class="cl-w2"></i><i class="cl-val"></i></i>'.repeat(3) + '</i>',
+    small: '<i class="cl-row cl-small">' + '<i class="cl-dot"><i class="cl-pic"></i><i class="cl-w1"></i></i>'.repeat(3) + '</i>',
+  };
+  // Layout and Style are pages of the docked sidebar, the page shrunk
+  // beside it, so every choice you point at is seen on the whole set
+  // (James: 'when you open up styles it covers the component')
+  function paintCardsLayoutInto(box, sec, e) {
+    var c = e.cards = cardsNorm(e.cards);
+    box.innerHTML = '<div class="gogh-cardpop-tiles">' + CARD_LAYOUTS.map(function (L) {
+      return '<button type="button" class="gogh-cltile' + (L[0] === c.layout ? ' is-active' : '') + '" data-v="' + L[0] + '" aria-pressed="' + (L[0] === c.layout) + '" aria-label="' + escAttr(L[1] + ': ' + L[2]) + '">' +
+        '<span class="gogh-cldraw" aria-hidden="true">' + CARD_LAYOUT_DRAW[L[0]] + '</span><span class="gogh-clname">' + esc(L[1]) + '</span></button>';
+    }).join('') + '</div>';
+    var grid = box.firstChild;
+    grid.querySelectorAll('.gogh-cltile').forEach(function (b) {
+      b.addEventListener('mouseenter', function () { cardsWear(sec, e, 'layout', b.dataset.v); });
+      b.addEventListener('click', function () {
+        cardsSetLayout(c, b.dataset.v);
+        grid.querySelectorAll('.gogh-cltile').forEach(function (o) { o.classList.toggle('is-active', o === b); o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+        cardsApply(sec, e);
+      });
+    });
+    grid.addEventListener('mouseleave', function () { cardsWear(sec, e, 'layout', c.layout); });
+  }
+  var CARD_LOOK_DRAW = '<i class="cs-card"><i class="cs-pic"></i><i class="cs-w1"></i><i class="cs-w2"></i></i>';
+  // the Style tab, to the sidebar standard (Site styles): the card looks as
+  // drawings, then hairline rows — a switch, or a name with its current
+  // value that opens its choices as rows with a tick (James: 'do the cards
+  // sidebar follow our lovely new design system?')
+  var cardsStyleOpen = null;
+  // (built when painted: the choice lists are defined further down)
+  function cardStyleRows() {
+    return [
+      ['pic', 'Picture', CARD_PICS],
+      ['align', 'Words line up', [['left', 'Left'], ['center', 'Centred']]],
+      ['act', 'Each card ends with', CARD_ACTS],
+    ];
+  }
+  function paintCardsStyleInto(box, sec, e) {
+    var c = e.cards = cardsNorm(e.cards);
+    var sw = function (key, label, sub) {
+      return '<div class="gogh-siterow gogh-csrow-sw"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">' + label + '</span>' + (sub ? '<span class="gogh-siterow-sub">' + sub + '</span>' : '') + '</span>' +
+        '<button type="button" class="gogh-hswitch' + (c[key] ? ' is-on' : '') + '" role="switch" aria-checked="' + !!c[key] + '" data-sw="' + key + '" aria-label="' + label + '"><span class="gogh-hswitch-knob"></span></button></div>';
+    };
+    var drill = function (r) {
+      if (r[0] === 'align' && c.layout === 'small') return '';
+      var open = cardsStyleOpen === r[0];
+      var html = '<button type="button" class="gogh-siterow gogh-csrow' + (open ? ' is-open' : '') + '" data-row="' + r[0] + '" aria-expanded="' + open + '">' +
+        '<span class="gogh-siterow-tx"><span class="gogh-siterow-t">' + r[1] + '</span><span class="gogh-siterow-sub">' + esc(cardsOptName(r[2], c[r[0]])) + '</span></span><span class="gogh-siterow-val"></span>' + CARDS_CHEV + '</button>';
+      if (open) html += '<div class="gogh-cschoices" role="group" aria-label="' + escAttr(r[1]) + '">' + r[2].map(function (o) {
+        var on = c[r[0]] === o[0];
+        return '<button type="button" class="gogh-cschoice' + (on ? ' is-current' : '') + '" data-k="' + r[0] + '" data-v="' + o[0] + '" aria-pressed="' + on + '"><span>' + esc(o[1]) + '</span>' +
+          (on ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : '') + '</button>';
+      }).join('') + '</div>';
+      return html;
+    };
+    box.innerHTML = '<div class="gogh-cardpop-looks">' + CARD_LOOKS.map(function (o) {
+        return '<button type="button" class="gogh-cslook gogh-cslook-' + o[0] + (c.look === o[0] ? ' is-active' : '') + '" data-v="' + o[0] + '" aria-pressed="' + (c.look === o[0]) + '">' +
+          '<span class="gogh-csdraw" aria-hidden="true">' + CARD_LOOK_DRAW + '</span><span>' + esc(o[1]) + '</span></button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-siterows gogh-csrows">' +
+      sw('round', 'Rounded corners') +
+      cardStyleRows().map(drill).join('') +
+      sw('titles', 'Titles', c.titles ? 'Each card has a title' : 'Kind words: the name signs off') +
+      '</div>';
+    var again = function () { cardsApply(sec, e); paintCardsStyleInto(box, sec, e); };
+    var looks = box.querySelector('.gogh-cardpop-looks');
+    looks.querySelectorAll('.gogh-cslook').forEach(function (b) {
+      b.addEventListener('mouseenter', function () { cardsWear(sec, e, 'look', b.dataset.v); });
+      b.addEventListener('click', function () { c.look = b.dataset.v; again(); });
+    });
+    looks.addEventListener('mouseleave', function () { cardsWear(sec, e, 'look', c.look); });
+    box.querySelectorAll('.gogh-csrow').forEach(function (b) {
+      b.addEventListener('click', function () { cardsStyleOpen = cardsStyleOpen === b.dataset.row ? null : b.dataset.row; paintCardsStyleInto(box, sec, e); });
+    });
+    box.querySelectorAll('.gogh-cschoices').forEach(function (g) {
+      g.querySelectorAll('.gogh-cschoice').forEach(function (b) {
+        // point to try it on the page, click to keep it
+        b.addEventListener('mouseenter', function () { cardsWear(sec, e, b.dataset.k, b.dataset.v); });
+        b.addEventListener('click', function () { c[b.dataset.k] = b.dataset.v; again(); });
+      });
+      g.addEventListener('mouseleave', function () { var k0 = g.querySelector('.gogh-cschoice').dataset.k; cardsWear(sec, e, k0, c[k0]); });
+    });
+    box.querySelectorAll('[data-sw]').forEach(function (b) { b.addEventListener('click', function () { c[b.dataset.sw] = c[b.dataset.sw] ? 0 : 1; again(); }); });
+  }
+  // the bar's Layout and Style open their page of the sidebar; a second
+  // press on the same chip closes it
+  var cardsFromBarNext = false, cardsFromBar = false;
+  function openCardsSide(sec, i, view) {
+    if (panelOpen && longPanelFor && longPanelFor.sec === sec && longPanelFor.i === i && cardsView === view && panel.querySelector('.gogh-cards-pane')) { closePanel(); return; }
+    closeCardPop();
+    if (panelOpen) closePanel();
+    cardsOpenAt = view;
+    cardsFromBarNext = true;
+    openPanel(sec, i);
+    dressCardsChips();
+  }
+  function dressCardsChips() {
+    var open = panelOpen && !!panel.querySelector('.gogh-cards-pane');
+    var lay = elbar.querySelector('.gogh-eb-cardslayout');
+    lay.classList.toggle('is-open', open);
+    lay.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  function openCardsMorePop(sec, i, btn) {
+    var e = sec.els[i];
+    if (cardPop && cardPop.__anchor === btn) { closeCardPop(); return; }
+    var c = e.cards = cardsNorm(e.cards);
+    var p = openCardPop(btn, 'gogh-cardpop-more', 'More for this set');
+    var row = function (key, label, sub, on) {
+      return '<span class="gogh-cardpop-row gogh-cardpop-xrow"><span><b>' + label + '</b><small>' + sub + '</small></span>' +
+        '<button type="button" class="gogh-hswitch' + (on ? ' is-on' : '') + '" role="switch" aria-checked="' + on + '" data-x="' + key + '" aria-label="' + label + '"><span class="gogh-hswitch-knob"></span></button></span>';
+    };
+    var paint = function () {
+      p.innerHTML = '<div class="gogh-cardpop-lab">On every card</div>' +
+        row('k', 'A line above the title', 'A small label: Step one, Spring', !!c.extras.k) +
+        row('price', 'A price', 'With a period: £24 a month', !!c.extras.price) +
+        row('role', 'A name and role', 'For a team, or under kind words', !!c.extras.role) +
+        row('n', 'A small note', 'Under the words: a date, a size, a place', !!c.extras.n) +
+        row('feat', 'One featured card', 'Dark and a little taller', c.feat >= 0) +
+        '<hr>' +
+        '<button type="button" class="gogh-cardpop-item" data-act="list">All cards, as a list<small>' + c.items.length + (c.items.length === 1 ? ' card' : ' cards') + '</small></button>' +
+        '<button type="button" class="gogh-cardpop-item" data-act="dup">Duplicate the set</button>' +
+        '<hr>' +
+        '<button type="button" class="gogh-cardpop-item is-danger" data-act="del">Delete the set</button>';
+      p.querySelectorAll('[data-x]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var x = b.dataset.x;
+          if (x === 'feat') c.feat = c.feat >= 0 ? -1 : Math.min(1, c.items.length - 1);
+          else c.extras[x] = c.extras[x] ? 0 : 1;
+          if (x === 'price' && c.extras.price) c.items.forEach(function (it2, k2) { if (!it2.price) { it2.price = '£' + (20 + 10 * k2); it2.per = it2.per || 'each'; } });
+          if (x === 'role' && c.extras.role) c.items.forEach(function (it2) { if (!it2.role) it2.role = 'Their role'; });
+          cardsApply(sec, e);
+          paint();
+        });
+      });
+      p.querySelector('[data-act="list"]').addEventListener('click', function () {
+        closeCardPop();
+        cardsOpenAt = null;
+        openPanel(sec, sec.els.indexOf(e));
+      });
+      p.querySelector('[data-act="dup"]').addEventListener('click', function () {
+        closeCardPop();
+        elbar.querySelector('.gogh-eb-dup').click();
+      });
+      p.querySelector('[data-act="del"]').addEventListener('click', function () {
+        closeCardPop();
+        deleteSelected();
+      });
+      placeCardPop();
+    };
+    paint();
+  }
+  // ---------- a card's link, where the link is ----------
+  // (James: 'its impossible to add links to the link'): a press on a card's
+  // link or button opens a bar right under it with its words, where it
+  // goes, and the site's pages to pick from
+  var cardPagesCache = null;
+  function cardSitePages() {
+    if (cardPagesCache) return cardPagesCache;
+    cardPagesCache = fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/pages?per_page=12&orderby=menu_order&order=asc&_fields=title,link', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (list) {
+        return (list || []).map(function (pg) {
+          var path = '/';
+          try { path = new URL(pg.link).pathname; } catch (err) {}
+          return { name: plainTitle((pg.title && pg.title.rendered) || 'Untitled'), path: path };
+        });
+      });
+    return cardPagesCache;
+  }
+  function cardHrefShown(h) {
+    h = String(h || '');
+    try { var u = new URL(h, location.href); if (u.origin === location.origin) return u.pathname + u.search + u.hash; } catch (err) {}
+    return h.replace(/^https?:\/\//, '');
+  }
+  function openCardLinkBar(sec, i, k, anchor) {
+    var e = sec.els[i], c = e.cards = cardsNorm(e.cards), it = c.items[k];
+    if (!it) return;
+    var isBtn = c.act === 'button';
+    var p = openCardPop(anchor, 'gogh-cardpop-linkbar', isBtn ? 'This card\u2019s button' : 'This card\u2019s link');
+    p.innerHTML = '<div class="gogh-cardpop-head"><b>' + (isBtn ? 'Button' : 'Link') + '</b><span>This card only</span></div>' +
+      '<label class="gogh-cardpop-field">Words<input type="text" class="gogh-input gogh-lb-words" value="' + escAttr(it.link || '') + '" placeholder="' + (isBtn ? 'Book a session' : 'Find out more') + '" /></label>' +
+      '<label class="gogh-cardpop-field">Goes to<input type="text" class="gogh-input gogh-lb-href" value="' + escAttr(it.href || '') + '" placeholder="https://\u2026 or /a-page" /></label>' +
+      '<div class="gogh-cardpop-pages"><span class="gogh-cardpop-lab">Your pages</span></div>' +
+      (it.href ? '<button type="button" class="gogh-cardpop-link is-danger" data-act="unlink">Remove the address</button>' : '');
+    var words = p.querySelector('.gogh-lb-words'), href = p.querySelector('.gogh-lb-href');
+    var leaf = function () { var n = sec.nodes && sec.nodes[sec.els.indexOf(e)]; return n && n.querySelector('[data-ck="' + k + '"][data-cf="link"]'); };
+    var keepWords = function () {
+      var v = words.value.replace(/\s+/g, ' ').trim();
+      if (v === (it.link || '')) return;
+      it.link = v;
+      cardsApply(sec, e);
+    };
+    var keepHref = function (v) {
+      var h = cardsHref(v);
+      if (h === (it.href || '')) return;
+      it.href = h;
+      href.value = h;
+      // an address with no words would be invisible: it gets a few
+      if (h && !it.link) { it.link = isBtn ? 'Find out more' : 'Find out more'; words.value = it.link; }
+      cardsApply(sec, e);
+      toast(h ? 'This card now goes to ' + cardHrefShown(h) : 'The address is gone; the words stay.');
+    };
+    words.addEventListener('input', function () { var l = leaf(); if (l) { l.textContent = words.value; l.removeAttribute('data-ph'); } });
+    words.addEventListener('change', keepWords);
+    words.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); keepWords(); href.focus(); } });
+    href.addEventListener('change', function () { keepHref(href.value); });
+    href.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); keepHref(href.value); closeCardPop(); } });
+    var un = p.querySelector('[data-act="unlink"]');
+    if (un) un.addEventListener('click', function () { keepHref(''); closeCardPop(); });
+    var pages = p.querySelector('.gogh-cardpop-pages');
+    cardSitePages().then(function (list) {
+      if (cardPop !== p) return;
+      if (!list.length) { pages.remove(); return; }
+      list.forEach(function (pg) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-cardpop-page' + (cardsHref(it.href) === pg.path ? ' is-on' : '');
+        b.innerHTML = '<span>' + esc(pg.name) + '</span><small>' + esc(pg.path) + '</small>';
+        b.addEventListener('click', function () { keepWords(); keepHref(pg.path); closeCardPop(); });
+        pages.appendChild(b);
+      });
+      placeCardPop();
+    });
+    p.__onClose = function () { keepWords(); };
+    placeCardPop();
+    setTimeout(function () { (it.link ? href : words).focus(); }, 0);
+  }
+  // pointing at a card's link says where it goes, before anyone presses it
+  var cardTip = document.createElement('div');
+  cardTip.className = 'gogh-cardtip';
+  cardTip.hidden = true;
+  document.body.appendChild(cardTip);
+  document.addEventListener('pointermove', function (ev) {
+    if (!editing || drag || resize || cardDrag) { cardTip.hidden = true; return; }
+    var t = ev.target instanceof Element ? ev.target : null;
+    var a = t && t.closest('.gogh-cs-link a, .gogh-cs-btns .wp-block-button__link');
+    var card = a && a.closest('.gogh-cs-card[data-ck]');
+    var node = card && card.closest('.gogh-widget');
+    if (!node || (cardPop && cardPop.classList.contains('gogh-cardpop-linkbar'))) { cardTip.hidden = true; return; }
+    var at = null;
+    S.some(function (s2) { var j = s2.nodes ? s2.nodes.indexOf(node) : -1; if (j !== -1) { at = { sec: s2, i: j }; return true; } return false; });
+    var e = at && at.sec.els[at.i], it = e && e.cards && e.cards.items[+card.dataset.ck];
+    if (!it) { cardTip.hidden = true; return; }
+    cardTip.textContent = it.href ? '\u2192 ' + cardHrefShown(it.href) : 'No address yet \u2014 press it to add one';
+    cardTip.classList.toggle('is-empty', !it.href);
+    var r = a.getBoundingClientRect();
+    cardTip.hidden = false;
+    cardTip.style.left = (r.left + window.scrollX) + 'px';
+    cardTip.style.top = (r.top + window.scrollY - cardTip.offsetHeight - 8) + 'px';
+  }, true);
+  // card links that go nowhere, named for the publish toast
+  function cardLinksWithoutAddress() {
+    var out = [];
+    S.forEach(function (s2) {
+      (s2.els || []).forEach(function (e) {
+        if (!e.cards || !e.cards.items || e.cards.act === 'none') return;
+        e.cards.items.forEach(function (it, k) { if (it && it.link && !cardsHref(it.href)) out.push(it.t || ('card ' + (k + 1))); });
+      });
+    });
+    return out;
+  }
+  // a card's picture, chosen beside it: the library's newest, an upload,
+  // the words that describe it, or none at all
+  function openCardPicPop(sec, i, k, anchor) {
+    var e = sec.els[i], c = e.cards = cardsNorm(e.cards), it = c.items[k];
+    if (!it) return;
+    var p = openCardPop(anchor, 'gogh-cardpop-pic', 'Picture for this card', 'right');
+    p.innerHTML = '<div class="gogh-cardpop-head"><b>Picture</b><span>This card only</span></div>' +
+      '<div class="gogh-cardpop-thumbs"><span class="gogh-media-loading">Loading your pictures…</span></div>' +
+      '<div class="gogh-cardpop-btns">' +
+      (cfg.canUpload ? '<label class="gogh-cardpop-btn">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
+      '<button type="button" class="gogh-cardpop-btn" data-act="more" title="All the pictures in your media library">Library</button></div>' +
+      '<label class="gogh-cardpop-field">Describe it, for people who can’t see it<input type="text" class="gogh-input" value="' + escAttr(it.alt || '') + '" /></label>' +
+      (it.img ? '<button type="button" class="gogh-cardpop-link is-quiet" data-act="none">Remove picture</button>' : '');
+    var setPic = function (url, id, alt) {
+      it.img = url || '';
+      if (id) it.mediaId = id; else delete it.mediaId;
+      if (alt && !it.alt) it.alt = alt;
+      closeCardPop();
+      cardsApply(sec, e);
+    };
+    var alt = p.querySelector('.gogh-cardpop-field input');
+    alt.addEventListener('change', function () { it.alt = alt.value.trim(); cardsApply(sec, e); });
+    var none = p.querySelector('[data-act="none"]');
+    if (none) none.addEventListener('click', function () { setPic('', null); });
+    p.querySelector('[data-act="more"]').addEventListener('click', function () {
+      closeCardPop();
+      cardsOpenAt = k;
+      openPanel(sec, sec.els.indexOf(e));
+    });
+    var file = p.querySelector('input[type="file"]');
+    if (file) file.addEventListener('change', function () {
+      if (!file.files.length) return;
+      var fd = new FormData();
+      fd.append('file', file.files[0]);
+      var label = file.parentNode;
+      label.firstChild.textContent = 'Uploading…';
+      fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd })
+        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(function (item) { setPic(item.source_url, item.id, item.alt_text || ''); })
+        .catch(function (err) { label.firstChild.textContent = 'Upload failed'; console.error('gogh upload failed:', err); });
+    });
+    var box = p.querySelector('.gogh-cardpop-thumbs');
+    fetch(restQ(cfg.mediaUrl, 'per_page=8&media_type=image&orderby=date&order=desc'), { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+      .then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
+        if (cardPop !== p) return;
+        box.innerHTML = '';
+        if (!items.length) { box.innerHTML = '<span class="gogh-media-loading">No pictures in the library yet.</span>'; placeCardPop(); return; }
+        items.forEach(function (item) {
+          var th = item.media_details && item.media_details.sizes && (item.media_details.sizes.thumbnail || item.media_details.sizes.medium);
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-cardpop-thumb' + (it.img === item.source_url ? ' is-on' : '');
+          b.setAttribute('aria-label', (item.alt_text || (item.title && item.title.rendered) || 'A picture').replace(/<[^>]*>/g, ''));
+          b.style.backgroundImage = 'url("' + (th ? th.source_url : item.source_url) + '")';
+          b.addEventListener('click', function () { setPic(item.source_url, item.id, item.alt_text || ''); });
+          box.appendChild(b);
+        });
+        placeCardPop();
+      });
+    placeCardPop();
+  }
+  // ---------- the Cards panel ----------
+  // one list (add, move, remove) and one design for every card. The pages
+  // of the panel (the list, Layout, Card look, Picture, Words, one card)
+  // paint into one pane under the docked head, whose Back steps up a page
+  var cardsView = null, cardsOpenAt;
+  var CARDS_CHEV = '<svg class="gogh-siterow-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+  function cardsOptName(list, v) { return (list.filter(function (o) { return o[0] === v; })[0] || ['', ''])[1]; }
+  function cardsWordsName(c) {
+    var al = c.layout === 'small' || c.align === 'center' ? 'Centred' : 'Left';
+    return al + (c.titles ? '' : ', no titles') + (c.act === 'button' ? ', with a button' : c.act === 'link' ? ', with a link' : '');
+  }
+  // the set redrawn from its model, the set's own height kept true, the
+  // selection kept on it
+  function cardsApply(sec, e, push) {
+    composeCardsData(e);
+    renderSection(sec);
+    var i = sec.els.indexOf(e);
+    if (i !== -1 && sel && sel.sec === sec && sel.i === i) placeHandles(sec, i);
+    if (push !== false) pushState();
+  }
+  var cardsAddedAt = null;
+  function cardsDo(sec, e, op, k, to) {
+    var c = e.cards = cardsNorm(e.cards), items = c.items;
+    if (op === 'add') {
+      // a new card has its neighbours' parts, empty and asking (never a copy
+      // of another card's words, which could slip onto the live page);
+      // k is where it goes (after the chosen card, or the end)
+      var at2 = k == null || k < 0 || k > items.length ? items.length : k;
+      items.splice(at2, 0, { t: '', d: '', link: '', img: '', alt: '', href: '', price: '', per: '', role: '' });
+      if (c.feat >= at2) c.feat++;
+      cardsAddedAt = at2;
+    } else if (op === 'dup') {
+      items.splice(k + 1, 0, JSON.parse(JSON.stringify(items[k])));
+      if (c.feat > k) c.feat++;
+    } else if (op === 'del') {
+      if (items.length < 2) return;
+      items.splice(k, 1);
+      if (c.feat === k) c.feat = -1; else if (c.feat > k) c.feat--;
+    } else if (op === 'up' || op === 'down') {
+      var to = k + (op === 'up' ? -1 : 1);
+      if (to < 0 || to >= items.length) return;
+      var moved = items.splice(k, 1)[0];
+      items.splice(to, 0, moved);
+      if (c.feat === k) c.feat = to; else if (c.feat === to) c.feat = k;
+    } else if (op === 'move') {
+      // a card dragged to another place in the set; the featured card stays itself
+      if (to == null || to === k || to < 0 || to >= items.length) return;
+      var featIt = c.feat >= 0 ? items[c.feat] : null;
+      items.splice(to, 0, items.splice(k, 1)[0]);
+      c.feat = featIt ? items.indexOf(featIt) : -1;
+    } else if (op === 'feat') {
+      c.feat = c.feat === k ? -1 : k;
+    }
+    // the chosen card follows its card through a move; a deleted one lets go
+    if (cardFocusOn(sec, sec.els.indexOf(e))) {
+      if (op === 'del') unfocusCard();
+      else if (op === 'move') cardFocus.k = to;
+      else if (op === 'up' || op === 'down') cardFocus.k = Math.max(0, Math.min(items.length - 1, k + (op === 'up' ? -1 : 1)));
+      else if (op === 'dup') cardFocus.k = k + 1;
+    }
+    cardsApply(sec, e);
+    // the set stays the chosen thing after any change to its cards
+    var at = sec.els.indexOf(e);
+    if (at !== -1 && !(sel && sel.sec === sec && sel.i === at)) placeHandles(sec, at);
+    if (op === 'add' && at !== -1 && cardsAddedAt != null) {
+      var newK = cardsAddedAt;
+      cardsAddedAt = null;
+      focusCard(sec, at, newK);
+      var leafT = sec.nodes[at] && sec.nodes[at].querySelector('[data-ck="' + newK + '"][data-cf="t"]');
+      var cardN = sec.nodes[at] && sec.nodes[at].querySelector('.gogh-cs-card[data-ck="' + newK + '"]');
+      if (cardN) {
+        var rr = cardN.getBoundingClientRect();
+        if (rr.top < 60 || rr.bottom > window.innerHeight - 20) cardN.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+      if (leafT && e.cards.titles) {
+        var lr = leafT.getBoundingClientRect();
+        enterTextEdit(sec, at, { target: leafT, clientX: lr.left + 2, clientY: lr.top + lr.height / 2 });
+      }
+    }
+    if (longPanelFor && longPanelFor.sec === sec && longPanelFor.i === at) paintCardsPanel(sec, e);
+  }
+  // a card's own small menu, on the canvas and in the list alike
+  var cardMenu = null;
+  // (the variable empties first: removing the menu blurs its Link field,
+  // whose change handler closes the menu again)
+  function closeCardMenu() { var m = cardMenu; cardMenu = null; if (m && m.isConnected) m.remove(); }
+  function openCardMenu(anchor, sec, e, k) {
+    closeCardMenu();
+    var c = e.cards, n = c.items.length;
+    var horiz = /^(g2|g3|g4|steps|big|small|slider)$/.test(c.layout);
+    cardMenu = document.createElement('div');
+    cardMenu.className = 'gogh-cardmenu';
+    cardMenu.setAttribute('role', 'menu');
+    cardMenu.innerHTML =
+      '<button type="button" role="menuitemcheckbox" aria-checked="' + (c.feat === k) + '" data-op="feat" class="' + (c.feat === k ? 'is-on' : '') + '">The featured card</button>' +
+      // where the card goes, set on the card: an address, or one of the site's pages
+      '<button type="button" role="menuitem" class="gogh-cardmenu-linkbtn" aria-expanded="false">Link…<small>' + esc(c.items[k] && c.items[k].href ? c.items[k].href.replace(/^https?:\/\/[^/]+/, '') || '/' : '') + '</small></button>' +
+      '<div class="gogh-cardmenu-link" hidden><label>Link<input type="text" class="gogh-input" placeholder="https://… or /a-page" value="' + escAttr((c.items[k] && c.items[k].href) || '') + '" /></label>' +
+      '<div class="gogh-cardmenu-pages"><span class="gogh-cardmenu-lab">Your pages</span></div></div>' +
+      '<button type="button" role="menuitem" data-op="dup">Duplicate</button>' +
+      '<button type="button" role="menuitem" data-op="up"' + (k === 0 ? ' disabled' : '') + '>' + (horiz ? 'Move left' : 'Move up') + '</button>' +
+      '<button type="button" role="menuitem" data-op="down"' + (k >= n - 1 ? ' disabled' : '') + '>' + (horiz ? 'Move right' : 'Move down') + '</button>' +
+      '<hr>' +
+      '<button type="button" role="menuitem" data-op="del" class="is-danger"' + (n < 2 ? ' disabled title="A set keeps at least one card"' : '') + '>Delete card</button>';
+    document.body.appendChild(cardMenu);
+    // a press in the menu is not a press on the page (it kept the set chosen)
+    cardMenu.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
+    var r = anchor.getBoundingClientRect();
+    var mw = cardMenu.offsetWidth, mh = cardMenu.offsetHeight;
+    var left = Math.min(window.innerWidth - mw - 8, Math.max(8, r.left));
+    var top = r.bottom + 6 + mh > window.innerHeight ? Math.max(8, r.top - mh - 6) : r.bottom + 6;
+    cardMenu.style.left = (left + window.scrollX) + 'px';
+    cardMenu.style.top = (top + window.scrollY) + 'px';
+    cardMenu.querySelectorAll('button[data-op]').forEach(function (b) {
+      b.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        closeCardMenu();
+        cardsDo(sec, e, b.dataset.op, k);
+      });
+    });
+    var lbtn = cardMenu.querySelector('.gogh-cardmenu-linkbtn'), lbox = cardMenu.querySelector('.gogh-cardmenu-link');
+    var hrefDone = false;
+    var setHref = function (v) {
+      var it = c.items[k];
+      if (!it || hrefDone) return;
+      hrefDone = true;
+      it.href = cardsHref(v);
+      if (it.href && !it.link && c.act !== 'none') it.link = 'Find out more';
+      closeCardMenu();
+      cardsApply(sec, e);
+      toast(it.href ? 'This card now goes to ' + it.href : 'Link cleared.');
+    };
+    lbtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      lbox.hidden = !lbox.hidden;
+      lbtn.setAttribute('aria-expanded', lbox.hidden ? 'false' : 'true');
+      if (lbox.hidden) return;
+      var inp = lbox.querySelector('input');
+      inp.focus();
+      inp.select();
+      inp.addEventListener('keydown', function (kev) { if (kev.key === 'Enter') { kev.preventDefault(); setHref(inp.value); } });
+      inp.addEventListener('change', function () { setHref(inp.value); });
+      var pages = lbox.querySelector('.gogh-cardmenu-pages');
+      if (pages.__filled) return;
+      pages.__filled = true;
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/pages?per_page=8&orderby=menu_order&order=asc&_fields=title,link', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (list) {
+          if (!cardMenu || !cardMenu.contains(pages)) return;
+          (list || []).forEach(function (pg) {
+            var path = '/';
+            try { path = new URL(pg.link).pathname; } catch (err) {}
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.innerHTML = '<span>' + esc(plainTitle((pg.title && pg.title.rendered) || 'Untitled')) + '</span><small>' + esc(path) + '</small>';
+            b.addEventListener('click', function (cev) { cev.stopPropagation(); setHref(path); });
+            pages.appendChild(b);
+          });
+        });
+    });
+    setTimeout(function () {
+      document.addEventListener('pointerdown', function away(ev) {
+        if (cardMenu && cardMenu.contains(ev.target)) return;
+        document.removeEventListener('pointerdown', away, true);
+        closeCardMenu();
+      }, true);
+    }, 0);
+  }
+  function cardsSwitch(key, label, on) {
+    return '<div class="gogh-hstickyrow gogh-cards-extra"><span>' + label + '</span>' +
+      '<button type="button" class="gogh-hswitch' + (on ? ' is-on' : '') + '" role="switch" aria-checked="' + on + '" data-set="' + key + '" aria-label="' + label + '"><span class="gogh-hswitch-knob"></span></button></div>';
+  }
+  function buildCardsPanel(sec, i, view) {
+    var e = sec.els[i];
+    e.cards = cardsNorm(e.cards);
+    cardsView = view !== undefined ? view : cardsOpenAt !== undefined ? cardsOpenAt : null;
+    cardsOpenAt = undefined;
+    cardsFromBar = cardsFromBarNext;
+    cardsFromBarNext = false;
+    // a hover audition never outlives the panel, nor does the bar's open chip
+    panelCleanup = function () {
+      if (e.cards && e.whtml !== composeCards(e.cards, true)) { composeCardsData(e); renderSection(sec); }
+      cardsView = null;
+      setTimeout(dressCardsChips, 0);
+    };
+    panel.innerHTML = '<div class="gogh-panel-title">Cards</div><div class="gogh-cards-pane"></div>';
+    paintCardsPanel(sec, e);
+  }
+  function paintCardsPanel(sec, e) {
+    var pane = panel.querySelector('.gogh-cards-pane');
+    if (!pane) return;
+    var c = e.cards = cardsNorm(e.cards);
+    var view = cardsView;
+    if (typeof view === 'number' && !c.items[view]) view = cardsView = null;
+    var titleEl = panel.querySelector('.gogh-panel-title');
+    var back = panel.querySelector('.gogh-panel-x');
+    // the docked head's Back steps up a page before it closes the panel
+    if (back && !back.__cardsBack) {
+      back.__cardsBack = true;
+      back.addEventListener('click', function (ev) {
+        if (cardsView === null || cardsFromBar || !panel.querySelector('.gogh-cards-pane')) return;
+        ev.stopImmediatePropagation();
+        cardsView = null;
+        var lp = longPanelFor;
+        if (lp && lp.sec.els[lp.i] && lp.sec.els[lp.i].cards) paintCardsPanel(lp.sec, lp.sec.els[lp.i]);
+      }, true);
+    }
+    // (docked, the head's Back steps up; floating on a phone, this does)
+    var inBack = back || deviceMode !== 'phone' || cardsFromBar ? '' : (view !== null ? '<button type="button" class="gogh-btn gogh-btn-small gogh-cards-up">‹ All cards</button>' : '');
+    // Layout and Style side by side at the top of their pages: the bar is
+    // out of reach while the sidebar is open
+    if (view === 'layout' || view === 'style') {
+      inBack += '<div class="gogh-cardside-tabs" role="tablist">' + [['layout', 'Layout'], ['style', 'Style']].map(function (t) {
+        return '<button type="button" role="tab" aria-selected="' + (view === t[0]) + '" data-tab="' + t[0] + '"' + (view === t[0] ? ' class="is-on"' : '') + '>' + t[1] + '</button>';
+      }).join('') + '</div>';
+    }
+    var opts = function (list, cur, descs) {
+      return '<div class="gogh-hoptlist gogh-cards-opts">' + list.map(function (o) {
+        return '<button type="button" class="gogh-hopt' + (o[0] === cur ? ' is-active' : '') + '" data-v="' + o[0] + '">' +
+          '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(o[1]) +
+          (descs && o[2] ? '<span class="gogh-hopt-desc">' + esc(o[2]) + '</span>' : '') + '</span></button>';
+      }).join('') + '</div>';
+    };
+    var html = inBack;
+    if (view === null) {
+      if (titleEl) titleEl.textContent = 'Cards';
+      html += '<div class="gogh-panel-hint">' + (c.items.length === 1 ? 'One card' : c.items.length + ' cards') + ', one design. Type on any card to change its words; this list adds and moves them.</div>' +
+        '<div class="gogh-cardlist">' + c.items.map(function (it, k) {
+          return '<div class="gogh-cardrow' + (c.feat === k ? ' is-featured' : '') + '" draggable="true" data-k="' + k + '">' +
+            '<span class="gogh-cardrow-grip" aria-hidden="true"></span>' +
+            '<button type="button" class="gogh-cardrow-open" data-k="' + k + '" title="Picture and link">' +
+            '<span class="gogh-cardrow-pic"' + (it.img ? ' style="background-image:url(\'' + escAttr(it.img) + '\')"' : '') + '></span>' +
+            '<span class="gogh-cardrow-tx"><span class="gogh-cardrow-t">' + esc(it.t || 'Untitled card') + '</span>' +
+            '<span class="gogh-cardrow-s">' + esc(c.feat === k ? 'The featured card' : (it.d || it.link || '')) + '</span></span></button>' +
+            '<button type="button" class="gogh-cardrow-more" data-k="' + k + '" aria-label="Card options">•••</button>' +
+            '</div>';
+        }).join('') + '</div>' +
+        '<button type="button" class="gogh-btn gogh-btn-primary gogh-cards-add">Add card</button>' +
+        '<div class="gogh-swlab">One design for every card</div>' +
+        '<div class="gogh-siterows">' +
+        '<button type="button" class="gogh-siterow" data-view="layout"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">Layout</span><span class="gogh-siterow-sub">' + esc(cardsOptName(CARD_LAYOUTS, c.layout)) + '</span></span><span class="gogh-siterow-val"></span>' + CARDS_CHEV + '</button>' +
+        '<button type="button" class="gogh-siterow" data-view="style"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">Style</span><span class="gogh-siterow-sub">' + esc(cardsOptName(CARD_LOOKS, c.look) + (c.round ? ', rounded' : '') + ' \u00b7 ' + cardsOptName(CARD_PICS, c.pic) + ' \u00b7 ' + cardsWordsName(c)) + '</span></span><span class="gogh-siterow-val"></span>' + CARDS_CHEV + '</button>' +
+        '</div>' +
+        '<div class="gogh-swlab">Extras on every card</div>' +
+        [['k', 'A line above the title'], ['price', 'A price'], ['role', 'A name and role'], ['n', 'A small note'], ['feat', 'One featured card']].map(function (x) {
+          var on = x[0] === 'feat' ? c.feat >= 0 : !!c.extras[x[0]];
+          return '<div class="gogh-hstickyrow gogh-cards-extra"><span>' + x[1] + '</span>' +
+            '<button type="button" class="gogh-hswitch' + (on ? ' is-on' : '') + '" role="switch" aria-checked="' + on + '" data-x="' + x[0] + '" aria-label="' + x[1] + '"><span class="gogh-hswitch-knob"></span></button></div>';
+        }).join('');
+    } else if (view === 'layout') {
+      if (titleEl) titleEl.textContent = 'Edit design'; // the bar's door, both tabs
+      html += '<div class="gogh-panel-hint">Point at one to try it on the page; click to keep it. The cards\u2019 words never change.</div><div class="gogh-cards-sidebox gogh-cards-sidelayout"></div>';
+    } else if (view === 'style') {
+      if (titleEl) titleEl.textContent = 'Edit design'; // the bar's door, both tabs
+      html += '<div class="gogh-panel-hint">Worn by every card. Point at a look to try it on the page; click to keep it.</div><div class="gogh-cards-sidebox gogh-cards-sidestyle"></div>';
+    } else {
+      var it = c.items[view];
+      if (titleEl) titleEl.textContent = it.t || 'This card';
+      html += '<div class="gogh-swlab">Where it goes</div>' +
+        '<div class="gogh-panel-row"><input type="url" class="gogh-input gogh-card-href" placeholder="https://… or /a-page" value="' + escAttr(it.href || '') + '" /></div>' +
+        '<div class="gogh-panel-hint">' + (c.act === 'none' ? 'This set ends without a link (Words, at the top, changes that).' : 'Its link or button opens this.') + '</div>' +
+        '<div class="gogh-swlab">Picture</div>' +
+        (it.img ? '<div class="gogh-cardpic-now" style="background-image:url(\'' + escAttr(it.img) + '\')"></div>' : '') +
+        '<div class="gogh-panel-row"><input type="text" class="gogh-input gogh-card-alt" placeholder="Describe the picture (alt text)" value="' + escAttr(it.alt || '') + '" /></div>' +
+        '<div class="gogh-panel-row gogh-panel-actions">' +
+        (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
+        (it.img ? '<button type="button" class="gogh-btn gogh-btn-small gogh-card-nopicbtn">No picture</button>' : '') +
+        '</div>' +
+        '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>';
+    }
+    pane.innerHTML = html;
+    pane.querySelectorAll('.gogh-hswitch[data-set]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var k2 = b.dataset.set;
+        c[k2] = c[k2] ? 0 : 1;
+        b.classList.toggle('is-on', !!c[k2]);
+        b.setAttribute('aria-checked', c[k2] ? 'true' : 'false');
+        cardsApply(sec, e);
+      });
+    });
+    var go = function (v) { cardsView = v; paintCardsPanel(sec, e); pane.scrollTop = 0; };
+    pane.querySelectorAll('.gogh-cardside-tabs [data-tab]').forEach(function (t) { t.addEventListener('click', function () { go(t.dataset.tab); }); });
+    setTimeout(dressCardsChips, 0);
+    var up = pane.querySelector('.gogh-cards-up');
+    if (up) up.addEventListener('click', function () { go(null); });
+    if (view === null) {
+      pane.querySelector('.gogh-cards-add').addEventListener('click', function () { cardsDo(sec, e, 'add'); });
+      pane.querySelectorAll('.gogh-cardrow-open').forEach(function (b) { b.addEventListener('click', function () { go(+b.dataset.k); }); });
+      pane.querySelectorAll('.gogh-cardrow-more').forEach(function (b) {
+        b.addEventListener('click', function (ev) { ev.stopPropagation(); openCardMenu(b, sec, e, +b.dataset.k); });
+      });
+      pane.querySelectorAll('.gogh-siterow[data-view]').forEach(function (b) { b.addEventListener('click', function () { go(b.dataset.view); }); });
+      pane.querySelectorAll('.gogh-hswitch[data-x]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var x = b.dataset.x;
+          if (x === 'feat') c.feat = c.feat >= 0 ? -1 : Math.min(1, c.items.length - 1);
+          else c.extras[x] = c.extras[x] ? 0 : 1;
+          if (x === 'price' && c.extras.price) c.items.forEach(function (it2, k2) { if (!it2.price) { it2.price = '£' + (20 + 10 * k2); it2.per = it2.per || 'each'; } });
+          if (x === 'role' && c.extras.role) c.items.forEach(function (it2) { if (!it2.role) it2.role = 'Their role'; });
+          cardsApply(sec, e);
+          paintCardsPanel(sec, e);
+        });
+      });
+      // drag a row to move the card
+      var dragK = -1;
+      pane.querySelectorAll('.gogh-cardrow').forEach(function (row) {
+        row.addEventListener('dragstart', function (ev) { dragK = +row.dataset.k; row.classList.add('is-dragging'); try { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', String(dragK)); } catch (err) {} });
+        row.addEventListener('dragend', function () { row.classList.remove('is-dragging'); pane.querySelectorAll('.gogh-cardrow').forEach(function (r2) { r2.classList.remove('is-before', 'is-after'); }); });
+        row.addEventListener('dragover', function (ev) {
+          if (dragK < 0) return;
+          ev.preventDefault();
+          var r = row.getBoundingClientRect(), after = ev.clientY > r.top + r.height / 2;
+          pane.querySelectorAll('.gogh-cardrow').forEach(function (r2) { r2.classList.remove('is-before', 'is-after'); });
+          row.classList.add(after ? 'is-after' : 'is-before');
+        });
+        row.addEventListener('drop', function (ev) {
+          ev.preventDefault();
+          if (dragK < 0) return;
+          var k = +row.dataset.k, r = row.getBoundingClientRect(), after = ev.clientY > r.top + r.height / 2;
+          var to = k + (after ? 1 : 0);
+          if (to > dragK) to--;
+          var from = dragK;
+          dragK = -1;
+          if (to === from) return;
+          var items = c.items, featIt = c.feat >= 0 ? items[c.feat] : null;
+          items.splice(to, 0, items.splice(from, 1)[0]);
+          c.feat = featIt ? items.indexOf(featIt) : -1;
+          cardsApply(sec, e);
+          paintCardsPanel(sec, e);
+        });
+      });
+    } else if (view === 'layout') {
+      paintCardsLayoutInto(pane.querySelector('.gogh-cards-sidelayout'), sec, e);
+    } else if (view === 'style') {
+      paintCardsStyleInto(pane.querySelector('.gogh-cards-sidestyle'), sec, e);
+    } else {
+      var k = view, it2 = c.items[k];
+      var hrefIn = pane.querySelector('.gogh-card-href');
+      hrefIn.addEventListener('change', function () { it2.href = cardsHref(hrefIn.value); hrefIn.value = it2.href; cardsApply(sec, e); });
+      var altIn = pane.querySelector('.gogh-card-alt');
+      altIn.addEventListener('change', function () { it2.alt = altIn.value.trim(); cardsApply(sec, e); });
+      var setPic = function (url, id, alt) {
+        it2.img = url || '';
+        if (id) it2.mediaId = id; else delete it2.mediaId;
+        if (alt != null && !it2.alt) it2.alt = alt;
+        cardsApply(sec, e);
+        paintCardsPanel(sec, e);
+      };
+      var nop = pane.querySelector('.gogh-card-nopicbtn');
+      if (nop) nop.addEventListener('click', function () { setPic('', null); });
+      var file = pane.querySelector('input[type="file"]');
+      if (file) file.addEventListener('change', function () {
+        if (!file.files.length) return;
+        var fd = new FormData();
+        fd.append('file', file.files[0]);
+        var label = pane.querySelector('.gogh-upload');
+        label.firstChild.textContent = 'Uploading…';
+        fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd })
+          .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+          .then(function (item) { setPic(item.source_url, item.id, item.alt_text || ''); })
+          .catch(function (err) { label.firstChild.textContent = 'Upload failed'; console.error('gogh upload failed:', err); });
+      });
+      var box = pane.querySelector('.gogh-media');
+      fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+        .then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
+          if (!box || panel.hidden || !pane.contains(box)) return;
+          box.innerHTML = '';
+          if (!items.length) { box.innerHTML = '<span class="gogh-media-loading">No images in the media library yet.</span>'; return; }
+          items.forEach(function (item) {
+            var th = item.media_details && item.media_details.sizes && (item.media_details.sizes.thumbnail || item.media_details.sizes.medium);
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'gogh-thumb' + (it2.img === item.source_url ? ' is-active' : '');
+            b.title = (item.title && item.title.rendered) || '';
+            b.style.backgroundImage = 'url("' + (th ? th.source_url : item.source_url) + '")';
+            b.addEventListener('click', function () { setPic(item.source_url, item.id, item.alt_text || ''); });
+            box.appendChild(b);
+          });
+          reclampPanel();
+        });
+    }
+    reclampPanel();
+  }
   function buildWidgetPanel(sec, i) {
     var e = sec.els[i];
+    if (e.cards) return buildCardsPanel(sec, i);
     if (e.rails && e.shop) return buildShopPanel(sec, i);
     if (e.rails && e.posts) return buildPostsPanel(sec, i);
     if ((e.faq && e.faq.length) || (e.tabs && e.tabs.length)) return buildQnaPanel(sec, i);
@@ -6740,7 +8115,7 @@
         : '') +
       (showColour
         ? '<div class="gogh-swlab">Style</div>' +
-          '<div class="gogh-panel-row gogh-btnstyle">' +
+          '<div class="gogh-panel-row gogh-btnstyle"' + (lookOf(e) ? ' hidden' : '') + '>' +
           '<button type="button" class="gogh-btn gogh-btn-small gogh-style-solid' + (!e.ghost ? ' is-active' : '') + '">Solid</button>' +
           '<button type="button" class="gogh-btn gogh-btn-small gogh-style-outline' + (e.ghost ? ' is-active' : '') + '">Outline</button>' +
           '</div>' +
@@ -7709,17 +9084,83 @@
 
   elbar.querySelector('.gogh-eb-fwd').addEventListener('click', function () { layerMove(1); });
   elbar.querySelector('.gogh-eb-bck').addEventListener('click', function () { layerMove(-1); });
-  elbar.querySelector('.gogh-eb-dup').addEventListener('click', function () {
+  // ---------- arrivals: a new piece lands where the next one would go ----------
+  // (the paper 'Pieces that arrive in the right place', 2026-10-18: James,
+  // 'when we duplicate a button it should arrive aligned and next to the
+  // existing button'). What sits in a row lands beside its original, tops
+  // lined up; what stacks lands under it, and what was below moves down to
+  // make room. Never on top of anything.
+  var ARRIVE_BESIDE = { button: 1, image: 1, box: 1, icon: 1, badge: 1, line: 1, video: 1, exp: 1 };
+  function arrivalGap(type) { return type === 'button' ? 16 : RHYTHM; }
+  function rectsHit(a, b) { return a.x < b.x + b.w - 2 && a.x + a.w > b.x + 2 && a.y < b.y + b.h - 2 && a.y + a.h > b.y + 2; }
+  // make room under a block: everything at or below its old bottom, in its
+  // column, moves down by dy (rows lined up with them move too)
+  function makeRoomUnder(sec, block, dy, skip) {
+    var fake = { x: block.x, y: block.y, w: block.w, h: block.h + dy };
+    var keep = skip ? sec.els.filter(function (o) { return skip.indexOf(o) === -1; }) : null;
+    reflowPush(sec, fake, block.h, keep);
+  }
+  // place piece (not yet in sec.els) near anchor; returns 'beside' or 'under'
+  function landNear(sec, anchor, piece) {
+    var gap = arrivalGap(piece.type);
+    var right = Math.max(W - 80, anchor.x + anchor.w);
+    // a backdrop the anchor sits on (a panel of colour) is not in the way
+    var inWay = sec.els.filter(function (o) {
+      if (o === anchor || o === piece) return false;
+      return !(o.type === 'box' && !(o.kids && o.kids.length) && o.x <= anchor.x && o.y <= anchor.y && o.x + o.w >= anchor.x + anchor.w && o.y + o.h >= anchor.y + anchor.h);
+    });
+    if (ARRIVE_BESIDE[piece.type] && !piece.cards && anchor.type === piece.type) {
+      var cand = { x: anchor.x + anchor.w + gap, y: anchor.y, w: piece.w, h: piece.h };
+      if (cand.x + cand.w <= right && !inWay.some(function (o) { return rectsHit(cand, o); })) {
+        piece.x = cand.x; piece.y = cand.y;
+        return 'beside';
+      }
+    }
+    piece.x = anchor.align === 'center' ? Math.round(anchor.x + (anchor.w - piece.w) / 2) : anchor.x;
+    piece.x = Math.max(0, Math.min(W - piece.w, piece.x));
+    // (a stack keeps the page's rhythm; the tighter gap is a button pair's)
+    piece.y = anchor.y + anchor.h + RHYTHM;
+    makeRoomUnder(sec, anchor, piece.h + RHYTHM);
+    return 'under';
+  }
+  // Add with a piece chosen in this section: the new piece arrives next to
+  // it (paper row 2), not in the section's middle. False when nothing fits
+  function landNearChosen(sec, e) {
+    if (!sel || sel.sec !== sec) return false;
+    var anchor = sec.els[sel.i];
+    if (!anchor || anchor === e) return false;
+    // new words match the words they arrive under (paper row 8): a
+    // paragraph under a paragraph, a heading under a heading
+    if (isText(e) && anchor.type === e.type && !anchor.list) {
+      ['fs', 'align', 'color', 'cls'].forEach(function (k) { if (anchor[k] != null) e[k] = anchor[k]; else delete e[k]; });
+      if (anchor.tf) e.tf = JSON.parse(JSON.stringify(anchor.tf)); else delete e.tf;
+      e.w = anchor.w;
+      e.__keepW = true; // its width is its neighbour's, not its ink's
+    }
+    landNear(sec, anchor, e);
+    return true;
+  }
+  // the second button of a pair is the quieter one: a copy beside the only
+  // solid button in its row arrives in the outline style
+  function quietSecondButton(sec, anchor, copy) {
+    if (copy.type !== 'button' || anchor.type !== 'button' || anchor.ghost || lookOf(anchor)) return;
+    var solidInRow = sec.els.filter(function (o) { return o !== anchor && o.type === 'button' && !o.ghost && Math.abs((o.y + o.h / 2) - (anchor.y + anchor.h / 2)) < anchor.h; });
+    if (!solidInRow.length) copy.ghost = true;
+  }
+  elbar.querySelector('.gogh-eb-dup').addEventListener('click', duplicateChosen);
+  function duplicateChosen() {
     if (!sel) return;
-    var sec = sel.sec;
-    var copy = diceFreshIds([JSON.parse(JSON.stringify(sec.els[sel.i]))])[0]; // a copy is a new piece to the die
-    copy.x = Math.min(W - copy.w, copy.x + 24);
-    copy.y = copy.y + 24;
+    var sec = sel.sec, orig = sec.els[sel.i];
+    var copy = diceFreshIds([JSON.parse(JSON.stringify(orig))])[0]; // a copy is a new piece to the die
+    var where = landNear(sec, orig, copy);
+    if (where === 'beside') quietSecondButton(sec, orig, copy);
     sec.els.push(copy);
     renderSection(sec);
+    if (copy.cards) fitCards(sec);
     placeHandles(sec, sec.els.length - 1);
     pushState();
-  });
+    toast(where === 'beside' ? 'Duplicated, beside it.' : 'Duplicated, under it.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
   document.addEventListener('pointerdown', function (ev) {
     if (panelOpen && !panelSticky && !panel.contains(ev.target) && !elbar.contains(ev.target)) closePanel();
     if (!editing) return;
@@ -7883,6 +9324,12 @@
       // the rail shares the heading's column and the grid sits centred
       return { type: 'widget', rails: true, posts: posts, x: 100, y: 72, w: 1000, h: 432, wsrc: composePosts(posts),
         whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>' };
+    },
+    cards: function () {
+      // a set of cards that share one design (see composeCards)
+      var e = { type: 'widget', cards: cardsDefaults(), x: 100, y: 72, w: 1000, h: 456 };
+      composeCardsData(e);
+      return e;
     },
     products: function () {
       // THE RAILS ELEMENT (design note: Gogh Shop — "the canvas is for your
@@ -9119,7 +10566,8 @@
     // fresh TEXT hugs its words: a box wider than the ink reads as broken
     // ("shouldn't the box be the size of the text"). Measure the rendered
     // line and shrink the default box to it (+ a whisker), never wider.
-    if (isText(e) && e.text) {
+    var keepW = e.__keepW; delete e.__keepW;
+    if (isText(e) && e.text && !keepW) {
       var nNew = sec.nodes[iNew];
       var tHost = nNew && (nNew.querySelector('p,h1,h2,h3,h4,h5,h6') || nNew);
       if (tHost) {
@@ -9161,12 +10609,28 @@
     }
     if (!sel) return;
     var sec = sel.sec;
-    sec.els.splice(sel.i, 1);
+    var gone = sec.els.splice(sel.i, 1)[0];
     sel = null;
     hideHandles();
     closePanel();
+    var closed = closeGapAfter(sec, gone);
     renderSection(sec);
+    if (closed) toast('Deleted, and what was under it moved up.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
     pushState();
+  }
+  // a deleted piece's slot closes: what sat straight under it rises into its
+  // place (the arrivals paper, row 7). Not for a backdrop shape, and not
+  // when the piece shared its space with another (a layered design)
+  function closeGapAfter(sec, e) {
+    if (!e || (e.type === 'box' && !(e.kids && e.kids.length))) return false;
+    if (sec.els.some(function (o) { return rectsHit(o, e); })) return false;
+    var col = sec.els.filter(function (o) { return o.x < e.x + e.w && o.x + o.w > e.x && o.y >= e.y + e.h - 8; });
+    if (!col.length) return false;
+    var next = Math.min.apply(null, col.map(function (o) { return o.y; }));
+    var d = next - e.y;
+    if (!(d > 0)) return false;
+    var stand = { x: e.x, y: e.y, w: e.w, h: 0 };
+    return reflowPush(sec, stand, d);
   }
   // the section most visible in the current viewport
   function viewportSection() {
@@ -9210,6 +10674,7 @@
     // land in what the user is looking at: the selected section if it's on
     // screen, else the most visible one — centred in the viewport
     var sec = (sel && sectionVisible(sel.sec)) ? sel.sec : viewportSection();
+    if (!atBack && landNearChosen(sec, e)) { addElement(sec, e, atBack); return e; }
     var r = sec.sectionEl.getBoundingClientRect();
     var s = r.width / W;
     var cy = (window.innerHeight / 2 - r.top) / s - e.h / 2;
@@ -9237,12 +10702,15 @@
     // KEY for hydration: posts/products are 'widget' type in the model
     var kindKey = typeof kind === 'string' ? kind : null;
     var e = kindKey ? DEFAULTS[kindKey]() : kind;
-    var H = designH(secx.els, secx.minH);
-    e.x = Math.max(0, Math.min(W - e.w, Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48)));
-    e.y = Math.max(8, Math.round(Math.min(Math.max(8, (H - e.h) / 2), Math.max(8, H - e.h - 8)) + (stagger % 5) * 24 - 48));
-    stagger++;
-    landOnRhythm(secx, e);
-    addElement(secx, e);
+    if (!(e.type === 'box' && !e.kids) && landNearChosen(secx, e)) addElement(secx, e);
+    else {
+      var H = designH(secx.els, secx.minH);
+      e.x = Math.max(0, Math.min(W - e.w, Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48)));
+      e.y = Math.max(8, Math.round(Math.min(Math.max(8, (H - e.h) / 2), Math.max(8, H - e.h - 8)) + (stagger % 5) * 24 - 48));
+      stagger++;
+      landOnRhythm(secx, e);
+      addElement(secx, e);
+    }
     // a new piece lands at the section's middle, which on a tall section
     // can be below the fold — bring it into view so what was chosen is
     // seen (James: "should we scroll to the element that's been added?")
@@ -9261,7 +10729,7 @@
   function lookSample(e, lk, mini) {
     var c = lk.slug ? 'is-style-' + lk.slug : '';
     if (e.type === 'button') {
-      return '<div class="wp-block-buttons"><div class="wp-block-button ' + c + (e.ghost ? ' gogh-ghost' : '') + '">' +
+      return '<div class="wp-block-buttons"><div class="wp-block-button ' + c + (ghostShows(e) ? ' gogh-ghost' : '') + '">' +
         '<span class="wp-block-button__link wp-element-button">' + (mini ? '' : esc(String(e.text || 'Button').replace(/<[^>]*>/g, '').slice(0, 18))) + '</span></div></div>';
     }
     if (e.type === 'image') {
@@ -10014,24 +11482,7 @@
     ] },
     { starter: true, intent: 'sell', name: 'Feature cards', minH: 480, els: [
       { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'What we do', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-      { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
-        ] },
-      { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
-        ] },
-      { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
-        ] },
+      { type: 'widget', x: 100, y: 194, w: 1000, h: 172, cards: { items: [{ t: 'Brand identity', d: 'A name, a voice and a look that hold together everywhere — from the sign above the door to the invoice footer.' }, { t: 'Websites', d: 'Fast, honest sites that read beautifully on a phone at a bus stop — which is where your customers are.' }, { t: 'Art direction', d: 'Photography, illustration and the thousand small calls that make everything feel intentional.' }], layout: 'g3', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 0 }, feat: -1 } },
     ] },
     { starter: true, intent: 'sell', name: 'Pricing', minH: 696, els: [
       // three prices is the common shape (James), so it is the BASE face —
@@ -10040,24 +11491,7 @@
       { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing',
         tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Three ways to work with us', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-      { type: 'box', x: 72, y: 226, w: 340, h: 316, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-        { type: 'heading', x: 28, y: 32, w: 284, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 28, y: 72, w: 284, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'One focused week. A sharp brief in, a finished thing out.' },
-        { type: 'heading', x: 28, y: 158, w: 284, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
-        { type: 'button', x: 28, y: 232, w: 284, h: 52, text: 'Book a sprint', ghost: true },
-      ] },
-      { type: 'box', x: 430, y: 190, w: 340, h: 388, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
-        { type: 'heading', x: 28, y: 68, w: 284, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 28, y: 108, w: 284, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-        { type: 'heading', x: 28, y: 194, w: 284, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'button', x: 28, y: 266, w: 284, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-      ] },
-      { type: 'box', x: 788, y: 226, w: 340, h: 316, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-        { type: 'heading', x: 28, y: 32, w: 284, h: 28, text: 'Ongoing care', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 28, y: 72, w: 284, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
-        { type: 'heading', x: 28, y: 158, w: 284, h: 34, text: '\u00a3600/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
-        { type: 'button', x: 28, y: 232, w: 284, h: 52, text: 'Stay with us', ghost: true },
-      ] },
+      { type: 'widget', x: 72, y: 190, w: 1056, h: 388, cards: { items: [{ t: 'The Sprint', d: 'One focused week. A sharp brief in, a finished thing out.', price: '£3,500', per: '', link: 'Book a sprint' }, { t: 'The Partnership', d: 'A standing team beside yours — design, build and everything between.', price: '£4,000', per: 'a month', link: 'Start together' }, { t: 'Ongoing care', d: 'Quiet upkeep after launch: updates, tweaks and a person who answers.', price: '£600', per: 'a month', link: 'Stay with us' }], layout: 'g3', look: 'panel', pic: 'none', align: 'left', act: 'button', round: 1, extras: { price: 1, role: 0 }, feat: 1 } },
     ] },
     { starter: true, intent: 'sell', name: 'Quote', minH: 432, els: [
       { type: 'heading', x: 76, y: 96, w: 180, h: 98, tf: { lh: 0.62 }, text: '\u201c', fs: '__disp-l' },
@@ -10067,27 +11501,7 @@
     ] },
     { starter: true, intent: 'sell', name: 'Testimonials', minH: 480, els: [
       { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'Kind words', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-      { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '“They understood us in the first meeting. The site feels like walking into our shop.”', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Hanna · Hanna & Co',
-            tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-      { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Dev · Marlow Bikes',
-            tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-      { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Ruth · The Corner Bakery',
-            tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
+      { type: 'widget', x: 100, y: 194, w: 1000, h: 172, cards: { items: [{ t: '', d: '“They understood us in the first meeting. The site feels like walking into our shop.”', role: 'Hanna · Hanna & Co' }, { t: '', d: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', role: 'Dev · Marlow Bikes' }, { t: '', d: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', role: 'Ruth · The Corner Bakery' }], layout: 'g3', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 1 }, feat: -1, titles: 0 } },
     ] },
     { starter: true, intent: 'sell', name: 'Call to action', minH: 360,
       bg: 'var(--wp--preset--color--contrast, #16181c)',
@@ -10202,16 +11616,7 @@
       { type: 'button', x: 798, y: 600, w: 210, h: 48, text: 'See the archive', ghost: true },
     ] },
     { starter: true, intent: 'showcase', name: 'Photo cards', minH: 816, els: [
-      { type: 'image', x: 100, y: 96, w: 470, h: 624, cool: true },
-      { type: 'box', x: 100, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-      { type: 'heading', x: 136, y: 506, w: 340, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-      { type: 'para', x: 136, y: 546, w: 398, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-      { type: 'button', x: 136, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-      { type: 'image', x: 630, y: 96, w: 470, h: 624, cool: true },
-      { type: 'box', x: 630, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-      { type: 'heading', x: 666, y: 506, w: 340, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-      { type: 'para', x: 666, y: 546, w: 398, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-      { type: 'button', x: 666, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      { type: 'widget', x: 100, y: 96, w: 1000, h: 624, cards: { items: [{ t: 'Quiet mountain cabin', img: '', d: 'Wake up above the clouds. Two rooms, one stove, zero notifications — the good kind of nowhere.', link: 'Reserve now' }, { t: 'Coastal hideaway', img: '', d: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you’ve been meaning to finish.', link: 'Reserve now' }], layout: 'over', look: 'panel', pic: 'tall', align: 'left', act: 'button', titles: 1, round: 1, extras: { price: 0, role: 0, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: '#ffffff' } }, d: { tf: { fs2: 1.167, fsMin: 16, col: '#ffffff' } } }, box: { look: 'panel', radius: 20, cols: 2, ratio: 0.753 } } },
     ] },
     { starter: true, intent: 'showcase', name: 'Portfolio', minH: 672, els: [
       { type: 'box', x: 40, y: 144, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
@@ -10226,32 +11631,14 @@
       { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Served all day',
         tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       { type: 'heading', x: 300, y: 128, w: 600, h: 42, text: 'Small plates', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-      { type: 'heading', x: 280, y: 194, w: 520, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 850, y: 194, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-      { type: 'heading', x: 280, y: 234, w: 520, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 850, y: 234, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-      { type: 'heading', x: 280, y: 274, w: 520, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 850, y: 274, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-      { type: 'heading', x: 280, y: 314, w: 520, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 850, y: 314, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+      { type: 'widget', x: 280, y: 194, w: 640, h: 148, cards: { items: [{ t: 'Sourdough, cultured butter', price: '£6' }, { t: 'Burrata, blood orange, mint', price: '£11' }, { t: 'Wood-roast leeks, romesco', price: '£9' }, { t: 'Anchovy toast, soft egg', price: '£8' }], layout: 'ledger', look: 'open', pic: 'none', align: 'left', act: 'none', extras: { price: 1, role: 0, k: 0, n: 0 }, feat: -1, titles: 1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, price: { tf: { fs2: 1.167, fsMin: 16 } } }, box: { look: 'open', pad: 6, gap: 4 } } },
       { type: 'para', x: 280, y: 354, w: 640, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
     ] },
     { starter: true, intent: 'showcase', name: 'Team', minH: 696, els: [
       { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio',
         tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-      { type: 'image', x: 72, y: 226, w: 330, h: 288, cool: true },
-      { type: 'heading', x: 74, y: 538, w: 320, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 74, y: 582, w: 320, h: 16, text: 'Creative director',
-        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'image', x: 435, y: 226, w: 330, h: 288 },
-      { type: 'heading', x: 437, y: 538, w: 320, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 437, y: 582, w: 320, h: 16, text: 'Lead engineer',
-        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-      { type: 'image', x: 798, y: 226, w: 330, h: 288, cool: true },
-      { type: 'heading', x: 800, y: 538, w: 320, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-      { type: 'para', x: 800, y: 582, w: 320, h: 16, text: 'Strategy',
-        tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+      { type: 'widget', x: 72, y: 226, w: 1056, h: 372, cards: { items: [{ t: 'June Ashby', img: '', role: 'Creative director' }, { t: 'Marco Reyes', img: '', role: 'Lead engineer' }, { t: 'Priya Chandra', img: '', role: 'Strategy' }], layout: 'g3', look: 'open', pic: 'square', align: 'left', act: 'none', titles: 1, extras: { price: 0, role: 1, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, role: { tf: { fs2: 0.917, fsMin: 12, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } } }, box: { look: 'open', gap: 8 } } },
     ] },
   ];
 
@@ -10356,10 +11743,441 @@
     return { wsrc: wsrc, whtml: whtml };
   }
   function composeWidgetData(e) {
+    if (e.cards) { composeCardsData(e); return; }
     if (e.faq && e.faq.length) { var c = composeFaq(e.faq); e.wsrc = c.wsrc; e.whtml = c.whtml; }
     else if (e.tabs && e.tabs.length) { var c2 = composeTabs(e.tabs); e.wsrc = c2.wsrc; e.whtml = c2.whtml; }
     else if (e.slides && e.slides.length) { var c3 = composeCarousel(e.slides, e.copt); e.wsrc = c3.wsrc; e.whtml = c3.whtml; }
     else if (e.wall && e.wall.length) { var c4 = composeWall(e.wall, e.wopt); e.wsrc = c4.wsrc; e.whtml = c4.whtml; }
+  }
+  // ---------- Cards: a set of cards that share one design ----------
+  // (James: 'folks struggle with cards ... make them like products so an
+  // editable component'). The cards are a LIST (picture, title, words, a
+  // link; a price and a name-and-role as extras) and the design is ONE
+  // choice worn by every card: a layout, a look, a picture shape. People
+  // type straight on a card; the panel only adds, moves and removes. It
+  // publishes as plain core blocks (groups, an image, a heading,
+  // paragraphs, a button) wearing gogh-card classes, so the set keeps its
+  // words and pictures with gogh switched off.
+  var CARD_LAYOUTS = [
+    ['g3', '3 across', 'Even cards in one row.'],
+    ['g2', '2 across', 'Two wide cards a row.'],
+    ['g4', '4 across', 'Four smaller cards a row.'],
+    ['steps', 'Steps', 'Each card a little lower than the last.'],
+    ['rows', 'Rows', 'Picture beside the words, one under another.'],
+    ['zig', 'Zig-zag', 'Pictures swap sides down the page.'],
+    ['over', 'On the photo', 'Words over the picture.'],
+    ['slider', 'Slider', 'A row that scrolls sideways.'],
+    ['big', 'One big', 'The first card leads, the rest sit beside it.'],
+    ['index', 'Index', 'Just the titles, ruled.'],
+    ['ledger', 'Ledger', 'Ruled rows in columns: a time or year, a title, words, a price or place.'],
+    ['small', 'Small and centred', 'Round pictures, centred words.'],
+  ];
+  var CARD_LOOKS = [['open', 'Open'], ['panel', 'Panel'], ['outline', 'Outline'], ['raised', 'Raised']];
+  var CARD_PICS = [['wide', 'Landscape'], ['square', 'Square'], ['tall', 'Portrait'], ['none', 'No picture']];
+  var CARD_ACTS = [['link', 'A link'], ['button', 'A button'], ['none', 'Nothing']];
+  // k: a short line above the title; n: a small note under the name
+  var CARD_FIELDS = ['t', 'd', 'link', 'price', 'per', 'role', 'k', 'n'];
+  // the parts a set can carry a type for (the type of the freeform cards it
+  // was made from: size, face, weight, case, colour)
+  var CARD_TYPED = ['k', 't', 'd', 'role', 'n', 'price', 'link'];
+  var CARD_TF_KEYS = ['fs', 'fs2', 'fsMin', 'fw', 'fst', 'lh', 'ls', 'ls2', 'tt', 'col', 'ff'];
+  function cardsSafeCss(v) { v = String(v == null ? '' : v); return /[;{}<>\\]/.test(v) || v.length > 160 ? '' : v; }
+  function cardsTypeNorm(spec) {
+    if (!spec || typeof spec !== 'object') return null;
+    var out = {};
+    if (spec.fs && /^[a-z0-9_-]{1,40}$/i.test(String(spec.fs))) out.fs = String(spec.fs);
+    if (spec.tag === 'h2') out.tag = 'h2';
+    // a title that was a paragraph keeps the words' face, not the headings'
+    if (spec.body) out.body = 1;
+    if (spec.tf && typeof spec.tf === 'object') {
+      var tf = {};
+      CARD_TF_KEYS.forEach(function (k) {
+        var v = spec.tf[k];
+        if (v == null || v === '') return;
+        if (typeof v === 'number') { if (isFinite(v)) tf[k] = v; }
+        else { var sv = cardsSafeCss(v); if (sv) tf[k] = sv; }
+      });
+      if (Object.keys(tf).length) out.tf = tf;
+    }
+    return out;
+  }
+  function cardsSamplePic(k) {
+    var mine = poolPick(mediaPool.imgs, 'gogh-cards', k);
+    return mine || '/wp-content/plugins/gogh/demo-assets/arles-' + (1 + (k % 7)) + '.jpg';
+  }
+  function cardsDefaults() {
+    var items = [
+      { t: 'Made by hand', d: 'Every piece starts on our bench and ends in your hands.', link: 'See how', role: 'Founder', price: '£24', per: 'each' },
+      { t: 'Sent with care', d: 'Wrapped in paper, posted in two days, tracked all the way.', link: 'Delivery', role: 'Studio manager', price: '£38', per: 'each' },
+      { t: 'Here to help', d: 'Write to us any time and a real person answers within a day.', link: 'Get in touch', role: 'Maker', price: '£52', per: 'each' },
+    ];
+    items.forEach(function (it, k) { it.img = cardsSamplePic(k); it.alt = ''; it.href = ''; });
+    return { items: items, layout: 'g3', look: 'panel', pic: 'wide', align: 'left', act: 'link', extras: { price: 0, role: 0 }, feat: -1 };
+  }
+  // the one shape every set is read through: a set from an older or newer
+  // gogh, or one an agent wrote by hand, comes out whole
+  function cardsNorm(c) {
+    c = c || {};
+    var pick = function (v, list, d) { return list.some(function (o) { return o[0] === v; }) ? v : d; };
+    c.items = Array.isArray(c.items) ? c.items.filter(function (it) { return it && typeof it === 'object'; }) : [];
+    c.items.forEach(function (it) {
+      CARD_FIELDS.forEach(function (f) { if (it[f] != null && typeof it[f] !== 'string') it[f] = String(it[f]); });
+    });
+    c.layout = pick(c.layout, CARD_LAYOUTS, 'g3');
+    c.look = pick(c.look, CARD_LOOKS, 'panel');
+    c.pic = pick(c.pic, CARD_PICS, 'wide');
+    c.act = pick(c.act, CARD_ACTS, 'link');
+    c.align = c.align === 'center' ? 'center' : 'left';
+    c.extras = c.extras || {};
+    c.extras.price = c.extras.price ? 1 : 0;
+    c.extras.role = c.extras.role ? 1 : 0;
+    c.extras.k = c.extras.k ? 1 : 0;
+    c.extras.n = c.extras.n ? 1 : 0;
+    c.round = c.round ? 1 : 0;
+    // the type and the card it was made from (both optional)
+    if (c.type && typeof c.type === 'object') {
+      var ty = {};
+      CARD_TYPED.forEach(function (f) { var t2 = cardsTypeNorm(c.type[f]); if (t2) ty[f] = t2; });
+      c.type = Object.keys(ty).length ? ty : null;
+    } else c.type = null;
+    if (c.box && typeof c.box === 'object') {
+      var bx = { look: CARD_LOOKS.some(function (o) { return o[0] === c.box.look; }) ? c.box.look : 'panel' };
+      if (c.box.bg) { var bg = cardsSafeCss(c.box.bg); if (bg) bx.bg = bg; }
+      ['radius', 'pad', 'gap', 'minH'].forEach(function (k) { var v = +c.box[k]; if (isFinite(v) && v >= 0 && v < 2000) bx[k] = Math.round(v); });
+      // photo cards keep their columns and their shape; a button its width
+      var cols = Math.round(+c.box.cols); if (cols >= 1 && cols <= 4) bx.cols = cols;
+      var ratio = +c.box.ratio; if (isFinite(ratio) && ratio >= 0.3 && ratio <= 4) bx.ratio = Math.round(ratio * 1000) / 1000;
+      if (c.box.btnFull) bx.btnFull = 1;
+      if (['k', 't', 'd', 'role', 'n', 'price'].indexOf(c.box.foot) >= 0) bx.foot = c.box.foot;
+      // a hairline over each card, and the space under it
+      var rule = +c.box.rule; if (isFinite(rule) && rule > 0 && rule < 200) bx.rule = Math.round(rule);
+      if (c.box.ruleCol) { var rc = cardsSafeCss(c.box.ruleCol); if (rc) bx.ruleCol = rc; }
+      if (c.box.tight && typeof c.box.tight === 'object') ['t', 'n'].forEach(function (f) { var v = +c.box.tight[f]; if (isFinite(v) && v >= 0 && v < 200) { bx.tight = bx.tight || {}; bx.tight[f] = Math.round(v); } });
+      c.box = bx;
+    } else c.box = null;
+    c.linkStyle = c.linkStyle === 'text' ? 'text' : 'caps';
+    // a set can go without titles (words and a name: testimonials)
+    c.titles = c.titles === 0 || c.titles === false ? 0 : 1;
+    c.feat = typeof c.feat === 'number' && c.feat >= 0 && c.feat < c.items.length ? c.feat : -1;
+    return c;
+  }
+  function cardsHref(u) {
+    u = String(u || '').trim();
+    if (!u) return '';
+    if (/^(https?:|mailto:|tel:)/i.test(u) || u[0] === '/' || u[0] === '#') return u;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(u)) return ''; // javascript: and friends never land
+    return 'https://' + u;
+  }
+  function cardsClass(c) {
+    // small and centred always centres; the index is words only
+    var align = c.layout === 'small' ? 'center' : c.align;
+    return 'gogh-cardset gogh-cardset-' + c.layout + ' gogh-cardset-look-' + c.look + ' gogh-cardset-pic-' + c.pic +
+      ' gogh-cardset-al-' + align + (c.feat >= 0 ? ' gogh-cardset-feat' : '') +
+      (c.round ? ' gogh-cardset-round' : '') + (c.titles ? '' : ' gogh-cardset-notitle') +
+      (c.linkStyle === 'text' ? ' gogh-cardset-link-text' : '') +
+      // which extras are on (the ledger sets its columns by them)
+      ['k', 'price', 'role', 'n'].map(function (x) { return c.extras[x] ? ' gogh-cardset-x-' + x : ''; }).join('') +
+      // a set with no words under its titles (photo cards): the canvas keeps
+      // the prompt for when the set is chosen
+      (c.titles && c.items.length && !c.items.some(function (it) { return it.d; }) ? ' gogh-cardset-nod' : '') +
+      // a part that carries its own type sets its defaults aside
+      (c.type ? Object.keys(c.type).map(function (f) { return ' gogh-cardset-typed-' + f; }).join('') : '');
+  }
+  // forEditor: the canvas copy — no block comments, every editable word
+  // marked with its card and field, empty fields shown as soft prompts
+  function composeCards(c, forEditor) {
+    c = cardsNorm(c);
+    var parts = [];
+    var cm = function (open, name, attrs) {
+      if (forEditor) return '';
+      return open ? '<!-- wp:' + name + (attrs ? ' ' + JSON.stringify(attrs) : '') + ' -->\n' : '\n<!-- /wp:' + name + ' -->';
+    };
+    var field = function (k, f, val, ph) {
+      if (!forEditor) return esc(val);
+      return '<span data-ck="' + k + '" data-cf="' + f + '"' + (val ? '' : ' data-ph="' + escAttr(ph) + '"') + '>' + esc(val) + '</span>';
+    };
+    var cards = c.items.map(function (it, k) {
+      var feat = c.feat === k;
+      var cls = 'gogh-cs-card' + (feat ? ' is-featured' : '');
+      var out = cm(true, 'group', { className: cls }) + '<div class="wp-block-group ' + cls + '"' + (forEditor ? ' data-ck="' + k + '"' : '') + '>';
+      if (c.pic !== 'none' && (it.img || forEditor)) {
+        var ia = { sizeSlug: 'large', className: 'gogh-cs-pic' };
+        if (it.mediaId) ia = { id: +it.mediaId, sizeSlug: 'large', className: 'gogh-cs-pic' };
+        out += cm(true, 'image', ia) +
+          '<figure class="wp-block-image size-large gogh-cs-pic"' + (forEditor ? ' data-ck="' + k + '" data-cpic="1"' : '') + '>' +
+          (it.img ? '<img src="' + escAttr(it.img) + '" alt="' + escAttr(it.alt || '') + '"' + (it.mediaId ? ' class="wp-image-' + (+it.mediaId) + '"' : '') + '/>'
+            : '<span class="gogh-cs-nopic">Choose a picture</span>') +
+          '</figure>' + cm(false, 'image');
+      }
+      out += cm(true, 'group', { className: 'gogh-cs-body' }) + '<div class="wp-block-group gogh-cs-body">';
+      // the short line above the title (a category, a time, stars)
+      if (c.extras.k && (it.k || forEditor)) {
+        out += cm(true, 'paragraph', { className: 'gogh-cs-k' }) +
+          '<p class="gogh-cs-k">' + field(k, 'k', it.k || '', 'A line above') + '</p>' + cm(false, 'paragraph');
+      }
+      if (c.titles && (it.t || forEditor)) {
+        // a title carried from a freeform card keeps its heading level
+        var h2 = c.type && c.type.t && c.type.t.tag === 'h2';
+        out += cm(true, 'heading', h2 ? { className: 'gogh-cs-t' } : { level: 3, className: 'gogh-cs-t' }) +
+          '<' + (h2 ? 'h2' : 'h3') + ' class="wp-block-heading gogh-cs-t">' + field(k, 't', it.t || '', 'Title') + '</' + (h2 ? 'h2' : 'h3') + '>' + cm(false, 'heading');
+      }
+      // the name and role sit under a title; with no titles (a set of
+      // kind words) they sign off under the words instead
+      var role = (c.extras.role && (it.role || forEditor) ? cm(true, 'paragraph', { className: 'gogh-cs-role' }) +
+          '<p class="gogh-cs-role">' + field(k, 'role', it.role || '', 'Name and role') + '</p>' + cm(false, 'paragraph') : '') +
+        // and a small note under the name (where it was bought, a job title)
+        (c.extras.n && (it.n || forEditor) ? cm(true, 'paragraph', { className: 'gogh-cs-n' }) +
+          '<p class="gogh-cs-n">' + field(k, 'n', it.n || '', 'A small note') + '</p>' + cm(false, 'paragraph') : '');
+      if (c.titles) out += role;
+      if ((c.layout !== 'index' || !c.titles) && (it.d || forEditor)) {
+        out += cm(true, 'paragraph', { className: 'gogh-cs-d' }) +
+          '<p class="gogh-cs-d">' + field(k, 'd', it.d || '', c.titles ? 'A line or two about it' : 'What they said') + '</p>' + cm(false, 'paragraph');
+      }
+      if (!c.titles) out += role;
+      if (c.extras.price && (it.price || it.per || forEditor)) {
+        out += cm(true, 'paragraph', { className: 'gogh-cs-price' }) +
+          '<p class="gogh-cs-price"><strong>' + field(k, 'price', it.price || '', 'Price') + '</strong> ' +
+          '<span class="gogh-cs-per">' + field(k, 'per', it.per || '', 'per\u2026') + '</span></p>' + cm(false, 'paragraph');
+      }
+      var href = cardsHref(it.href);
+      if (c.act !== 'none' && (it.link || forEditor)) {
+        // (on the canvas a link with no address says so: see the CSS)
+        var hrefAttr = ' href="' + escAttr(href || '#') + '"' + (forEditor && !href ? ' data-nohref="1"' : '');
+        if (c.act === 'button' && c.layout !== 'index') {
+          // beside a featured card the others' buttons step back to outlines
+          var quiet = c.feat >= 0 && !feat;
+          out += cm(true, 'buttons', { className: 'gogh-cs-btns' }) + '<div class="wp-block-buttons gogh-cs-btns">' +
+            cm(true, 'button', quiet ? { className: 'is-style-outline' } : null) + '<div class="wp-block-button' + (quiet ? ' is-style-outline' : '') + '"><a class="wp-block-button__link wp-element-button"' + hrefAttr + '>' +
+            field(k, 'link', it.link || '', 'Add a button') + '</a></div>' + cm(false, 'button') +
+            '</div>' + cm(false, 'buttons');
+        } else {
+          out += cm(true, 'paragraph', { className: 'gogh-cs-link' }) +
+            '<p class="gogh-cs-link"><a' + hrefAttr + '>' + field(k, 'link', it.link || '', 'Add a link') + '</a></p>' + cm(false, 'paragraph');
+        }
+      }
+      out += '</div>' + cm(false, 'group') + '</div>' + cm(false, 'group');
+      return out;
+    });
+    var outer = cardsClass(c);
+    parts.push(cm(true, 'group', { className: outer }) + '<div class="wp-block-group ' + outer + '">' + cards.join('') + '</div>' + cm(false, 'group'));
+    return parts.join('');
+  }
+  function composeCardsData(e) {
+    e.cards = cardsNorm(e.cards);
+    e.wsrc = composeCards(e.cards, false);
+    e.whtml = composeCards(e.cards, true);
+  }
+  // "£4,000/mo" reads as a price and a period
+  function cardsPriceSplit(v) {
+    var m = String(v == null ? '' : v).match(/^(.*?)(?:\s*\/\s*(mo|month|yr|year|wk|week))$/i);
+    if (!m) return { price: String(v == null ? '' : v), per: '' };
+    var per = { mo: 'a month', month: 'a month', yr: 'a year', year: 'a year', wk: 'a week', week: 'a week' }[m[2].toLowerCase()];
+    return { price: m[1], per: per };
+  }
+  // ---------- a row of freeform cards, read as a set ----------
+  // Each card's pieces map onto a card's parts by role and order: a short
+  // line before the title is the line above it, the first heading the
+  // title, a second heading (or one with a figure in it) the price, the
+  // first paragraph after the title the words, short lines after them the
+  // name and a small note, a paragraph that is only a link the link, a
+  // button the button. The type of each part comes from a plain (not
+  // featured) card, and so does the card itself: its colour, corners,
+  // padding, spacing and height. Badges go (James: no badges on starters).
+  function cardsPlainText(html) {
+    var d = document.createElement('textarea');
+    d.innerHTML = String(html == null ? '' : html).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '');
+    return d.value.replace(/\s+/g, ' ').trim();
+  }
+  function cardsKidSig(b) {
+    return (b.kids || []).filter(function (k) { return k.type !== 'badge'; }).map(function (k) {
+      return k.type === 'para' && /^\s*<a\b[^>]*>[\s\S]*<\/a>\s*$/i.test(k.text || '') ? 'link' : k.type;
+    }).join(',');
+  }
+  function cardsReadBoxes(boxes) {
+    var bgs = boxes.map(function (b) { return String(b.boxBg || ''); });
+    var common = bgs.filter(function (g) { return bgs.filter(function (h) { return h === g; }).length > 1; })[0];
+    var hs = boxes.map(function (b) { return b.h; }), tall = Math.max.apply(null, hs);
+    var feat = common != null ? bgs.findIndex(function (g) { return g !== common; })
+      : (bgs.some(function (g) { return g !== bgs[0]; }) && hs.filter(function (h) { return h === tall; }).length === 1 ? hs.indexOf(tall) : -1);
+    if (boxes.some(function (b) { return (b.kids || []).some(function (k) { return k.type === 'badge'; }); }) && feat < 0) {
+      feat = boxes.findIndex(function (b) { return (b.kids || []).some(function (k) { return k.type === 'badge'; }); });
+    }
+    var refK = boxes.findIndex(function (b, k) { return k !== feat; });
+    var ref = boxes[refK < 0 ? 0 : refK];
+    var type = {}, act = 'none', linkStyle = 'caps', anyImg = false, refMap = {}, roleFirst = false;
+    var spec = function (kid, tag) {
+      var o = {};
+      if (kid.fs) o.fs = kid.fs;
+      if (kid.tf) o.tf = JSON.parse(JSON.stringify(kid.tf));
+      if (tag) o.tag = tag;
+      return o;
+    };
+    var items = boxes.map(function (b, bi) {
+      var kids = (b.kids || []).filter(function (k) { return k.type !== 'badge'; }).slice().sort(function (a, c) { return a.y - c.y || a.x - c.x; });
+      var it = { t: '', d: '', link: '', href: '', img: '', alt: '' }, map = {};
+      var isLinkPara = function (k) { return k.type === 'para' && /^\s*<a\b[^>]*>[\s\S]*<\/a>\s*$/i.test(k.text || ''); };
+      var img = kids.filter(function (k) { return k.type === 'image' && k.src; })[0];
+      if (img) { it.img = img.src; it.alt = img.alt || ''; if (img.mediaId) it.mediaId = img.mediaId; map.img = img; anyImg = true; }
+      else if (b.boxImg) { it.img = b.boxImg; anyImg = true; }
+      var btn = kids.filter(function (k) { return k.type === 'button'; })[0];
+      var lp = kids.filter(isLinkPara)[0];
+      if (btn) { it.link = cardsPlainText(btn.text); if (btn.href) it.href = btn.href; map.btn = btn; }
+      else if (lp) {
+        var m = /<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i.exec(lp.text || '');
+        it.link = cardsPlainText(m ? m[2] : lp.text); if (m && m[1]) it.href = m[1]; map.link = lp;
+      }
+      var H = kids.filter(function (k) { return k.type === 'heading'; });
+      var P = kids.filter(function (k) { return k.type === 'para' && !isLinkPara(k); });
+      var t = H[0] || null;
+      // no heading: a short bold line above the words is the title (a
+      // column drawn as "01 — Listen first" over its words)
+      if (!t && P.length >= 2) {
+        var lens = P.map(function (k) { return cardsPlainText(k.text).length; });
+        var di = lens.indexOf(Math.max.apply(null, lens));
+        var lead = P.slice(0, di).filter(function (k) { return +((k.tf && k.tf.fw) || 0) >= 600; })[0] || null;
+        if (lead && cardsPlainText(lead.text).length < 80) { t = lead; P = P.filter(function (k) { return k !== lead; }); }
+      }
+      if (t) { it.t = cardsPlainText(t.text); map.t = t; }
+      var pr = H[1] || null;
+      if (pr) { var ps = cardsPriceSplit(cardsPlainText(pr.text)); it.price = ps.price; it.per = ps.per; map.price = pr; }
+      var before, after;
+      if (t) {
+        before = P.filter(function (k) { return k.y < t.y; });
+        after = P.filter(function (k) { return k.y >= t.y; });
+        // a short line between the title and longer words is who or what
+        // it is (a speaker's job, then their talk)
+        if (after.length >= 2 && cardsPlainText(after[0].text).length < cardsPlainText(after[1].text).length && cardsPlainText(after[0].text).length < 60) {
+          it.role = cardsPlainText(after[0].text); map.role = after[0]; after = [after[1]].concat(after.slice(2)); roleFirst = true;
+        }
+        if (after[0]) { it.d = cardsPlainText(after[0].text); map.d = after[0]; after = after.slice(1); }
+      } else {
+        var longest = P.slice().sort(function (a, c) { return cardsPlainText(c.text).length - cardsPlainText(a.text).length; })[0];
+        if (longest) { it.d = cardsPlainText(longest.text); map.d = longest; }
+        before = P.filter(function (k) { return longest && k.y < longest.y; });
+        after = P.filter(function (k) { return longest && k.y > longest.y; });
+      }
+      if (before[0]) { it.k = cardsPlainText(before[0].text); map.k = before[0]; }
+      if (map.role) { if (after[0]) { it.n = cardsPlainText(after[0].text); map.n = after[0]; } }
+      else {
+        if (after[0]) { it.role = cardsPlainText(after[0].text); map.role = after[0]; }
+        if (after[1]) { it.n = cardsPlainText(after[1].text); map.n = after[1]; }
+      }
+      if (b === ref) {
+        refMap = map;
+        ['k', 't', 'd', 'role', 'n', 'price'].forEach(function (f) { if (map[f]) type[f] = spec(map[f], f === 't' && map[f].type === 'heading' ? 'h2' : null); });
+        if (type.t && map.t && map.t.type === 'para') type.t.body = 1;
+        if (map.link) type.link = spec(map.link);
+      }
+      if (map.btn) act = 'button';
+      else if (map.link) { act = act === 'button' ? 'button' : 'link'; linkStyle = 'text'; }
+      return it;
+    });
+    // the layout from where the boxes sit
+    var xs = []; boxes.forEach(function (b) { if (!xs.some(function (x) { return Math.abs(x - b.x) < 8; })) xs.push(b.x); });
+    var ys = boxes.map(function (b) { return b.y; });
+    var climbing = xs.length > 1 && ys.every(function (v, k) { return k === 0 || v >= ys[k - 1]; }) && ys[ys.length - 1] - ys[0] > 60 && xs.length === boxes.length;
+    var over = boxes.every(function (b) { return b.boxImg && !(b.kids || []).some(function (k) { return k.type === 'image'; }); });
+    var layout = over ? 'over' : xs.length === 1 ? 'rows' : climbing ? 'steps' : xs.length >= 4 ? 'g4' : xs.length === 3 ? 'g3' : 'g2';
+    var pic = 'none';
+    if (anyImg && !over) {
+      var im = (ref.kids || []).filter(function (k) { return k.type === 'image'; })[0];
+      var ratio = im && im.h ? im.w / im.h : 1.5;
+      pic = ratio >= 1.25 ? 'wide' : ratio >= 0.85 ? 'square' : 'tall';
+    } else if (over) pic = 'wide';
+    // the card itself, from the plain card
+    var rk = (ref.kids || []).filter(function (k) { return k.type !== 'badge'; }).slice().sort(function (a, c) { return a.y - c.y; });
+    // (a picture runs to the card's edge; the padding is the words')
+    var rkw = rk.filter(function (k) { return k.type !== 'image'; });
+    var pad = rkw.length ? Math.max(0, Math.min(80, Math.min.apply(null, rkw.map(function (k) { return k.x; })))) : 24;
+    var gaps = [];
+    for (var g = 1; g < rk.length; g++) { var gp = rk[g].y - (rk[g - 1].y + rk[g - 1].h); if (gp > 0) gaps.push(gp); }
+    gaps.sort(function (a, c) { return a - c; });
+    var gap = gaps.length ? Math.max(4, Math.min(48, gaps[Math.floor(gaps.length / 2)])) : 10;
+    var centred = rk.length && rk.filter(function (k) { return k.align === 'center'; }).length > rk.length / 2;
+    var bg = common != null ? common : bgs[refK < 0 ? 0 : refK];
+    var look = bg ? 'panel' : 'open';
+    var box = { look: look, gap: gap, minH: ref.h };
+    // a pair that hugs (a line above its title, a note under the name)
+    // keeps hugging rather than taking the card's usual spacing
+    var hug = function (a, c2) { return a && c2 ? c2.y - (a.y + a.h) : null; };
+    var tight = { t: hug(refMap.k, refMap.t), n: hug(refMap.role, refMap.n) };
+    Object.keys(tight).forEach(function (f) { if (tight[f] != null && tight[f] < gap - 3) { box.tight = box.tight || {}; box.tight[f] = Math.max(0, tight[f]); } });
+    // the pieces after the widest gap sat at the card's foot (a name under
+    // a quote): they keep to the foot
+    var wide = -1, wideAt = -1;
+    for (var g2 = 1; g2 < rk.length; g2++) { var gp2 = rk[g2].y - (rk[g2 - 1].y + rk[g2 - 1].h); if (gp2 > wide) { wide = gp2; wideAt = g2; } }
+    var lastK = rk[rk.length - 1];
+    // (kind words: the name signs off at the foot whenever it sat low)
+    var kind = !items.some(function (it) { return it.t; });
+    if (kind && refMap.role && refMap.d) { wideAt = rk.indexOf(refMap.role); wide = Math.max(wide, gap * 2 + 1); }
+    if (wideAt > 0 && wide > gap * 2 && lastK && (kind || lastK.y + lastK.h >= ref.h - pad - 24)) {
+      var footF = Object.keys(refMap).filter(function (f) { return refMap[f] === rk[wideAt]; })[0];
+      if (footF && footF !== 'link' && footF !== 'btn' && footF !== 'img') box.foot = footF;
+    }
+    if (over) { box.cols = Math.max(2, Math.min(4, xs.length)); box.ratio = Math.round(ref.w / Math.max(1, ref.h) * 1000) / 1000; }
+    var rb = (ref.kids || []).filter(function (k) { return k.type === 'button'; })[0];
+    if (rb && rb.w >= (ref.w - 2 * pad) * 0.9) box.btnFull = 1;
+    if (bg) box.bg = bg;
+    if (bg || over) { box.radius = ref.radius || 0; box.pad = pad; }
+    var has = function (f) { return items.some(function (it) { return !!it[f]; }); };
+    return {
+      items: items, feat: feat, layout: layout, look: over ? 'panel' : look, pic: pic, act: act, linkStyle: linkStyle,
+      align: centred || over ? 'center' : 'left', round: (ref.radius || 0) >= 8 ? 1 : 0, titles: has('t') ? 1 : 0,
+      extras: { price: has('price') ? 1 : 0, role: has('role') ? 1 : 0, k: has('k') ? 1 : 0, n: has('n') ? 1 : 0 },
+      type: Object.keys(type).length ? type : null, box: box,
+    };
+  }
+  // the row of matching freeform cards in a section, read as one set (null
+  // when there is none): the set piece, and the boxes it replaces
+  function cardsSetFromEls(els) {
+    var boxes = els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; });
+    if (boxes.length < 2) return null;
+    var sig = cardsKidSig(boxes[0]);
+    if (!sig || !boxes.every(function (b) { return cardsKidSig(b) === sig; })) return null;
+    var x = Math.min.apply(null, boxes.map(function (b) { return b.x; })), y = Math.min.apply(null, boxes.map(function (b) { return b.y; }));
+    var r = Math.max.apply(null, boxes.map(function (b) { return b.x + b.w; })), bot = Math.max.apply(null, boxes.map(function (b) { return b.y + b.h; }));
+    var set = { type: 'widget', x: x, y: y, w: r - x, h: bot - y, cards: cardsReadBoxes(boxes) };
+    composeCardsData(set);
+    return { set: set, boxes: boxes };
+  }
+  // a row of freeform cards (one box per card, the same pieces in each)
+  // read as a set's cards: what the shelf's card designs were before they
+  // became Cards, so a section drawn then keeps its words
+  function cardsFromBoxes(boxes) {
+    var up = function (k) { return !!(k.tf && k.tf.tt === 'uppercase'); };
+    var bgs = boxes.map(function (b) { return String(b.boxBg || ''); });
+    var common = bgs.filter(function (g) { return bgs.filter(function (h) { return h === g; }).length > 1; })[0];
+    var hs = boxes.map(function (b) { return b.h; }), tall = Math.max.apply(null, hs);
+    var feat = common ? bgs.findIndex(function (g) { return g !== common; })
+      : (bgs.some(function (g) { return g !== bgs[0]; }) && hs.filter(function (h) { return h === tall; }).length === 1 ? hs.indexOf(tall) : -1);
+    var items = boxes.map(function (b) {
+      var of = function (f) { return b.kids.filter(f); };
+      var H = of(function (k) { return k.type === 'heading'; }), P = of(function (k) { return k.type === 'para' && !up(k); });
+      var U = of(function (k) { return k.type === 'para' && up(k); }), B = of(function (k) { return k.type === 'button'; });
+      var I = of(function (k) { return k.type === 'image' && k.src; });
+      var it = { t: H[0] ? String(H[0].text || '') : '', d: P[0] ? String(P[0].text || '') : '' };
+      if (H[1]) { var ps = cardsPriceSplit(H[1].text); it.price = ps.price; it.per = ps.per; }
+      if (U[0]) it.role = String(U[0].text || '');
+      if (B[0]) { it.link = String(B[0].text || ''); if (B[0].href) it.href = String(B[0].href); }
+      if (I[0]) { it.img = I[0].src; it.alt = I[0].alt || ''; }
+      return it;
+    });
+    return { items: items, feat: feat };
+  }
+  // a definition's items, in the same few names fillWords reads
+  function cardsFromDefItems(list, c) {
+    return list.map(function (it) {
+      it = it || {};
+      var named = it.title != null ? it.title : it.heading;
+      var ps = it.price != null ? cardsPriceSplit(it.price) : { price: '', per: '' };
+      return {
+        t: String(named != null ? named : (c.titles ? (it.name || '') : '')),
+        d: String(it.text != null ? it.text : (it.quote != null ? it.quote : '')),
+        role: String(it.role != null ? it.role : (it.eyebrow != null ? it.eyebrow : (!c.titles && it.name != null ? it.name : ''))),
+        price: ps.price, per: it.per != null ? String(it.per) : ps.per,
+        link: String(it.button != null ? it.button : ''), href: it.link ? String(it.link) : '',
+        img: it.image ? String(it.image) : '', alt: it.alt ? String(it.alt) : '' };
+    });
   }
   // ---------- their photos, not our placeholders ----------
   // starters populate from the site's OWN media library: shelf previews and
@@ -10397,9 +12215,33 @@
     }
     return tpl.bgImage;
   }
+  // a design names its inks by the common slugs (base for the page's light,
+  // contrast for its ink). A theme without them (Purple: theme-1..7) would
+  // drop the colour and leave the theme's dark heading ink on a dark photo
+  // (James: 'we still got a few sentinal issues - this is from the violet
+  // hour'): those slugs map to the theme's own page and text colours
+  function tplSlugMap() {
+    var have = {};
+    themePalette().forEach(function (p) { have[p.slug] = 1; });
+    if (have.base && have.contrast) return null;
+    var roles = paletteRoles(), map = {};
+    if (!have.base && roles.bgSlug) map.base = roles.bgSlug;
+    if (!have.contrast && roles.textSlug) map.contrast = roles.textSlug;
+    return Object.keys(map).length ? map : null;
+  }
+  function tplMapSlugs(els) {
+    var map = tplSlugMap();
+    if (!map) return els;
+    var walk = function (e) {
+      ['color', 'btnBg', 'btnText', 'btnHover'].forEach(function (k) { if (typeof e[k] === 'string' && map[e[k]]) e[k] = map[e[k]]; });
+      (e.kids || []).forEach(walk);
+    };
+    els.forEach(walk);
+    return els;
+  }
   function tplEls(tpl) {
     // __posts__ is the blog page; with no blog page the button goes
-    var els = JSON.parse(JSON.stringify(tpl.els)).filter(function (e) { return e.href !== '__posts__' || !!cfg.postsUrl; });
+    var els = tplMapSlugs(JSON.parse(JSON.stringify(tpl.els)).filter(function (e) { return e.href !== '__posts__' || !!cfg.postsUrl; }));
     els.forEach(function (e) { if (e.href === '__posts__') e.href = cfg.postsUrl; });
     var sizes = fontSizes();
     var k = 0;
@@ -10434,6 +12276,12 @@
         // sample posts for the picker's card and the dice drawer; a section
         // made from it fetches the site's real posts straight away
         if (!e.whtml) e.whtml = postsPreviewHTML(e, samplePosts(tpl.name).slice(0, Math.max(1, Math.min(8, +e.posts.count || 3))));
+      }
+      // a set's empty pictures come from the site's own photos, like any
+      // picture in a design
+      if (e.cards && e.cards.pic !== 'none' && Array.isArray(e.cards.items)) {
+        e.cards.items.forEach(function (it) { if (it && !it.img) it.img = poolPick(mediaPool.imgs, tpl.name, ++k) || cardsSamplePic(k); });
+        e.whtml = e.wsrc = null;
       }
       composeWidgetData(e);
     });
@@ -10972,48 +12820,15 @@
     'Feature cards': [
       { name: 'Feature cards', take: 'The ink deck', minH: 480, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'What we do', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        ] },
-        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        ] },
-        { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        ] },
+        { type: 'widget', x: 100, y: 194, w: 1000, h: 172, cards: { items: [{ t: 'Brand identity', d: 'A name, a voice and a look that hold together everywhere — from the sign above the door to the invoice footer.' }, { t: 'Websites', d: 'Fast, honest sites that read beautifully on a phone at a bus stop — which is where your customers are.' }, { t: 'Art direction', d: 'Photography, illustration and the thousand small calls that make everything feel intentional.' }], layout: 'g3', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 0 }, feat: -1 } },
       ] },
       { name: 'Feature cards', take: 'The ladder', minH: 600, els: [
         { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'What we do', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
-        ] },
-        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
-        ] },
-        { type: 'box', x: 780, y: 312, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 264, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 28, y: 72, w: 264, h: 68, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
-        ] },
+        { type: 'widget', x: 100, y: 194, w: 1000, h: 290, cards: { items: [{ t: 'Brand identity', d: 'A name, a voice and a look that hold together everywhere — from the sign above the door to the invoice footer.' }, { t: 'Websites', d: 'Fast, honest sites that read beautifully on a phone at a bus stop — which is where your customers are.' }, { t: 'Art direction', d: 'Photography, illustration and the thousand small calls that make everything feel intentional.' }], layout: 'steps', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 0 }, feat: -1 } },
       ] },
       { name: 'Feature cards', take: 'The rows', minH: 672, els: [
         { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'What we do', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'box', x: 72, y: 194, w: 1056, h: 110, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 300, h: 28, text: 'Brand identity', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 370, y: 32, w: 650, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
-        ] },
-        { type: 'box', x: 72, y: 328, w: 1056, h: 110, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 300, h: 28, text: 'Websites', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 370, y: 32, w: 650, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
-        ] },
-        { type: 'box', x: 72, y: 462, w: 1056, h: 110, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 28, y: 32, w: 300, h: 28, text: 'Art direction', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 370, y: 32, w: 650, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
-        ] },
+        { type: 'widget', x: 72, y: 194, w: 1056, h: 378, cards: { items: [{ t: 'Brand identity', d: 'A name, a voice and a look that hold together everywhere — from the sign above the door to the invoice footer.' }, { t: 'Websites', d: 'Fast, honest sites that read beautifully on a phone at a bus stop — which is where your customers are.' }, { t: 'Art direction', d: 'Photography, illustration and the thousand small calls that make everything feel intentional.' }], layout: 'rows', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 0 }, feat: -1 } },
       ] },
     ],
 
@@ -11021,50 +12836,17 @@
       { name: 'Pricing', take: 'The pair', minH: 672, els: [
         { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Two ways to work with us', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-        { type: 'box', x: 230, y: 226, w: 350, h: 318, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 32, y: 32, w: 286, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 32, y: 72, w: 286, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'One focused week. A sharp brief in, a finished thing out.' },
-          { type: 'heading', x: 32, y: 158, w: 286, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
-          { type: 'button', x: 32, y: 232, w: 286, h: 54, text: 'Book a sprint', ghost: true },
-        ] },
-        { type: 'box', x: 620, y: 214, w: 350, h: 342, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
-          { type: 'heading', x: 32, y: 44, w: 240, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 84, w: 286, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-          { type: 'heading', x: 32, y: 170, w: 286, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 32, y: 244, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        ] },
+        { type: 'widget', x: 230, y: 214, w: 740, h: 342, cards: { items: [{ t: 'The Sprint', d: 'One focused week. A sharp brief in, a finished thing out.', price: '£3,500', per: '', link: 'Book a sprint' }, { t: 'The Partnership', d: 'A standing team beside yours — design, build and everything between.', price: '£4,000', per: 'a month', link: 'Start together' }], layout: 'g2', look: 'panel', pic: 'none', align: 'left', act: 'button', round: 1, extras: { price: 1, role: 0 }, feat: 1 } },
       ] },
       { name: 'Pricing', take: 'The shelves', minH: 720, els: [
         { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Two ways to work with us', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-        { type: 'box', x: 150, y: 226, w: 900, h: 150, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'heading', x: 32, y: 32, w: 280, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-          { type: 'para', x: 32, y: 72, w: 380, h: 46, tf: { fs2: 1.167, fsMin: 16, lh: 1.6 }, text: 'One focused week. A sharp brief in, a finished thing out.' },
-          { type: 'heading', x: 470, y: 32, w: 190, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12 } },
-          { type: 'button', x: 668, y: 32, w: 200, h: 54, text: 'Book a sprint', ghost: true },
-        ] },
-        { type: 'box', x: 150, y: 424, w: 900, h: 192, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
-          { type: 'heading', x: 32, y: 32, w: 300, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 72, w: 380, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-          { type: 'heading', x: 470, y: 32, w: 230, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 668, y: 106, w: 200, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        ] },
+        { type: 'widget', x: 150, y: 226, w: 900, h: 390, cards: { items: [{ t: 'The Sprint', d: 'One focused week. A sharp brief in, a finished thing out.', price: '£3,500', per: '', link: 'Book a sprint' }, { t: 'The Partnership', d: 'A standing team beside yours — design, build and everything between.', price: '£4,000', per: 'a month', link: 'Start together' }], layout: 'rows', look: 'panel', pic: 'none', align: 'left', act: 'button', round: 1, extras: { price: 1, role: 0 }, feat: 1 } },
       ] },
       { name: 'Pricing', take: 'The ink stage', minH: 672, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Simple pricing', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         { type: 'heading', x: 250, y: 128, w: 700, h: 42, text: 'Two ways to work with us', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 230, y: 226, w: 350, h: 318, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'heading', x: 32, y: 32, w: 286, h: 28, text: 'The Sprint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 72, w: 286, h: 46, text: 'One focused week. A sharp brief in, a finished thing out.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-          { type: 'heading', x: 32, y: 158, w: 286, h: 34, text: '\u00a33,500', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 32, y: 232, w: 286, h: 54, text: 'Book a sprint', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        ] },
-        { type: 'box', x: 620, y: 214, w: 350, h: 342, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 16%, transparent)', kids: [
-          { type: 'heading', x: 32, y: 44, w: 240, h: 28, text: 'The Partnership', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 84, w: 286, h: 46, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-          { type: 'heading', x: 32, y: 170, w: 286, h: 34, text: '\u00a34,000/mo', tf: { fs2: 2.5, fsMin: 26, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 32, y: 244, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        ] },
+        { type: 'widget', x: 230, y: 214, w: 740, h: 342, cards: { items: [{ t: 'The Sprint', d: 'One focused week. A sharp brief in, a finished thing out.', price: '£3,500', per: '', link: 'Book a sprint' }, { t: 'The Partnership', d: 'A standing team beside yours — design, build and everything between.', price: '£4,000', per: 'a month', link: 'Start together' }], layout: 'g2', look: 'panel', pic: 'none', align: 'left', act: 'button', round: 1, extras: { price: 1, role: 0 }, feat: 1 } },
       ] },
     ],
     'Quote': [
@@ -11089,48 +12871,15 @@
     'Testimonials': [
       { name: 'Testimonials', take: 'The ink wall', minH: 480, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'Kind words', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Hanna \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        ] },
-        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Dev \u00b7 Marlow Bikes', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        ] },
-        { type: 'box', x: 780, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        ] },
+        { type: 'widget', x: 100, y: 194, w: 1000, h: 172, cards: { items: [{ t: '', d: '“They understood us in the first meeting. The site feels like walking into our shop.”', role: 'Hanna · Hanna & Co' }, { t: '', d: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', role: 'Dev · Marlow Bikes' }, { t: '', d: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', role: 'Ruth · The Corner Bakery' }], layout: 'g3', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 1 }, feat: -1, titles: 0 } },
       ] },
       { name: 'Testimonials', take: 'The ladder', minH: 624, els: [
         { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'Kind words', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'box', x: 100, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Hanna \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-        { type: 'box', x: 440, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Dev \u00b7 Marlow Bikes', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-        { type: 'box', x: 780, y: 336, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 264, h: 68, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 28, y: 124, w: 264, h: 16, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
+        { type: 'widget', x: 100, y: 194, w: 1000, h: 314, cards: { items: [{ t: '', d: '“They understood us in the first meeting. The site feels like walking into our shop.”', role: 'Hanna · Hanna & Co' }, { t: '', d: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', role: 'Dev · Marlow Bikes' }, { t: '', d: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', role: 'Ruth · The Corner Bakery' }], layout: 'steps', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 1 }, feat: -1, titles: 0 } },
       ] },
       { name: 'Testimonials', take: 'The voices', minH: 648, els: [
         { type: 'heading', x: 72, y: 96, w: 700, h: 42, text: 'Kind words', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'box', x: 72, y: 194, w: 1056, h: 88, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 680, h: 24, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 760, y: 32, w: 260, h: 16, text: 'Hanna \u00b7 Hanna & Co', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-        { type: 'box', x: 72, y: 306, w: 1056, h: 88, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 680, h: 24, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 760, y: 32, w: 260, h: 16, text: 'Dev \u00b7 Marlow Bikes', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
-        { type: 'box', x: 72, y: 442, w: 1056, h: 88, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
-          { type: 'para', x: 28, y: 32, w: 680, h: 24, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-          { type: 'para', x: 760, y: 32, w: 260, h: 16, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        ] },
+        { type: 'widget', x: 72, y: 194, w: 1056, h: 336, cards: { items: [{ t: '', d: '“They understood us in the first meeting. The site feels like walking into our shop.”', role: 'Hanna · Hanna & Co' }, { t: '', d: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', role: 'Dev · Marlow Bikes' }, { t: '', d: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', role: 'Ruth · The Corner Bakery' }], layout: 'rows', look: 'panel', pic: 'none', align: 'left', act: 'none', round: 1, extras: { price: 0, role: 1 }, feat: -1, titles: 0 } },
       ] },
     ],
     'Call to action': [
@@ -11404,40 +13153,13 @@
     ],
     'Photo cards': [
       { name: 'Photo cards', take: 'The stack', minH: 864, els: [
-        { type: 'image', x: 72, y: 96, w: 1056, h: 312, cool: true },
-        { type: 'box', x: 72, y: 96, w: 1056, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 108, y: 250, w: 400, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 108, y: 290, w: 560, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 760, y: 250, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 72, y: 456, w: 1056, h: 312, cool: true },
-        { type: 'box', x: 72, y: 456, w: 1056, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 108, y: 610, w: 400, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 108, y: 650, w: 560, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 760, y: 610, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'widget', x: 72, y: 96, w: 1056, h: 672, cards: { items: [{ t: 'Quiet mountain cabin', img: '', d: 'Wake up above the clouds. Two rooms, one stove, zero notifications — the good kind of nowhere.', link: 'Reserve now' }, { t: 'Coastal hideaway', img: '', d: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you’ve been meaning to finish.', link: 'Reserve now' }], layout: 'over', look: 'panel', pic: 'wide', align: 'left', act: 'button', titles: 1, round: 1, extras: { price: 0, role: 0, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: '#ffffff' } }, d: { tf: { fs2: 1.167, fsMin: 16, col: '#ffffff' } } }, box: { look: 'panel', radius: 20, cols: 1, ratio: 3.385 } } },
       ] },
       { name: 'Photo cards', take: 'The offset', minH: 888, els: [
-        { type: 'image', x: 100, y: 96, w: 470, h: 624, cool: true },
-        { type: 'box', x: 100, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 136, y: 506, w: 340, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 136, y: 546, w: 398, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 136, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 630, y: 168, w: 470, h: 624, cool: true },
-        { type: 'box', x: 630, y: 456, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 666, y: 578, w: 340, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 666, y: 618, w: 398, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 666, y: 696, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'widget', x: 100, y: 96, w: 1000, h: 696, cards: { items: [{ t: 'Quiet mountain cabin', img: '', d: 'Wake up above the clouds. Two rooms, one stove, zero notifications — the good kind of nowhere.', link: 'Reserve now' }, { t: 'Coastal hideaway', img: '', d: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you’ve been meaning to finish.', link: 'Reserve now' }], layout: 'over', look: 'panel', pic: 'tall', align: 'left', act: 'button', titles: 1, round: 1, extras: { price: 0, role: 0, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: '#ffffff' } }, d: { tf: { fs2: 1.167, fsMin: 16, col: '#ffffff' } } }, box: { look: 'panel', radius: 20, cols: 2, ratio: 0.753 } } },
       ] },
       { name: 'Photo cards', take: 'The ink shelf', minH: 816, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'image', x: 100, y: 96, w: 470, h: 624, cool: true },
-        { type: 'box', x: 100, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 136, y: 506, w: 340, h: 28, text: 'Quiet mountain cabin', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 136, y: 546, w: 398, h: 46, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 136, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 630, y: 96, w: 470, h: 624, cool: true },
-        { type: 'box', x: 630, y: 384, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 666, y: 506, w: 340, h: 28, text: 'Coastal hideaway', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: '#ffffff' } },
-        { type: 'para', x: 666, y: 546, w: 398, h: 46, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: '#ffffff' } },
-        { type: 'button', x: 666, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'widget', x: 100, y: 96, w: 1000, h: 624, cards: { items: [{ t: 'Quiet mountain cabin', img: '', d: 'Wake up above the clouds. Two rooms, one stove, zero notifications — the good kind of nowhere.', link: 'Reserve now' }, { t: 'Coastal hideaway', img: '', d: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you’ve been meaning to finish.', link: 'Reserve now' }], layout: 'over', look: 'panel', pic: 'tall', align: 'left', act: 'button', titles: 1, round: 1, extras: { price: 0, role: 0, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: '#ffffff' } }, d: { tf: { fs2: 1.167, fsMin: 16, col: '#ffffff' } } }, box: { look: 'panel', radius: 20, cols: 2, ratio: 0.753 } } },
       ] },
     ],
     'Portfolio': [
@@ -11470,41 +13192,20 @@
       { name: 'Menu', take: 'The two tops', minH: 408, els: [
         { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Served all day', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 300, y: 128, w: 600, h: 42, text: 'Small plates', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-        { type: 'heading', x: 72, y: 194, w: 400, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 500, y: 194, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 72, y: 234, w: 400, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 500, y: 234, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 640, y: 194, w: 400, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 1058, y: 194, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 640, y: 234, w: 400, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 1058, y: 234, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'widget', x: 72, y: 194, w: 1056, h: 68, cards: { items: [{ t: 'Sourdough, cultured butter', price: '£6' }, { t: 'Burrata, blood orange, mint', price: '£11' }, { t: 'Wood-roast leeks, romesco', price: '£9' }, { t: 'Anchovy toast, soft egg', price: '£8' }], layout: 'ledger', look: 'open', pic: 'none', align: 'left', act: 'none', extras: { price: 1, role: 0, k: 0, n: 0 }, feat: -1, titles: 1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, price: { tf: { fs2: 1.167, fsMin: 16 } } }, box: { look: 'open', pad: 6, gap: 4, cols: 2 } } },
         { type: 'para', x: 280, y: 274, w: 640, h: 24, align: 'center', text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       ] },
       { name: 'Menu', take: 'The card', minH: 576, els: [
         { type: 'box', x: 150, y: 96, w: 900, h: 370, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
         { type: 'para', x: 400, y: 136, w: 400, h: 16, align: 'center', text: 'Served all day', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 300, y: 168, w: 600, h: 42, text: 'Small plates', tf: { fs2: 3, fsMin: 28, lh: 1.12 }, align: 'center' },
-        { type: 'heading', x: 300, y: 234, w: 420, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 790, y: 234, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 300, y: 274, w: 420, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 790, y: 274, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 300, y: 314, w: 420, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 790, y: 314, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
-        { type: 'heading', x: 300, y: 354, w: 420, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 790, y: 354, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6 } },
+        { type: 'widget', x: 300, y: 234, w: 560, h: 148, cards: { items: [{ t: 'Sourdough, cultured butter', price: '£6' }, { t: 'Burrata, blood orange, mint', price: '£11' }, { t: 'Wood-roast leeks, romesco', price: '£9' }, { t: 'Anchovy toast, soft egg', price: '£8' }], layout: 'ledger', look: 'open', pic: 'none', align: 'left', act: 'none', extras: { price: 1, role: 0, k: 0, n: 0 }, feat: -1, titles: 1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, price: { tf: { fs2: 1.167, fsMin: 16 } } }, box: { look: 'open', pad: 6, gap: 4 } } },
         { type: 'para', x: 300, y: 394, w: 560, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
       ] },
       { name: 'Menu', take: 'The board', minH: 480, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'para', x: 400, y: 96, w: 400, h: 16, align: 'center', text: 'Served all day', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         { type: 'heading', x: 300, y: 128, w: 600, h: 42, text: 'Small plates', align: 'center', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 194, w: 520, h: 28, text: 'Sourdough, cultured butter', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 194, w: 70, h: 24, text: '\u00a36', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 234, w: 520, h: 28, text: 'Burrata, blood orange, mint', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 234, w: 70, h: 24, text: '\u00a311', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 274, w: 520, h: 28, text: 'Wood-roast leeks, romesco', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 274, w: 70, h: 24, text: '\u00a39', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 314, w: 520, h: 28, text: 'Anchovy toast, soft egg', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 314, w: 70, h: 24, text: '\u00a38', align: 'right', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'widget', x: 280, y: 194, w: 640, h: 148, cards: { items: [{ t: 'Sourdough, cultured butter', price: '£6' }, { t: 'Burrata, blood orange, mint', price: '£11' }, { t: 'Wood-roast leeks, romesco', price: '£9' }, { t: 'Anchovy toast, soft egg', price: '£8' }], layout: 'ledger', look: 'open', pic: 'none', align: 'left', act: 'none', extras: { price: 1, role: 0, k: 0, n: 0 }, feat: -1, titles: 1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: 'var(--wp--preset--color--base, #fff)' } }, price: { tf: { fs2: 1.167, fsMin: 16, col: 'var(--wp--preset--color--base, #fff)' } } }, box: { look: 'open', pad: 6, gap: 4 } } },
         { type: 'para', x: 280, y: 354, w: 640, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fs2: 1.167, fsMin: 16, lh: 1.6, fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
       ] },
     ],
@@ -11512,41 +13213,17 @@
       { name: 'Team', take: 'The list', minH: 1008, els: [
         { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'image', x: 72, y: 226, w: 200, h: 192, cool: true },
-        { type: 'heading', x: 310, y: 274, w: 400, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 310, y: 318, w: 400, h: 16, text: 'Creative director', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 72, y: 466, w: 200, h: 192 },
-        { type: 'heading', x: 310, y: 514, w: 400, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 310, y: 558, w: 400, h: 16, text: 'Lead engineer', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 72, y: 706, w: 200, h: 192, cool: true },
-        { type: 'heading', x: 310, y: 754, w: 400, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 310, y: 798, w: 400, h: 16, text: 'Strategy', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'widget', x: 72, y: 226, w: 638, h: 672, cards: { items: [{ t: 'June Ashby', img: '', role: 'Creative director' }, { t: 'Marco Reyes', img: '', role: 'Lead engineer' }, { t: 'Priya Chandra', img: '', role: 'Strategy' }], layout: 'rows', look: 'open', pic: 'square', align: 'left', act: 'none', titles: 1, extras: { price: 0, role: 1, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, role: { tf: { fs2: 0.917, fsMin: 12, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } } }, box: { look: 'open', gap: 8 } } },
       ] },
       { name: 'Team', take: 'The ink studio', minH: 696, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'image', x: 72, y: 226, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 74, y: 538, w: 320, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 74, y: 582, w: 320, h: 16, text: 'Creative director', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'image', x: 435, y: 226, w: 330, h: 288 },
-        { type: 'heading', x: 437, y: 538, w: 320, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 437, y: 582, w: 320, h: 16, text: 'Lead engineer', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'image', x: 798, y: 226, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 800, y: 538, w: 320, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 800, y: 582, w: 320, h: 16, text: 'Strategy', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'widget', x: 72, y: 226, w: 1056, h: 372, cards: { items: [{ t: 'June Ashby', img: '', role: 'Creative director' }, { t: 'Marco Reyes', img: '', role: 'Lead engineer' }, { t: 'Priya Chandra', img: '', role: 'Strategy' }], layout: 'g3', look: 'open', pic: 'square', align: 'left', act: 'none', titles: 1, extras: { price: 0, role: 1, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20, col: 'var(--wp--preset--color--base, #fff)' } }, role: { tf: { fs2: 0.917, fsMin: 12, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } } }, box: { look: 'open', gap: 8 } } },
       ] },
       { name: 'Team', take: 'The offset', minH: 792, els: [
         { type: 'para', x: 72, y: 96, w: 300, h: 16, text: 'The studio', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
         { type: 'heading', x: 72, y: 128, w: 600, h: 42, text: 'Eleven people, no egos', tf: { fs2: 3, fsMin: 28, lh: 1.12 } },
-        { type: 'image', x: 72, y: 226, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 74, y: 582, w: 320, h: 28, text: 'June Ashby', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 74, y: 626, w: 320, h: 16, text: 'Creative director', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 435, y: 226, w: 330, h: 288 },
-        { type: 'heading', x: 437, y: 538, w: 320, h: 28, text: 'Marco Reyes', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 437, y: 582, w: 320, h: 16, text: 'Lead engineer', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
-        { type: 'image', x: 798, y: 312, w: 330, h: 288, cool: true },
-        { type: 'heading', x: 800, y: 624, w: 320, h: 28, text: 'Priya Chandra', tf: { fs2: 1.833, fsMin: 20, lh: 1.25 } },
-        { type: 'para', x: 800, y: 668, w: 320, h: 16, text: 'Strategy', tf: { fs2: 0.917, fsMin: 12, lh: 1.4, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } },
+        { type: 'widget', x: 72, y: 226, w: 1056, h: 458, cards: { items: [{ t: 'June Ashby', img: '', role: 'Creative director' }, { t: 'Marco Reyes', img: '', role: 'Lead engineer' }, { t: 'Priya Chandra', img: '', role: 'Strategy' }], layout: 'steps', look: 'open', pic: 'square', align: 'left', act: 'none', titles: 1, extras: { price: 0, role: 1, k: 0, n: 0 }, feat: -1, type: { t: { tf: { fs2: 1.833, fsMin: 20 } }, role: { tf: { fs2: 0.917, fsMin: 12, fw: 600, ls2: 0.2, tt: 'uppercase', col: 'color-mix(in srgb, currentColor 62%, transparent)' } } }, box: { look: 'open', gap: 8 } } },
       ] },
     ],
   };
@@ -11563,6 +13240,7 @@
   // what KIND of widget a piece is — a wall only ever rolls into a wall,
   // a shop rail into a shop family; the substance must have a slot to land in
   function diceWidgetKind(e) {
+    if (e.cards) return 'cards';
     if (e.posts) return 'posts';
     if (e.rails || e.shop) return 'shop';
     if (e.faq) return 'faq';
@@ -11575,16 +13253,38 @@
   function diceWidgetKinds(els) {
     return diceFlatten(els).filter(function (e) { return e.type === 'widget'; }).map(diceWidgetKind).sort();
   }
+  // a row of matching freeform cards, read as the set it would become
+  // (cardsAdoptBoxes makes it one on the first roll); null when there is none
+  function cardsVirtual(els) {
+    if (els.some(function (e) { return e.cards; })) return null;
+    var sig = function (b) { return b.kids.map(function (k) { return k.type; }).join(','); };
+    var boxes = els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; });
+    if (boxes.length < 2 || !boxes.every(function (b) { return sig(b) === sig(boxes[0]); })) return null;
+    var x = Math.min.apply(null, boxes.map(function (b) { return b.x; })), y = Math.min.apply(null, boxes.map(function (b) { return b.y; }));
+    var set = { type: 'widget', x: x, y: y, w: Math.max.apply(null, boxes.map(function (b) { return b.x + b.w; })) - x,
+      h: Math.max.apply(null, boxes.map(function (b) { return b.y + b.h; })) - y, cards: cardsFromBoxes(boxes) };
+    var out = els.filter(function (e) { return boxes.indexOf(e) === -1; });
+    out.splice(els.indexOf(boxes[0]), 0, set);
+    return out;
+  }
+  // what a set's cards hold (titles, words, a name, a price, a link)
+  function cardsShape(c) {
+    var has = function (f) { return (c.items || []).some(function (it) { return !!it[f]; }); };
+    return ['t', 'd', 'role', 'price', 'link'].map(has);
+  }
   function diceInferFamily(sec) {
     if (!sec || !sec.els || !sec.els.length) return null;
     if (sec.els.some(function (e) { return e.type === 'exp'; })) return null;
-    var want = diceByRole(sec.els);
+    // a row of freeform cards is weighed as the set it would roll into
+    var els0 = cardsVirtual(sec.els) || sec.els;
+    var want = diceByRole(els0);
     var wantKeys = Object.keys(want);
     if (!want.heading) return null;
-    var wantKinds = diceWidgetKinds(sec.els).join(',');
+    var wantKinds = diceWidgetKinds(els0).join(',');
+    var wantSet = els0.filter(function (e) { return e.cards; })[0];
     // cards match cards: a three-card paste rolls within a three-card family
     var cardsOf = function (els) { return els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; }).length; };
-    var wantCards = cardsOf(sec.els);
+    var wantCards = cardsOf(els0);
     var best = null, bestScore = 0;
     Object.keys(VARIANTS).forEach(function (fam) {
       var faces = diceFaces(fam);
@@ -11603,11 +13303,11 @@
       // roll'). One stray is a rider the eye forgives; more makes a section
       // of its own kind, and the die leaves it be
       var decoOf = function (els) { return els.filter(function (e) { return !diceRole(e) && !(e.type === 'box' && e.kids && e.kids.length); }).length; };
-      if (decoOf(sec.els) > decoOf(baseEls) + 1) return;
+      if (decoOf(els0) > decoOf(baseEls) + 1) return;
       // ...counted at the top level only: a card's kids ride with their
       // card, so three priced cards with a label each are still three cards
       var topCount = function (els) { var m = {}; els.forEach(function (e) { var r = diceRole(e); if (r) m[r] = (m[r] || 0) + 1; }); return m; };
-      var tw = topCount(sec.els), th = topCount(baseEls);
+      var tw = topCount(els0), th = topCount(baseEls);
       if (Object.keys(tw).some(function (r) { return tw[r] > (th[r] || 0) + 1; })) return;
       var hit = 0, total = 0;
       Object.keys(have).forEach(function (r) {
@@ -11615,6 +13315,13 @@
         hit += Math.min(a, b); total += Math.max(a, b);
       });
       var score = total ? hit / total : 0;
+      // two sets weigh what their cards hold: prices find Pricing, a name
+      // under kind words finds Testimonials
+      var baseSet = baseEls.filter(function (e) { return e.cards; })[0];
+      if (wantSet && baseSet) {
+        var a1 = cardsShape(wantSet.cards), b1 = cardsShape(cardsNorm(JSON.parse(JSON.stringify(baseSet.cards))));
+        score = score * (0.5 + 0.5 * a1.filter(function (v, k) { return v === b1[k]; }).length / a1.length);
+      }
       // the words must FIT the family's drawing, not just its roles: a
       // photographer's hero (eyebrow, big headline, two lines) counted as a
       // Quote by roles alone, and every take poured a 28-character display
@@ -11663,7 +13370,7 @@
   // a widget's SUBSTANCE (the questions, the pictures) — the part a roll
   // must never lose; copt/wopt are clothes and belong to each take
   function diceWidgetData(e) {
-    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null, posts: e.posts || null });
+    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null, posts: e.posts || null, cards: e.cards ? e.cards.items : null });
   }
   function diceByRole(els) {
     var map = {};
@@ -11771,7 +13478,7 @@
   // and the homecoming composes it again
   function diceRecomposable(e) {
     return e.type === 'widget' && !!((e.rails && e.shop) || (e.rails && e.posts) || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) ||
-      (e.slides && e.slides.length) || (e.wall && e.wall.length));
+      (e.slides && e.slides.length) || (e.wall && e.wall.length) || !!e.cards);
   }
   function diceRecompose(els) {
     diceFlatten(els).forEach(function (e) {
@@ -11901,12 +13608,38 @@
       bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
       bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null };
   }
+  // a section drawn from a card design before the designs became Cards
+  // still holds a row of freeform boxes: on its first roll into a family
+  // whose takes are sets, the row becomes the set (its words, its order,
+  // its featured card), so the next take carries them like any set's
+  function cardsAdoptBoxes(sec, faces) {
+    if (sec.els.some(function (e) { return e.cards; })) return;
+    var model = null;
+    faces.some(function (f) { return (f.els || []).some(function (e) { if (e.cards) { model = e; return true; } return false; }); });
+    if (!model) return;
+    var sig = function (b) { return b.kids.map(function (k) { return k.type; }).join(','); };
+    var boxes = sec.els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; });
+    if (boxes.length < 2 || !boxes.every(function (b) { return sig(b) === sig(boxes[0]); })) return;
+    var got = cardsFromBoxes(boxes);
+    var x = Math.min.apply(null, boxes.map(function (b) { return b.x; })), y = Math.min.apply(null, boxes.map(function (b) { return b.y; }));
+    var r = Math.max.apply(null, boxes.map(function (b) { return b.x + b.w; })), bot = Math.max.apply(null, boxes.map(function (b) { return b.y + b.h; }));
+    var c = JSON.parse(JSON.stringify(model.cards));
+    c.items = got.items;
+    c.feat = got.feat;
+    var set = { type: 'widget', x: x, y: y, w: r - x, h: bot - y, cards: c };
+    if (boxes[0].id) set.id = boxes[0].id;
+    composeCardsData(set);
+    var at = sec.els.indexOf(boxes[0]);
+    sec.els = sec.els.filter(function (e) { return boxes.indexOf(e) === -1; });
+    sec.els.splice(Math.min(at, sec.els.length), 0, set);
+  }
   function rollSection(idx, opts) {
     var quiet = !!(opts && opts.quiet); // the Layouts panel's previews: no undo step, no toast, no fetches
     var sec = S[idx];
     var fam = diceFamilyOf(sec);
     var faces = fam ? diceFaces(fam) : null;
     if (!faces) return null;
+    cardsAdoptBoxes(sec, faces);
     diceEnsureIds(sec.els);
     var m = sec.m || {};
     // an inferred family is adopted on the first roll: from here the
@@ -12246,6 +13979,8 @@
           if (d.wdata.tabs && e.tabs) e.tabs = d.wdata.tabs;
           if (d.wdata.pics && e.slides) e.slides = d.wdata.pics;
           else if (d.wdata.pics && e.wall) e.wall = d.wdata.pics;
+          // a set's cards travel; its layout, look and featured card are the take's
+          if (d.wdata.cards && e.cards) e.cards.items = JSON.parse(JSON.stringify(d.wdata.cards));
           if (d.wdata.shop && e.shop) {
             // the shop's data is the shop's: category, order, count and
             // what to show travel; layout, picture and spacing belong to the take
@@ -13678,12 +15413,11 @@
     if (c.link && L.button[0]) L.button[0].href = String(c.link);
   }
   // takes whose items are not cards but repeated pieces in a row
+  // (Team, Menu and Photo cards are Cards sets since v0.99.758–759: their
+  // items fill the set, like Feature cards)
   var FLAT_TAKES = {
     'Numbers': { unit: { heading: 'value', para: 'label' }, head: {} },
-    'Team': { unit: { image: 'image', heading: 'name', eyebrow: 'role' }, head: { eyebrow: 1, heading: 1 } },
-    'Menu': { unit: { heading: 'name', para: 'price' }, head: { eyebrow: 1, heading: 1 }, tail: { para: 1 } },
     'Gallery': { unit: { image: 'image' }, head: { eyebrow: 1, heading: 1 }, tail: { button: 1 } },
-    'Photo cards': { unit: { image: 'image', heading: 'title', para: 'text', badge: ['badge', 'badge2'], button: 'button' }, head: {} },
   };
   function templateByName(name) {
     var found = null;
@@ -13742,6 +15476,28 @@
       sp.w = Math.max(200, Math.min(W - sp.x, Math.round(+e.w || sp.w))); sp.h = Math.max(160, Math.round(+e.h || sp.h));
       sp.wsrc = composeShop(sp.shop);
       return sp;
+    }
+    // a set of cards, named directly: its items in the set's own words
+    // (t, d, k, role, n, price, per, link, href, img, alt) or in a
+    // definition's friendlier ones (title, text, image, button, link, name,
+    // role, price, above, note), and the set's design beside them
+    if (e && e.type === 'cards' && e.cards && Array.isArray(e.cards.items) && e.cards.items.length) {
+      var cs = JSON.parse(JSON.stringify(e.cards));
+      var own = cs.items.some(function (it) { return it && (it.t != null || it.d != null); });
+      if (!own) {
+        var friendly = cs.items;
+        cs.items = cardsFromDefItems(friendly, { titles: cs.titles == null ? 1 : cs.titles });
+        cs.items.forEach(function (it, k) {
+          var f = friendly[k] || {};
+          if (f.above != null) it.k = String(f.above);
+          if (f.note != null) it.n = String(f.note);
+        });
+      }
+      var cw = { type: 'widget', cards: cs };
+      cw.x = Math.max(0, Math.round(+e.x || 0)); cw.y = Math.max(0, Math.round(+e.y || 0));
+      cw.w = Math.max(200, Math.min(W - cw.x, Math.round(+e.w || 1000))); cw.h = Math.max(80, Math.round(+e.h || 400));
+      composeCardsData(cw);
+      return cw;
     }
     if (!e || !GEN_TYPES[e.type]) return null;
     var out = { type: e.type };
@@ -13868,6 +15624,12 @@
         else if (w.tabs) w.tabs = items.map(function (it, k) { return Object.assign({}, w.tabs[k] || w.tabs[0] || {}, { label: String(it.label || it.title || ''), body: String(it.body || it.text || '') }); });
         else if (w.wall) w.wall = items.map(function (it) { return { img: String(it.image || it.img || ''), cap: String(it.caption || it.cap || '') }; });
         else if (w.slides) w.slides = items.map(function (it) { return { img: String(it.image || it.img || ''), cap: String(it.caption || it.cap || '') }; });
+        else if (w.cards) {
+          w.cards = cardsNorm(w.cards);
+          w.cards.items = cardsFromDefItems(items, w.cards);
+          w.cards = cardsNorm(w.cards); // a featured slot past the items goes
+          composeCardsData(w);
+        }
       }
     }
     if (sc.mood) clone.els.forEach(function (e) { if (e.type === 'box' && e.kids && e.kids.length) e.mood = sc.mood; });
@@ -17205,7 +18967,7 @@
   }
   function cardJoinTarget(sec, i) {
     var e = sec.els[i];
-    if (!e || e.rails) return -1; // rails never enter a card: cards stack by different rules on phones
+    if (!e || e.rails || e.cards) return -1; // rails never enter a card: cards stack by different rules on phones
     // a plain shape may join as decoration — a circle behind a number, a
     // stripe along the top — but only as a LEAF: a box with kids of its own
     // never joins (cards stay one level deep), and nothing can join a kid
@@ -22365,6 +24127,8 @@
     composeTabs: composeTabs,
     composeCarousel: composeCarousel,
     composeWall: composeWall,
+    cards: { compose: composeCards, norm: cardsNorm, act: cardsDo, fit: fitCards, menu: openCardMenu, layouts: CARD_LAYOUTS,
+      pop: function () { return cardPop; }, seam: function () { return cardSeam; }, seams: function (n) { return cardSeamsOf(n); }, focus: function () { return cardFocus; }, drop: function () { sel = null; hideHandles(); }, read: cardsReadBoxes, fromEls: cardsSetFromEls, nowhere: function () { return cardLinksWithoutAddress(); }, ghost: function () { return cardGhost; }, chip: function () { return cardChip; }, pic: openCardPicPop },
     mediaPool: mediaPool,
     tplEls: tplEls,
     elDefaults: function () { return DEFAULTS; },
@@ -22666,6 +24430,13 @@
       return;
     }
     if (typing) return;
+    if ((ev.metaKey || ev.ctrlKey) && !ev.shiftKey && ev.key.toLowerCase() === 'd' && (sel || multiSel)) {
+      // duplicate, the way design tools do (and never the browser's bookmark)
+      ev.preventDefault();
+      if (multiSel) duplicateSelection();
+      else if (sel.sec.els[sel.i] && !sel.sec.els[sel.i].cards) duplicateChosen();
+      return;
+    }
     if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'a') {
       // select all, within the section that has the eye
       var secA = sel ? sel.sec : (multiSel ? multiSel.sec : (selSecIdx !== null ? S[selSecIdx] : null));
@@ -22676,6 +24447,21 @@
     }
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && (sel || multiSel)) {
       ev.preventDefault();
+      // a card chosen inside a set: the key takes that card, not the set
+      // (James: 'if i select a card, and hit delete or backspace, it should
+      // only delete that card, not all the cards')
+      var dce = !multiSel && sel && sel.sec.els[sel.i];
+      if (dce && dce.cards && cardFocusOn(sel.sec, sel.i)) {
+        closeCardPop();
+        if (dce.cards.items.length < 2) { toast('That is the last card. To remove the set, choose it and press Delete.'); return; }
+        var dk = cardFocus.k, dsec = sel.sec, di = sel.i;
+        cardsDo(dsec, dce, 'del', dk);
+        // the next card is chosen, so a second press takes a second card,
+        // never the whole set
+        focusCard(dsec, di, Math.min(dk, dce.cards.items.length - 1));
+        toast('Card deleted.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        return;
+      }
       deleteSelected();
       return;
     }
@@ -23712,6 +25498,13 @@
       // (James); it lives in the SEO panel, which explains it
       setChip('clean', '');
       chipTimer = setTimeout(refreshChip, 2600);
+      // published, with a word about card links that go nowhere yet (warn,
+      // never block: the page is live either way)
+      var nowhere = cardLinksWithoutAddress();
+      if (nowhere.length) {
+        toast('Published. ' + (nowhere.length === 1 ? 'One card link has' : nowhere.length + ' card links have') + ' no address yet, so ' + (nowhere.length === 1 ? 'it goes' : 'they go') + ' nowhere: ' +
+          nowhere.slice(0, 3).map(function (t) { return '\u201c' + String(t).slice(0, 30) + '\u201d'; }).join(', ') + (nowhere.length > 3 ? '\u2026' : '') + '. Press a card\u2019s link to add one.', { ttl: 9000 });
+      }
       return true;
     }).catch(function (err) {
       chipBusy = false;
@@ -24673,6 +26466,119 @@
   // frictionless paste: Cmd+V anywhere in edit mode drops HTML straight onto
   // the page as a section — no modal, no textarea. Only pastes that are
   // clearly HTML source are claimed; typing into any field keeps its meaning.
+  // ---------- copy and paste pieces (the arrivals paper, release 3) ----------
+  // Cmd+C / Cmd+X on chosen pieces puts the pieces themselves on the
+  // clipboard (inside its HTML, with their plain words for other apps);
+  // Cmd+V lands them like Duplicate beside or under what is chosen, else in
+  // the same spot if it is free, else at the section's foot. A picture on
+  // the clipboard goes into the media library and arrives like Add; plain
+  // words arrive as a paragraph.
+  function inAField(t) {
+    return !!(t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || (t.closest && t.closest('[contenteditable="true"]'))));
+  }
+  function chosenPieces() {
+    if (multiSel) return { sec: multiSel.sec, els: multiSel.idxs.map(function (j) { return multiSel.sec.els[j]; }).filter(Boolean) };
+    if (sel && sel.sec.els[sel.i]) return { sec: sel.sec, els: [sel.sec.els[sel.i]] };
+    return null;
+  }
+  function piecesWords(els) {
+    return els.map(function (e) { return cardsPlainText(e.text || ''); }).filter(Boolean).join('\n');
+  }
+  function copyPieces(ev) {
+    if (!editing || inAField(ev.target) || textEditing || panelOpen) return null;
+    var ch = chosenPieces();
+    if (!ch || !ch.els.length || !ev.clipboardData) return null;
+    var json = JSON.stringify({ v: 1, els: ch.els });
+    var b64 = btoa(unescape(encodeURIComponent(json)));
+    ev.clipboardData.setData('text/html', '<meta data-gogh-pieces="' + b64 + '">' + esc(piecesWords(ch.els)));
+    ev.clipboardData.setData('text/plain', piecesWords(ch.els) || ' ');
+    ev.preventDefault();
+    return ch;
+  }
+  document.addEventListener('copy', function (ev) {
+    var ch = copyPieces(ev);
+    if (ch) toast(ch.els.length === 1 ? 'Copied. ⌘V puts it in any section, on any page.' : 'Copied ' + ch.els.length + ' pieces.', { ttl: 2600 });
+  });
+  document.addEventListener('cut', function (ev) {
+    var ch = copyPieces(ev);
+    if (ch) deleteSelected();
+  });
+  function pasteTarget() {
+    if (sel && sel.sec) return sel.sec;
+    if (multiSel) return multiSel.sec;
+    if (selSecIdx !== null && S[selSecIdx] && !S[selSecIdx].chrome) return S[selSecIdx];
+    var v = viewportSection();
+    return v && !v.chrome ? v : null;
+  }
+  function pastePieces(sec, els) {
+    var copies = diceFreshIds(JSON.parse(JSON.stringify(els)));
+    var anchors = sel && sel.sec === sec && sec.els[sel.i] ? [sec.els[sel.i]]
+      : (multiSel && multiSel.sec === sec ? multiSel.idxs.map(function (j) { return sec.els[j]; }) : null);
+    var said = 'Pasted.';
+    if (anchors && copies.length === 1 && anchors.length === 1) {
+      said = landNear(sec, anchors[0], copies[0]) === 'beside' ? 'Pasted, beside it.' : 'Pasted, under it.';
+    } else if (anchors) {
+      var abb = bboxOf(anchors), cbb = bboxOf(copies);
+      makeRoomUnder(sec, abb, cbb.h + RHYTHM, anchors);
+      copies.forEach(function (c) { c.x = Math.max(0, Math.min(W - c.w, c.x - cbb.x + abb.x)); c.y = c.y - cbb.y + abb.y + abb.h + RHYTHM; });
+      said = 'Pasted, under them.';
+    } else if (sec.els.some(function (o) { return copies.some(function (c) { return rectsHit(c, o); }); })) {
+      var foot = 0; sec.els.forEach(function (o) { foot = Math.max(foot, o.y + o.h); });
+      var top = bboxOf(copies).y;
+      copies.forEach(function (c) { c.y = c.y - top + foot + RHYTHM; });
+      said = 'Pasted, at the foot of the section.';
+    }
+    var start = sec.els.length;
+    copies.forEach(function (c) { sec.els.push(c); });
+    renderSection(sec);
+    fitCards(sec);
+    if (copies.length === 1) placeHandles(sec, start); else setMulti(sec, copies.map(function (c, k) { return start + k; }));
+    pushState();
+    toast(said, { ttl: 3000, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
+  document.addEventListener('paste', function (ev) {
+    if (!editing || inAField(ev.target) || textEditing || panelOpen) return;
+    var cd = ev.clipboardData;
+    var target = pasteTarget();
+    if (!cd || !target) return;
+    var claim = function () { ev.preventDefault(); ev.stopImmediatePropagation(); };
+    var m = (cd.getData('text/html') || '').match(/data-gogh-pieces="([A-Za-z0-9+\/=]+)"/);
+    if (m) {
+      var got = null;
+      try { got = JSON.parse(decodeURIComponent(escape(atob(m[1])))); } catch (er) { got = null; }
+      if (got && Array.isArray(got.els) && got.els.length) { claim(); pastePieces(target, got.els); return; }
+    }
+    var idx = S.indexOf(target);
+    var pic = cd.files && [].filter.call(cd.files, function (f) { return /^image\//.test(f.type); })[0];
+    if (pic && cfg.canUpload && cfg.mediaUrl) {
+      claim();
+      toast('Adding the picture to your media library…', { ttl: 2500 });
+      var fd = new FormData();
+      fd.append('file', pic, pic.name || 'pasted-picture.png');
+      fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd })
+        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(function (item) {
+          var e = DEFAULTS.image();
+          e.src = item.source_url; e.mediaId = item.id; e.alt = item.alt_text || '';
+          var md = item.media_details || {};
+          if (md.width && md.height) e.h = Math.max(48, Math.round(e.w * md.height / md.width));
+          addElementToSection(idx, e);
+          toast('Pasted the picture. It is in your media library too.', { ttl: 3000, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        })
+        .catch(function (err) { toast('The picture could not be added: ' + (err && err.message ? err.message : 'try again') + '.', { error: true }); });
+      return;
+    }
+    var words = (cd.getData('text/plain') || '').trim();
+    // (HTML-looking text still becomes a section, below)
+    if (words && words[0] !== '<') {
+      claim();
+      var para = DEFAULTS.para();
+      para.text = words.split(/\n{2,}/).map(function (chunk) { return esc(chunk).replace(/\n/g, '<br>'); }).join('<br><br>');
+      para.w = Math.min(640, Math.max(para.w, 380));
+      addElementToSection(idx, para);
+      toast('Pasted as a paragraph.', { ttl: 2600, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+    }
+  });
   document.addEventListener('paste', function (ev) {
     if (!editing) return;
     var t = ev.target;

@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.745
+# Knowledge-base audit — plugin v0.99.776
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (104)
+## MISSING (103)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -105,13 +105,12 @@ The source has something the prose never explains. The bot knows the name from t
 - template `Shop the look` exists in source but is never mentioned in the prose
 - template `Profile card` exists in source but is never mentioned in the prose
 - template `Job card` exists in source but is never mentioned in the prose
-- template `Place card` exists in source but is never mentioned in the prose
 - template `Tabs` exists in source but is never mentioned in the prose
 - template `Portfolio` exists in source but is never mentioned in the prose
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 
-## QUOTE (31)
+## QUOTE (39)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
@@ -123,6 +122,14 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - Already the same size
 - Needs two or more pieces
 - there is no phone button
+- Layout · 3 across
+- Style · Panel
+- Good to know
+- Getting here
+- Good to know
+- Seconds Saturday / Kiln notes
+- Layout · 3 across
+- Style · Panel
 - Choose an option
 - An evening, set
 - The spring pour
@@ -151,4 +158,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.744 → 0.99.745
+- version: 0.99.775 → 0.99.776

@@ -725,90 +725,59 @@
        "fs": "xx-large"
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 240,
-       "w": 320,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "box",
-       "x": 440,
-       "y": 240,
-       "w": 320,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "box",
-       "x": 800,
-       "y": 240,
-       "w": 320,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "heading",
-       "x": 80,
-       "y": 288,
-       "w": 320,
-       "h": 48,
-       "text": "01 · Pour",
-       "fs": "large",
-       "color": "theme-7"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 336,
-       "w": 300,
-       "h": 144,
-       "text": "Wax is melted slowly with the oils at 70°, then poured by hand in two goes so the top sets flat.",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "heading",
-       "x": 440,
-       "y": 288,
-       "w": 320,
-       "h": 48,
-       "text": "02 · Cure",
-       "fs": "large",
-       "color": "theme-7"
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 336,
-       "w": 300,
-       "h": 144,
-       "text": "Two weeks on a cool shelf. The scent needs time to bind to the wax; a rushed candle smells of nothing when lit.",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "heading",
-       "x": 800,
-       "y": 288,
-       "w": 320,
-       "h": 48,
-       "text": "03 · Trim",
-       "fs": "large",
-       "color": "theme-7"
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 336,
-       "w": 300,
-       "h": 144,
-       "text": "Every wick is trimmed, every jar wiped and labelled by the person who poured it. Their initials are on the base.",
-       "tf": {
-        "fs": 16
+       "w": 1040,
+       "h": 240,
+       "cards": {
+        "items": [
+         {
+          "t": "01 · Pour",
+          "d": "Wax is melted slowly with the oils at 70°, then poured by hand in two goes so the top sets flat."
+         },
+         {
+          "t": "02 · Cure",
+          "d": "Two weeks on a cool shelf. The scent needs time to bind to the wax; a rushed candle smells of nothing when lit."
+         },
+         {
+          "t": "03 · Trim",
+          "d": "Every wick is trimmed, every jar wiped and labelled by the person who poured it. Their initials are on the base."
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 0,
+        "titles": 1,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "fs": "large",
+          "tag": "h2"
+         },
+         "d": {
+          "tf": {
+           "fs": 16
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "gap": 10,
+         "minH": 192,
+         "rule": 48,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 18%, transparent)"
+        }
        }
       }
      ]

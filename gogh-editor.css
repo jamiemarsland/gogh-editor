@@ -4843,7 +4843,10 @@ html.gogh-editing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-gogh-account
 .gogh-lay-stage > .gogh-wrap { margin: 0 !important; width: 100% !important; max-width: none !important; }
 .gogh-lay-name { font: 600 12.5px/1.25 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1e1e1e; }
 .gogh-lay-take.is-active .gogh-lay-name { color: #2f4bb3; }
-button.gogh-sb-take { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+/* the take count is the bar's own small type, never the theme's body text
+   (font: inherit here made it 'so big' on a serif theme, James) */
+button.gogh-sb-take { border: 0; background: none; padding: 4px 2px; font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: rgba(20, 21, 25, 0.6); letter-spacing: 0.02em; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+button.gogh-sb-take:hover { color: #1d1d20; }
 .gogh-panel .gogh-lay-done { background: #3858e9; border-color: #3858e9; color: #fff; }
 .gogh-panel .gogh-lay-done:hover { background: #2c49c9; }
 .gogh-panel .gogh-panel-head .gogh-lay-reset { margin-left: auto; }
@@ -4981,3 +4984,288 @@ button.gogh-sb-take { border: 0; background: none; font: inherit; color: inherit
 .gogh-hdoor:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; border-radius: 6px; }
 .gogh-hdoors .gogh-hlaybox { padding: 4px 0 12px; }
 .gogh-hstickyrow { border: 0; border-bottom: 1px solid var(--gogh-ui-border); border-radius: 0; padding: 11px 4px; font-size: 14.5px; margin: 0 0 14px; }
+
+/* ---------- Cards: a set of cards that share one design ---------- */
+/* an empty word is a soft prompt on the canvas, never on the page */
+html.gogh-editing .gogh-cardset [data-cf]:empty { display: inline-block; min-width: 1ch; }
+html.gogh-editing .gogh-cardset [data-cf]:empty::before { content: attr(data-ph); opacity: 0.42; font-style: normal; }
+/* a price's period is optional (a one-off fee has none): its prompt waits
+   for the chosen set, so previews and the page read as published */
+html.gogh-editing .gogh-widget:not(.gogh-selected) .gogh-cardset [data-cf="per"]:empty:not([contenteditable="plaintext-only"])::before { content: none; }
+html.gogh-editing .gogh-widget:not(.gogh-selected) .gogh-cardset-nod .gogh-cs-d { display: none; }
+html.gogh-editing .gogh-cardset [data-cf][contenteditable="plaintext-only"],
+html.gogh-editing .gogh-cardset [data-cf][contenteditable="true"] { outline: none; box-shadow: inset 0 -2px 0 #9aaaf2; cursor: text; }
+html.gogh-editing .gogh-cardset .gogh-cs-nopic { display: grid; place-items: center; width: 100%; aspect-ratio: 3 / 2; background: color-mix(in srgb, currentColor 7%, transparent); font: 600 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; opacity: 0.7; }
+html.gogh-editing .gogh-cardset-pic-square .gogh-cs-nopic, html.gogh-editing .gogh-cardset-small .gogh-cs-nopic { aspect-ratio: 1; }
+html.gogh-editing .gogh-cardset-pic-tall .gogh-cs-nopic { aspect-ratio: 4 / 5; }
+html.gogh-editing .gogh-cardset-small .gogh-cs-nopic { border-radius: 50%; padding: 0 12px; box-sizing: border-box; text-align: center; font-size: 11px; }
+html.gogh-editing .gogh-cardset-over .gogh-cs-nopic { position: absolute; inset: 0; aspect-ratio: auto; height: 100%; place-items: start end; padding: 14px 16px; box-sizing: border-box; color: #fff; }
+html.gogh-editing .gogh-cardset a { cursor: default; }
+.gogh-cardchip {
+  position: absolute; z-index: 100002; display: flex; background: #fff; border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(20, 16, 40, 0.2), 0 0 0 1px rgba(20, 16, 40, 0.06);
+}
+.gogh-cardchip[hidden] { display: none; }
+.gogh-cardchip button { all: unset; box-sizing: border-box; cursor: pointer; padding: 6px 9px; color: #3d3a4a; font: 700 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 0.04em; display: flex; align-items: center; }
+.gogh-cardchip .gogh-cardchip-grip { cursor: grab; border-radius: 8px 0 0 8px; }
+.gogh-cardchip .gogh-cardchip-more { border-radius: 0 8px 8px 0; }
+.gogh-cardchip button:hover { background: #eef1fd; color: #2743c4; }
+.gogh-cardchip button:focus-visible { outline: 2px solid #3858e9; outline-offset: -2px; }
+/* a card being dragged lifts and follows; the slot it will land in is marked */
+html.gogh-editing .gogh-cs-card.is-lifting { position: relative; z-index: 30; cursor: grabbing; box-shadow: 0 28px 60px rgba(30, 16, 60, 0.32), 0 0 0 2px #3858e9; opacity: 0.96; transition: none; }
+html.gogh-editing .gogh-cs-card.is-dropslot { outline: 2px dashed #3858e9; outline-offset: 4px; }
+html.gogh-editing:has(.gogh-cs-card.is-lifting) { cursor: grabbing; user-select: none; }
+/* the ghost card: one more, where it will land */
+.gogh-cardghost {
+  all: unset; position: absolute; z-index: 100001; box-sizing: border-box; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  border: 2px dashed #9aaaf2; border-radius: 12px; background: rgba(56, 88, 233, 0.05); color: #2743c4;
+  font: 600 14px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.gogh-cardghost[hidden] { display: none; }
+.gogh-cardghost:hover { border-color: #3858e9; background: #f2f4fe; }
+.gogh-cardghost:focus-visible { outline: 2px solid #3858e9; outline-offset: 2px; }
+.gogh-cardghost-plus { width: 30px; height: 30px; border-radius: 50%; background: #eef1fd; display: grid; place-items: center; flex: none; }
+/* the set's popovers under the bar */
+.gogh-eb-cardsmore { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; padding: 0 10px; white-space: nowrap; }
+.gogh-eb-cardsmore.is-open { background: #eef1fd; color: #2743c4; }
+/* Layout and Style open the sidebar: no chevron, pressed while their page is open */
+.gogh-eb-cardslayout.is-open { background: #1d1d20; color: #fff; }
+.gogh-cardpop {
+  position: absolute; z-index: 100003; box-sizing: border-box; background: #fff; color: #1d1d20; border-radius: 14px; padding: 16px;
+  box-shadow: 0 18px 48px rgba(20, 16, 40, 0.24), 0 0 0 1px rgba(20, 16, 40, 0.06);
+  font: 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; flex-direction: column; gap: 12px;
+}
+.gogh-cardpop hr { border: 0; height: 1px; background: #ecebf1; margin: 2px 0; }
+.gogh-cardpop button:focus-visible, .gogh-cardpop label:focus-within { outline: 2px solid #3858e9; outline-offset: 2px; }
+.gogh-cardpop-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.gogh-cardpop-head b { font-size: 15px; }
+.gogh-cardpop-head span { font-size: 12.5px; color: #6b6b76; }
+.gogh-cardpop-lab { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6b6b76; margin-bottom: -4px; }
+.gogh-cardpop-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; font-weight: 600; font-size: 13.5px; }
+.gogh-cardpop-seg { display: inline-flex; background: #f1f0f5; border-radius: 8px; padding: 3px; flex: none; }
+.gogh-cardpop-seg button { all: unset; cursor: pointer; padding: 6px 11px; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: #4a4560; }
+.gogh-cardpop-seg button.is-on { background: #fff; color: #1d1d20; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.gogh-cardpop-layout { width: 600px; }
+.gogh-cardpop-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.gogh-cltile { all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 7px; padding: 8px; border-radius: 10px; font-size: 13px; font-weight: 600; }
+.gogh-cltile:hover { background: #f2f4fe; }
+.gogh-cltile.is-active { box-shadow: inset 0 0 0 2px #3858e9; color: #2743c4; }
+/* little drawings of each layout, from boxes */
+.gogh-cldraw { display: block; height: 62px; padding: 9px; background: #f4f3f8; border-radius: 7px; box-sizing: border-box; overflow: hidden; position: relative; }
+.gogh-cltile:hover .gogh-cldraw { background: #e7ebfd; }
+.gogh-cldraw i { display: block; font-style: normal; }
+.gogh-cldraw .cl-row { display: flex; gap: 5px; height: 100%; }
+.gogh-cldraw .cl-tight { gap: 4px; }
+.gogh-cldraw .cl-card { flex: 1; background: #ddd8ea; border-radius: 3px; overflow: hidden; display: flex; flex-direction: column; }
+.gogh-cldraw .cl-pic { height: 55%; background: #b4aacd; }
+.gogh-cldraw .cl-steps { align-items: flex-start; }
+.gogh-cldraw .cl-steps .cl-card { height: 28px; flex: 1 0 0; }
+.gogh-cldraw .cl-steps .cl-card:nth-child(2) { margin-top: 8px; }
+.gogh-cldraw .cl-steps .cl-card:nth-child(3) { margin-top: 16px; }
+.gogh-cldraw .cl-col { display: flex; flex-direction: column; gap: 4px; height: 100%; }
+.gogh-cldraw .cl-line { flex: 1; display: flex; gap: 4px; }
+.gogh-cldraw .cl-zig .cl-line:nth-child(2) { flex-direction: row-reverse; }
+.gogh-cldraw .cl-side { width: 32%; height: auto; border-radius: 2px; }
+.gogh-cldraw .cl-half { width: 45%; height: auto; border-radius: 2px; }
+.gogh-cldraw .cl-fill { flex: 1; background: #ddd8ea; border-radius: 2px; }
+.gogh-cldraw .cl-dark { background: #8f86ab; justify-content: flex-end; padding: 4px; gap: 3px; box-sizing: border-box; }
+.gogh-cldraw .cl-w1 { height: 3px; width: 70%; background: #fff; border-radius: 2px; }
+.gogh-cldraw .cl-w2 { height: 3px; width: 45%; background: #e2ddf0; border-radius: 2px; }
+.gogh-cldraw .cl-slide { padding-right: 0; }
+.gogh-cldraw .cl-slide .cl-card { flex: 0 0 30px; }
+.gogh-cldraw .cl-next { position: absolute; right: 5px; top: 50%; translate: 0 -50%; width: 16px; height: 16px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 11px; line-height: 1; color: #4a4560; }
+.gogh-cldraw .cl-big { display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; gap: 4px; height: 100%; }
+.gogh-cldraw .cl-big .cl-pic { grid-row: span 2; height: auto; border-radius: 3px; }
+.gogh-cldraw .cl-index { justify-content: center; gap: 0; }
+.gogh-cldraw .cl-rule { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-top: 1px solid #cfc8e1; }
+.gogh-cldraw .cl-rule:last-child { border-bottom: 1px solid #cfc8e1; }
+.gogh-cldraw .cl-index .cl-w1 { width: 52%; height: 4px; background: #9f97b8; }
+.gogh-cldraw .cl-arrow { font-size: 8px; color: #6b6380; line-height: 1; }
+.gogh-cldraw .cl-ledger .cl-rule { justify-content: flex-start; gap: 4px; }
+.gogh-cldraw .cl-ledger .cl-lead { width: 10%; height: 4px; background: #6b6380; border-radius: 2px; }
+.gogh-cldraw .cl-ledger .cl-w1 { width: 30%; }
+.gogh-cldraw .cl-ledger .cl-w2 { width: 30%; height: 3px; background: #cfc8e1; border-radius: 2px; }
+.gogh-cldraw .cl-ledger .cl-val { width: 10%; height: 4px; margin-left: auto; background: #9f97b8; border-radius: 2px; }
+.gogh-cldraw-mini .cl-ledger .cl-lead, .gogh-cldraw-mini .cl-ledger .cl-val { display: none; }
+.gogh-cldraw .cl-small { justify-content: space-around; align-items: center; }
+.gogh-cldraw .cl-dot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.gogh-cldraw .cl-dot .cl-pic { width: 22px; height: 22px; border-radius: 50%; }
+.gogh-cldraw .cl-dot .cl-w1 { width: 20px; background: #9f97b8; }
+/* the bar's layout chip carries a tiny drawing of the current layout */
+.gogh-cldraw-mini .cl-row, .gogh-cldraw-mini .cl-col { gap: 1.5px; }
+.gogh-cldraw-mini .cl-card, .gogh-cldraw-mini .cl-fill, .gogh-cldraw-mini .cl-pic, .gogh-cldraw-mini .cl-dark { background: currentColor; opacity: 0.55; border-radius: 1px; padding: 0; }
+.gogh-cldraw-mini .cl-pic { opacity: 0.9; }
+.gogh-cldraw-mini .cl-w1, .gogh-cldraw-mini .cl-w2, .gogh-cldraw-mini .cl-next, .gogh-cldraw-mini .cl-arrow { display: none; }
+.gogh-cldraw-mini .cl-steps .cl-card { height: 5px; }
+.gogh-cldraw-mini .cl-steps .cl-card:nth-child(2) { margin-top: 2px; }
+.gogh-cldraw-mini .cl-steps .cl-card:nth-child(3) { margin-top: 4px; }
+.gogh-cldraw-mini .cl-slide .cl-card { flex: 0 0 5px; }
+.gogh-cldraw-mini .cl-rule { padding: 1px 0; border-color: currentColor; }
+.gogh-cldraw-mini .cl-dot .cl-pic { width: 4px; height: 4px; }
+.gogh-cardpop-style { width: 404px; }
+.gogh-cardpop-looks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.gogh-cslook { all: unset; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px; border-radius: 9px; font-size: 12.5px; font-weight: 600; }
+.gogh-cslook:hover { background: #f2f4fe; }
+.gogh-cslook.is-active { box-shadow: inset 0 0 0 2px #3858e9; color: #2743c4; }
+.gogh-csdraw { width: 100%; height: 50px; border-radius: 6px; background: #f4f3f8; display: flex; align-items: center; justify-content: center; }
+.gogh-csdraw i { display: block; }
+.gogh-csdraw .cs-card { width: 38px; height: 38px; box-sizing: border-box; padding-bottom: 4px; display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
+.gogh-csdraw .cs-pic { height: 16px; background: #b4aacd; }
+.gogh-csdraw .cs-w1 { height: 3px; width: 70%; margin-left: 4px; background: #9f97b8; }
+.gogh-csdraw .cs-w2 { height: 3px; width: 50%; margin-left: 4px; background: #c9c2db; }
+.gogh-cslook-open .cs-w1, .gogh-cslook-open .cs-w2 { margin-left: 0; }
+.gogh-cslook-panel .cs-card { background: #fff; }
+.gogh-cslook-outline .cs-card { border: 1.5px solid #9f97b8; }
+.gogh-cslook-raised .cs-card { background: #fff; border-radius: 5px; box-shadow: 0 4px 10px rgba(40, 20, 80, 0.18); }
+.gogh-cardpop-pics { display: flex; gap: 6px; flex-wrap: wrap; }
+.gogh-cspic { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: inset 0 0 0 1px #e3e2e9; }
+.gogh-cspic.is-on { background: #eef1fd; color: #2743c4; box-shadow: none; }
+.gogh-cspic i { display: block; border: 1.5px solid currentColor; border-radius: 2px; }
+.gogh-cspic-wide i { width: 16px; height: 11px; }
+.gogh-cspic-square i { width: 12px; height: 12px; }
+.gogh-cspic-tall i { width: 10px; height: 14px; }
+.gogh-cspic-none i { display: none; }
+.gogh-cardpop-more { width: 296px; padding: 8px; gap: 2px; }
+.gogh-cardpop-more .gogh-cardpop-lab { padding: 6px 10px 4px; margin: 0; }
+.gogh-cardpop-xrow { padding: 8px 10px; }
+.gogh-cardpop-xrow > span { display: flex; flex-direction: column; gap: 2px; }
+.gogh-cardpop-xrow b { font-size: 14px; }
+.gogh-cardpop-xrow small { font-size: 12px; font-weight: 500; color: #6b6b76; }
+.gogh-cardpop-item { all: unset; box-sizing: border-box; cursor: pointer; display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 10px; border-radius: 6px; font-size: 14px; }
+.gogh-cardpop-item small { font-size: 12px; color: #6b6b76; }
+.gogh-cardpop-item:hover { background: #f2f4fe; }
+.gogh-cardpop-item.is-danger, .gogh-cardpop-link.is-danger { color: #b4232c; }
+.gogh-cardpop-link.is-quiet { color: #6b6880; font-weight: 500; }
+.gogh-cardpop-link.is-quiet:hover { color: #b4232c; }
+.gogh-cardpop-pic { width: 330px; }
+.gogh-cardpop-thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; min-height: 40px; }
+.gogh-cardpop-thumb { all: unset; cursor: pointer; aspect-ratio: 1; border-radius: 7px; background: #eee center / cover no-repeat; }
+.gogh-cardpop-thumb:hover { box-shadow: 0 0 0 2px #c9d2fb; }
+.gogh-cardpop-thumb.is-on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3858e9; }
+.gogh-cardpop-btns { display: flex; gap: 8px; }
+.gogh-cardpop-btn { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 0; min-width: 0; text-align: center; white-space: nowrap; padding: 8px 12px; border-radius: 8px; box-shadow: inset 0 0 0 1px #d9d8e0; font-size: 13px; font-weight: 600; color: #1e1e1e; }
+.gogh-cardpop-btn:hover { box-shadow: inset 0 0 0 1px #3858e9; color: #3858e9; }
+.gogh-cardpop-btn:focus-visible { outline: 2px solid #3858e9; outline-offset: 2px; }
+.gogh-cardpop-field { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.gogh-cardpop-link { all: unset; cursor: pointer; align-self: flex-start; font-size: 13px; font-weight: 600; }
+/* the card menu's Link: an address, or one of the site's pages */
+.gogh-cardmenu .gogh-cardmenu-linkbtn small { font-size: 12px; color: #6b6b76; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gogh-cardmenu-link { background: #f4f5fe; border-radius: 8px; padding: 10px; margin: 2px 0; display: flex; flex-direction: column; gap: 8px; }
+.gogh-cardmenu-link[hidden] { display: none; }
+.gogh-cardmenu-link label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+.gogh-cardmenu-pages { display: flex; flex-direction: column; }
+.gogh-cardmenu-lab { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6b6b76; padding: 2px 10px 4px; }
+.gogh-cardmenu .gogh-cardmenu-pages button { padding: 7px 10px; font-size: 13.5px; }
+.gogh-cardmenu .gogh-cardmenu-pages small { font-size: 12px; color: #6b6b76; }
+.gogh-cardmenu {
+  position: absolute; z-index: 100003; width: 220px; box-sizing: border-box; padding: 6px;
+  background: #fff; color: #1d1d20; border-radius: 10px;
+  box-shadow: 0 10px 34px rgba(20, 16, 40, 0.22), 0 0 0 1px rgba(20, 16, 40, 0.06);
+  font: 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.gogh-cardmenu button { all: unset; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 9px 12px; border-radius: 6px; cursor: pointer; }
+.gogh-cardmenu button:hover:not([disabled]) { background: #f2f4fe; }
+.gogh-cardmenu button:focus-visible { outline: 2px solid #3858e9; outline-offset: -2px; }
+.gogh-cardmenu button[disabled] { opacity: 0.4; cursor: default; }
+.gogh-cardmenu button.is-on { font-weight: 600; }
+.gogh-cardmenu button.is-on::after { content: ""; width: 14px; height: 14px; background: #3858e9; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2.5 7.5l3 3 6-7' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2.5 7.5l3 3 6-7' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E") center / contain no-repeat; }
+.gogh-cardmenu button.is-danger { color: #b4232c; }
+.gogh-cardmenu hr { border: 0; height: 1px; background: #ecebf1; margin: 4px 6px; }
+.gogh-eb-cardslayout, .gogh-eb-addcard { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; padding: 0 10px; white-space: nowrap; }
+.gogh-eb-addcard { color: #2743c4; }
+/* the panel: the list, then one design for every card */
+.gogh-cards-pane .gogh-hopt-name { display: flex; flex-direction: column; gap: 2px; }
+.gogh-hopt-desc { font-weight: 500; font-size: 12px; color: var(--gogh-ui-muted, #6b6b76); }
+.gogh-cardlist { display: flex; flex-direction: column; margin: 4px 0 10px; border-top: 1px solid var(--gogh-ui-border, #e6e6ea); }
+.gogh-cardrow { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 8px 2px; border-bottom: 1px solid var(--gogh-ui-border, #e6e6ea); position: relative; background: var(--gogh-ui-bg, #fff); }
+.gogh-cardrow.is-dragging { opacity: 0.45; }
+.gogh-cardrow.is-before::before, .gogh-cardrow.is-after::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; background: #3858e9; }
+.gogh-cardrow.is-before::before { top: -1px; }
+.gogh-cardrow.is-after::after { bottom: -1px; }
+.gogh-cardrow-grip { width: 10px; height: 16px; cursor: grab; opacity: 0.5; background: radial-gradient(circle, currentColor 1.3px, transparent 1.5px) 0 0 / 5px 5.4px; }
+.gogh-cardrow-open { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; min-width: 0; cursor: pointer; border-radius: 6px; padding: 2px; }
+.gogh-cardrow-open:hover { background: var(--gogh-ui-hover, #f4f4f7); }
+.gogh-cardrow-open:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 1px; }
+.gogh-cardrow-pic { flex: none; width: 40px; height: 40px; border-radius: 6px; background: color-mix(in srgb, currentColor 10%, transparent) center / cover no-repeat; }
+.gogh-cardrow-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gogh-cardrow-t { font: 650 13.5px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gogh-cardrow-s { font: 500 12px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--gogh-ui-muted, #6b6b76); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gogh-cardrow.is-featured .gogh-cardrow-s { color: #2743c4; font-weight: 600; }
+.gogh-cardrow-more { all: unset; cursor: pointer; padding: 6px 8px; border-radius: 6px; font: 700 11px/1 -apple-system, sans-serif; color: var(--gogh-ui-muted, #6b6b76); }
+.gogh-cardrow-more:hover { background: var(--gogh-ui-hover, #f4f4f7); color: var(--gogh-ui-fg, #1d1d20); }
+.gogh-cardrow-more:focus-visible { outline: 2px solid #7ea8ff; }
+.gogh-panel .gogh-cards-add { width: 100%; box-sizing: border-box; justify-content: center; margin: 0 0 18px; background: #3858e9; border-color: #3858e9; color: #fff; padding: 10px 16px; }
+.gogh-panel .gogh-cards-add:hover { background: #2c49c9; }
+.gogh-cards-up { margin-bottom: 10px; }
+.gogh-cards-extra { margin-bottom: 0 !important; }
+.gogh-cardpic-now { width: 100%; aspect-ratio: 3 / 2; border-radius: 8px; background: center / cover no-repeat; margin-bottom: 10px; }
+/* a set first, then one card in it */
+.gogh-sethover { position: absolute; z-index: 100000; pointer-events: none; box-sizing: border-box; border: 1.5px dashed #9aaaf2; border-radius: 14px; }
+.gogh-sethover[hidden] { display: none; }
+.gogh-sethover-tag { position: absolute; left: -1px; top: -26px; background: #eef1fd; color: #2743c4; font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 6px 9px; border-radius: 6px 6px 0 0; white-space: nowrap; }
+.gogh-cardring { position: absolute; z-index: 100001; pointer-events: none; box-sizing: border-box; border: 2px solid #3858e9; border-radius: 14px; }
+.gogh-cardring[hidden] { display: none; }
+.gogh-eb-cardstrail { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 0 10px; white-space: nowrap; color: #6b6b76; font-weight: 500; border-right: 1px solid var(--gogh-ui-border, #e6e4ec); border-radius: 999px 0 0 999px; }
+.gogh-eb-cardstrail b { color: #1d1d20; font-weight: 600; }
+.gogh-eb-cardstrail .gogh-trail-set { text-decoration: underline; text-decoration-color: #c9c8d1; text-underline-offset: 3px; }
+.gogh-eb-cardstrail:hover .gogh-trail-set { color: #2743c4; text-decoration-color: currentColor; }
+/* a set's tag rides above the set, like the pointing outline's */
+.gogh-selbox-tag.is-set { left: -2px; top: -26px; border-radius: 6px 6px 0 0; padding: 4px 9px; font-weight: 600; font-size: 12px; box-shadow: none; }
+/* a card's link, where the link is */
+.gogh-cardpop-linkbar { width: 320px; gap: 10px; }
+.gogh-cardpop-pages { display: flex; flex-direction: column; margin: 0 -4px; }
+.gogh-cardpop-pages .gogh-cardpop-lab { padding: 2px 8px 6px; margin: 0; }
+.gogh-cardpop-page { all: unset; box-sizing: border-box; cursor: pointer; display: flex; justify-content: space-between; gap: 12px; padding: 7px 8px; border-radius: 6px; font-size: 13.5px; }
+.gogh-cardpop-page small { color: #6b6b76; font-size: 12px; }
+.gogh-cardpop-page:hover, .gogh-cardpop-page.is-on { background: #f2f4fe; }
+.gogh-cardpop-page:focus-visible { outline: 2px solid #3858e9; outline-offset: -2px; }
+.gogh-cardtip { position: absolute; z-index: 100004; pointer-events: none; background: #1d1d20; color: #fff; font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 6px 9px; border-radius: 6px; white-space: nowrap; }
+.gogh-cardtip.is-empty { background: #7a4a00; }
+.gogh-cardtip[hidden] { display: none; }
+/* on the canvas, a link with words and no address says so */
+html.gogh-editing .gogh-cs-link:has(a[data-nohref] [data-cf]:not(:empty))::after,
+html.gogh-editing .gogh-cs-btns:has(a[data-nohref] [data-cf]:not(:empty))::after {
+  content: "No address yet"; display: inline-block; margin-left: 10px; vertical-align: middle;
+  font: 600 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 0; text-transform: none;
+  color: #7a4a00; background: #fff4e0; border-radius: 999px; padding: 4px 8px;
+}
+html.gogh-editing .gogh-cs-btns:has(a[data-nohref] [data-cf]:not(:empty)) { display: flex; align-items: center; flex-wrap: wrap; }
+html.gogh-editing .gogh-cs-link a, html.gogh-editing .gogh-cs-btns .wp-block-button__link { cursor: pointer; }
+.gogh-cardpop .gogh-cardpop-field:focus-within { outline: none; }
+.gogh-cardpop .gogh-cardpop-field input:focus { outline: none; border-color: #3858e9; box-shadow: 0 0 0 1px #3858e9; }
+/* Layout and Style as pages of the docked sidebar */
+.gogh-cards-sidebox { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.gogh-cards-sidebox hr { border: 0; height: 1px; background: var(--gogh-ui-border, #ecebf1); margin: 4px 0; width: 100%; }
+.gogh-cards-sidelayout .gogh-cardpop-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.gogh-cards-sidebox .gogh-cardpop-row { min-height: 32px; }
+.gogh-cards-sidebox .gogh-cardpop-seg button { padding: 6px 9px; }
+.gogh-cardside-tabs { display: flex; background: #f1f0f5; border-radius: 9px; padding: 3px; margin: 0 0 12px; }
+.gogh-cardside-tabs button { all: unset; flex: 1; text-align: center; cursor: pointer; padding: 7px 10px; border-radius: 7px; font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #4a4560; }
+.gogh-cardside-tabs button.is-on { background: #fff; color: #1d1d20; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.gogh-cardside-tabs button:focus-visible { outline: 2px solid #3858e9; outline-offset: 1px; }
+/* a + in the gap between two cards */
+.gogh-cardseam { position: absolute; z-index: 100002; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.gogh-cardseam[hidden] { display: none; }
+.gogh-cardseam-line { position: absolute; background: #3858e9; border-radius: 2px; }
+.gogh-cardseam.is-vert .gogh-cardseam-line { left: 13px; top: 0; bottom: 0; width: 2px; }
+.gogh-cardseam:not(.is-vert) .gogh-cardseam-line { top: 13px; left: 0; right: 0; height: 2px; }
+.gogh-cardseam-add { all: unset; pointer-events: auto; position: relative; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; background: #3858e9; color: #fff; display: grid; place-items: center; font: 600 18px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-shadow: 0 2px 8px rgba(56, 88, 233, 0.4); }
+.gogh-cardseam-add:hover { background: #2c49c9; }
+.gogh-cardseam-add:focus-visible { outline: 2px solid #3858e9; outline-offset: 2px; }
+
+/* Cards · Style tab, to the sidebar standard: hairline rows under the look
+   drawings — switches, and rows whose choices open beneath them as rows
+   with a tick (the Page style rows' blue name for the current one) */
+.gogh-csrows { margin-top: 18px; }
+.gogh-csrow-sw { cursor: default; grid-template-columns: minmax(0, 1fr) auto; }
+.gogh-csrow-sw:hover { background: none; }
+.gogh-csrow .gogh-siterow-chev { transition: transform .15s ease; color: var(--gogh-ui-muted); }
+.gogh-csrow.is-open .gogh-siterow-chev { transform: rotate(90deg); }
+.gogh-cschoices { display: flex; flex-direction: column; padding: 0 0 6px 12px; border-top: 1px solid var(--gogh-ui-border); }
+.gogh-cschoice { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--gogh-ui-border); font: 500 14px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg); }
+.gogh-cschoice:last-child { border-bottom: 0; }
+.gogh-cschoice:hover { background: var(--gogh-ui-hover); }
+.gogh-cschoice:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; border-radius: 6px; }
+.gogh-cschoice.is-current { color: #3858e9; font-weight: 650; }
+@media (prefers-reduced-motion: reduce) { .gogh-csrow .gogh-siterow-chev { transition: none; } }

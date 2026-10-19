@@ -3812,6 +3812,570 @@
       return 'previews are not edits; choices are';
     });
 
+    // ---- Cards: a set of cards that share one design ----
+    var cardsIn = function (e) { return (e.wsrc.match(/<!-- wp:group \{"className":"gogh-cs-card/g) || []).length; };
+    test('Cards: the + menu makes a set of three cards in one design, saved as core blocks', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+      expect(e.type === 'widget' && e.cards && e.cards.items.length === 3, 'a new set should hold three cards');
+      expect(cardsIn(e) === 3, 'the saved blocks should hold three cards, got ' + cardsIn(e));
+      // groups inside groups: every block that opens closes, and the only
+      // things between blocks are the blocks' own wrappers (the block
+      // editor's own parse of this markup is checked by hand: all valid)
+      var opens = (e.wsrc.match(/<!-- wp:[a-z\/-]+[^>]*?[^\/]-->/g) || []).length, closes = (e.wsrc.match(/<!-- \/wp:/g) || []).length;
+      expect(opens === closes && opens > 0, 'every block should close: ' + opens + ' open, ' + closes + ' closed');
+      var loose = e.wsrc.replace(/<!--[\s\S]*?-->/g, '\u0000').split('\u0000').filter(function (bit) {
+        return bit.replace(/<\/?(div|figure)[^>]*>|<img[^>]*>|<h3[^>]*>[\s\S]*?<\/h3>|<p[^>]*>[\s\S]*?<\/p>|\s/g, '') !== '';
+      });
+      expect(!loose.length, 'loose markup between blocks: ' + (loose[0] || '').slice(0, 80));
+      if (window.wp && wp.blocks && wp.blocks.getBlockType && wp.blocks.getBlockType('core/group')) {
+        var invalid = [];
+        (function walk(bs) { bs.forEach(function (b) { if (!b.isValid) invalid.push(b.name); walk(b.innerBlocks || []); }); })(wp.blocks.parse(e.wsrc));
+        expect(!invalid.length, 'invalid blocks: ' + invalid.join(', '));
+      }
+      expect(!/data-c[fk]/.test(e.wsrc), 'the canvas marks must never reach the saved page');
+      var n = s0.nodes[s0.els.indexOf(e)];
+      expect(n.querySelectorAll('[data-cf="t"]').length === 3, 'every card title should be typable on the canvas');
+      expect(typeof G.elDefaults().cards === 'function', 'the + menu should offer Cards');
+      return cardsIn(e) + ' cards, valid blocks';
+    });
+    test('Cards: typing on a card writes that card, and only it', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      var leaf = n.querySelectorAll('[data-cf="t"]')[1];
+      var r = leaf.getBoundingClientRect();
+      pev('pointerdown', leaf, r.x + 4, r.y + 4); pev('pointerup', leaf, r.x + 4, r.y + 4);
+      expect(leaf.isContentEditable, 'a second press on a card title should give it the caret');
+      leaf.textContent = 'Lamp light, all evening';
+      leaf.dispatchEvent(new Event('input', { bubbles: true }));
+      leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(!leaf.isContentEditable, 'Enter should finish the words');
+      expect(e.cards.items[1].t === 'Lamp light, all evening', 'the second card should keep the words: ' + e.cards.items[1].t);
+      expect(e.cards.items[0].t !== 'Lamp light, all evening' && e.cards.items[2].t !== 'Lamp light, all evening', 'no other card should change');
+      expect(e.wsrc.indexOf('Lamp light, all evening') !== -1, 'the saved blocks should carry the new words');
+      return 'card 2 rewritten';
+    });
+    test('Cards: adding, moving and deleting cards keeps the featured card with its card, and the set grows to fit', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+      var h0 = e.h;
+      G.cards.act(s0, e, 'feat', 1);
+      var star = e.cards.items[1];
+      G.cards.act(s0, e, 'add');
+      expect(e.cards.items.length === 4 && cardsIn(e) === 4, 'Add card should make a fourth card');
+      expect(e.h > h0 + 40, 'a fourth card wraps to a new row, so the set should grow: ' + h0 + ' -> ' + e.h);
+      G.cards.act(s0, e, 'up', 1);
+      expect(e.cards.items[0] === star && e.cards.feat === 0, 'moving the featured card should keep it featured');
+      G.cards.act(s0, e, 'dup', 0);
+      expect(e.cards.items.length === 5 && e.cards.feat === 0, 'a duplicate is not featured');
+      G.cards.act(s0, e, 'del', 0);
+      expect(e.cards.items.length === 4 && e.cards.feat === -1, 'deleting the featured card leaves none featured');
+      expect(/is-featured/.test(e.wsrc) === false, 'no card should be marked featured after');
+      var one = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+      one.cards.items.splice(1);
+      G.cards.act(s0, one, 'del', 0);
+      expect(one.cards.items.length === 1, 'a set keeps at least one card');
+      return '3 → 4 cards, ' + h0 + ' → ' + e.h + ' tall';
+    });
+    test('Cards: every layout, look and picture keeps every word, and no link can run script', function () {
+      var c = G.cards.norm(null);
+      c.items = [{ t: 'Alpha one', d: 'First words', link: 'Go', href: 'javascript:alert(1)', price: '£9', per: 'each', role: 'Founder', img: '/x.jpg' },
+        { t: 'Beta two', d: 'Second words', link: 'Go', href: 'example.com/b' }];
+      c.extras = { price: 1, role: 1 };
+      var miss = [];
+      G.cards.layouts.forEach(function (L) {
+        ['open', 'panel', 'outline', 'raised'].forEach(function (look) {
+          c.layout = L[0]; c.look = look;
+          var out = G.cards.compose(JSON.parse(JSON.stringify(c)), false);
+          ['Alpha one', 'Beta two', '£9', 'Founder'].forEach(function (w) { if (out.indexOf(w) === -1) miss.push(L[0] + '/' + look + ': ' + w); });
+          if (/javascript:/i.test(out)) miss.push(L[0] + ' let a script link through');
+          if (out.indexOf('href="https://example.com/b"') === -1) miss.push(L[0] + ' lost a plain link');
+        });
+      });
+      expect(!miss.length, miss.slice(0, 4).join('; '));
+      var odd = G.cards.norm({ items: [{ t: 5 }], layout: 'nope', look: 'nope', feat: 9 });
+      expect(odd.layout === 'g3' && odd.look === 'panel' && odd.feat === -1 && odd.items[0].t === '5', 'a set from elsewhere should come out whole');
+      return G.cards.layouts.length + ' layouts × 4 looks';
+    });
+
+    test('Cards: the shelf’s card sets are Cards in every take (Feature cards, Pricing, Testimonials)', function () {
+      var bad = [];
+      ['Feature cards', 'Pricing', 'Testimonials'].forEach(function (fam) {
+        var takes = [G.templates().filter(function (t) { return t.name === fam; })[0]].concat(G.variants()[fam] || []);
+        takes.forEach(function (t, k) {
+          var sets = t.els.filter(function (e) { return e.cards; });
+          var boxes = t.els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; });
+          if (sets.length !== 1 || boxes.length) bad.push(fam + ' take ' + k + ': ' + sets.length + ' sets, ' + boxes.length + ' freeform cards');
+          if (sets[0] && !sets[0].cards.items.every(function (it) { return (it.t || it.d); })) bad.push(fam + ' take ' + k + ' has an empty card');
+        });
+      });
+      expect(!bad.length, bad.join('; '));
+      var price = G.templates().filter(function (t) { return t.name === 'Pricing'; })[0].els.filter(function (e) { return e.cards; })[0].cards;
+      expect(price.feat === 1 && price.extras.price && price.act === 'button', 'Pricing should keep its featured middle card, prices and buttons');
+      return '12 takes';
+    });
+    test('Cards: a site definition’s items fill the set (two prices, three kind words)', function () {
+      var p = G.fillTake({ take: 'Pricing', heading: 'Plans', items: [{ title: 'Small', text: 'For one', price: '£10/mo', button: 'Pick small', link: '/small' }, { title: 'Big', text: 'For many', price: '£90', button: 'Pick big' }] });
+      var set = p.els.filter(function (e) { return e.cards; })[0];
+      expect(set && set.cards.items.length === 2, 'two items should make two cards');
+      var a = set.cards.items[0];
+      expect(a.t === 'Small' && a.price === '£10' && a.per === 'a month' && a.link === 'Pick small' && a.href === '/small', 'the first card should carry its words: ' + JSON.stringify(a));
+      expect(/Pick big/.test(set.wsrc) && set.cards.feat < 2, 'the set should be composed, its featured card inside it');
+      var t = G.fillTake({ take: 'Testimonials', heading: 'Said', items: [{ quote: 'Lovely work', name: 'Ann · Ann Co' }] });
+      var ts = t.els.filter(function (e) { return e.cards; })[0];
+      expect(ts.cards.items[0].d === 'Lovely work' && ts.cards.items[0].role === 'Ann · Ann Co', 'a quote and a name should fill a kind-words card: ' + JSON.stringify(ts.cards.items[0]));
+      return 'pricing + testimonials filled';
+    });
+    test('Cards: an older row of freeform cards becomes a set on its first roll, words kept all the way home', function () {
+      var box = function (x, t, d) {
+        return { type: 'box', x: x, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, transparent)',
+          kids: [{ type: 'heading', x: 28, y: 32, w: 264, h: 28, text: t }, { type: 'para', x: 28, y: 72, w: 264, h: 68, text: d }] };
+      };
+      G.addSection({ name: 'Feature cards', minH: 480, els: [{ type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'What we do', align: 'center' },
+        box(100, 'Mine one', 'My words'), box(440, 'Mine two', 'More of mine'), box(780, 'Mine three', 'Last of mine')] }, 0);
+      var s0 = contentSecs()[0], idx = G.sections().indexOf(s0);
+      expect(s0.els.filter(function (e) { return e.kids; }).length === 3, 'the older section should start as three freeform cards');
+      G.rollSection(idx);
+      var set = s0.els.filter(function (e) { return e.cards; })[0];
+      expect(set && !s0.els.some(function (e) { return e.type === 'box'; }), 'after a roll the row should be one set, no boxes left');
+      expect(set.cards.items.map(function (it) { return it.t; }).join('|') === 'Mine one|Mine two|Mine three', 'the cards should keep their words: ' + set.cards.items.map(function (it) { return it.t; }).join('|'));
+      for (var k = 0; k < 3; k++) G.rollSection(idx);
+      var home = s0.els.filter(function (e) { return e.cards; })[0];
+      expect(home && home.cards.items[2].d === 'Last of mine', 'four rolls should bring the words home');
+      return 'boxes → set, words kept';
+    });
+
+    test('Cards: the set’s bar is Edit design, Add card and •••; the design sidebar tries on hover and keeps on click', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      var shown = function (c) { var b = q('.gogh-elbar ' + c); return !!b && getComputedStyle(b).display !== 'none'; };
+      expect(shown('.gogh-eb-addcard') && shown('.gogh-eb-cardslayout') && shown('.gogh-eb-cardsmore') && !q('.gogh-eb-cardsstyle'), 'the set’s bar should show Add card, Edit design and •••');
+      var ed = q('.gogh-eb-cardslayout'), ad = q('.gogh-eb-addcard');
+      expect(ed.textContent === 'Edit design' && (ed.compareDocumentPosition(ad) & Node.DOCUMENT_POSITION_FOLLOWING), 'Edit design should come first, then Add card (as Edit design leads a shelf\u2019s bar)');
+      expect(!shown('.gogh-eb-ctx') && !shown('.gogh-eb-dup') && !shown('.gogh-eb-del'), 'no Edit door, and copy and bin live in the set’s •••');
+      try {
+        // Edit design opens the docked sidebar on Layout (the set stays in view)
+        q('.gogh-eb-cardslayout').click();
+        var side = q('.gogh-panel .gogh-cards-pane');
+        expect(side && side.querySelectorAll('.gogh-cltile').length === G.cards.layouts.length, 'Edit design should open the sidebar on Layout, every layout shown');
+        expect(q('.gogh-eb-cardslayout').classList.contains('is-open'), 'Edit design should stay pressed while the sidebar is open');
+        side.querySelector('.gogh-cltile[data-v="rows"]').dispatchEvent(new MouseEvent('mouseenter'));
+        expect(e.cards.layout === 'g3' && /gogh-cardset-rows/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'pointing at Rows should dress the canvas, not the model');
+        side.querySelector('.gogh-cltile[data-v="g2"]').click();
+        expect(e.cards.layout === 'g2' && /gogh-cardset-g2/.test(e.wsrc), 'a click should keep 2 across');
+        side.querySelector('.gogh-cardside-tabs [data-tab="style"]').click();
+        side = q('.gogh-panel .gogh-cards-pane');
+        expect(side.querySelector('.gogh-cslook-outline'), 'the Style tab should show the looks');
+        side.querySelector('.gogh-cslook-outline').click();
+        q('.gogh-panel [data-sw="round"]').click();
+        expect(e.cards.look === 'outline' && e.cards.round === 1, 'the look and the corners should keep');
+        // the Style tab is hairline rows: Picture shows its value and opens its choices
+        var picRow = q('.gogh-panel .gogh-csrow[data-row="pic"]');
+        expect(picRow && /Picture/.test(picRow.textContent) && /Landscape/.test(picRow.textContent) && !q('.gogh-panel .gogh-cardpop-lab'), 'Picture should be a row with its current value, no small-caps labels');
+        picRow.click();
+        var sq = q('.gogh-panel .gogh-cschoice[data-k="pic"][data-v="square"]');
+        expect(sq && q('.gogh-panel .gogh-cschoice.is-current[data-v="wide"] svg'), 'its choices should open beneath it, the current one ticked');
+        sq.dispatchEvent(new MouseEvent('mouseenter'));
+        expect(e.cards.pic === 'wide' && /gogh-cardset-pic-square/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'pointing at Square should try it on the canvas only');
+        sq.click();
+        expect(e.cards.pic === 'square' && /Square/.test(q('.gogh-panel .gogh-csrow[data-row="pic"]').textContent) && q('.gogh-panel .gogh-cschoice.is-current[data-v="square"]'), 'a click should keep Square and tick it');
+        expect(q('.gogh-eb-cardslayout').classList.contains('is-open'), 'Edit design should stay pressed on the Style tab too');
+        q('.gogh-eb-cardslayout').click();
+        expect(q('.gogh-panel').hidden && !q('.gogh-eb-cardslayout').classList.contains('is-open'), 'a second press on Edit design should put the sidebar away');
+        G.closePanel();
+        G.placeHandles(s0, s0.els.indexOf(e));
+        q('.gogh-eb-cardsmore').click();
+        G.cards.pop().querySelector('[data-x="price"]').click();
+        expect(e.cards.extras.price === 1 && /gogh-cs-price/.test(e.wsrc), 'a price should switch on from the set’s •••');
+        var before = e.cards.items.length;
+        var gh = G.cards.ghost();
+        expect(!gh.hidden, 'the ghost card should sit after the last card');
+        gh.click();
+        expect(e.cards.items.length === before + 1, 'the ghost card should add one');
+        G.cards.act(s0, e, 'feat', 0);
+        var star = e.cards.items[0];
+        G.cards.act(s0, e, 'move', 0, 2);
+        expect(e.cards.items[2] === star && e.cards.feat === 2, 'a dragged card lands in its slot and stays featured');
+        var pic = s0.nodes[s0.els.indexOf(e)].querySelector('[data-cpic]');
+        G.cards.pic(s0, s0.els.indexOf(e), +pic.dataset.ck, pic);
+        expect(G.cards.pop() && /Picture/.test(G.cards.pop().textContent), 'a card’s picture should open its chooser beside it');
+      } finally {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      }
+      expect(!G.cards.pop(), 'Escape should close the popover');
+      return 'bar, edit design, style, extras, ghost, move, picture';
+    });
+
+    test('Cards: pointing names the set, the first press chooses it, a second goes into a card, Esc steps out', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      G.cards.drop();
+      var card2 = n.querySelectorAll('.gogh-cs-card')[1];
+      var r = card2.getBoundingClientRect();
+      card2.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 5, clientY: r.y + 5 }));
+      var hov = q('.gogh-sethover');
+      expect(hov && !hov.hidden && /Cards · 3/.test(hov.textContent), 'pointing at a set should outline it and name it');
+      pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
+      expect(!G.cards.focus() && /Cards · 3/.test(q('.gogh-selbox-tag').textContent), 'the first press should choose the set, named on its frame');
+      pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
+      expect(G.cards.focus() && G.cards.focus().k === 1, 'a second press should go into card 2');
+      // Delete with a card chosen takes that card only, and the set stays
+      var t2 = e.cards.items[1].t;
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+      expect(s0.els.indexOf(e) !== -1 && e.cards.items.length === 2 && e.cards.items.every(function (it) { return it.t !== t2; }), 'Backspace on a chosen card should delete only that card: ' + e.cards.items.length);
+      expect(G.cards.focus() && G.cards.focus().k === 1, 'the next card should be chosen, so a second press takes a card, not the set');
+      pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
+      card2 = s0.nodes[s0.els.indexOf(e)].querySelectorAll('.gogh-cs-card')[1]; r = card2.getBoundingClientRect();
+      if (!G.cards.focus()) { pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5); }
+      var trail = q('.gogh-eb-cardstrail');
+      expect(trail.style.display !== 'none' && /Card 2/.test(trail.textContent), 'the bar should say Cards › Card 2');
+      expect(!G.cards.chip().hidden, 'the chosen card should wear its handle');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(!G.cards.focus() && !q('.gogh-elbar').hidden, 'Esc should step out to the set, still chosen');
+      return 'point → set → card → set';
+    });
+
+    test('Cards: a press on a card\u2019s link opens its link bar; an address keeps; links with none are named', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      var a = n.querySelector('.gogh-cs-card[data-ck="0"] .gogh-cs-link a');
+      expect(a && a.hasAttribute('data-nohref'), 'a link with no address should say so on the canvas');
+      var r = a.getBoundingClientRect();
+      pev('pointerdown', a, r.x + 3, r.y + 3); pev('pointerup', a, r.x + 3, r.y + 3);
+      var pop = G.cards.pop();
+      expect(pop && pop.classList.contains('gogh-cardpop-linkbar'), 'the second press on a card\u2019s link should open its link bar');
+      var before = G.cards.nowhere().length;
+      var h = pop.querySelector('.gogh-lb-href');
+      h.value = 'example.com/book';
+      h.dispatchEvent(new Event('change', { bubbles: true }));
+      expect(e.cards.items[0].href === 'https://example.com/book' && /href="https:\/\/example.com\/book"/.test(e.wsrc), 'the address should keep, made whole: ' + e.cards.items[0].href);
+      expect(G.cards.nowhere().length === before - 1, 'publish should no longer name that card');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return 'link bar, address kept, ' + G.cards.nowhere().length + ' still to fill';
+    });
+
+    test('Cards: a + in each gap and Add card after the chosen card; the ghost only fills an empty slot', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      expect(G.cards.ghost().hidden, 'a full row of three should show no ghost card');
+      var seams = G.cards.seams(n);
+      expect(seams.length === 2 && seams.every(function (sm) { return sm.vert; }), 'three cards in a row should have two gaps to add in: ' + seams.length);
+      G.cards.act(s0, e, 'add', seams[0].k);
+      expect(e.cards.items.length === 4 && !e.cards.items[1].t && G.cards.focus() && G.cards.focus().k === 1, 'a card added in the first gap should land second, empty and chosen');
+      expect(/A line or two|Title/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'its empty parts should ask to be filled');
+      G.cards.act(s0, e, 'add', 1);
+      expect(e.cards.items.length === 5 && !e.cards.items[1].t && !e.cards.items[2].t, 'Add card after the chosen card goes right after it');
+      G.placeHandles(s0, s0.els.indexOf(e));
+      expect(!G.cards.ghost().hidden, 'five cards in rows of three leave a slot for the ghost');
+      // On the photo is a grid too: its empty slot gets a photo-card-shaped ghost
+      e.cards.layout = 'over'; e.cards = G.cards.norm(e.cards); e.wsrc = G.cards.compose(e.cards, false); e.whtml = G.cards.compose(e.cards, true);
+      G.renderSection(s0); G.placeHandles(s0, s0.els.indexOf(e));
+      var gh2 = G.cards.ghost(), lastCard = [].slice.call(s0.nodes[s0.els.indexOf(e)].querySelectorAll('.gogh-cs-card')).pop().getBoundingClientRect();
+      expect(!gh2.hidden && Math.abs(gh2.getBoundingClientRect().height - lastCard.height) < 2, 'On the photo should show the ghost in its empty slot, card-sized');
+      var lay = q('.gogh-eb-cardslayout');
+      expect(lay.textContent === 'Edit design' && !lay.querySelector('svg'), 'the bar should say Edit design, with no dropdown chevron');
+      return 'gap +, insert after, ghost in the empty slot';
+    });
+
+    test('Cards: a row of freeform cards read as a set keeps each part’s words, type and the card itself', function () {
+      var tone = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, transparent)';
+      var box = function (x, k, t, d, href, bg, badge) {
+        var kids = [{ type: 'para', x: 28, y: 28, w: 276, h: 20, text: k, tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase' } },
+          { type: 'heading', x: 28, y: 60, w: 276, h: 44, text: t, fs: 'large', tf: { fw: 500 } },
+          { type: 'para', x: 28, y: 122, w: 276, h: 150, text: d },
+          { type: 'para', x: 28, y: 316, w: 276, h: 24, text: '<a href="' + href + '">Ask ↗</a>' }];
+        if (badge) kids.unshift({ type: 'badge', x: 90, y: 4, w: 150, h: 30, text: '★ Most popular' });
+        return { type: 'box', x: x, y: 196, w: 332, h: 380, radius: 12, boxBg: bg || tone, kids: kids };
+      };
+      var els = [box(82, 'People', 'Portraits', 'People as they are.', '/contact/'), box(434, 'Places', 'Spaces', 'Rooms people love.', '/places/', '#222', true),
+        box(786, 'Work', 'Commissions', 'Stories and brands.', '/work/')];
+      var got = G.cards.fromEls(els), c = got && got.set.cards;
+      expect(c && got.boxes.length === 3, 'three matching cards (a badge aside) should read as one set');
+      expect(c.layout === 'g3' && c.look === 'panel' && c.feat === 1 && c.act === 'link' && c.linkStyle === 'text', 'the set should be 3 across, panels, the odd one featured, ending in a plain link: ' + [c.layout, c.look, c.feat, c.act, c.linkStyle].join(' '));
+      expect(c.items.map(function (it) { return it.k + '/' + it.t + '/' + it.href; }).join('|') === 'People/Portraits//contact/|Places/Spaces//places/|Work/Commissions//work/', 'each card should keep its line above, title and address: ' + c.items.map(function (it) { return it.k + '/' + it.t + '/' + it.href; }).join('|'));
+      expect(c.extras.k === 1 && c.type.t.fs === 'large' && c.type.t.tag === 'h2' && c.type.t.tf.fw === 500 && c.type.k.tf.tt === 'uppercase', 'the title and the line above should keep their type');
+      expect(c.box.bg === tone && c.box.radius === 12 && c.box.pad === 28, 'the plain card’s colour, corners and padding should come along');
+      expect(!G.cards.fromEls([els[0], { type: 'box', x: 500, y: 196, w: 300, h: 200, kids: [{ type: 'heading', x: 20, y: 20, w: 200, h: 40, text: 'Odd' }] }]), 'cards with different pieces stay freeform');
+      var src = G.cards.compose(c, false);
+      expect(/<h2[^>]*class="[^"]*gogh-cs-t/.test(src) && /gogh-cs-k/.test(src) && /gogh-cardset-typed-t/.test(src) && /gogh-cardset-link-text/.test(src), 'the published set should carry an h2 title, the line above and its typed classes');
+      var s0 = sec(), idx = G.sections().indexOf(s0);
+      s0.els.push(got.set); G.renderSection(s0);
+      var css = s0.styleEl.textContent;
+      expect(/\.gogh-cs-t \{[^}]*font-size: var\(--wp--preset--font-size--large\)/.test(css) && /font-weight: 500/.test(css), 'the section CSS should dress the title in its carried size and weight');
+      expect(/\.gogh-cs-body \{ padding: max\(16px, [\d.]+cqw\) !important/.test(css), 'the padding should grow with the set');
+      var setEl = s0.els.filter(function (e) { return e.cards; }).pop(), cardEl = s0.nodes[s0.els.indexOf(setEl)].querySelector('.gogh-cs-card');
+      expect(parseFloat(getComputedStyle(cardEl).borderTopLeftRadius) === 12, 'the carried corners should show while Rounded corners is on');
+      setEl.cards.round = 0; G.renderSection(s0);
+      cardEl = s0.nodes[s0.els.indexOf(setEl)].querySelector('.gogh-cs-card');
+      expect(parseFloat(getComputedStyle(cardEl).borderTopLeftRadius) === 0, 'Rounded corners off should square them, carried corners or not');
+      return 'k/t/d/link, type, box, featured, h2';
+    });
+
+    test('Cards: a site definition can name a set directly, in its own words or a definition’s, with a rule over each card', function () {
+      var made = G.fillTake({ name: 'Steps', els: [
+        { type: 'para', x: 80, y: 96, w: 600, h: 24, text: 'How it works' },
+        { type: 'cards', x: 80, y: 168, w: 1040, h: 200, cards: { layout: 'g3', look: 'open', pic: 'none', items: [
+          { title: 'Pour', text: 'Slowly.', above: 'Step one' }, { title: 'Cure', text: 'Two weeks.', above: 'Step two' }, { title: 'Trim', text: 'By hand.', above: 'Step three' }],
+          extras: { k: 1 }, type: { t: { tf: { fs: 16 }, body: 1 } }, box: { look: 'open', rule: 36, gap: 10 } } }] });
+      var set = made && made.els.filter(function (e) { return e.cards; })[0];
+      expect(set && set.type === 'widget' && set.cards.items.length === 3, 'the definition’s cards piece should arrive as one set of three');
+      expect(set.cards.items.map(function (it) { return it.k + ':' + it.t + ':' + it.d; }).join('|') === 'Step one:Pour:Slowly.|Step two:Cure:Two weeks.|Step three:Trim:By hand.', 'friendly words should map onto the parts: ' + set.cards.items.map(function (it) { return it.k + ':' + it.t; }).join('|'));
+      expect(/gogh-cs-k/.test(set.wsrc) && /gogh-cardset-g3/.test(set.wsrc), 'the set should be composed, ready to publish');
+      var own = G.fillTake({ els: [{ type: 'cards', x: 80, y: 100, w: 700, h: 300, cards: { layout: 'g2', items: [{ t: 'A', d: 'a', role: 'one' }, { t: 'B', d: 'b', role: 'two' }], extras: { role: 1 } } }] });
+      var set2 = own.els[0];
+      expect(set2.cards.items[1].role === 'two' && set2.cards.layout === 'g2', 'a set in its own words keeps them');
+      G.addSection(made, 0);
+      var s0 = contentSecs()[0];
+      expect(/border-top: 1px solid/.test(s0.styleEl.textContent), 'a rule over each card should reach the section CSS');
+      expect(/\.gogh-cs-t \{[^}]*font-family: inherit !important/.test(s0.styleEl.textContent), 'a title that was a paragraph should keep the words\u2019 face');
+      expect(!G.fillTake({ els: [{ type: 'cards', x: 0, y: 0, w: 400, h: 200, cards: { items: [] } }] }), 'a cards piece with no items draws nothing');
+      return 'friendly + own words, rule';
+    });
+
+    test('Cards: the Ledger lays a set out as ruled rows in columns, by the parts that are on', function () {
+      var made = G.fillTake({ els: [{ type: 'cards', x: 80, y: 120, w: 1040, h: 240, cards: { layout: 'ledger', look: 'open', pic: 'none', extras: { k: 1, role: 1 },
+        items: [{ k: '09:30', t: 'Doors', d: 'Coffee', role: 'Foyer' }, { k: '10:00', t: 'A talk', d: 'Maya Reid', role: 'Main hall' }] } }] });
+      var set = made.els[0];
+      expect(/gogh-cardset-ledger/.test(set.wsrc) && /gogh-cardset-x-k/.test(set.wsrc) && /gogh-cardset-x-role/.test(set.wsrc), 'the set should carry the ledger and its extras as classes');
+      expect(G.cards.layouts.some(function (L) { return L[0] === 'ledger'; }), 'Ledger should be one of the layouts to choose');
+      G.addSection(made, 0);
+      var s0 = contentSecs()[0], n = s0.nodes[s0.els.findIndex(function (e) { return e.cards; })];
+      var body = n.querySelector('.gogh-cs-body'), st = getComputedStyle(body);
+      expect(st.display === 'grid' && /k/.test(st.gridTemplateAreas) && /v/.test(st.gridTemplateAreas), 'each row should be a grid of lead, title, words and value: ' + st.gridTemplateAreas);
+      var role = n.querySelector('.gogh-cs-role'), t = n.querySelector('.gogh-cs-t');
+      expect(role.getBoundingClientRect().right > t.getBoundingClientRect().right + 100, 'the room should sit at the right of its row');
+      expect(Math.abs(role.getBoundingClientRect().top - t.getBoundingClientRect().top) < 12, 'the room should sit on the title’s line');
+      return 'ledger grid';
+    });
+
+    test('Cards: the shelf’s Menu is a Ledger in every take, its dishes kept through the rolls', function () {
+      var t = G.templates().filter(function (x) { return x.name === 'Menu' && x.starter; })[0];
+      G.addSection(JSON.parse(JSON.stringify(t)), 0);
+      var s0 = contentSecs()[0], idx = G.sections().indexOf(s0), seen = [];
+      for (var k = 0; k < 4; k++) {
+        var w = s0.els.filter(function (e) { return e.cards; })[0];
+        expect(w && w.cards.layout === 'ledger' && w.cards.items.length === 4, 'take ' + k + ' should be a ledger of four dishes');
+        if (k === 0) w.cards.items[0].t = 'My own dish';
+        seen.push(w.cards.items[0].t);
+        G.rollSection(idx);
+      }
+      expect(seen.every(function (x, k) { return k === 0 || x === 'My own dish'; }), 'a dish typed in should ride every roll: ' + seen.join(' | '));
+      return '4 takes, words kept';
+    });
+
+    test('Cards: matching freeform cards chosen together offer Make these a set, which keeps their words and type', function () {
+      var s0 = sec(), n0 = s0.els.length;
+      var card = function (x, t, d) {
+        return { type: 'box', x: x, y: 640, w: 300, h: 200, radius: 16, boxBg: '#eeeeee',
+          kids: [{ type: 'heading', x: 24, y: 24, w: 252, h: 32, text: t, fs: 'large' }, { type: 'para', x: 24, y: 72, w: 252, h: 60, text: d }] };
+      };
+      s0.els.push(card(100, 'One', 'First words'), card(440, 'Two', 'Second words'));
+      G.renderSection(s0);
+      G.pushState(); // the cards were added as a person would: one undo step
+      G.multi.set(s0, [n0, n0 + 1]);
+      var bar = q('.gogh-mbar'), setBtn = bar.querySelector('.gogh-mb-set');
+      expect(setBtn && !setBtn.hidden && bar.querySelector('.gogh-mb-card').hidden, 'two matching cards should lead with Make these a set');
+      setBtn.click();
+      var set = s0.els.filter(function (e) { return e.cards; }).pop();
+      expect(set && s0.els.length === n0 + 1 && set.cards.items.map(function (it) { return it.t + ':' + it.d; }).join('|') === 'One:First words|Two:Second words', 'the two cards should become one set with their words');
+      expect(set.cards.type && set.cards.type.t && set.cards.type.t.fs === 'large' && set.cards.box && set.cards.box.bg === '#eeeeee' && set.cards.box.radius === 16, 'the set should keep their type, colour and corners');
+      var undoBtn = null;
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) { if (/One set now/.test(t.textContent) && t.querySelector('button')) undoBtn = t.querySelector('button'); });
+      expect(undoBtn, 'the toast should offer Undo');
+      undoBtn.click();
+      var s1 = sec(), bx = s1.els.map(function (e, j) { return e.type === 'box' && e.kids && /One|Two/.test(e.kids[0].text) ? j : -1; }).filter(function (j) { return j >= 0; });
+      expect(bx.length === 2 && !s1.els.some(function (e) { return e.cards && /One/.test(JSON.stringify(e.cards.items)); }), 'Undo should bring the freeform cards back');
+      var odd = s1.els.length;
+      s1.els.push({ type: 'para', x: 800, y: 640, w: 200, h: 40, text: 'Loose' }); G.renderSection(s1);
+      G.multi.set(s1, [bx[0], odd]);
+      expect(bar.querySelector('.gogh-mb-set').hidden, 'a card and a loose piece are not a set');
+      G.multi.clear();
+      return 'two cards → one set, undo';
+    });
+
+    test('Arriving designs: a shrinking backdrop word never pulls words under a headline, and a thin band keeps its height', function () {
+      var made = G.fillTake({ name: 'Hero', minH: 864, els: [
+        { type: 'heading', x: 24, y: 48, w: 1152, h: 312, text: 'PRINT' },
+        { type: 'heading', x: 80, y: 216, w: 720, h: 336, text: 'Two inks, one pass, no undo.', fs: 'xx-large' },
+        { type: 'para', x: 80, y: 576, w: 560, h: 96, text: 'A risograph studio and zine library. Bring a file and leave with a hundred prints.' },
+        { type: 'button', x: 80, y: 720, w: 288, h: 48, text: 'Book a session' }] });
+      G.addSection(made, 0);
+      var s0 = contentSecs()[0], h = s0.els[1], pa = s0.els[2], bt = s0.els[3];
+      expect(s0.els[0].h < 312, 'the backdrop word should measure shorter than drawn (' + s0.els[0].h + ')');
+      expect(pa.y >= h.y + h.h - 2 && bt.y >= pa.y + pa.h - 2, 'the paragraph and button should stay under the headline: ' + [h.y, h.h, pa.y, pa.h, bt.y].join(','));
+      G.addSection(G.fillTake({ name: 'Ticker', minH: 160, els: [{ type: 'para', x: 0, y: 48, w: 1200, h: 48, text: 'Zines * Posters * Flyers' }] }), 0);
+      var band = contentSecs()[0];
+      expect(band.minH <= 168, 'a band drawn 160 tall should keep about that height, not ' + band.minH);
+      return 'order kept, band ' + band.minH;
+    });
+
+    test('Duplicate lands where the next one would go: a button beside its pair, words under, room made, Cmd+D', function () {
+      var s0 = sec(), n0 = s0.els.length;
+      // a clear band at the bottom of the fixture section
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'button', x: 80, y: base, w: 200, h: 48, text: 'Shop now' });
+      s0.els.push({ type: 'para', x: 600, y: base, w: 400, h: 48, text: 'Some words.' });
+      s0.els.push({ type: 'para', x: 600, y: base + 96, w: 400, h: 48, text: 'Words under them.' });
+      G.renderSection(s0); G.pushState();
+      var btn = s0.els[n0], p1 = s0.els[n0 + 1], p2 = s0.els[n0 + 2];
+      G.placeHandles(s0, n0);
+      q('.gogh-elbar .gogh-eb-dup').click();
+      var copy = s0.els[s0.els.length - 1];
+      expect(copy.type === 'button' && copy.y === btn.y && copy.x === btn.x + btn.w + 16, 'a duplicated button should land beside its original, tops lined up: ' + [copy.x, copy.y].join(','));
+      expect(copy.ghost === true && !btn.ghost, 'the second of a pair should arrive in the outline style');
+      expect(!s0.els.some(function (o) { return o !== copy && o.x < copy.x + copy.w && o.x + o.w > copy.x && o.y < copy.y + copy.h && o.y + o.h > copy.y && o.type !== 'box'; }), 'the copy should not sit on anything');
+      // words stack: the copy lands under, and what was under moves down
+      var p2y = p2.y;
+      G.placeHandles(s0, s0.els.indexOf(p1));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', metaKey: true, bubbles: true, cancelable: true }));
+      var pc = s0.els[s0.els.length - 1];
+      expect(pc.type === 'para' && pc.x === p1.x && pc.y === p1.y + p1.h + 24, 'Cmd+D on a paragraph should land the copy under it: ' + [pc.x, pc.y, p1.y, p1.h].join(','));
+      expect(p2.y >= pc.y + pc.h, 'the words that were under should move down to make room: ' + [p2y, p2.y, pc.y + pc.h].join(','));
+      // leave the fixture as it was (later tests lay pieces out at the foot)
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'beside, outline pair, under, room made';
+    });
+
+    test('Adding with a piece chosen: the new piece lands under it (beside, for the same kind), and makes room', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'para', x: 160, y: base, w: 480, h: 48, text: 'Words to add under.' });
+      s0.els.push({ type: 'para', x: 160, y: base + 96, w: 480, h: 48, text: 'Words further down.' });
+      G.renderSection(s0); G.pushState();
+      var p1 = s0.els[n0], p2 = s0.els[n0 + 1], p2y = p2.y;
+      G.placeHandles(s0, n0);
+      var b = G.addElementToSection(idx, 'button');
+      expect(b.x === p1.x && b.y === p1.y + p1.h + 24, 'a button added while a paragraph is chosen should land under it: ' + [b.x, b.y, p1.x, p1.y + p1.h].join(','));
+      expect(p2.y >= b.y + b.h, 'what was under should move down to make room: ' + [p2y, p2.y, b.y + b.h].join(','));
+      // the button is now chosen: another button lands beside it
+      var b2 = G.addElementToSection(idx, 'button');
+      expect(b2.y === b.y && b2.x === b.x + b.w + 16, 'a second button added beside the chosen one: ' + [b2.x, b2.y, b.x + b.w].join(','));
+      // leave the fixture as it was (later tests lay pieces out at the foot)
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'under, room made, beside';
+    });
+
+    test('Copy and paste pieces: Cmd+C then Cmd+V lands beside the chosen one; plain words paste as a paragraph', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'button', x: 80, y: base, w: 200, h: 48, text: 'Book now' });
+      G.renderSection(s0); G.pushState();
+      G.placeHandles(s0, n0);
+      var dt = new DataTransfer();
+      document.dispatchEvent(new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }));
+      expect(/data-gogh-pieces="/.test(dt.getData('text/html')) && dt.getData('text/plain') === 'Book now', 'copy should carry the piece, and its words for other apps');
+      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      var pasted = s0.els[s0.els.length - 1];
+      expect(s0.els.length === n0 + 2 && pasted.type === 'button' && pasted.text === 'Book now' && pasted.y === s0.els[n0].y && pasted.x === s0.els[n0].x + s0.els[n0].w + 16, 'paste with the original chosen should land beside it: ' + [pasted.x, pasted.y].join(','));
+      expect(pasted.gid !== s0.els[n0].gid || pasted.gid == null, 'the pasted piece is a new piece');
+      // plain words from elsewhere, nothing chosen: a paragraph
+      G.drop && G.cards.drop();
+      var dt2 = new DataTransfer(); dt2.setData('text/plain', 'Words from an email.\n\nA second paragraph.');
+      var before = s0.els.length;
+      G.placeHandles(s0, s0.els.length - 1);
+      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt2, bubbles: true, cancelable: true }));
+      var para = s0.els[s0.els.length - 1];
+      expect(s0.els.length === before + 1 && para.type === 'para' && /Words from an email\.<br><br>A second paragraph\./.test(para.text), 'plain words should arrive as a paragraph: ' + (para && para.text));
+      // leave the fixture as it was (later tests lay pieces out at the foot)
+      G.cards.drop();
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) { t.remove(); });
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'copy, paste beside, words as a paragraph';
+    });
+
+    test('Small kindnesses: delete closes the gap, new words match their neighbours, a growing button makes room', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'para', x: 160, y: base, w: 520, h: 48, text: 'First words.', fs: 'large', tf: { fw: 600 } });
+      s0.els.push({ type: 'para', x: 160, y: base + 96, w: 520, h: 48, text: 'Second words.' });
+      s0.els.push({ type: 'para', x: 160, y: base + 192, w: 520, h: 48, text: 'Third words.' });
+      G.renderSection(s0); G.pushState();
+      var p1 = s0.els[n0], p2 = s0.els[n0 + 1], p3 = s0.els[n0 + 2];
+      var p2y = p2.y, p3y = p3.y;
+      G.placeHandles(s0, n0 + 1);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+      expect(s0.els.indexOf(p2) === -1 && p3.y === p2y, 'the words under a deleted piece should rise into its place: ' + [p3y, p3.y, p2y].join(','));
+      // a paragraph added under a paragraph takes its look
+      G.placeHandles(s0, s0.els.indexOf(p1));
+      var np = G.addElementToSection(idx, 'para');
+      expect(np.fs === 'large' && np.tf && np.tf.fw === 600 && np.w === p1.w && np.x === p1.x, 'new words should match the words they arrive under: ' + JSON.stringify({ fs: np.fs, tf: np.tf, w: np.w }));
+      // two buttons in a row: typing more words into the first widens it and moves the second along
+      var by = base + 600;
+      s0.els.push({ type: 'button', x: 160, y: by, w: 120, h: 48, text: 'Go' });
+      s0.els.push({ type: 'button', x: 296, y: by, w: 120, h: 48, text: 'Next' });
+      G.renderSection(s0);
+      var bi = s0.els.length - 2, b1 = s0.els[bi], b2 = s0.els[bi + 1], b2x = b2.x;
+      var link = s0.nodes[bi].querySelector('.wp-block-button__link');
+      var tgt = link.querySelector('[contenteditable], span') || link;
+      tgt.textContent = 'Book your free consultation today';
+      tgt.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(b1.w > 120 && b2.x >= b1.x + b1.w && b2.x > b2x, 'a button that grows should widen and move its neighbour along: ' + [b1.w, b2.x, b2x].join(','));
+      G.cards.drop();
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t2) { t2.remove(); });
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'gap closed, words matched, button made room';
+    });
+
+    test('A button in a design style is never stuck as outline: the style wins, and a duplicate keeps it', function () {
+      var cfgG = window.GOGH, was = cfgG.design;
+      cfgG.design = { name: 'Riso Test', looks: { button: [{ name: 'Yellow print', slug: 'yellow-print', 'default': true }, { name: 'Ink print', slug: 'ink-print', 'default': false }] } };
+      var s0 = sec(), n0 = s0.els.length;
+      try {
+        var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+        s0.els.push({ type: 'button', x: 80, y: base, w: 240, h: 48, text: 'Book a session', cls: 'is-style-yellow-print', ghost: true });
+        G.renderSection(s0); G.pushState();
+        var b = s0.els[n0];
+        expect(!s0.nodes[n0].querySelector('.gogh-ghost') && /is-style-yellow-print/.test(s0.nodes[n0].innerHTML), 'a styled button should draw in its style, not as outline');
+        G.looks.wear(b, G.looks.list('button')[1]);
+        expect(b.ghost === false && /is-style-ink-print/.test(b.cls), 'choosing a style should clear an old outline');
+        G.placeHandles(s0, n0);
+        q('.gogh-elbar .gogh-eb-dup').click();
+        var copy = s0.els[s0.els.length - 1];
+        expect(copy.type === 'button' && !copy.ghost && /is-style-ink-print/.test(copy.cls), 'a duplicate of a styled button keeps the style, not outline');
+      } finally {
+        cfgG.design = was;
+        G.cards.drop();
+        [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t2) { t2.remove(); });
+        s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      }
+      return 'style wins over outline';
+    });
+
+    test('Cards: titles on a photo and on the featured card stay readable when the theme colours its headings', function () {
+      var themeInk = document.createElement('style');
+      themeInk.textContent = 'h1, h2, h3, h4 { color: rgb(30, 20, 60) !important; }';
+      document.head.appendChild(themeInk);
+      var s0 = sec(), n0 = s0.els.length;
+      try {
+        var e = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+        e.cards.layout = 'over'; e.cards.feat = -1; e.cards = G.cards.norm(e.cards);
+        e.wsrc = G.cards.compose(e.cards, false); e.whtml = G.cards.compose(e.cards, true);
+        G.renderSection(s0);
+        var n = s0.nodes[s0.els.indexOf(e)], card = n.querySelector('.gogh-cs-card'), t = n.querySelector('.gogh-cs-t');
+        expect(getComputedStyle(t).color === getComputedStyle(card).color && getComputedStyle(t).color === 'rgb(255, 255, 255)', 'a title on a photo should be white, not the theme’s heading ink: ' + getComputedStyle(t).color);
+        e.cards.layout = 'g3'; e.cards.feat = 1; e.cards = G.cards.norm(e.cards);
+        e.wsrc = G.cards.compose(e.cards, false); e.whtml = G.cards.compose(e.cards, true);
+        G.renderSection(s0);
+        n = s0.nodes[s0.els.indexOf(e)];
+        var fc = n.querySelector('.gogh-cs-card.is-featured'), ft = fc.querySelector('.gogh-cs-t');
+        expect(getComputedStyle(ft).color === getComputedStyle(fc).color, 'the featured card’s title should wear the card’s ink: ' + getComputedStyle(ft).color + ' vs ' + getComputedStyle(fc).color);
+      } finally {
+        themeInk.remove();
+        G.cards.drop();
+        s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      }
+      return 'white on the photo, card ink on the featured card';
+    });
+
     test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
       var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
       var realFetch = window.fetch, made = 0;
@@ -6087,11 +6651,14 @@
       G.renderSection(s0);
       G.multi.set(s0, [n0, n0 + 1]);
       expect(bar.querySelector('.gogh-mb-card').disabled && /inside a card/.test(bar.querySelector('.gogh-mb-card').title), 'Make a card should grey out, with a reason, when a card is in the selection');
-      // Duplicate: copies 24 units down and right, and the copies become the selection
+      // Duplicate: the copies arrive as one block under the originals (the
+      // arrivals paper), and the copies become the selection
+      var o1 = s0.els[n0], o2 = s0.els[n0 + 1];
+      var bbTop = Math.min(o1.y, o2.y), bbBot = Math.max(o1.y + o1.h, o2.y + o2.h);
       bar.querySelector('.gogh-mb-dup').click();
       var m = G.multi.state();
       expect(s0.els.length === n0 + 4 && m && m.idxs.length === 2 && m.idxs[0] === n0 + 2 && m.idxs[1] === n0 + 3, 'Duplicate should add two copies and select them');
-      expect(s0.els[n0 + 3].x === 624 && s0.els[n0 + 3].y === 64 && s0.els[n0 + 2].kids && s0.els[n0 + 2].kids.length === 2, 'copies should keep their shape and sit 24 units down and right');
+      expect(s0.els[n0 + 3].x === o2.x && s0.els[n0 + 3].y === o2.y + (bbBot - bbTop) + 24 && s0.els[n0 + 2].kids && s0.els[n0 + 2].kids.length === 2, 'copies should keep their shape and land under the originals: ' + [s0.els[n0 + 3].x, s0.els[n0 + 3].y, o2.x, o2.y, bbBot - bbTop].join(','));
       G.multi.clear();
       s0.els.splice(n0);
       G.renderSection(s0);
@@ -6513,17 +7080,21 @@
       // content and choices in, a take from the shelf out — never geometry
       var fc = G.fillTake({ take: 'Feature cards', heading: 'What we grow', items: [{ title: 'Peonies', text: 'In May.' }, { title: 'Dahlias', text: 'Late summer.' }] });
       expect(fc && fc.name === 'Feature cards', 'Feature cards should come off the shelf');
-      var cards = fc.els.filter(function (e) { return e.type === 'box' && e.kids; });
+      // the card designs are sets (Cards): items are the set's cards
+      var fset = fc.els.filter(function (e) { return e.cards; })[0];
+      var cards = fset ? fset.cards.items : [];
       expect(fc.els[0].text === 'What we grow' && cards.length === 2, 'two items should leave two cards under the heading, got ' + cards.length);
-      expect(cards[1].kids[0].text === 'Dahlias' && cards[1].kids[1].text === 'Late summer.', 'card words should land by role');
+      expect(cards[1].t === 'Dahlias' && cards[1].d === 'Late summer.', 'card words should land by role');
       var tm = G.fillTake({ take: 'Testimonials', items: [{ quote: 'Lovely people.', name: 'Ann · Bath' }] });
-      var tcard = tm.els.filter(function (e) { return e.type === 'box' && e.kids; })[0];
-      expect(tcard.kids[0].text === 'Lovely people.' && tcard.kids[1].text === 'Ann · Bath', 'a quote and a name should fill a testimonial');
+      var tcard = tm.els.filter(function (e) { return e.cards; })[0].cards.items[0];
+      expect(tcard.d === 'Lovely people.' && tcard.role === 'Ann · Bath', 'a quote and a name should fill a testimonial');
       var cv = G.fillTake({ take: 'Cover', heading: 'Flowers that mean it', image: '/x/peonies.jpg', button: 'See the shop' });
       expect(cv.bgImage === '/x/peonies.jpg' && cv.els.some(function (e) { return e.type === 'heading' && e.text === 'Flowers that mean it'; }) && cv.els.some(function (e) { return e.type === 'button' && e.text === 'See the shop'; }), 'a cover should take the picture behind and the words in front');
       var team = G.fillTake({ take: 'Team', heading: 'Four people', items: [{ name: 'Nell', role: 'Founder', image: '/x/nell.jpg' }] });
-      var th = team.els.filter(function (e) { return e.type === 'heading'; }), ti = team.els.filter(function (e) { return e.type === 'image'; });
-      expect(th[0].text === 'Four people' && th.length === 2 && th[1].text === 'Nell' && ti.length === 1 && ti[0].src === '/x/nell.jpg', 'a flat take should keep its heading, fill one unit and drop the rest: ' + th.map(function (h) { return h.text; }));
+      // Team is a set (v0.99.759): the heading stays, each person is a card
+      var th = team.els.filter(function (e) { return e.type === 'heading'; }), tset = team.els.filter(function (e) { return e.cards; })[0];
+      var tp = tset ? tset.cards.items : [];
+      expect(th[0].text === 'Four people' && tp.length === 1 && tp[0].t === 'Nell' && tp[0].role === 'Founder' && tp[0].img === '/x/nell.jpg', 'Team should keep its heading and fill one card per person: ' + JSON.stringify(tp));
       var nums = G.fillTake({ take: 'Numbers', items: [{ value: '312', label: 'Weddings' }, { value: '14', label: 'Growers' }] });
       var nh = nums.els.filter(function (e) { return e.type === 'heading'; });
       expect(nh.length === 2 && nh[0].text === '312' && nh[1].text === '14', 'numbers should fill by unit: ' + nh.map(function (h) { return h.text; }));
@@ -6567,11 +7138,11 @@
       var story = G.fillTake({ take: 'Story', heading: 'One paragraph only', text: 'Just the one.' });
       expect(story.els.filter(function (e) { return e.type === 'para' && !(e.tf && e.tf.tt === 'uppercase'); }).length === 1, 'a second paragraph nobody wrote should not appear');
       var card = G.fillTake({ take: 'Pricing', heading: 'Plans', items: [{ title: 'Simple', text: 'One rate.', price: '£40' }] });
-      var chosen = card.els.filter(function (e) { return e.type === 'box' && e.kids; })[0];
-      expect(!chosen.kids.some(function (k) { return /Most popular|Book a sprint/.test(String(k.text || '')); }), 'a card keeps no stranger’s badge or button either');
+      var chosen = card.els.filter(function (e) { return e.cards; })[0];
+      expect(chosen.cards.items.length === 1 && !/Most popular|Book a sprint/.test(chosen.wsrc), 'a card keeps no stranger’s badge or button either');
       if (!GOGH.hasAccordion) {
         var faq = G.fillTake({ take: 'FAQ', heading: 'Questions', items: [{ q: 'Do you deliver?', a: 'Within Bath, yes.' }] });
-        expect(faq && faq.name === 'Feature cards' && faq.els.some(function (e) { return e.kids && e.kids[0].text === 'Do you deliver?'; }), 'without the accordion block, FAQ words should become cards');
+        expect(faq && faq.name === 'Feature cards' && faq.els.some(function (e) { return e.cards && e.cards.items[0].t === 'Do you deliver?'; }), 'without the accordion block, FAQ words should become cards');
       }
       return 'takes filled by role; surplus dropped; the odd one out says so';
     });
@@ -7502,14 +8073,11 @@
     test('photo cards contrast + mobile box policy + badge clip guard', function () {
       var tpl = G.templates().filter(function (t) { return t.name === 'Photo cards'; })[0];
       expect(tpl, 'Photo cards template missing');
-      var whiteTexts = tpl.els.filter(function (e) {
-        return (e.type === 'heading' || e.type === 'para') && e.tf && e.tf.col === '#ffffff';
-      });
-      expect(whiteTexts.length === 4, 'overlay text not literal white (' + whiteTexts.length + '/4)');
-      expect(tpl.els.filter(function (e) { return e.type === 'button'; })
-        .every(function (e) { return e.tf && e.tf.bg === '#ffffff'; }), 'buttons not theme-proof');
-      expect(tpl.els.some(function (e) { return e.type === 'box' && /0\.78\)/.test(e.boxBg || ''); }),
-        'scrim not deepened');
+      // Photo cards are a set on the photo (v0.99.759): white words over a
+      // veil, white buttons, whatever the theme
+      var pset = tpl.els.filter(function (e) { return e.cards; })[0];
+      expect(pset && pset.cards.layout === 'over' && pset.cards.act === 'button' && pset.cards.items.length === 2, 'Photo cards should be a set on the photo with buttons');
+      expect(pset.cards.type && pset.cards.type.t.tf.col === '#ffffff' && pset.cards.type.d.tf.col === '#ffffff', 'overlay words should stay literal white');
       // live CSS policies
       var s0 = sec();
       s0.els.push({ type: 'box', x: 10, y: 10, w: 400, h: 300 });
@@ -7522,7 +8090,7 @@
       expect(new RegExp('gogh-el-' + L + ' \\{ grid-area: auto; grid-column: 2; display: none;').test(css),
         'decorative shape not hidden on mobile');
       expect(css.indexOf('min-width: max-content') !== -1, 'badge clip guard missing');
-      return 'white overlays, deep scrim, panel/shape mobile split';
+      return 'white overlays on a set, panel/shape mobile split';
     });
 
     // ---- a11y: DOM order is READING order, not insertion order ----
@@ -9910,9 +10478,8 @@
       q('.gogh-panel .gogh-askgo').click();
       expect(contentSecs().length === count + 1, 'no section arrived');
       var born = lastSec();
-      var quotes = born.els.filter(function (e) {
-        return e.type === 'box' && (e.kids || []).some(function (k) { return k.type === 'para'; });
-      });
+      // the testimonials design is a set of cards (Cards): its quotes are the set's cards
+      var quotes = born.els.filter(function (e) { return e.cards; }).reduce(function (a, e) { return a.concat(e.cards.items.filter(function (it) { return it.d; })); }, []);
       expect(quotes.length === 3, 'expected 3 quote cards, got ' + quotes.length);
       // a fresh section arrives SELECTED — the birth glow is the selection
       expect(born.sectionEl.classList.contains('gogh-selsec'), 'the new section did not arrive selected');

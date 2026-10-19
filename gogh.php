@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.745
+ * Version: 0.99.776
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.745' );
+define( 'GOGH_VERSION', '0.99.776' );
 
 // what an agent may ask of the site, through WordPress's Abilities API (6.9+)
 require_once __DIR__ . '/gogh-abilities.php';
@@ -30,7 +30,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.745-chrome',
+		'0.99.776-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -574,9 +574,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.745-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.745-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.745-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.776-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.776-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.776-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -594,7 +594,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		// fresh scope on every insert
 		'breakTpl' => (string) file_get_contents( __DIR__ . '/gogh-break.html' ),
 	) );
-	// the admin bar stays in the writing room (v0.99.745): the same place to
+	// the admin bar stays in the writing room (v0.99.776): the same place to
 	// publish and the same way out as every other room (James)
 } );
 
@@ -2500,7 +2500,7 @@ function gogh_shop_empty_state( $block ) {
 	}
 	return $out . '</div>';
 }
-// the Lookbook and the Index (v0.99.745): styles for the page and the
+// the Lookbook and the Index (v0.99.776): styles for the page and the
 // editor's sketch alike; the script only where a grid wears one of them
 function gogh_shop_looks_enqueue( $with_script ) {
 	wp_enqueue_style( 'gogh-shop-looks', plugins_url( 'gogh-shop-looks.css', __FILE__ ), array(), GOGH_VERSION );
@@ -4546,7 +4546,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.745-chrome' );
+			return array( 'build' => '0.99.776-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -5611,8 +5611,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.745-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.745-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.776-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.776-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -6776,7 +6776,199 @@ function gogh_splash_css() {
 		// the frosted call-out
 		'.gogh-splash-glasswrap { min-height: min(70vh, 560px); display: flex; align-items: center; justify-content: center; padding: 6vh 6vw; }' .
 		'.gogh-glass { max-width: 480px; padding: 2.2rem 2.4rem; border-radius: 24px; background: color-mix(in srgb, #ffffff 72%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.35); backdrop-filter: blur(18px) saturate(1.35); border: 1px solid color-mix(in srgb, #ffffff 55%, transparent); box-shadow: 0 30px 60px -22px rgba(0,0,0,0.45); text-align: center; }' .
-		'.gogh-glass-kicker { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.72; margin-bottom: 0.4rem; }';
+		'.gogh-glass-kicker { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.72; margin-bottom: 0.4rem; }' .
+		gogh_cards_css();
+}
+
+/**
+ * ✦ Cards — a set of cards that share one design. Core blocks wearing
+ * gogh-card classes; THIS css is the whole look, in every room (the page,
+ * the block editor, and left behind in Additional CSS on deactivation).
+ * The set measures ITSELF (container queries on its own wrapper), so a set
+ * on a phone, beside a picture or in a narrow column folds by its own width.
+ */
+function gogh_cards_css() {
+	$ink = 'color-mix(in srgb, currentColor 14%, transparent)';
+	return
+		'.gogh-widget:has(> .gogh-cardset) { container-type: inline-size; }' .
+		// the widget wrapper centres small widgets in a flex row: a set fills it
+		'.gogh-widget > .gogh-cardset { flex: 1 1 100%; width: 100%; min-width: 0; }' .
+		'.gogh-cardset { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; align-items: stretch; margin: 0 !important; padding: 0 !important; box-sizing: border-box; }' .
+		'.gogh-cardset > .gogh-cs-card { margin: 0 !important; }' .
+		'.gogh-cardset-g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }' .
+		'.gogh-cardset-g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }' .
+		'.gogh-cs-card { display: flex; flex-direction: column; min-width: 0; position: relative; box-sizing: border-box; overflow: hidden; padding: 0 !important; }' .
+		'.gogh-cs-card > *, .gogh-cs-body > * { margin: 0 !important; }' .
+		'.gogh-cs-pic { margin: 0 !important; flex: none; }' .
+		'.gogh-cs-pic img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }' .
+		'.gogh-cardset-pic-square .gogh-cs-pic img { aspect-ratio: 1; }' .
+		'.gogh-cardset-pic-tall .gogh-cs-pic img { aspect-ratio: 4 / 5; }' .
+		'.gogh-cardset-pic-none .gogh-cs-pic { display: none; }' .
+		'.gogh-cs-body { display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto; padding: 20px 0 0 !important; box-sizing: border-box; }' .
+		'.gogh-cardset-pic-none .gogh-cs-body, .gogh-cs-card:not(:has(.gogh-cs-pic)) .gogh-cs-body { padding-top: 0 !important; }' .
+		// each part's default type; a part a set carries its own type for
+		// (made from freeform cards) sets these aside and wears that instead
+		'.gogh-cs-t { margin: 0 !important; text-wrap: balance; }' .
+		'.gogh-cardset:not(.gogh-cardset-typed-t) .gogh-cs-t { font-size: clamp(1.15rem, 0.95rem + 0.7cqi, 1.5rem) !important; line-height: 1.25 !important; }' .
+		'.gogh-cardset:not(.gogh-cardset-typed-role) .gogh-cs-role { font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; opacity: 0.72; }' .
+		'.gogh-cardset:not(.gogh-cardset-typed-d) .gogh-cs-d { font-size: 1rem; line-height: 1.6; opacity: 0.82; }' .
+		'.gogh-cardset:not(.gogh-cardset-typed-k) .gogh-cs-k { font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; opacity: 0.7; }' .
+		'.gogh-cardset:not(.gogh-cardset-typed-n) .gogh-cs-n { font-size: 0.85rem; opacity: 0.7; }' .
+		'.gogh-cs-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.45em; padding-top: 16px; margin-top: 6px !important; border-top: 1px solid ' . $ink . '; }' .
+		'.gogh-cardset:not(.gogh-cardset-typed-price) .gogh-cs-price strong { font-family: var(--wp--preset--font-family--heading, inherit); font-size: clamp(1.9rem, 1.5rem + 1.2cqi, 2.6rem); font-weight: 400; line-height: 1; }' .
+		'.gogh-cs-per { font-size: 0.92rem; opacity: 0.75; }' .
+		'.gogh-cs-link { margin-top: auto !important; padding-top: 6px; }' .
+		'.gogh-cardset:not(.gogh-cardset-link-text):not(.gogh-cardset-typed-link) .gogh-cs-link { font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }' .
+		'.gogh-cs-link a { color: inherit; text-decoration: none; }' .
+		'.gogh-cardset:not(.gogh-cardset-link-text) .gogh-cs-link a::after { content: " \2192"; }' .
+		'.gogh-cs-link a:hover, .gogh-cs-link a:focus-visible { text-decoration: underline; text-underline-offset: 0.2em; }' .
+		// a plain underlined link, in the words' own type (its arrow, if any, is in its words)
+		'.gogh-cardset-link-text .gogh-cs-link a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }' .
+		'.gogh-cs-btns { margin-top: auto !important; padding-top: 8px; }' .
+		// beside a featured card the others wear outline buttons (the theme's
+		// own outline style where it has one; this where it does not)
+		'.gogh-cs-btns .wp-block-button.is-style-outline > .wp-block-button__link:not(.has-background) { background: transparent; color: inherit; border: 1.5px solid currentColor; }' .
+		// the looks: what every card sits on
+		'.gogh-cardset-look-panel > .gogh-cs-card { background: color-mix(in srgb, currentColor 6%, transparent); border-radius: 4px; }' .
+		'.gogh-cardset-look-outline > .gogh-cs-card { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 4px; }' .
+		// raised lifts off the page: a hairline ring and a real shadow, so it
+		// reads on a white page too (James: 'im not really seeing a difference')
+		'.gogh-cardset-look-raised > .gogh-cs-card { background: var(--wp--preset--color--base, #fff); color: var(--wp--preset--color--contrast, #111); border-radius: 12px; box-shadow: 0 0 0 1px rgba(20,20,30,.06), 0 2px 4px rgba(20,20,30,.06), 0 16px 32px -12px rgba(20,20,30,.30); }' .
+		'.gogh-cardset:is(.gogh-cardset-look-panel, .gogh-cardset-look-outline, .gogh-cardset-look-raised) .gogh-cs-body { padding: 24px 24px 26px !important; }' .
+		// the featured card: dark, a little taller, and no badge
+		'.gogh-cs-card.is-featured { background: var(--wp--preset--color--contrast, #111) !important; color: var(--wp--preset--color--base, #fff) !important; border-color: transparent !important; box-shadow: none !important; }' .
+		'.gogh-cs-card.is-featured .gogh-cs-body { padding: 28px 26px 30px !important; }' .
+		// on a photo, and on the dark featured card, every part wears the
+		// card's own ink: a theme that colours its headings (Purple) would
+		// otherwise put dark titles on the dark ground (James: 'we got a
+		// title sentinel issue on the cards')
+		// (and on any card: a dark section's light ink reaches the titles too —
+		// James: 'and still on feature cards!'; a set's carried colours are
+		// more specific and still win)
+		'.gogh-cardset > .gogh-cs-card :is(.gogh-cs-t, .gogh-cs-k, .gogh-cs-d, .gogh-cs-role, .gogh-cs-n, .gogh-cs-price, .gogh-cs-link, .gogh-cs-link a) { color: inherit !important; }' .
+		'.gogh-cs-card.is-featured .wp-block-button__link { background: var(--wp--preset--color--base, #fff) !important; color: var(--wp--preset--color--contrast, #111) !important; }' .
+		'.gogh-cardset-feat:is(.gogh-cardset-g2, .gogh-cardset-g3, .gogh-cardset-g4) > .gogh-cs-card:not(.is-featured) { margin-block: 28px !important; }' .
+		// rounded corners, for every look that draws a card
+		'.gogh-cardset-round:not(.gogh-cardset-index) > .gogh-cs-card { border-radius: 18px; }' .
+		'.gogh-cardset-round.gogh-cardset-look-open:not(.gogh-cardset-over) .gogh-cs-pic img { border-radius: 14px; }' .
+		// steps: three across, each a little lower than the last
+		'.gogh-cardset-steps { align-items: start; }' .
+		'.gogh-cardset-steps > .gogh-cs-card:nth-child(3n+2) { margin-top: 56px !important; }' .
+		'.gogh-cardset-steps > .gogh-cs-card:nth-child(3n) { margin-top: 112px !important; }' .
+		// words centred
+		'.gogh-cardset-al-center .gogh-cs-body { text-align: center; align-items: center; }' .
+		'.gogh-cardset-al-center .gogh-cs-price { justify-content: center; align-self: stretch; }' .
+		// rows and zig-zag: the picture beside the words
+		'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) { grid-template-columns: minmax(0, 1fr); gap: 28px; }' .
+		'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) > .gogh-cs-card { flex-direction: row; align-items: center; }' .
+		'.gogh-cardset-rows .gogh-cs-pic { flex: 0 0 30%; }' .
+		'.gogh-cardset-zig { gap: 56px; }' .
+		'.gogh-cardset-zig .gogh-cs-pic { flex: 0 0 50%; }' .
+		'.gogh-cardset-zig > .gogh-cs-card:nth-child(even) { flex-direction: row-reverse; }' .
+		'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) .gogh-cs-body { padding: 8px 0 8px 36px !important; justify-content: center; }' .
+		'.gogh-cardset-zig > .gogh-cs-card:nth-child(even) .gogh-cs-body { padding: 8px 36px 8px 0 !important; }' .
+		'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig):is(.gogh-cardset-look-panel, .gogh-cardset-look-outline, .gogh-cardset-look-raised) .gogh-cs-body, .gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) .is-featured .gogh-cs-body { padding: 28px 36px !important; }' .
+		'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) .gogh-cs-link { margin-top: 6px !important; }' .
+		// a row with no picture: the first line on the left, the rest beside it
+		'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); column-gap: 40px; row-gap: 0; align-items: start; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-body > :not(:first-child) ~ :not(:first-child) { margin-top: 10px !important; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none.gogh-cardset-notitle .gogh-cs-body { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); align-items: baseline; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-body > :first-child { grid-column: 1; grid-row: 1 / span 6; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-body > :not(:first-child) { grid-column: 2; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none.gogh-cardset-look-open .gogh-cs-body { padding: 18px 0 !important; }' .
+		'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-price { margin-top: 0 !important; }' .
+		// on the photo: the words sit on the picture, over a scrim
+		'.gogh-cardset-over > .gogh-cs-card { justify-content: flex-end; aspect-ratio: 4 / 3; color: #fff; background: #222; border: 0; border-radius: 6px; }' .
+		'.gogh-cardset-over.gogh-cardset-pic-square > .gogh-cs-card { aspect-ratio: 1; }' .
+		'.gogh-cardset-over.gogh-cardset-pic-tall > .gogh-cs-card { aspect-ratio: 4 / 5; }' .
+		'.gogh-cardset-over:not(.gogh-cardset-pic-none) .gogh-cs-pic { position: absolute; inset: 0; }' .
+		'.gogh-cardset-over .gogh-cs-pic img { width: 100%; height: 100%; aspect-ratio: auto; }' .
+		'.gogh-cardset-over:not(.gogh-cardset-pic-none) > .gogh-cs-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.8), rgba(0,0,0,.5) 45%, rgba(0,0,0,.06) 85%); pointer-events: none; }' .
+		'.gogh-cardset-over .gogh-cs-body { position: relative; z-index: 1; flex: 0 0 auto; padding: 26px !important; }' .
+		'.gogh-cardset-over .gogh-cs-d, .gogh-cardset-over .gogh-cs-role { opacity: 0.92; }' .
+		// centred on the photo: the words sit in its middle, under an even veil
+		'.gogh-cardset-over.gogh-cardset-al-center > .gogh-cs-card { justify-content: center; }' .
+		'.gogh-cardset-over.gogh-cardset-al-center:not(.gogh-cardset-pic-none) > .gogh-cs-card::after { background: rgba(0,0,0,.38); }' .
+		'.gogh-cardset-over .gogh-cs-price { border-top-color: rgba(255,255,255,.3); }' .
+		// on the photo the card is the picture, so each look says something
+		// the picture can wear: Open is square and flat, Outline a thin
+		// white frame inside it, Raised lifted off the page
+		'.gogh-cardset-over.gogh-cardset-look-open > .gogh-cs-card { border-radius: 0; }' .
+		'.gogh-cardset-over.gogh-cardset-look-outline > .gogh-cs-card::before { content: ""; position: absolute; inset: 10px; z-index: 2; border: 1.5px solid rgba(255,255,255,.7); border-radius: inherit; pointer-events: none; }' .
+		'.gogh-cardset-over.gogh-cardset-look-raised > .gogh-cs-card { background: #222; color: #fff; border-radius: 12px; box-shadow: 0 2px 4px rgba(20,20,30,.10), 0 22px 40px -14px rgba(20,20,30,.45); }' .
+		// a button on the photo is white with dark words, whatever the section
+		'.gogh-widget .gogh-cardset-over .gogh-cs-btns .wp-block-button__link { background: #fff !important; color: #141519 !important; border-color: #fff !important; }' .
+		// the slider: a row that scrolls sideways
+		'.gogh-cardset-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; padding-bottom: 12px !important; scrollbar-width: thin; }' .
+		'.gogh-cardset-slider > .gogh-cs-card { flex: 0 0 min(78%, 320px); scroll-snap-align: start; }' .
+		// one big: the first card leads
+		'.gogh-cardset-big { grid-template-columns: repeat(3, minmax(0, 1fr)); }' .
+		'.gogh-cardset-big > .gogh-cs-card:first-child { grid-column: span 2; grid-row: span 2; }' .
+		// the leader's picture fills what its two rows leave, never its own height
+		'.gogh-cardset-big > .gogh-cs-card:first-child .gogh-cs-pic { flex: 1 1 0; min-height: 260px; position: relative; }' .
+		'.gogh-cardset-big > .gogh-cs-card:first-child .gogh-cs-pic img { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }' .
+		'.gogh-cardset-big > .gogh-cs-card:first-child .gogh-cs-body { flex: 0 0 auto; }' .
+		'.gogh-cardset-big > .gogh-cs-card:first-child .gogh-cs-t { font-size: clamp(1.4rem, 1.1rem + 1.4cqi, 2.2rem) !important; }' .
+		// the index: titles only, ruled; a picture shows on hover
+		'.gogh-cardset-index { grid-template-columns: minmax(0, 1fr); gap: 0; border-bottom: 1px solid ' . $ink . '; }' .
+		'.gogh-cardset-index > .gogh-cs-card { flex-direction: row; align-items: center; overflow: visible; background: none !important; color: inherit !important; box-shadow: none !important; border: 0 !important; border-top: 1px solid ' . $ink . ' !important; border-radius: 0 !important; padding: 18px 0 !important; }' .
+		'.gogh-cardset-index .gogh-cs-body { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 24px; row-gap: 4px; padding: 0 !important; }' .
+		'.gogh-cardset-index .gogh-cs-t { flex: 1 1 14em; font-size: clamp(1.2rem, 1rem + 1cqi, 1.75rem) !important; }' .
+		'.gogh-cardset-index .gogh-cs-price { border: 0; padding: 0; margin: 0 !important; }' .
+		'.gogh-cardset-index .gogh-cs-price strong { font-size: 1.1rem; }' .
+		'.gogh-cardset-index .gogh-cs-link { margin: 0 !important; padding: 0; }' .
+		'.gogh-cardset-index .gogh-cs-pic { position: absolute; right: 18%; top: 50%; width: 180px; translate: 0 -50%; opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 2; }' .
+		'.gogh-cardset-index > .gogh-cs-card:hover .gogh-cs-pic { opacity: 1; }' .
+		// the ledger: ruled rows in columns: a lead (a time, a year), the
+		// title, the words, and a value on the right (a price, else the
+		// name-and-role line: a room, a place). Rows stack on a phone
+		'.gogh-cardset-ledger { grid-template-columns: minmax(0, 1fr); gap: 0; border-bottom: 1px solid ' . $ink . '; }' .
+		'.gogh-cardset-ledger > .gogh-cs-card { overflow: visible; background: none !important; color: inherit !important; box-shadow: none !important; border: 0 !important; border-top: 1px solid ' . $ink . ' !important; border-radius: 0 !important; padding: 16px 0 !important; }' .
+		'.gogh-cardset-ledger .gogh-cs-pic { display: none; }' .
+		'.gogh-cardset-ledger .gogh-cs-btns { grid-column: -2; justify-self: end; padding: 0; }' .
+		'.gogh-cardset-ledger .gogh-cs-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(4em, auto); grid-template-areas: "t d v"; column-gap: 32px; row-gap: 4px; align-items: baseline; padding: 0 !important; }' .
+		'.gogh-cardset-ledger.gogh-cardset-x-k .gogh-cs-body { grid-template-columns: minmax(4.5em, .4fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(4em, auto); grid-template-areas: "k t d v"; }' .
+		'.gogh-cardset-ledger.gogh-cardset-nod .gogh-cs-body { grid-template-columns: minmax(0, 1fr) minmax(4em, auto); grid-template-areas: "t v"; }' .
+		'.gogh-cardset-ledger.gogh-cardset-nod.gogh-cardset-x-k .gogh-cs-body { grid-template-columns: minmax(4.5em, .3fr) minmax(0, 1fr) minmax(4em, auto); grid-template-areas: "k t v"; }' .
+		'.gogh-cardset-ledger:not(.gogh-cardset-x-price):not(.gogh-cardset-x-role) .gogh-cs-body { grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); grid-template-areas: "t d"; }' .
+		'.gogh-cardset-ledger.gogh-cardset-x-k:not(.gogh-cardset-x-price):not(.gogh-cardset-x-role) .gogh-cs-body { grid-template-columns: minmax(4.5em, .3fr) minmax(0, .9fr) minmax(0, 1.3fr); grid-template-areas: "k t d"; }' .
+		'.gogh-cardset-ledger .gogh-cs-k { grid-area: k; }' .
+		'.gogh-cardset-ledger .gogh-cs-t { grid-area: t; }' .
+		'.gogh-cardset-ledger .gogh-cs-d { grid-area: d; }' .
+		'.gogh-cardset-ledger .gogh-cs-price, .gogh-cardset-ledger:not(.gogh-cardset-x-price) .gogh-cs-role { grid-area: v; justify-self: end; text-align: right; border: 0; padding: 0; margin: 0 !important; }' .
+		'.gogh-cardset-ledger:not(.gogh-cardset-typed-role) .gogh-cs-role { text-transform: none; letter-spacing: 0; font-size: .95rem; font-weight: 400; opacity: .75; }' .
+		'.gogh-cardset-ledger.gogh-cardset-x-price .gogh-cs-role, .gogh-cardset-ledger .gogh-cs-n { grid-column: d / -1; }' .
+		'.gogh-cardset-ledger .gogh-cs-link { grid-column: -2; text-align: right; margin: 0 !important; padding: 0; }' .
+		'.gogh-cardset-ledger:not(.gogh-cardset-typed-t) .gogh-cs-t { font-size: clamp(1.05rem, 0.95rem + 0.4cqi, 1.25rem) !important; }' .
+		'.gogh-cardset-ledger:not(.gogh-cardset-typed-k) .gogh-cs-k { text-transform: none; letter-spacing: 0; font-size: 1rem; font-weight: 600; opacity: 1; font-variant-numeric: tabular-nums; }' .
+		'.gogh-cardset-ledger:not(.gogh-cardset-typed-price) .gogh-cs-price strong { font-size: 1rem; font-variant-numeric: tabular-nums; }' .
+		// small and centred: round pictures, centred words
+		'.gogh-cardset-small .gogh-cs-pic { width: min(128px, 60%); margin: 0 auto !important; }' .
+		'.gogh-cardset-small .gogh-cs-pic img { aspect-ratio: 1; border-radius: 50%; }' .
+		'.gogh-cardset-small .gogh-cs-body { text-align: center; align-items: center; }' .
+		'.gogh-cardset-small:is(.gogh-cardset-look-panel, .gogh-cardset-look-outline, .gogh-cardset-look-raised) > .gogh-cs-card { padding-top: 26px !important; }' .
+		// a set folds by its OWN width
+		'@container (max-width: 760px) {' .
+			'.gogh-cardset:is(.gogh-cardset-g3, .gogh-cardset-g4, .gogh-cardset-big, .gogh-cardset-small) { grid-template-columns: repeat(2, minmax(0, 1fr)); }' .
+			'.gogh-cardset-big > .gogh-cs-card:first-child { grid-column: 1 / -1; grid-row: auto; }' .
+			'.gogh-cardset-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }' .
+			'.gogh-cardset-steps > .gogh-cs-card { margin-top: 0 !important; }' .
+			'.gogh-cardset-index .gogh-cs-pic { display: none; }' .
+		'}' .
+		'@container (max-width: 540px) {' .
+			'.gogh-cardset-ledger .gogh-cs-body, .gogh-cardset-ledger.gogh-cardset-x-k .gogh-cs-body { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t v" "d d"; column-gap: 16px; }' .
+			'.gogh-cardset-ledger.gogh-cardset-x-k .gogh-cs-body { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "k t v" "d d d"; }' .
+			'.gogh-cardset-ledger.gogh-cardset-nod .gogh-cs-body { grid-template-areas: "t v"; }' .
+			'.gogh-cardset-ledger.gogh-cardset-nod.gogh-cardset-x-k .gogh-cs-body { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "k t v"; }' .
+			'.gogh-cardset:is(.gogh-cardset-g2, .gogh-cardset-g3, .gogh-cardset-g4, .gogh-cardset-steps, .gogh-cardset-big, .gogh-cardset-over) { grid-template-columns: minmax(0, 1fr); }' .
+			'.gogh-cardset-rows.gogh-cardset-pic-none .gogh-cs-body { display: flex; }' .
+			'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) > .gogh-cs-card, .gogh-cardset-zig > .gogh-cs-card:nth-child(even) { flex-direction: column; align-items: stretch; }' .
+			'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) .gogh-cs-pic { flex-basis: auto; }' .
+			'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) > .gogh-cs-card .gogh-cs-body { padding: 20px 0 0 !important; }' .
+			'.gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig):is(.gogh-cardset-look-panel, .gogh-cardset-look-outline, .gogh-cardset-look-raised) > .gogh-cs-card .gogh-cs-body, .gogh-cardset:is(.gogh-cardset-rows, .gogh-cardset-zig) > .is-featured .gogh-cs-body { padding: 22px !important; }' .
+			'.gogh-cardset-feat:is(.gogh-cardset-g2, .gogh-cardset-g3, .gogh-cardset-g4) > .gogh-cs-card:not(.is-featured) { margin-block: 0 !important; }' .
+			'.gogh-cardset-zig { gap: 36px; }' .
+		'}';
 }
 
 // does this page carry a thing? singular pages answer from their own
@@ -7206,7 +7398,7 @@ add_action( 'wp_head', function () {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.745-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.776-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	// the reading looks dress single posts; the blog looks dress lists of
 	// posts (the posts page, archives, a page carrying a posts rail); motion
@@ -7252,10 +7444,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.745-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.776-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.745-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.776-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -7571,12 +7763,12 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.745-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.745-chrome', true );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.776-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.776-chrome', true );
 	if ( class_exists( 'WooCommerce' ) ) {
 		gogh_shop_looks_enqueue( false ); // the editor sketches the Lookbook and the Index with the same styles
 	}
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.745-chrome' );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.776-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -7588,7 +7780,7 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.745-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.776-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
@@ -7598,13 +7790,13 @@ add_action( 'wp_enqueue_scripts', function () {
 		// check every section gogh publishes with the editor's validation
 		wp_enqueue_script( 'wp-block-library' );
 		wp_enqueue_script( 'gogh-block' );
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.745-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.776-chrome', true );
 	}
 	// the user-test walk: /?gogh-edit=1&gogh-walk=1 on a DISPOSABLE Yellow
 	// House (it publishes) — editors only, never shipped in the zip
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle for capability-checked editors.
 	if ( isset( $_GET['gogh-walk'] ) ) {
-		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.745-chrome', true );
+		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.776-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -7631,7 +7823,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'canHome'    => current_user_can( 'manage_options' ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.745-chrome',
+		'build'    => '0.99.776-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,

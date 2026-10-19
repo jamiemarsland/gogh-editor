@@ -204,294 +204,82 @@
        }
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 168,
        "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 192,
-       "w": 160,
-       "h": 24,
-       "text": "1.30pm",
-       "tf": {
-        "fs": 16,
-        "fw": 600
+       "h": 456,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "1.30pm",
+          "t": "Arrive, find a seat, say hello",
+          "role": "The meadow"
+         },
+         {
+          "k": "2pm",
+          "t": "The ceremony",
+          "role": "Under the oak"
+         },
+         {
+          "k": "3pm",
+          "t": "Drinks, lawn games and photographs",
+          "role": "The orchard"
+         },
+         {
+          "k": "5pm",
+          "t": "Dinner at the long table",
+          "role": "The big barn"
+         },
+         {
+          "k": "8pm",
+          "t": "First dance, then everyone",
+          "role": "The tent"
+         },
+         {
+          "k": "Midnight",
+          "t": "Carriages, and the last song",
+          "role": "The lane"
+         }
+        ],
+        "type": {
+         "k": {
+          "tf": {
+           "fs": 16,
+           "fw": 600
+          }
+         },
+         "t": {
+          "tf": {
+           "fs": 16
+          },
+          "body": 1
+         },
+         "role": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 192,
-       "w": 552,
-       "h": 24,
-       "text": "Arrive, find a seat, say hello",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 192,
-       "w": 280,
-       "h": 24,
-       "text": "The meadow",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 240,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 264,
-       "w": 160,
-       "h": 24,
-       "text": "2pm",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 264,
-       "w": 552,
-       "h": 24,
-       "text": "The ceremony",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 264,
-       "w": 280,
-       "h": 24,
-       "text": "Under the oak",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 312,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 336,
-       "w": 160,
-       "h": 24,
-       "text": "3pm",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 336,
-       "w": 552,
-       "h": 24,
-       "text": "Drinks, lawn games and photographs",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 336,
-       "w": 280,
-       "h": 24,
-       "text": "The orchard",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 384,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 408,
-       "w": 160,
-       "h": 24,
-       "text": "5pm",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 408,
-       "w": 552,
-       "h": 24,
-       "text": "Dinner at the long table",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 408,
-       "w": 280,
-       "h": 24,
-       "text": "The big barn",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 456,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 480,
-       "w": 160,
-       "h": 24,
-       "text": "8pm",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 480,
-       "w": 552,
-       "h": 24,
-       "text": "First dance, then everyone",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 480,
-       "w": 280,
-       "h": 24,
-       "text": "The tent",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 528,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 552,
-       "w": 160,
-       "h": 24,
-       "text": "Midnight",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 552,
-       "w": 552,
-       "h": 24,
-       "text": "Carriages, and the last song",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 552,
-       "w": 280,
-       "h": 24,
-       "text": "The lane",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 600,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
       },
       {
        "type": "para",
@@ -734,247 +522,77 @@
        }
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 504,
        "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 528,
-       "w": 120,
-       "h": 24,
-       "text": "2018",
-       "tf": {
-        "fs": 16,
-        "fw": 600
+       "h": 384,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "2018",
+          "t": "A borrowed bicycle, a hedge, and a bike shop on Gloucester Road",
+          "role": "Bristol"
+         },
+         {
+          "k": "2020",
+          "t": "A flat with a garden too small for the tomatoes we planted",
+          "role": "Frome"
+         },
+         {
+          "k": "2022",
+          "t": "Juniper the dog, who chose us at a rescue in Taunton",
+          "role": "Somerset"
+         },
+         {
+          "k": "2026",
+          "t": "A question on the top of the Quantocks, in the rain",
+          "role": "The Quantocks"
+         },
+         {
+          "k": "2027",
+          "t": "This",
+          "role": "Hollins Farm"
+         }
+        ],
+        "type": {
+         "k": {
+          "tf": {
+           "fs": 16,
+           "fw": 600
+          }
+         },
+         "t": {
+          "tf": {
+           "fs": 16
+          },
+          "body": 1
+         },
+         "role": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 224,
-       "y": 528,
-       "w": 592,
-       "h": 24,
-       "text": "A borrowed bicycle, a hedge, and a bike shop on Gloucester Road",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 528,
-       "w": 280,
-       "h": 24,
-       "text": "Bristol",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 576,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 600,
-       "w": 120,
-       "h": 24,
-       "text": "2020",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 224,
-       "y": 600,
-       "w": 592,
-       "h": 24,
-       "text": "A flat with a garden too small for the tomatoes we planted",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 600,
-       "w": 280,
-       "h": 24,
-       "text": "Frome",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 648,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 672,
-       "w": 120,
-       "h": 24,
-       "text": "2022",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 224,
-       "y": 672,
-       "w": 592,
-       "h": 24,
-       "text": "Juniper the dog, who chose us at a rescue in Taunton",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 672,
-       "w": 280,
-       "h": 24,
-       "text": "Somerset",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 720,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 744,
-       "w": 120,
-       "h": 24,
-       "text": "2026",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 224,
-       "y": 744,
-       "w": 592,
-       "h": 24,
-       "text": "A question on the top of the Quantocks, in the rain",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 744,
-       "w": 280,
-       "h": 24,
-       "text": "The Quantocks",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 792,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 816,
-       "w": 120,
-       "h": 24,
-       "text": "2027",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 224,
-       "y": 816,
-       "w": 592,
-       "h": 24,
-       "text": "This",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 816,
-       "w": 280,
-       "h": 24,
-       "text": "Hollins Farm",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 864,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
       }
      ]
     },
@@ -1061,294 +679,82 @@
        "fs": "__disp-s"
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 264,
        "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 288,
-       "w": 160,
-       "h": 24,
-       "text": "1.30pm",
-       "tf": {
-        "fs": 16,
-        "fw": 600
+       "h": 456,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "1.30pm",
+          "t": "Arrive, find a seat, say hello",
+          "role": "The meadow"
+         },
+         {
+          "k": "2pm",
+          "t": "The ceremony",
+          "role": "Under the oak"
+         },
+         {
+          "k": "3pm",
+          "t": "Drinks, lawn games and photographs",
+          "role": "The orchard"
+         },
+         {
+          "k": "5pm",
+          "t": "Dinner at the long table",
+          "role": "The big barn"
+         },
+         {
+          "k": "8pm",
+          "t": "First dance, then everyone",
+          "role": "The tent"
+         },
+         {
+          "k": "Midnight",
+          "t": "Carriages, and the last song",
+          "role": "The lane"
+         }
+        ],
+        "type": {
+         "k": {
+          "tf": {
+           "fs": 16,
+           "fw": 600
+          }
+         },
+         "t": {
+          "tf": {
+           "fs": 16
+          },
+          "body": 1
+         },
+         "role": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 288,
-       "w": 552,
-       "h": 24,
-       "text": "Arrive, find a seat, say hello",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 288,
-       "w": 280,
-       "h": 24,
-       "text": "The meadow",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 336,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 360,
-       "w": 160,
-       "h": 24,
-       "text": "2pm",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 360,
-       "w": 552,
-       "h": 24,
-       "text": "The ceremony",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 360,
-       "w": 280,
-       "h": 24,
-       "text": "Under the oak",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 408,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 432,
-       "w": 160,
-       "h": 24,
-       "text": "3pm",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 432,
-       "w": 552,
-       "h": 24,
-       "text": "Drinks, lawn games and photographs",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 432,
-       "w": 280,
-       "h": 24,
-       "text": "The orchard",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 480,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 504,
-       "w": 160,
-       "h": 24,
-       "text": "5pm",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 504,
-       "w": 552,
-       "h": 24,
-       "text": "Dinner at the long table",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 504,
-       "w": 280,
-       "h": 24,
-       "text": "The big barn",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 552,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 576,
-       "w": 160,
-       "h": 24,
-       "text": "8pm",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 576,
-       "w": 552,
-       "h": 24,
-       "text": "First dance, then everyone",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 576,
-       "w": 280,
-       "h": 24,
-       "text": "The tent",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 624,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 648,
-       "w": 160,
-       "h": 24,
-       "text": "Midnight",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 264,
-       "y": 648,
-       "w": 552,
-       "h": 24,
-       "text": "Carriages, and the last song",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "para",
-       "x": 840,
-       "y": 648,
-       "w": 280,
-       "h": 24,
-       "text": "The lane",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 696,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
       }
      ]
     },
@@ -1372,75 +778,61 @@
        }
       },
       {
-       "type": "para",
+       "type": "cards",
        "x": 80,
        "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "What to wear",
-       "tf": {
-        "fs": 17,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 216,
-       "w": 320,
-       "h": 120,
-       "text": "Summer best. It is a farm, so leave the stilettos at home and bring a layer for after dark.",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "Food and drink",
-       "tf": {
-        "fs": 17,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 440,
-       "y": 216,
-       "w": 320,
-       "h": 120,
-       "text": "Three courses at the long table, all from farms nearby. Tell us what you cannot eat when you reply.",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 168,
-       "w": 320,
-       "h": 24,
-       "text": "Gifts",
-       "tf": {
-        "fs": 17,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 800,
-       "y": 216,
-       "w": 320,
-       "h": 120,
-       "text": "You coming is the gift. If you would like to, there is a jar on the bar for our honeymoon in Norway.",
-       "tf": {
-        "fs": 16,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       "w": 1040,
+       "h": 168,
+       "cards": {
+        "items": [
+         {
+          "t": "What to wear",
+          "d": "Summer best. It is a farm, so leave the stilettos at home and bring a layer for after dark."
+         },
+         {
+          "t": "Food and drink",
+          "d": "Three courses at the long table, all from farms nearby. Tell us what you cannot eat when you reply."
+         },
+         {
+          "t": "Gifts",
+          "d": "You coming is the gift. If you would like to, there is a jar on the bar for our honeymoon in Norway."
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 0,
+        "titles": 1,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 16,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "gap": 24,
+         "minH": 168
+        }
        }
       }
      ]
@@ -1539,105 +931,58 @@
        }
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 432,
        "w": 480,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 456,
-       "w": 180,
-       "h": 24,
-       "text": "The White Hart",
-       "tf": {
-        "fs": 16,
-        "fw": 600
+       "h": 240,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 0,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "The White Hart",
+          "d": "Rooms above a village pub, eight left · 2 miles"
+         },
+         {
+          "t": "Lanes End B&B",
+          "d": "Four rooms and a very good breakfast · 3 miles"
+         },
+         {
+          "t": "The top field",
+          "d": "Bring a tent and camp at the farm, free · On site"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 16,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 16
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 284,
-       "y": 456,
-       "w": 276,
-       "h": 24,
-       "text": "Rooms above a village pub, eight left · 2 miles",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 504,
-       "w": 480,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 528,
-       "w": 180,
-       "h": 24,
-       "text": "Lanes End B&B",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 284,
-       "y": 528,
-       "w": 276,
-       "h": 24,
-       "text": "Four rooms and a very good breakfast · 3 miles",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 576,
-       "w": 480,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 600,
-       "w": 180,
-       "h": 24,
-       "text": "The top field",
-       "tf": {
-        "fs": 16,
-        "fw": 600
-       }
-      },
-      {
-       "type": "para",
-       "x": 284,
-       "y": 600,
-       "w": 276,
-       "h": 24,
-       "text": "Bring a tent and camp at the farm, free · On site",
-       "tf": {
-        "fs": 16
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 648,
-       "w": 480,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
       },
       {
        "type": "embed",
