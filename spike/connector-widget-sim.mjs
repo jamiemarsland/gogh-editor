@@ -7,7 +7,7 @@ const U = fs.readFileSync('/tmp/gogh-connector-url.txt', 'utf8').trim();
 const out = process.argv[2], mode = process.argv[3] || 'edit';
 let n = 0;
 const rpc = async (method, params) => (await (await fetch(U, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++n, method, params }) })).json());
-const html = (await rpc('resources/read', { uri: 'ui://gogh/page.html' })).result.contents[0].text;
+const html = (await rpc('resources/read', { uri: 'ui://gogh/panel.html' })).result.contents[0].text;
 const opened = (await rpc('tools/call', { name: 'gogh_open_page', arguments: process.env.PAGE ? { page_id: +process.env.PAGE } : {} })).result;
 const host = `<!doctype html><html><body style="margin:0;padding:16px;background:#fff">
 <iframe id="f" sandbox="allow-scripts" style="width:760px;border:0;height:300px"></iframe>

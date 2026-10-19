@@ -104,16 +104,34 @@ function gogh_connector_tool( $tool, $a ) {
 
 // ---------- the page widget (an MCP app) ------------------------------------
 
-// the panel's address carries its version: chats keep a panel they have
-// read before, so a new panel needs a new address
+// what a chat keeps is a small loader that never changes (connector/
+// panel.html); the panel itself comes from the site each time it opens, so
+// improving it needs no reconnecting
 function gogh_connector_widget_uri() {
-	static $uri = null;
-	if ( null === $uri ) {
-		$h   = md5( (string) @file_get_contents( __DIR__ . '/connector/page-widget.html' ) . (string) @filemtime( __DIR__ . '/connector/gogh-draw.js' ) );
-		$uri = 'ui://gogh/page-' . substr( $h, 0, 10 ) . '.html';
-	}
-	return $uri;
+	return 'ui://gogh/panel.html';
 }
+
+// the panel's own code and styles, served to the loader
+add_action( 'init', function () {
+	$what = isset( $_GET['gogh-panel'] ) ? (string) $_GET['gogh-panel'] : '';
+	if ( 'js' !== $what && 'css' !== $what ) {
+		return;
+	}
+	$dir = __DIR__ . '/connector/';
+	header( 'Access-Control-Allow-Origin: *' );
+	header( 'Cache-Control: no-cache' );
+	header( 'X-Robots-Tag: noindex' );
+	if ( 'css' === $what ) {
+		header( 'Content-Type: text/css; charset=utf-8' );
+		readfile( $dir . 'panel.css' );
+	} else {
+		header( 'Content-Type: text/javascript; charset=utf-8' );
+		readfile( $dir . 'gogh-draw.js' );
+		echo "\n;\n";
+		readfile( $dir . 'panel.js' );
+	}
+	exit;
+}, 0 );
 
 // the address the connector was reached at: the site's own, or a tunnel's
 // or proxy's in front of it — the widget must load the page from there
@@ -184,15 +202,14 @@ function gogh_connector_open_page( $args ) {
 }
 
 function gogh_connector_read_resource( $uri ) {
-	if ( 0 !== strpos( $uri, 'ui://gogh/page' ) ) {
+	if ( 0 !== strpos( $uri, 'ui://gogh/' ) ) {
 		return null;
 	}
 	$pub = gogh_connector_public_origin();
 	return array( 'contents' => array( array(
 		'uri'      => $uri,
 		'mimeType' => 'text/html;profile=mcp-app',
-		// the panel draws new sections with gogh's own code, inlined
-		'text'     => str_replace( '/*__GOGH_DRAW__*/', str_replace( '</script', '<\\/script', (string) file_get_contents( __DIR__ . '/connector/gogh-draw.js' ) ), (string) file_get_contents( __DIR__ . '/connector/page-widget.html' ) ),
+		'text'     => (string) file_get_contents( __DIR__ . '/connector/panel.html' ),
 		'_meta'    => array( 'ui' => array(
 			'csp'           => array(
 				'connectDomains'  => array( $pub ),

@@ -1,0 +1,84 @@
+/* gogh's page widget: one page of the person's real site, drawn exactly as
+   visitors see it (its own preview, inside a frame at desktop width, scaled
+   to the chat), with the words editable in place and the sections movable.
+   Every change goes through the site's own connector (tools/call), as the
+   signed-in person, and stays "not live yet" until Publish. */
+:root {
+  --w-surface: #ffffff;
+  --w-line: #dcdfe4;
+  --w-ink: #1a1c20;
+  --w-muted: #646a74;
+  --w-accent: #2271b1;
+  --w-accent-ink: #ffffff;
+  --w-warn: #9a5b00;
+  --w-warn-bg: #fff4e0;
+  --w-ok: #1f7a4d;
+  --w-ok-bg: #e7f5ee;
+}
+:root[data-theme="dark"] {
+  --w-surface: #1f2125;
+  --w-line: #34373d;
+  --w-ink: #eceef2;
+  --w-muted: #9aa1ab;
+  --w-accent: #5a9fdc;
+  --w-accent-ink: #0d1117;
+  --w-warn: #f0b860;
+  --w-warn-bg: #3a2c14;
+  --w-ok: #5ccf96;
+  --w-ok-bg: #173226;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+/* no type on body: the page's own body type must reach the page */
+.w { display: flex; flex-direction: column; gap: 8px; padding: 2px; }
+.msg { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--w-muted); }
+.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+select, button { font: inherit; color: inherit; }
+select { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); border-radius: 8px; padding: 5px 26px 5px 10px; font-weight: 600; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%; background-size: 4px 4px; background-repeat: no-repeat; cursor: pointer; }
+.pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--w-ok-bg); color: var(--w-ok); white-space: nowrap; }
+.pill.pending { background: var(--w-warn-bg); color: var(--w-warn); }
+.saving { font-size: 12px; color: var(--w-muted); margin-right: auto; min-height: 1em; }
+.chip { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); padding: 5px 11px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.chip:hover { border-color: var(--w-muted); }
+.go { appearance: none; border: 0; background: var(--w-accent); color: var(--w-accent-ink); font-weight: 600; font-size: 13px; padding: 7px 13px; border-radius: 8px; cursor: pointer; }
+:is(.chip, .go, select):focus-visible { outline: 2px solid var(--w-accent); outline-offset: 2px; }
+button[disabled] { opacity: .45; cursor: default; }
+.ask { display: none; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--w-warn-bg); color: var(--w-ink); font-size: 13px; }
+.ask.on { display: flex; }
+.ask span { margin-right: auto; }
+.hint { font-size: 12px; color: var(--w-muted); }
+.stage { position: relative; width: 100%; overflow: hidden; border-radius: 8px; box-shadow: 0 0 0 1px var(--w-line); }
+.stage #gw-page { position: absolute; top: 0; left: 0; width: 1280px; transform-origin: 0 0; }
+/* the panel's own parts keep their own type, whatever the site's styles say */
+.w > .bar, .w > .ask, .w > .hint { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--w-ink); }
+.w > .bar :is(select, button), .w > .ask button { font: inherit; font-size: 13px; letter-spacing: normal; text-transform: none; }
+#gw-page [data-gw-sec] { position: relative; }
+#gw-page [data-gw-sec]:hover { outline: 3px solid rgba(34,113,177,.55); outline-offset: -3px; }
+#gw-page [contenteditable] { cursor: text; }
+#gw-page [contenteditable]:hover { box-shadow: 0 0 0 3px rgba(34,113,177,.35); }
+#gw-page [contenteditable]:focus { outline: none; box-shadow: 0 0 0 3px #2271b1; background: rgba(34,113,177,.06); }
+#gw-page .gw-tools { position: absolute; top: 14px; right: 14px; z-index: 9999; display: none; gap: 6px; font: 600 22px/1 system-ui, sans-serif; }
+#gw-page [data-gw-sec]:hover > .gw-tools, #gw-page .gw-tools.on { display: flex; }
+#gw-page .gw-tools button { all: unset; cursor: pointer; background: #1d2327; color: #fff; border-radius: 10px; padding: 10px 14px; box-shadow: 0 4px 14px rgba(0,0,0,.25); font: 600 22px/1 system-ui, sans-serif; }
+#gw-page .gw-tools button:hover { background: #2271b1; }
+#gw-page .gw-tools .gw-grip { cursor: grab; }
+#gw-page .gw-drop { position: absolute; left: 0; right: 0; height: 8px; background: #2271b1; z-index: 9999; pointer-events: none; }
+#gw-page .gw-dim { opacity: .35; }
+#gw-page .gw-seam { position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%); z-index: 9998; display: none; }
+#gw-page [data-gw-sec]:hover > .gw-seam { display: block; }
+#gw-page .gw-seam button { all: unset; cursor: pointer; background: #2271b1; color: #fff; border-radius: 999px; padding: 12px 22px; font: 600 22px/1 system-ui, sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,.25); white-space: nowrap; }
+.pick { display: flex; flex-direction: column; gap: 10px; }
+.pick[hidden] { display: none; }
+.pick .head { display: flex; align-items: center; gap: 8px; font: 600 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--w-ink); }
+.pick .head span { margin-right: auto; }
+.pick .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.pick .tabs button { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); color: var(--w-ink); border-radius: 999px; padding: 4px 12px; font: 13px system-ui, sans-serif; cursor: pointer; }
+.pick .tabs button[aria-pressed="true"] { border-color: var(--w-accent); box-shadow: inset 0 0 0 1px var(--w-accent); }
+.pick .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pick .opt { appearance: none; border: 2px solid transparent; padding: 0; border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--w-surface); box-shadow: 0 0 0 1px var(--w-line); text-align: left; display: flex; flex-direction: column; }
+.pick .opt:hover, .pick .opt:focus-visible { border-color: var(--w-accent); box-shadow: none; outline: none; }
+.pick .opt .name { font: 12px/1.3 system-ui, sans-serif; color: var(--w-muted); padding: 5px 8px 6px; }
+.pick .thumb { position: relative; width: 100%; aspect-ratio: 1200 / 680; overflow: hidden; }
+.pick .thumb > .gw-stage { position: absolute; top: 0; left: 0; width: 1200px; transform-origin: 0 0; container-type: inline-size; }
+.pick .thumb > .gw-stage > .gogh-section { display: grid; }
+.msg { padding: 28px; text-align: center; color: var(--w-muted); }

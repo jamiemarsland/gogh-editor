@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your page</title>
+<style>
+html, body { margin: 0; background: transparent; }
+#gw-wait { padding: 28px; text-align: center; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: #646a74; }
+</style>
+</head>
+<body>
+<div id="gw-root"><div id="gw-wait">Opening your page…</div></div>
+<script>
+/* gogh's page panel, the part a chat keeps. It never changes: it says hello
+   to the chat, holds the conversation, and fetches the panel itself from the
+   site each time it opens — so a better panel reaches people the next time
+   they open a page, with no reconnecting (James: "i really dont want to keep
+   doing this"). */
+(function () {
+  'use strict';
+  var H = window.goghHost = { inHost: window.parent !== window, result: null, context: null, handle: null };
+  var rid = 0, pend = {}, early = [];
+  function send(m) { try { window.parent.postMessage(m, '*'); } catch (e) {} }
+  H.request = function (method, params, ms) {
+    return new Promise(function (res, rej) {
+      var id = ++rid; pend[id] = { res: res, rej: rej };
+      send({ jsonrpc: '2.0', id: id, method: method, params: params || {} });
+      setTimeout(function () { if (pend[id]) { delete pend[id]; rej(new Error('The chat did not answer.')); } }, ms || 30000);
+    });
+  };
+  H.notify = function (method, params) { send({ jsonrpc: '2.0', method: method, params: params || {} }); };
+  function wait(t) { var w = document.getElementById('gw-wait'); if (w) w.textContent = t; }
+  var loading = false;
+  function load(sc) {
+    if (loading) return; loading = true;
+    var origin = sc.public_origin, v = Date.now();
+    var css = document.createElement('link');
+    css.rel = 'stylesheet'; css.id = 'gw-own'; css.href = origin + '/?gogh-panel=css&v=' + v;
+    document.head.appendChild(css);
+    var js = document.createElement('script');
+    js.src = origin + '/?gogh-panel=js&v=' + v;
+    js.onerror = function () { wait('The page panel could not be loaded from your site.'); };
+    document.head.appendChild(js);
+  }
+  window.addEventListener('message', function (ev) {
+    var m = ev.data;
+    if (!m || m.jsonrpc !== '2.0') return;
+    if (m.id != null && !m.method && pend[m.id]) {
+      var p = pend[m.id]; delete pend[m.id];
+      if (m.error) p.rej(new Error(m.error.message || 'error')); else p.res(m.result);
+      return;
+    }
+    if (!m.method) return;
+    if (m.method === 'ui/notifications/tool-result') {
+      H.result = m.params || {};
+      var sc = H.result.structuredContent;
+      if (sc && sc.public_origin && !H.handle) load(sc);
+    }
+    if (m.method === 'ui/notifications/host-context-changed' && m.params) H.context = Object.assign(H.context || {}, m.params);
+    if (H.handle) H.handle(m);
+    if (m.id != null) send({ jsonrpc: '2.0', id: m.id, result: {} });
+  });
+  if (!H.inHost) { wait('Open this page from your assistant.'); return; }
+  H.request('ui/initialize', { appInfo: { name: 'gogh page', version: '2.0.0' }, appCapabilities: {}, protocolVersion: '2026-01-26' }, 8000)
+    .then(function (r) { H.context = (r && r.hostContext) || null; H.notify('ui/notifications/initialized', {}); })
+    .catch(function () { wait('This chat cannot show the page panel.'); });
+})();
+</script>
+</body>
+</html>

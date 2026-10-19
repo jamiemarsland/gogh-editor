@@ -1,145 +1,18 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Your page</title>
-<style id="gw-own">
-/* gogh's page widget: one page of the person's real site, drawn exactly as
-   visitors see it (its own preview, inside a frame at desktop width, scaled
-   to the chat), with the words editable in place and the sections movable.
-   Every change goes through the site's own connector (tools/call), as the
-   signed-in person, and stays "not live yet" until Publish. */
-:root {
-  --w-surface: #ffffff;
-  --w-line: #dcdfe4;
-  --w-ink: #1a1c20;
-  --w-muted: #646a74;
-  --w-accent: #2271b1;
-  --w-accent-ink: #ffffff;
-  --w-warn: #9a5b00;
-  --w-warn-bg: #fff4e0;
-  --w-ok: #1f7a4d;
-  --w-ok-bg: #e7f5ee;
-}
-:root[data-theme="dark"] {
-  --w-surface: #1f2125;
-  --w-line: #34373d;
-  --w-ink: #eceef2;
-  --w-muted: #9aa1ab;
-  --w-accent: #5a9fdc;
-  --w-accent-ink: #0d1117;
-  --w-warn: #f0b860;
-  --w-warn-bg: #3a2c14;
-  --w-ok: #5ccf96;
-  --w-ok-bg: #173226;
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; background: transparent; }
-/* no type on body: the page's own body type must reach the page */
-.w { display: flex; flex-direction: column; gap: 8px; padding: 2px; }
-.msg { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--w-muted); }
-.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-select, button { font: inherit; color: inherit; }
-select { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); border-radius: 8px; padding: 5px 26px 5px 10px; font-weight: 600; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%; background-size: 4px 4px; background-repeat: no-repeat; cursor: pointer; }
-.pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--w-ok-bg); color: var(--w-ok); white-space: nowrap; }
-.pill.pending { background: var(--w-warn-bg); color: var(--w-warn); }
-.saving { font-size: 12px; color: var(--w-muted); margin-right: auto; min-height: 1em; }
-.chip { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); padding: 5px 11px; border-radius: 8px; cursor: pointer; font-size: 13px; }
-.chip:hover { border-color: var(--w-muted); }
-.go { appearance: none; border: 0; background: var(--w-accent); color: var(--w-accent-ink); font-weight: 600; font-size: 13px; padding: 7px 13px; border-radius: 8px; cursor: pointer; }
-:is(.chip, .go, select):focus-visible { outline: 2px solid var(--w-accent); outline-offset: 2px; }
-button[disabled] { opacity: .45; cursor: default; }
-.ask { display: none; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--w-warn-bg); color: var(--w-ink); font-size: 13px; }
-.ask.on { display: flex; }
-.ask span { margin-right: auto; }
-.hint { font-size: 12px; color: var(--w-muted); }
-.stage { position: relative; width: 100%; overflow: hidden; border-radius: 8px; box-shadow: 0 0 0 1px var(--w-line); }
-.stage #gw-page { position: absolute; top: 0; left: 0; width: 1280px; transform-origin: 0 0; }
-/* the panel's own parts keep their own type, whatever the site's styles say */
-.w > .bar, .w > .ask, .w > .hint { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--w-ink); }
-.w > .bar :is(select, button), .w > .ask button { font: inherit; font-size: 13px; letter-spacing: normal; text-transform: none; }
-#gw-page [data-gw-sec] { position: relative; }
-#gw-page [data-gw-sec]:hover { outline: 3px solid rgba(34,113,177,.55); outline-offset: -3px; }
-#gw-page [contenteditable] { cursor: text; }
-#gw-page [contenteditable]:hover { box-shadow: 0 0 0 3px rgba(34,113,177,.35); }
-#gw-page [contenteditable]:focus { outline: none; box-shadow: 0 0 0 3px #2271b1; background: rgba(34,113,177,.06); }
-#gw-page .gw-tools { position: absolute; top: 14px; right: 14px; z-index: 9999; display: none; gap: 6px; font: 600 22px/1 system-ui, sans-serif; }
-#gw-page [data-gw-sec]:hover > .gw-tools, #gw-page .gw-tools.on { display: flex; }
-#gw-page .gw-tools button { all: unset; cursor: pointer; background: #1d2327; color: #fff; border-radius: 10px; padding: 10px 14px; box-shadow: 0 4px 14px rgba(0,0,0,.25); font: 600 22px/1 system-ui, sans-serif; }
-#gw-page .gw-tools button:hover { background: #2271b1; }
-#gw-page .gw-tools .gw-grip { cursor: grab; }
-#gw-page .gw-drop { position: absolute; left: 0; right: 0; height: 8px; background: #2271b1; z-index: 9999; pointer-events: none; }
-#gw-page .gw-dim { opacity: .35; }
-#gw-page .gw-seam { position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%); z-index: 9998; display: none; }
-#gw-page [data-gw-sec]:hover > .gw-seam { display: block; }
-#gw-page .gw-seam button { all: unset; cursor: pointer; background: #2271b1; color: #fff; border-radius: 999px; padding: 12px 22px; font: 600 22px/1 system-ui, sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,.25); white-space: nowrap; }
-.pick { display: flex; flex-direction: column; gap: 10px; }
-.pick[hidden] { display: none; }
-.pick .head { display: flex; align-items: center; gap: 8px; font: 600 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--w-ink); }
-.pick .head span { margin-right: auto; }
-.pick .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-.pick .tabs button { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); color: var(--w-ink); border-radius: 999px; padding: 4px 12px; font: 13px system-ui, sans-serif; cursor: pointer; }
-.pick .tabs button[aria-pressed="true"] { border-color: var(--w-accent); box-shadow: inset 0 0 0 1px var(--w-accent); }
-.pick .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.pick .opt { appearance: none; border: 2px solid transparent; padding: 0; border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--w-surface); box-shadow: 0 0 0 1px var(--w-line); text-align: left; display: flex; flex-direction: column; }
-.pick .opt:hover, .pick .opt:focus-visible { border-color: var(--w-accent); box-shadow: none; outline: none; }
-.pick .opt .name { font: 12px/1.3 system-ui, sans-serif; color: var(--w-muted); padding: 5px 8px 6px; }
-.pick .thumb { position: relative; width: 100%; aspect-ratio: 1200 / 680; overflow: hidden; }
-.pick .thumb > .gw-stage { position: absolute; top: 0; left: 0; width: 1200px; transform-origin: 0 0; container-type: inline-size; }
-.pick .thumb > .gw-stage > .gogh-section { display: grid; }
-.msg { padding: 28px; text-align: center; color: var(--w-muted); }
-</style>
-</head>
-<body>
-<div class="w" id="w">
-  <div class="bar">
-    <select id="pages" aria-label="Page"></select>
-    <span class="pill" id="pill">Live</span>
-    <span class="saving" id="saving" aria-live="polite"></span>
-    <button class="chip" id="discard" type="button" hidden>Throw away changes</button>
-    <button class="go" id="publish" type="button" hidden>Publish</button>
-  </div>
-  <div class="ask" id="ask" role="alertdialog" aria-live="assertive"><span id="askText"></span><button class="chip" id="askNo" type="button">Cancel</button><button class="go" id="askYes" type="button">Yes</button></div>
-  <div class="hint" id="hint">Click any words to change them. Drag a section by its handle to move it. Add a section from the + under any section.</div>
-  <div class="pick" id="pick" hidden>
-    <div class="head"><span id="pickTitle">Add a section</span><button class="chip" id="pickClose" type="button">Cancel</button></div>
-    <div class="tabs" id="pickTabs"></div>
-    <div class="grid" id="pickGrid"></div>
-  </div>
-  <div class="stage" id="stage"><div class="msg" id="msg">Opening your page…</div></div>
-</div>
-<script>/*__GOGH_DRAW__*/</script>
-<script>
+
 (function () {
   'use strict';
+  var H = window.goghHost;
+  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"hint\" id=\"hint\">Click any words to change them. Drag a section by its handle to move it. Add a section from the + under any section.</div>\n  <div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
   var st = null, busy = 0, frame = null, W = 1280, G = window.goghDraw, info = null;
 
-  /* ---------- the chat: MCP Apps over postMessage ---------- */
-  var rid = 0, pend = {}, inHost = window.parent !== window;
-  function send(m) { try { window.parent.postMessage(m, '*'); } catch (e) {} }
-  function request(method, params, ms) {
-    return new Promise(function (res, rej) {
-      var id = ++rid; pend[id] = { res: res, rej: rej };
-      send({ jsonrpc: '2.0', id: id, method: method, params: params || {} });
-      setTimeout(function () { if (pend[id]) { delete pend[id]; rej(new Error('The chat did not answer.')); } }, ms || 30000);
-    });
-  }
-  function notify(method, params) { send({ jsonrpc: '2.0', method: method, params: params || {} }); }
-  window.addEventListener('message', function (ev) {
-    var m = ev.data;
-    if (!m || m.jsonrpc !== '2.0') return;
-    if (m.id != null && !m.method && pend[m.id]) {
-      var p = pend[m.id]; delete pend[m.id];
-      if (m.error) p.rej(new Error(m.error.message || 'error')); else p.res(m.result);
-      return;
-    }
-    if (!m.method) return;
+  /* ---------- the chat: the loader holds the conversation ---------- */
+  var inHost = H.inHost;
+  var request = H.request, notify = H.notify;
+  H.handle = function (m) {
     var a = m.params || {};
     if (m.method === 'ui/notifications/tool-result' && a.structuredContent && a.structuredContent.preview) open(a.structuredContent);
     else if (m.method === 'ui/notifications/host-context-changed') theme(a);
-    if (m.id != null) send({ jsonrpc: '2.0', id: m.id, result: {} });
-  });
+  };
   function theme(ctx) { if (ctx && (ctx.theme === 'dark' || ctx.theme === 'light')) document.documentElement.setAttribute('data-theme', ctx.theme); }
   var lastH = 0;
   function sizeUp() {
@@ -527,11 +400,6 @@ button[disabled] { opacity: .45; cursor: default; }
 
   window.addEventListener('resize', fit);
   window.__goghPage = function () { return st; };
-  if (!inHost) { document.getElementById('msg').textContent = 'Open this page from your assistant.'; return; }
-  request('ui/initialize', { appInfo: { name: 'gogh page', version: '1.0.0' }, appCapabilities: {}, protocolVersion: '2026-01-26' }, 8000)
-    .then(function (r) { theme(r && r.hostContext); notify('ui/notifications/initialized', {}); })
-    .catch(function () { document.getElementById('msg').textContent = 'This chat cannot show the page panel.'; });
+  theme(H.context);
+  if (H.result && H.result.structuredContent && H.result.structuredContent.preview) open(H.result.structuredContent);
 })();
-</script>
-</body>
-</html>
