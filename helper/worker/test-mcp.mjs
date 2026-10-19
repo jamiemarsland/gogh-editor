@@ -447,5 +447,43 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   check(bpUT.steps.some((st) => st.step === 'runPHP' && st.code.includes("update_option( 'gogh_user_test'")), 'blueprint-usertest switches the card on');
 }
 
+
+// ---- the hero picker: an MCP app, behind ?apps=1 ----
+{
+  const app = async (msg) => {
+    const res = await worker.fetch(new Request('https://gogh.test/mcp?apps=1', { method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.12' }, body: JSON.stringify(msg) }), env);
+    return res.json();
+  };
+  let a = await app({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } }, clientInfo: { name: 't', version: '0' } } });
+  check(a.result.capabilities.resources, 'apps: initialize offers resources');
+  a = await app({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+  const hero = a.result.tools.find((t) => t.name === 'gogh_choose_hero');
+  check(hero && hero._meta.ui.resourceUri === 'ui://gogh/hero-picker.html' && hero._meta['openai/outputTemplate'], 'apps: the hero picker tool names its panel, for MCP apps and ChatGPT');
+  a = await app({ jsonrpc: '2.0', id: 3, method: 'resources/list' });
+  check(a.result.resources.length === 2, 'apps: two resources, the picker in both formats');
+  a = await app({ jsonrpc: '2.0', id: 4, method: 'resources/read', params: { uri: 'ui://gogh/hero-picker.html' } });
+  const page = a.result.contents[0];
+  check(page.mimeType === 'text/html;profile=mcp-app' && /window\.goghDraw/.test(page.text) && /ui\/initialize/.test(page.text) && page._meta.ui.csp.resourceDomains.includes('https://fonts.gstatic.com'), 'apps: the panel is one page carrying gogh\'s drawing, the handshake and its allowed domains');
+  check(!/__THEME_CSS__|__DRAW_JS__/.test(page.text), 'apps: the panel was assembled (no placeholders left)');
+  a = await app({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'gogh_choose_hero', arguments: { definition: florist } } });
+  const sc = a.result.structuredContent;
+  check(sc && sc.options.length >= 9 && sc.current.take === 'Cover' && sc.page === 0 && sc.section === 0 && a.result._meta.ui.resourceUri, 'apps: the picker answers with the designs, the drafted one and where it sits: ' + (sc && sc.options.length));
+  check(/wait for it/.test(a.result.content[0].text) && /Hero · The mirror/.test(a.result.content[0].text), 'apps: the text answer tells the agent to wait, and lists the designs for chats with no panel');
+  a = await app({ jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'gogh_choose_hero', arguments: {} } });
+  check(a.result.isError, 'apps: no definition, a plain error');
+  r = await rpc({ jsonrpc: '2.0', id: 7, method: 'tools/list' });
+  check(!r.body.result.tools.some((t) => t.name === 'gogh_choose_hero'), 'apps: without the flag the connector is unchanged');
+  r = await rpc({ jsonrpc: '2.0', id: 8, method: 'resources/read', params: { uri: 'ui://gogh/hero-picker.html' } });
+  check(r.body.error, 'apps: without the flag there are no resources');
+  // a face in a definition: checked against the editor's own take names
+  const withFace = (face, take) => { const d = JSON.parse(JSON.stringify(florist)); d.pages[0].sections[0].take = take || 'Hero'; d.pages[0].sections[0].face = face; return d; };
+  r = await rpc({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: withFace('The mirror') } } });
+  check(r.body.result.structuredContent.ok === true, 'a face the take has passes the check');
+  r = await rpc({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: withFace('The wobble') } } });
+  check(r.body.result.structuredContent.problems.some((p) => /face must be one of/.test(p) && /The mirror/.test(p)), 'an unknown face is refused with the real names');
+  r = await rpc({ jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'gogh_rules', arguments: {} } });
+  check(/face is optional/.test(r.body.result.content[0].text), 'the rules explain face');
+}
+
 console.log(failures ? `${failures} failure(s)` : 'all passed');
 process.exit(failures ? 1 : 0);

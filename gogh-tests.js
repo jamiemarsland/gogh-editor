@@ -3928,6 +3928,20 @@
       expect(price.feat === 1 && price.extras.price && price.act === 'button', 'Pricing should keep its featured middle card, prices and buttons');
       return '12 takes';
     });
+    test('A definition can name one of a take\u2019s other designs (face), and the section remembers it', function () {
+      var t = G.fillTake({ take: 'Hero', face: 'The mirror', heading: 'Thrown by hand.', text: 'Small batches.', button: 'Shop' });
+      var mirror = G.variants().Hero.filter(function (v) { return v.take === 'The mirror'; })[0];
+      expect(t && t.face === 1 && t.minH === mirror.minH, 'Hero / The mirror should draw the mirror: ' + (t && [t.face, t.minH, mirror.minH].join(',')));
+      expect(t.els.some(function (e) { return e.type === 'heading' && /Thrown by hand/.test(e.text); }), 'the mirror should carry the definition\u2019s words');
+      var plain = G.fillTake({ take: 'Hero', face: 'The original', heading: 'X' }), odd = G.fillTake({ take: 'Hero', face: 'No such', heading: 'X' });
+      expect(plain && !plain.face && odd && !odd.face, 'the original, or a face that does not exist, draws the usual design');
+      var n = G.sections().length;
+      G.addSection(t, n);
+      var s = G.sections()[n];
+      expect(s.m && s.m.tpl === 'Hero' && s.m.face === 1, 'the section should remember it is the mirror, so its die rolls on from there: ' + JSON.stringify(s.m));
+      G.deleteSection(n);
+      return 'Hero · The mirror, face 1';
+    });
     test('Cards: a site definition’s items fill the set (two prices, three kind words)', function () {
       var p = G.fillTake({ take: 'Pricing', heading: 'Plans', items: [{ title: 'Small', text: 'For one', price: '£10/mo', button: 'Pick small', link: '/small' }, { title: 'Big', text: 'For many', price: '£90', button: 'Pick big' }] });
       var set = p.els.filter(function (e) { return e.cards; })[0];

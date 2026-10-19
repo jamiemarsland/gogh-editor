@@ -15359,7 +15359,7 @@
     // a starter with hidden takes remembers its family -- the die must
     // know which drawer to reach into, today and after a reload (m rides
     // in the saved model, so the memory survives publish)
-    if (diceFaces(tpl.name)) sec.m = Object.assign({}, sec.m || {}, { tpl: tpl.name, face: 0 });
+    if (diceFaces(tpl.name)) sec.m = Object.assign({}, sec.m || {}, { tpl: tpl.name, face: +tpl.face > 0 ? +tpl.face : 0 });
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
     // the DOM anchor wins when given: it can place the section above a
@@ -15597,7 +15597,16 @@
       return null;
     }
     if (!tpl) return null;
+    // a definition may name one of the family's other takes ('The mirror'),
+    // as a person picks it in the connector's hero picker; the section then
+    // remembers it, so its die rolls on from there
+    var faceAt = 0;
+    if (sc.face && sc.face !== 'The original') {
+      (diceFaces(name) || []).forEach(function (t, k) { if (!faceAt && k && t.take === String(sc.face)) faceAt = k; });
+      if (faceAt) tpl = diceFaces(name)[faceAt];
+    }
     var clone = JSON.parse(JSON.stringify(tpl));
+    if (faceAt) clone.face = faceAt;
     var L = roleLists(clone.els);
     // pictures: a take with a background picture takes the section's image there
     if (sc.image && clone.bgImage) { clone.bgImage = String(sc.image); if (clone.bgA == null) clone.bgA = 45; }

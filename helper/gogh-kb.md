@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.777 · knowledge base 10da24e.
+Generated for plugin version 0.99.778 · knowledge base 7d54998.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A definition can pick a take's other designs (v0.99.778).** A section in a site definition can now name one of its take's other designs with `face`, for example `{ take: 'Hero', face: 'The mirror' }`. gogh draws that design, and the section remembers which one it is, so its die rolls on from there. This is what the connector's new hero picker uses: in chats that can show apps, it draws the top of the page in gogh's real designs, in the site's own words, picture, colours and type, and the person picks one by looking. The picker is switched on for now only through the connector address with `?apps=1`.
+
 **Safer paste and steadier arrivals (v0.99.777).** A review of the recent arrivals work tightened a few things. Pieces pasted with ⌘V are cleaned first: scripts, event handlers and javascript: or data: links are dropped, so a copied piece can never carry code onto a page. ⌘X with one card chosen copies the set and leaves it in place (Delete removes just that card). A button only widens when its words really spill past its edges, never on the phone view, and never further than the pieces beside it can move. When a piece shrinks, anything still sitting under a piece that did not move stays put, and a row you lined up stays whole. A new piece arriving under a chosen one makes room across its own full width, and the chosen piece never moves. A picture uploaded while the page changed lands in the right section or waits in the media library.
 
 **Readable words on themes without base and contrast colours (v0.99.776).** Some themes (Automattic's Purple, used by The Violet Hour) name their colours theme-1, theme-2 and so on, with no "base" or "contrast". Gogh's designs colour their words with those two names, so on such a theme the words fell back to the theme's dark heading ink: dark titles over the photo in the Cover preview, for example. Designs now map base and contrast to the theme's own page and text colours as they arrive, in the section chooser and on the page. And on any set of cards, every part (title included) now follows its card's colour, so a set on a dark section has light titles as well as light words.
@@ -1163,11 +1165,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.777**
+- Plugin version: **0.99.778**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.777`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.778`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1794,4 +1796,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`391` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`392` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

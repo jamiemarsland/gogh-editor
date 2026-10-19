@@ -1,0 +1,57 @@
+/* The few theme rules gogh's drawing leans on, for a page with no WordPress:
+   the preset variables a section's CSS reads, the has-* classes makeNode
+   writes, and core's button. Values follow Twenty Twenty-Five, the theme
+   every connector site is built on; the widget sets the colours and fonts. */
+.gogh-theme {
+  --wp--preset--color--base: #FFFFFF;
+  --wp--preset--color--contrast: #111111;
+  --wp--preset--color--accent-1: #FFEE58;
+  --wp--preset--color--accent-2: #F6CFF4;
+  --wp--preset--color--accent-3: #503AA8;
+  --wp--preset--color--accent-4: #686868;
+  --wp--preset--color--accent-5: #FBFAF3;
+  --wp--preset--color--accent-6: color-mix(in srgb, currentColor 20%, transparent);
+  --wp--preset--font-size--small: 0.875rem;
+  --wp--preset--font-size--medium: clamp(1rem, 1rem + ((1vw - 0.2rem) * 0.196), 1.125rem);
+  --wp--preset--font-size--large: clamp(1.125rem, 1.125rem + ((1vw - 0.2rem) * 0.392), 1.375rem);
+  --wp--preset--font-size--x-large: clamp(1.75rem, 1.75rem + ((1vw - 0.2rem) * 0.392), 2rem);
+  --wp--preset--font-size--xx-large: clamp(2.15rem, 2.15rem + ((1vw - 0.2rem) * 1.333), 3rem);
+  --gogh-body-ff: "Manrope", system-ui, sans-serif;
+  --gogh-heading-ff: var(--gogh-body-ff);
+  background: var(--wp--preset--color--base);
+  color: var(--wp--preset--color--contrast);
+  font-family: var(--gogh-body-ff);
+  font-size: var(--wp--preset--font-size--medium);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+.gogh-theme :is(h1, h2, h3, h4, h5, h6) { font-family: var(--gogh-heading-ff); font-weight: 400; line-height: 1.125; letter-spacing: -0.1px; margin: 0; }
+.gogh-theme p { margin: 0; }
+.gogh-theme img { display: block; max-width: 100%; }
+.gogh-theme figure { margin: 0; }
+.gogh-theme a { color: inherit; }
+.gogh-theme .wp-block-buttons { display: flex; flex-wrap: wrap; gap: 0.75em; margin: 0; }
+.gogh-theme .wp-block-button__link { display: inline-block; box-sizing: border-box; background: var(--wp--preset--color--contrast); color: var(--wp--preset--color--base); border: 1px solid transparent; border-radius: 9999px; padding: 1rem 2.25rem; font-size: var(--wp--preset--font-size--medium); line-height: 1.2; text-decoration: none; text-align: center; white-space: nowrap; }
+.gogh-theme .is-style-outline > .wp-block-button__link, .gogh-theme .wp-block-button__link.is-style-outline { background: transparent; color: currentColor; border: 1px solid currentColor; }
+.gogh-theme .has-text-align-center { text-align: center; } .gogh-theme .has-text-align-right { text-align: right; }
+.gogh-theme .has-base-color { color: var(--wp--preset--color--base) !important; }
+.gogh-theme .has-base-background-color { background-color: var(--wp--preset--color--base) !important; }
+.gogh-theme .has-contrast-color { color: var(--wp--preset--color--contrast) !important; }
+.gogh-theme .has-contrast-background-color { background-color: var(--wp--preset--color--contrast) !important; }
+.gogh-theme .has-accent-1-color { color: var(--wp--preset--color--accent-1) !important; }
+.gogh-theme .has-accent-1-background-color { background-color: var(--wp--preset--color--accent-1) !important; }
+.gogh-theme .has-accent-2-color { color: var(--wp--preset--color--accent-2) !important; }
+.gogh-theme .has-accent-2-background-color { background-color: var(--wp--preset--color--accent-2) !important; }
+.gogh-theme .has-accent-3-color { color: var(--wp--preset--color--accent-3) !important; }
+.gogh-theme .has-accent-3-background-color { background-color: var(--wp--preset--color--accent-3) !important; }
+.gogh-theme .has-accent-4-color { color: var(--wp--preset--color--accent-4) !important; }
+.gogh-theme .has-accent-4-background-color { background-color: var(--wp--preset--color--accent-4) !important; }
+.gogh-theme .has-accent-5-color { color: var(--wp--preset--color--accent-5) !important; }
+.gogh-theme .has-accent-5-background-color { background-color: var(--wp--preset--color--accent-5) !important; }
+.gogh-theme .has-accent-6-color { color: var(--wp--preset--color--accent-6) !important; }
+.gogh-theme .has-accent-6-background-color { background-color: var(--wp--preset--color--accent-6) !important; }
+.gogh-theme .has-small-font-size { font-size: var(--wp--preset--font-size--small) !important; }
+.gogh-theme .has-medium-font-size { font-size: var(--wp--preset--font-size--medium) !important; }
+.gogh-theme .has-large-font-size { font-size: var(--wp--preset--font-size--large) !important; }
+.gogh-theme .has-x-large-font-size { font-size: var(--wp--preset--font-size--x-large) !important; }
+.gogh-theme .has-xx-large-font-size { font-size: var(--wp--preset--font-size--xx-large) !important; }

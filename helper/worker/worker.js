@@ -741,7 +741,8 @@ You write a **site definition**: content and choices, never layout. Gogh draws i
   palette: { base: '#hex' (page colour), contrast: '#hex' (ink), accents: ['#hex', ...] (2 to 4) },
   chrome: { header: ${HEADERS.join(' | ')}, footer: ${FOOTERS.join(' | ')}, sticky: true (pins the header as you scroll) },
   nav: [ { label, url } ]   (optional: a menu of your own. url is '#anchor' or an http(s) link. Without it the menu is one link per page)
-  pages: [ { title, front: true (exactly one), blog: true (the posts page, no sections), sections: [ { take, anchor, ...fields } ] } ],
+  pages: [ { title, front: true (exactly one), blog: true (the posts page, no sections), sections: [ { take, face, anchor, ...fields } ] } ],
+         (face is optional: one of a take's other designs, e.g. Hero "The mirror" — usually chosen by the person in gogh_choose_hero; leave it out for the take's usual design)
   posts: [ { title, text (plain paragraphs separated by blank lines), image } ],
   fonts: one of ${FONT_PAIR_KEYS.join(' | ')}   (optional: a font pairing gogh installs — bookish is a bookish serif with a plain sans, loud is loud; leave it out for the theme's own type)
          or { heading: 'Fraunces', body: 'Inter' }   (two families by name, from Google Fonts),
@@ -929,6 +930,12 @@ function checkDefinition(def) {
       names.push(sc.take + (Array.isArray(sc.items) ? ` ×${sc.items.length}` : ''));
       Object.keys(sc).forEach((k) => {
         if (['take', 'items', 'posts', 'mood', 'look'].includes(k)) return;
+        if (k === 'face') {
+          const fs = FACES[sc.take];
+          if (!fs) bad(`${where} (${sc.take}): this take has only one design, so it takes no face.`);
+          else if (!fs.includes(sc[k])) bad(`${where} (${sc.take}): face must be one of ${fs.map((f) => '"' + f + '"').join(', ')}.`);
+          return;
+        }
         if (k === 'anchor') {
           if (!isAnchor(sc[k])) bad(`${where}: anchor must be a lowercase name starting with a letter, like "work".`);
           else if (anchors[sc[k]] != null) bad(`${where}: two sections both carry the anchor "${sc[k]}" — an anchor names one section.`);
@@ -1147,6 +1154,77 @@ const TOOLS = [
   },
 ];
 
+/* ------------------------------------------------- apps (widgets) */
+/*
+ * The connector's first MCP app: the top of a page drawn several ways in
+ * gogh's real takes, so a person picks by looking instead of by reading
+ * (paper: "gogh in your agent", 2026-10-19). The page is built at refresh
+ * time from the editor's own drawing (helper/draw), so it cannot drift from
+ * what the editor draws. Behind a flag while it is new: the connector URL
+ * with ?apps=1, or APPS = "on" in the Worker's vars.
+ */
+const HERO_PICKER_HTML = __HERO_PICKER__;
+const FACES = __FACES__;
+const HERO_URI = 'ui://gogh/hero-picker.html';
+const HERO_URI_OPENAI = 'ui://gogh/hero-picker.skybridge.html';
+const APP_DOMAINS = ['https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://images.unsplash.com', 'https://raw.githubusercontent.com'];
+const OPENING_TAKES = ['Hero', 'Cover', 'Big statement'];
+const APP_TOOLS = [
+  {
+    name: 'gogh_choose_hero',
+    title: 'Pick the top of the page',
+    description: 'Show the person the top of a page drawn several ways — gogh\'s real designs, in their own words, picture, colours and type — so they choose by looking. Use it once the definition is drafted and before publishing, for the front page\'s first section (or another opening section). Pass the whole draft definition. The person picks a design and colours in the panel, and their choice arrives as their next message, saying exactly what to set (take, face, palette). Then update the definition, gogh_check it and gogh_publish. If your chat cannot show the panel, offer the designs listed in the text answer and ask.',
+    inputSchema: { type: 'object', properties: {
+      definition: { type: 'object', description: 'The draft site definition, as described by gogh_rules.' },
+      page: { type: 'number', description: 'Which page, counting from 0. Default: the front page.' },
+      section: { type: 'number', description: 'Which section on that page, counting from 0. Default 0, the top.' },
+    }, required: ['definition'] },
+    annotations: { readOnlyHint: true },
+    _meta: { ui: { resourceUri: HERO_URI }, 'openai/outputTemplate': HERO_URI_OPENAI, 'openai/widgetAccessible': false, 'openai/toolInvocation/invoking': 'Drawing your designs', 'openai/toolInvocation/invoked': 'Designs drawn' },
+  },
+];
+function appResources() {
+  return [
+    { uri: HERO_URI, name: 'gogh hero picker', description: 'The top of a page drawn in several of gogh\'s designs, to pick one.', mimeType: 'text/html;profile=mcp-app' },
+    { uri: HERO_URI_OPENAI, name: 'gogh hero picker (ChatGPT)', description: 'The same picker, for ChatGPT\'s apps.', mimeType: 'text/html+skybridge' },
+  ];
+}
+function readAppResource(uri) {
+  if (uri === HERO_URI) {
+    return { contents: [{ uri, mimeType: 'text/html;profile=mcp-app', text: HERO_PICKER_HTML,
+      _meta: { ui: { csp: { resourceDomains: APP_DOMAINS, connectDomains: [] }, prefersBorder: true } } }] };
+  }
+  if (uri === HERO_URI_OPENAI) {
+    return { contents: [{ uri, mimeType: 'text/html+skybridge', text: HERO_PICKER_HTML,
+      _meta: { 'openai/widgetCSP': { resource_domains: APP_DOMAINS, connect_domains: [] }, 'openai/widgetPrefersBorder': true, 'openai/widgetDescription': 'The top of the page drawn in several of gogh\'s designs. The person picks one; their choice arrives as their next message.' } }] };
+  }
+  return null;
+}
+function chooseHero(args) {
+  const def = args && args.definition;
+  if (!def || typeof def !== 'object' || !Array.isArray(def.pages) || !def.pages.length) {
+    return { error: 'Pass the draft definition (with its pages) as definition.' };
+  }
+  let page = Number.isInteger(args.page) ? args.page : def.pages.findIndex((p) => p && p.front);
+  if (page < 0 || page >= def.pages.length) page = 0;
+  const pg = def.pages[page] || {};
+  const sections = Array.isArray(pg.sections) ? pg.sections : [];
+  const section = Number.isInteger(args.section) && args.section >= 0 && args.section < Math.max(1, sections.length) ? args.section : 0;
+  const sc = sections[section] || {};
+  const options = [];
+  OPENING_TAKES.forEach((take) => (FACES[take] || ['The original']).forEach((face) => options.push({ take, face })));
+  const label = (o) => (o.face === 'The original' ? o.take : `${o.take} · ${o.face}`);
+  const words = ['eyebrow', 'heading', 'text', 'button', 'button2', 'image'].filter((k) => sc[k]);
+  const text = `Showing the person the top of the ${pg.title || 'page'} (pages[${page}].sections[${section}]) drawn ${options.length} ways, in their words${sc.image ? ', picture' : ''} and colours. ` +
+    `They will choose in the panel, and the choice arrives as their next message — wait for it, and do not publish meanwhile.\n\n` +
+    `If no panel shows in this chat, offer these and ask which they like: ${options.map(label).join(', ')}. ` +
+    `Set the section's take to the family (${OPENING_TAKES.join(', ')}) and face to the design's name, or leave face out for the family's usual design.` +
+    (words.length ? '' : '\n\nNote: that section has no words yet, so the designs show gogh\'s sample words. Fill in eyebrow, heading, text and button first for a truer picture.');
+  const fields = {};
+  OPENING_TAKES.forEach((take) => { fields[take] = TAKES[take] ? TAKES[take].fields : []; });
+  return { text, structuredContent: { definition: def, page, section, current: { take: sc.take || null, face: sc.face || 'The original' }, options, fields } };
+}
+
 async function mcpCall(env, req, name, args) {
   const text = (t, extra) => Object.assign({ content: [{ type: 'text', text: t }] }, extra || {});
   if (name === 'gogh_rules') return text(rulesText());
@@ -1158,6 +1236,11 @@ async function mcpCall(env, req, name, args) {
     const r = checkDefinition(args && args.definition);
     return text((r.ok ? 'OK — this definition can be published.\n' : 'Not yet — fix these:\n') + (r.problems.length ? r.problems.map((p) => '- ' + p).join('\n') + '\n' : '') + (r.summary ? '\n' + r.summary : ''), { structuredContent: r });
   }
+  if (name === 'gogh_choose_hero') {
+    const r = chooseHero(args);
+    if (r.error) return text(r.error, { isError: true });
+    return text(r.text, { structuredContent: r.structuredContent, _meta: { ui: { resourceUri: HERO_URI }, 'openai/outputTemplate': HERO_URI_OPENAI } });
+  }
   if (name === 'gogh_publish') {
     const r = await publishSite(env, req, args && args.definition);
     if (!r.ok) return text('Not published — fix these first:\n' + r.problems.map((p) => '- ' + p).join('\n'), { isError: true, structuredContent: r });
@@ -1166,7 +1249,7 @@ async function mcpCall(env, req, name, args) {
   return { content: [{ type: 'text', text: `Unknown tool ${name}` }], isError: true };
 }
 
-async function mcpMessage(env, req, msg) {
+async function mcpMessage(env, req, msg, apps) {
   if (!msg || typeof msg !== 'object' || msg.jsonrpc !== '2.0') return { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid request' } };
   const { id, method, params } = msg;
   if (id === undefined) return null; // a notification: nothing to say back
@@ -1177,16 +1260,23 @@ async function mcpMessage(env, req, msg) {
       const want = params && params.protocolVersion;
       return ok({
         protocolVersion: MCP_VERSIONS.includes(want) ? want : MCP_VERSIONS[0],
-        capabilities: { tools: { listChanged: false } },
+        capabilities: apps ? { tools: { listChanged: false }, resources: { listChanged: false } } : { tools: { listChanged: false } },
         serverInfo: { name: 'gogh', version: '1.0.0' },
         instructions: 'gogh builds WordPress sites from a definition of content and choices. Call gogh_rules once, work out the site with the person, draft the definition, gogh_check it, then gogh_publish and hand over the playground_url.',
       });
     }
     if (method === 'ping') return ok({});
-    if (method === 'tools/list') return ok({ tools: TOOLS });
+    const tools = apps ? TOOLS.concat(APP_TOOLS) : TOOLS;
+    if (method === 'tools/list') return ok({ tools });
+    if (apps && method === 'resources/list') return ok({ resources: appResources() });
+    if (apps && method === 'resources/templates/list') return ok({ resourceTemplates: [] });
+    if (apps && method === 'resources/read') {
+      const r = readAppResource(params && params.uri);
+      return r ? ok(r) : err(-32002, `Resource not found: ${params && params.uri}`);
+    }
     if (method === 'tools/call') {
       const name = params && params.name;
-      if (!TOOLS.some((t) => t.name === name)) return err(-32602, `Unknown tool: ${name}`);
+      if (!tools.some((t) => t.name === name)) return err(-32602, `Unknown tool: ${name}`);
       return ok(await mcpCall(env, req, name, (params && params.arguments) || {}));
     }
     return err(-32601, `Method not found: ${method}`);
@@ -1206,8 +1296,9 @@ async function handleMcp(req, env) {
   }
   const batch = Array.isArray(body);
   const out = [];
+  const apps = new URL(req.url).searchParams.get('apps') === '1' || (env && env.APPS === 'on');
   for (const msg of batch ? body : [body]) {
-    const r = await mcpMessage(env, req, msg);
+    const r = await mcpMessage(env, req, msg, apps);
     if (r) out.push(r);
   }
   if (!out.length) return new Response(null, { status: 202, headers: CORS });
