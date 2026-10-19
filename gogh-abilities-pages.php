@@ -1189,5 +1189,5 @@ add_action( 'init', function () {
 // a preview reached through another address (a tunnel, a proxy) stays
 // there: WordPress would otherwise send it to the site's own address
 add_filter( 'redirect_canonical', function ( $to ) {
-	return empty( $_GET['gogh-preview'] ) ? $to : false;
+	return ( empty( $_GET['gogh-preview'] ) && empty( $_GET['gogh-editor'] ) && empty( $_SERVER['HTTP_X_GOGH_EDITOR'] ) ) ? $to : false;
 } );
