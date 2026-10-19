@@ -54,8 +54,11 @@ function gogh_pg_save_blocks( $blocks ) {
 // keep the change pending: a live page gets an autosave (what the editor's
 // History and gogh/publish already treat as "not live yet"); a draft page
 // is simply updated
-function gogh_pg_keep( $post, $content ) {
+function gogh_pg_keep( $post, $content, $what = '' ) {
 	gogh_pg_admin_post();
+	if ( '' !== $what ) {
+		gogh_pg_log( $post, $what );
+	}
 	if ( 'publish' === $post->post_status || 'private' === $post->post_status ) {
 		$r = wp_create_post_autosave( wp_slash( array(
 			'post_ID'      => $post->ID,
@@ -67,6 +70,73 @@ function gogh_pg_keep( $post, $content ) {
 	}
 	$r = wp_update_post( wp_slash( array( 'ID' => $post->ID, 'post_content' => $content, 'page_template' => '' ) ), true );
 	return is_wp_error( $r ) ? $r : true;
+}
+
+// ---------- the change list ---------------------------------------------------
+//
+// One list of what changed since the page was last published, written by both
+// hands (the person in the panel, the agent in the chat), newest last. Each
+// entry keeps the page as it stood before it, so the latest change can be
+// undone on its own. Publishing or throwing changes away starts a new list.
+
+const GOGH_PG_LOG_MAX = 20;
+
+function gogh_pg_changes( $id ) {
+	$log = json_decode( (string) get_post_meta( $id, '_gogh_changes', true ), true );
+	return is_array( $log ) ? $log : array();
+}
+function gogh_pg_log( $post, $what ) {
+	$log   = gogh_pg_changes( $post->ID );
+	$prev  = gogh_ab_pending_backup( $post );
+	$log[] = array(
+		'who'    => empty( $GLOBALS['gogh_change_by'] ) ? 'claude' : 'you',
+		'what'   => mb_substr( (string) $what, 0, 200 ),
+		'at'     => time(),
+		// what to go back to: the earlier pending page, or none (= the live page)
+		'before' => $prev ? (string) $prev->post_content : ( 'publish' === $post->post_status ? null : (string) $post->post_content ),
+	);
+	$log = array_slice( $log, -GOGH_PG_LOG_MAX );
+	update_post_meta( $post->ID, '_gogh_changes', wp_slash( wp_json_encode( $log ) ) );
+}
+function gogh_pg_log_clear( $id ) {
+	delete_post_meta( $id, '_gogh_changes' );
+}
+function gogh_pg_changes_public( $id ) {
+	return array_map( function ( $c ) {
+		return array( 'who' => $c['who'], 'what' => $c['what'], 'ago' => human_time_diff( (int) $c['at'] ) );
+	}, gogh_pg_changes( $id ) );
+}
+// a live page's content changing for real (published from the editor or
+// through gogh/publish) ends the list
+add_action( 'post_updated', function ( $id, $after, $before ) {
+	if ( 'page' === $after->post_type && 'publish' === $after->post_status && ( $after->post_content !== $before->post_content || 'publish' !== $before->post_status ) ) {
+		gogh_pg_log_clear( $id );
+	}
+}, 10, 3 );
+
+// sections by a name that does not change when they move: the scope gogh
+// gives each section ("gogh-sec-4"); a number still works
+function gogh_pg_section_index( $blocks, $input ) {
+	if ( ! empty( $input['section_key'] ) ) {
+		foreach ( $blocks as $k => $b ) {
+			if ( isset( $b['attrs']['scope'] ) && $b['attrs']['scope'] === $input['section_key'] ) {
+				return $k;
+			}
+		}
+		return -1;
+	}
+	return isset( $input['section'] ) ? (int) $input['section'] - 1 : -1;
+}
+// a section as a person would name it: its design and heading
+function gogh_pg_section_name( $b ) {
+	$md   = isset( $b['attrs']['model'] ) && is_array( $b['attrs']['model'] ) ? $b['attrs']['model'] : array();
+	$name = ! empty( $md['m']['tpl'] ) ? (string) $md['m']['tpl'] : __( 'section', 'gogh-editor' );
+	foreach ( isset( $md['elements'] ) ? (array) $md['elements'] : array() as $e ) {
+		if ( isset( $e['type'] ) && 'heading' === $e['type'] && ! empty( $e['text'] ) ) {
+			return $name . ' ("' . gogh_ab_words( $e['text'], 40 ) . '")';
+		}
+	}
+	return $name;
 }
 
 function gogh_pg_page( $input ) {
@@ -326,7 +396,8 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	$mcp  = array( 'public' => true );
 	$page = array( 'type' => 'integer', 'description' => 'The page, by id (gogh/describe-site lists them).' );
-	$sec  = array( 'type' => 'integer', 'description' => 'The section, counting from 1 at the top of the page.' );
+	$sec  = array( 'type' => 'integer', 'description' => 'The section, counting from 1 at the top of the page. Prefer section_key.' );
+	$skey = array( 'type' => 'string', 'description' => 'The section\'s key from gogh/read-page (e.g. "gogh-sec-4"). It stays the same when sections move, so prefer it to the number.' );
 	$can  = function ( $input = null ) {
 		$id = is_array( $input ) && isset( $input['page_id'] ) ? (int) $input['page_id'] : 0;
 		return $id ? current_user_can( 'edit_post', $id ) : current_user_can( 'edit_pages' );
@@ -352,6 +423,9 @@ add_action( 'wp_abilities_api_init', function () {
 			$sections = array();
 			foreach ( gogh_pg_blocks( gogh_pg_current( $post ) ) as $k => $b ) {
 				$one = array( 'section' => $k + 1 );
+				if ( ! empty( $b['attrs']['scope'] ) ) {
+					$one['key'] = (string) $b['attrs']['scope'];
+				}
 				if ( 'gogh/section' !== $b['blockName'] ) {
 					$one['kind']  = 'other';
 					$one['block'] = $b['blockName'] ? $b['blockName'] : 'html';
@@ -414,6 +488,7 @@ add_action( 'wp_abilities_api_init', function () {
 			return array(
 				'page'                => array( 'id' => $id, 'title' => html_entity_decode( get_the_title( $post ), ENT_QUOTES, 'UTF-8' ), 'url' => get_permalink( $post ), 'status' => $post->post_status ),
 				'unpublished_changes' => (bool) gogh_ab_pending_backup( $post ),
+				'changes'             => gogh_pg_changes_public( $id ),
 				'sections'            => $sections,
 			);
 		},
@@ -432,12 +507,13 @@ add_action( 'wp_abilities_api_init', function () {
 		'input_schema'        => array(
 			'type'                 => 'object',
 			'properties'           => array(
-				'page_id' => $page,
-				'section' => $sec,
+				'page_id'     => $page,
+				'section'     => $sec,
+				'section_key' => $skey,
 				'piece'   => array( 'type' => 'integer', 'description' => 'The piece, by its number in gogh/read-page.' ),
 				'words'   => array( 'type' => 'string', 'description' => 'The new words. Plain text; <strong>, <em> and <a href> are kept.' ),
 			),
-			'required'             => array( 'page_id', 'section', 'piece', 'words' ),
+			'required'             => array( 'page_id', 'piece', 'words' ),
 			'additionalProperties' => false,
 		),
 		'output_schema'       => array( 'type' => 'object' ),
@@ -447,7 +523,7 @@ add_action( 'wp_abilities_api_init', function () {
 				return $post;
 			}
 			$blocks = gogh_pg_blocks( gogh_pg_current( $post ) );
-			$k      = (int) $input['section'] - 1;
+			$k      = gogh_pg_section_index( $blocks, $input );
 			$n      = (int) $input['piece'];
 			if ( ! isset( $blocks[ $k ] ) || 'gogh/section' !== $blocks[ $k ]['blockName'] ) {
 				return new WP_Error( 'gogh_no_section', __( 'That section is not a gogh section on this page. Read the page again for the numbers.', 'gogh-editor' ), array( 'status' => 400 ) );
@@ -461,6 +537,9 @@ add_action( 'wp_abilities_api_init', function () {
 				return new WP_Error( 'gogh_empty', __( 'A piece needs some words. To take a piece away, use the editor.', 'gogh-editor' ), array( 'status' => 400 ) );
 			}
 			$old   = $els[ $n - 1 ]['text'];
+			if ( trim( wp_strip_all_tags( (string) $old ) ) === trim( wp_strip_all_tags( $words ) ) ) {
+				return array( 'changed' => false, 'note' => __( 'Those are already the words.', 'gogh-editor' ) );
+			}
 			$class = 'gogh-el-' . $n;
 			$done  = false;
 			foreach ( $blocks[ $k ]['innerBlocks'] as $j => $ib ) {
@@ -490,7 +569,7 @@ add_action( 'wp_abilities_api_init', function () {
 				return new WP_Error( 'gogh_not_drawn', __( 'That piece is not drawn the way gogh expects, so its words were left alone. Change them in the editor.', 'gogh-editor' ), array( 'status' => 409 ) );
 			}
 			$blocks[ $k ]['attrs']['model']['elements'][ $n - 1 ]['text'] = $words;
-			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ) );
+			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ), sprintf( 'Words in the %1$s: "%2$s" → "%3$s"', gogh_pg_section_name( $blocks[ $k ] ), gogh_ab_words( $old, 40 ), gogh_ab_words( $words, 40 ) ) );
 			if ( is_wp_error( $r ) ) {
 				return $r;
 			}
@@ -511,11 +590,12 @@ add_action( 'wp_abilities_api_init', function () {
 		'input_schema'        => array(
 			'type'                 => 'object',
 			'properties'           => array(
-				'page_id' => $page,
-				'section' => $sec,
+				'page_id'     => $page,
+				'section'     => $sec,
+				'section_key' => $skey,
 				'to'      => array( 'type' => 'integer', 'description' => 'Where it should end up, counting from 1 at the top.' ),
 			),
-			'required'             => array( 'page_id', 'section', 'to' ),
+			'required'             => array( 'page_id', 'to' ),
 			'additionalProperties' => false,
 		),
 		'output_schema'       => array( 'type' => 'object' ),
@@ -525,7 +605,7 @@ add_action( 'wp_abilities_api_init', function () {
 				return $post;
 			}
 			$blocks = gogh_pg_blocks( gogh_pg_current( $post ) );
-			$from   = (int) $input['section'] - 1;
+			$from   = gogh_pg_section_index( $blocks, $input );
 			$to     = max( 0, min( count( $blocks ) - 1, (int) $input['to'] - 1 ) );
 			if ( ! isset( $blocks[ $from ] ) ) {
 				return new WP_Error( 'gogh_no_section', __( 'There is no section with that number on this page.', 'gogh-editor' ), array( 'status' => 400 ) );
@@ -535,8 +615,8 @@ add_action( 'wp_abilities_api_init', function () {
 			}
 			$one = array_splice( $blocks, $from, 1 );
 			array_splice( $blocks, $to, 0, $one );
-			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ) );
-			return is_wp_error( $r ) ? $r : array( 'moved' => true, 'section' => $to + 1, 'live' => false, 'note' => __( 'Saved, not live yet. Section numbers have changed: read the page again before the next change.', 'gogh-editor' ) );
+			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ), sprintf( 'Moved the %1$s from place %2$d to %3$d', gogh_pg_section_name( $one[0] ), $from + 1, $to + 1 ) );
+			return is_wp_error( $r ) ? $r : array( 'moved' => true, 'section' => $to + 1, 'live' => false, 'note' => __( 'Saved, not live yet. Section numbers have changed (section keys have not).', 'gogh-editor' ) );
 		},
 		'permission_callback' => $can,
 		'meta'                => array(
@@ -552,8 +632,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'gogh',
 		'input_schema'        => array(
 			'type'                 => 'object',
-			'properties'           => array( 'page_id' => $page, 'section' => $sec ),
-			'required'             => array( 'page_id', 'section' ),
+			'properties'           => array( 'page_id' => $page, 'section' => $sec, 'section_key' => $skey ),
+			'required'             => array( 'page_id' ),
 			'additionalProperties' => false,
 		),
 		'output_schema'       => array( 'type' => 'object' ),
@@ -563,15 +643,16 @@ add_action( 'wp_abilities_api_init', function () {
 				return $post;
 			}
 			$blocks = gogh_pg_blocks( gogh_pg_current( $post ) );
-			$k      = (int) $input['section'] - 1;
+			$k      = gogh_pg_section_index( $blocks, $input );
 			if ( ! isset( $blocks[ $k ] ) ) {
-				return new WP_Error( 'gogh_no_section', __( 'There is no section with that number on this page.', 'gogh-editor' ), array( 'status' => 400 ) );
+				return new WP_Error( 'gogh_no_section', __( 'There is no such section on this page.', 'gogh-editor' ), array( 'status' => 400 ) );
 			}
 			if ( 1 === count( $blocks ) ) {
 				return new WP_Error( 'gogh_last', __( 'That is the only section on the page. A page keeps at least one.', 'gogh-editor' ), array( 'status' => 400 ) );
 			}
+			$gone = gogh_pg_section_name( $blocks[ $k ] );
 			array_splice( $blocks, $k, 1 );
-			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ) );
+			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ), sprintf( 'Removed the %s', $gone ) );
 			return is_wp_error( $r ) ? $r : array( 'removed' => true, 'live' => false, 'note' => __( 'Saved, not live yet. gogh/discard-changes brings it back; section numbers have changed.', 'gogh-editor' ) );
 		},
 		'permission_callback' => $can,
@@ -611,7 +692,7 @@ add_action( 'wp_abilities_api_init', function () {
 			$blocks = gogh_pg_blocks( gogh_pg_current( $post ) );
 			$at     = isset( $input['at'] ) ? max( 0, min( count( $blocks ), (int) $input['at'] - 1 ) ) : count( $blocks );
 			array_splice( $blocks, $at, 0, array( $one ) );
-			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ) );
+			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ), sprintf( 'Added a %1$s section at place %2$d', gogh_pg_section_name( $one ), $at + 1 ) );
 			return is_wp_error( $r ) ? $r : array( 'added' => true, 'section' => $at + 1, 'live' => false );
 		},
 		'permission_callback' => $can,
@@ -628,8 +709,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'gogh',
 		'input_schema'        => array(
 			'type'                 => 'object',
-			'properties'           => array( 'page_id' => $page, 'section' => $sec, 'blocks' => $section_markup ),
-			'required'             => array( 'page_id', 'section', 'blocks' ),
+			'properties'           => array( 'page_id' => $page, 'section' => $sec, 'section_key' => $skey, 'blocks' => $section_markup ),
+			'required'             => array( 'page_id', 'blocks' ),
 			'additionalProperties' => false,
 		),
 		'output_schema'       => array( 'type' => 'object' ),
@@ -643,16 +724,18 @@ add_action( 'wp_abilities_api_init', function () {
 				return $one;
 			}
 			$blocks = gogh_pg_blocks( gogh_pg_current( $post ) );
-			$k      = (int) $input['section'] - 1;
+			$k      = gogh_pg_section_index( $blocks, $input );
 			if ( ! isset( $blocks[ $k ] ) ) {
-				return new WP_Error( 'gogh_no_section', __( 'There is no section with that number on this page.', 'gogh-editor' ), array( 'status' => 400 ) );
+				return new WP_Error( 'gogh_no_section', __( 'There is no such section on this page.', 'gogh-editor' ), array( 'status' => 400 ) );
 			}
+			$was = gogh_pg_section_name( $blocks[ $k ] );
 			// the section keeps its place in a one-page menu
 			if ( ! empty( $blocks[ $k ]['attrs']['model']['anchor'] ) && empty( $one['attrs']['model']['anchor'] ) ) {
 				$one['attrs']['model']['anchor'] = $blocks[ $k ]['attrs']['model']['anchor'];
 			}
 			$blocks[ $k ] = $one;
-			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ) );
+			$md2 = isset( $one['attrs']['model']['m'] ) ? $one['attrs']['model']['m'] : array();
+			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ), sprintf( 'Changed the %1$s to the %2$s design', $was, ! empty( $md2['tpl'] ) ? $md2['tpl'] : __( 'another', 'gogh-editor' ) ) );
 			return is_wp_error( $r ) ? $r : array( 'changed' => true, 'live' => false );
 		},
 		'permission_callback' => $can,
@@ -795,7 +878,7 @@ add_action( 'wp_abilities_api_init', function () {
 			$blocks = gogh_pg_blocks( gogh_pg_current( $post ) );
 			$at     = ! empty( $want['at'] ) ? max( 0, min( count( $blocks ), (int) $want['at'] - 1 ) ) : count( $blocks );
 			array_splice( $blocks, $at, 0, $new );
-			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ) );
+			$r = gogh_pg_keep( $post, gogh_pg_save_blocks( $blocks ), sprintf( 'Drew %d new section(s) from a description', count( $new ) ) );
 			if ( is_wp_error( $r ) ) {
 				return $r;
 			}
@@ -871,6 +954,53 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 	) );
 
+	wp_register_ability( 'gogh/undo-change', array(
+		'label'               => __( 'Undo the latest change', 'gogh-editor' ),
+		'description'         => __( 'Takes back the newest change on a page that is not live yet — whoever made it, the person or you — and leaves the earlier ones. gogh/read-page lists the changes (who, what). Say which change it was.', 'gogh-editor' ),
+		'category'            => 'gogh',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'properties'           => array( 'page_id' => $page ),
+			'required'             => array( 'page_id' ),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array( 'type' => 'object' ),
+		'execute_callback'    => function ( $input ) {
+			$post = gogh_pg_page( $input );
+			if ( is_wp_error( $post ) ) {
+				return $post;
+			}
+			$log = gogh_pg_changes( $post->ID );
+			if ( ! $log ) {
+				return array( 'undone' => false, 'note' => __( 'There is nothing to undo.', 'gogh-editor' ) );
+			}
+			$last = array_pop( $log );
+			if ( null === $last['before'] ) {
+				$pending = gogh_ab_pending_backup( $post );
+				if ( $pending ) {
+					wp_delete_post_revision( $pending->ID ); // back to the live page
+				}
+			} else {
+				$r = gogh_pg_keep( $post, (string) $last['before'] );
+				if ( is_wp_error( $r ) ) {
+					return $r;
+				}
+			}
+			if ( $log ) {
+				update_post_meta( $post->ID, '_gogh_changes', wp_slash( wp_json_encode( $log ) ) );
+			} else {
+				gogh_pg_log_clear( $post->ID );
+			}
+			return array( 'undone' => $last['what'], 'by' => $last['who'], 'left' => count( $log ) );
+		},
+		'permission_callback' => $can,
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => false ),
+			'mcp'          => $mcp,
+		),
+	) );
+
 	wp_register_ability( 'gogh/discard-changes', array(
 		'label'               => __( 'Throw away changes', 'gogh-editor' ),
 		'description'         => __( 'Throws away a page\'s changes that are not live yet, so it is exactly as visitors see it. Ask first.', 'gogh-editor' ),
@@ -892,6 +1022,7 @@ add_action( 'wp_abilities_api_init', function () {
 				return array( 'discarded' => false, 'note' => __( 'There were no changes waiting.', 'gogh-editor' ) );
 			}
 			wp_delete_post_revision( $pending->ID );
+			gogh_pg_log_clear( $post->ID );
 			return array( 'discarded' => true );
 		},
 		'permission_callback' => $can,
@@ -1027,6 +1158,33 @@ add_action( 'template_redirect', function () {
 		return null === $out ? $html : $out; // never lose the page to a pattern
 	} );
 } );
+
+// the page panel watches its page: a stamp that changes whenever the page
+// does (the agent's changes, the editor's), the change list, and whether a
+// newer panel for the same page has opened since — read with the panel's own
+// preview token, from the chat's sandbox
+add_action( 'init', function () {
+	if ( empty( $_GET['gogh-state'] ) ) {
+		return;
+	}
+	$token = preg_replace( '/[^A-Za-z0-9]/', '', (string) wp_unslash( $_GET['gogh-state'] ) );
+	$id    = $token ? (int) get_transient( 'gogh_pv_' . $token ) : 0;
+	$post  = $id ? get_post( $id ) : null;
+	header( 'Access-Control-Allow-Origin: *' );
+	header( 'Cache-Control: no-store' );
+	if ( ! $post ) {
+		wp_send_json( array( 'gone' => true ), 404 );
+	}
+	$content = gogh_pg_current( $post );
+	$latest  = (string) get_transient( 'gogh_pv_latest_' . $id );
+	wp_send_json( array(
+		'stamp'   => md5( $content . '|' . $post->post_status . '|' . get_post_meta( $id, '_gogh_compose', true ) ),
+		'status'  => $post->post_status,
+		'pending' => (bool) gogh_ab_pending_backup( $post ),
+		'changes' => gogh_pg_changes_public( $id ),
+		'newer'   => $latest && $latest !== $token,
+	) );
+}, 1 );
 
 // a preview reached through another address (a tunnel, a proxy) stays
 // there: WordPress would otherwise send it to the site's own address

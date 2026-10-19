@@ -290,6 +290,10 @@ function gogh_connector_open_page( $args ) {
 	}
 	$site  = gogh_connector_site_origin();
 	$pub   = gogh_connector_public_origin();
+	// this is now the page's newest panel: older ones will say so
+	if ( preg_match( '/gogh-preview=([A-Za-z0-9]+)/', $pv['preview'], $tm ) ) {
+		set_transient( 'gogh_pv_latest_' . $post->ID, $tm[1], 2 * HOUR_IN_SECONDS );
+	}
 	$pages = array();
 	foreach ( get_posts( array( 'post_type' => 'page', 'post_status' => array( 'publish', 'draft', 'private' ), 'numberposts' => 60, 'orderby' => 'menu_order title', 'order' => 'ASC' ) ) as $p ) {
 		if ( current_user_can( 'edit_post', $p->ID ) ) {
@@ -307,6 +311,7 @@ function gogh_connector_open_page( $args ) {
 		'pictures'            => gogh_pg_pictures(),
 		// sections described in words, waiting for the panel to draw them
 		'compose'             => json_decode( (string) get_post_meta( $post->ID, '_gogh_compose', true ), true ),
+		'changes'             => function_exists( 'gogh_pg_changes_public' ) ? gogh_pg_changes_public( $post->ID ) : array(),
 	);
 	return array(
 		'content'           => array( array( 'type' => 'text', 'text' => sprintf( 'Showing "%s" in the panel. The person can change words, move and remove sections, and publish there. Their edits are saved as they go; read the page again with gogh_read_page before changing it yourself.', $data['page']['title'] ) ) ),
@@ -347,7 +352,12 @@ function gogh_connector_call( $name, $args ) {
 	if ( ! isset( $tools[ $name ] ) ) {
 		return array( 'content' => array( array( 'type' => 'text', 'text' => 'Unknown tool ' . $name ) ), 'isError' => true );
 	}
-	$a     = $tools[ $name ];
+	$a = $tools[ $name ];
+	// the page panel marks its calls: those changes are the person's own
+	if ( is_array( $args ) && array_key_exists( '_panel', $args ) ) {
+		$GLOBALS['gogh_change_by'] = $args['_panel'] ? 'you' : '';
+		unset( $args['_panel'] );
+	}
 	$input = ( is_array( $args ) && $args ) ? $args : null;
 	$r     = $a->execute( $input );
 	if ( is_wp_error( $r ) ) {
@@ -384,7 +394,7 @@ function gogh_connector_message( $msg ) {
 			'capabilities'    => array( 'tools' => array( 'listChanged' => false ), 'resources' => array( 'listChanged' => false ) ),
 			'serverInfo'      => array( 'name' => 'gogh · ' . $site, 'version' => defined( 'GOGH_VERSION' ) ? GOGH_VERSION : '1' ),
 			'instructions'    => sprintf(
-				'This is %1$s, a real WordPress site drawn with gogh, and you act as %2$s. Start with gogh_describe_site, then gogh_read_page for the page in question. When the person wants to see or work on a page, open it with gogh_open_page: they can edit it there themselves. Changes to a page are saved but not live: offer gogh_preview_page so the person can look, and use gogh_publish only when they say so. Remove sections or throw changes away only when asked.',
+				'This is %1$s, a real WordPress site drawn with gogh, and you act as %2$s. Start with gogh_describe_site, then gogh_read_page for the page in question. When the person wants to see or work on a page, open it with gogh_open_page: they can edit it there themselves, and the open panel redraws by itself when you change the page (no need to open it again). The panel tells you what they are pointing at: when they say "this", "here" or "it", that is what they mean. Address sections by their key (section_key), which stays the same when sections move. Every change goes into the page's change list with who made it; gogh_undo_change takes back the latest. Changes to a page are saved but not live: offer gogh_preview_page so the person can look, and use gogh_publish only when they say so. Remove sections or throw changes away only when asked.',
 				$site,
 				wp_get_current_user()->display_name
 			),

@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var H = window.goghHost;
-  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"hint\" id=\"hint\">Click any words to change them. Drag a section by its handle to move it. Add a section from the + under any section.</div>\n  <div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
+  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"changes\" type=\"button\" hidden>0 changes</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"log\" id=\"log\" hidden><ol id=\"logList\"></ol><div class=\"logBar\"><button class=\"chip\" id=\"undo\" type=\"button\">Undo the latest</button><button class=\"chip\" id=\"logClose\" type=\"button\">Close</button></div></div><div class=\"stale\" id=\"stale\" hidden>There\u2019s a newer view of this page below. This one no longer takes edits.</div><div class=\"hint\" id=\"hint\">Click any words to change them. Drag a section by its handle to move it. Add a section from the + under any section.</div>\n  <div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
   var st = null, busy = 0, frame = null, W = 1280, G = window.goghDraw, info = null;
 
   /* ---------- the chat: the loader holds the conversation ---------- */
@@ -24,14 +24,28 @@
   // a tool on the site, run through the chat as the signed-in person
   function tool(name, args) {
     busy++; saying('Saving…');
-    return request('tools/call', { name: name, arguments: args }).then(function (r) {
+    st && (st.ownAt = Date.now());
+    return request('tools/call', { name: name, arguments: Object.assign({ _panel: true }, args) }).then(function (r) {
       busy--;
       if (!r || r.isError) throw new Error((r && r.content && r.content[0] && r.content[0].text) || 'That did not work.');
       return r.structuredContent || {};
     }, function (e) { busy--; throw e; });
   }
-  function tell(text) { // the agent should know what the person did here
-    request('ui/update-model-context', { content: [{ type: 'text', text: text }] }).catch(function () {});
+  // what the agent knows about the panel. Each update replaces the last, so
+  // it is always the whole picture: the page, what the person is pointing
+  // at, the changes not live yet, and the latest thing they did
+  var lastNote = '';
+  function tell(text) { lastNote = text || lastNote; pushContext(); }
+  function pushContext() {
+    if (!st) return;
+    var lines = ['The page panel shows "' + st.page.title + '" (page_id ' + st.page.id + ').'];
+    if (st.sel) {
+      lines.push('The person is pointing at ' + st.sel.label + ' (section_key ' + (st.sel.key || '-') + ', place ' + st.sel.n + (st.sel.piece ? ', piece ' + st.sel.piece : '') + '). When they say "this", "here" or "it", they mean this.');
+    }
+    var ch = st.changes || [];
+    if (ch.length) lines.push('Changes not live yet (oldest first): ' + ch.map(function (c) { return (c.who === 'you' ? 'the person' : 'you') + ': ' + c.what; }).join('; ') + '.');
+    if (lastNote) lines.push('Latest in the panel: ' + lastNote);
+    request('ui/update-model-context', { content: [{ type: 'text', text: lines.join('\n') }], structuredContent: { page_id: st.page.id, selected: st.sel || null, changes: ch } }).catch(function () {});
   }
 
   // the site may name itself http:// or https:// depending on the request:
@@ -44,6 +58,23 @@
 
   /* ---------- the bar ---------- */
   function saying(t) { document.getElementById('saving').textContent = t || ''; }
+  function showChanges(list) {
+    st.changes = list || [];
+    var b = document.getElementById('changes'), n = st.changes.length;
+    b.hidden = !n || editing;
+    b.textContent = n + (n === 1 ? ' change' : ' changes');
+    var ol = document.getElementById('logList'); ol.innerHTML = '';
+    st.changes.forEach(function (c) {
+      var li = document.createElement('li');
+      li.innerHTML = '<b></b> <span></span> <i></i>';
+      li.querySelector('b').textContent = c.who === 'you' ? 'You' : 'Claude';
+      li.querySelector('span').textContent = c.what;
+      li.querySelector('i').textContent = c.ago + ' ago';
+      ol.appendChild(li);
+    });
+    if (!n) document.getElementById('log').hidden = true;
+    sizeUp();
+  }
   function status(pending) {
     st.pending = !!pending;
     var pill = document.getElementById('pill');
@@ -70,10 +101,22 @@
     var id = +this.value;
     tool('gogh_open_page', { page_id: id }).then(function (d) { saying(''); open(d); }, oops);
   };
+  document.getElementById('changes').onclick = function () { var l = document.getElementById('log'); l.hidden = !l.hidden; sizeUp(); };
+  document.getElementById('logClose').onclick = function () { document.getElementById('log').hidden = true; sizeUp(); };
+  document.getElementById('undo').onclick = function () {
+    tool('gogh_undo_change', { page_id: st.page.id }).then(function (r) {
+      saying(r.undone ? 'Undone: ' + r.undone : 'Nothing to undo.');
+      status(!!(r.left));
+      tell('The person undid the latest change' + (r.undone ? ' (' + (r.by === 'you' ? 'their own' : 'yours') + ': ' + r.undone + ')' : '') + '.');
+      draw();
+    }, oops);
+  };
   document.getElementById('publish').onclick = function () {
-    ask(st.page.status === 'publish' ? 'Make these changes live on your site?' : 'Publish this page on your site?', 'Publish', function () {
+    var ch = (st.changes || []).map(function (c) { return '• ' + (c.who === 'you' ? 'You' : 'Claude') + ': ' + c.what; });
+    var q = (st.page.status === 'publish' ? 'Make these changes live on your site?' : 'Publish this page on your site?') + (ch.length ? '\n' + ch.join('\n') : '');
+    ask(q, 'Publish', function () {
       tool('gogh_publish', { page_id: st.page.id }).then(function () {
-        st.page.status = 'publish'; status(false); saying('Published.');
+        st.page.status = 'publish'; status(false); showChanges([]); saying('Published.');
         tell('The person published "' + st.page.title + '" from the page panel.');
       }, oops);
     });
@@ -81,7 +124,7 @@
   document.getElementById('discard').onclick = function () {
     ask('Throw away the changes that are not live yet?', 'Throw away', function () {
       tool('gogh_discard_changes', { page_id: st.page.id }).then(function () {
-        status(false); saying('Changes thrown away.'); draw();
+        status(false); showChanges([]); saying('Changes thrown away.'); draw();
         tell('The person threw away the unpublished changes to "' + st.page.title + '".');
       }, oops);
     });
@@ -98,6 +141,9 @@
       sel.appendChild(o);
     });
     status(d.unpublished_changes);
+    showChanges(d.changes || []);
+    st.sel = null;
+    watch();
     if (G && d.pictures) { G.mediaPool.imgs = d.pictures.imgs || []; G.mediaPool.bgs = d.pictures.bgs || []; G.mediaPool.fetched = true; }
     // sections waiting in words are drawn once the page is on screen, so
     // their names never clash with the sections already there
@@ -129,6 +175,55 @@
       info = r && r.structuredContent ? r.structuredContent : null;
       return info;
     }).catch(function () { info = null; });
+  }
+  // one live panel: it watches its page, redraws when someone else (the agent,
+  // the editor) changed it — lighting up what changed — and steps aside when
+  // a newer panel for the same page opens
+  var watching = null;
+  function watch() {
+    if (watching) clearInterval(watching);
+    var m = /gogh-preview=([A-Za-z0-9]+)/.exec(st.preview || '');
+    if (!m) return;
+    var url = st.public_origin + '/?gogh-state=' + m[1];
+    st.stamp = null;
+    watching = setInterval(function () {
+      if (document.hidden || busy || st.stale) return;
+      fetch(url + '&t=' + Date.now(), { credentials: 'omit' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d) return;
+        if (d.newer) { goStale(); return; }
+        showChanges(d.changes);
+        if (d.pending !== st.pending || (d.status === 'publish') !== (st.page.status === 'publish')) { st.page.status = d.status; status(d.pending); }
+        if (st.stamp === null || Date.now() - (st.ownAt || 0) < 6000) { st.stamp = d.stamp; return; } // ours, or the first look
+        if (d.stamp === st.stamp) return;
+        st.stamp = d.stamp;
+        if (editing || (document.activeElement && document.activeElement.isContentEditable)) return; // never under their hands
+        st.flash = signatures();
+        saying('Updated.');
+        draw();
+      }).catch(function () {});
+    }, 3000);
+  }
+  function goStale() {
+    st.stale = true;
+    if (watching) clearInterval(watching);
+    document.getElementById('stale').hidden = false;
+    document.getElementById('w').classList.add('gw-stale');
+    [].forEach.call(document.querySelectorAll('#gw-page [contenteditable]'), function (el) { el.removeAttribute('contenteditable'); });
+    sizeUp();
+  }
+  function secKey(el) { var sc = el.querySelector('[data-gogh-scope]'); return sc ? sc.getAttribute('data-gogh-scope') : 'n' + el.getAttribute('data-gw-sec'); }
+  function signatures() {
+    var out = {};
+    [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (el) { out[secKey(el)] = el.innerText; });
+    return out;
+  }
+  function flashChanged() {
+    var before = st.flash; st.flash = null;
+    if (!before) return;
+    [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (el) {
+      var k = secKey(el);
+      if (before[k] !== el.innerText) { el.classList.add('gw-flash'); setTimeout(function () { el.classList.remove('gw-flash'); }, 2600); }
+    });
   }
   function draw() {
     var keep = window.scrollY;
@@ -169,6 +264,8 @@
       frame = page;
       reread().then(function () {
         wire(page);
+        flashChanged();
+        if (st.stale) goStale();
         if (st.waiting) { var l = st.waiting; st.waiting = null; compose(l); }
       });
       window.scrollTo(0, keep);
@@ -199,6 +296,12 @@
   function wire(page) {
     // a click on a link inside the page never leaves the panel
     page.addEventListener('click', function (ev) { var a = ev.target.closest && ev.target.closest('a'); if (a) ev.preventDefault(); }, true);
+    // point and say: what they click is what "this" means to the agent
+    page.addEventListener('click', function (ev) {
+      if (!ev.target.closest || ev.target.closest('.gw-tools, .gw-seam, .gw-empty')) return;
+      var sec = ev.target.closest('[data-gw-sec]');
+      choose(sec, sec && ev.target.closest('[class*="gogh-el-"]'));
+    });
     var secs = sections(page);
     // an empty page: a way in
     if (!secs.length && G) {
@@ -218,6 +321,29 @@
     [].forEach.call(page.querySelectorAll('img'), function (im) { if (!im.complete) im.addEventListener('load', fit); });
     fit();
     setTimeout(fit, 800);
+  }
+  function choose(sec, el) {
+    [].forEach.call(document.querySelectorAll('#gw-page .gw-chosen'), function (x) { x.classList.remove('gw-chosen'); });
+    if (!sec) { st.sel = null; pushContext(); return; }
+    var n = +sec.getAttribute('data-gw-sec'), key = secKey(sec);
+    var s2 = info && info.sections ? info.sections.filter(function (x) { return x.key === key; })[0] || info.sections[n - 1] : null;
+    var name = (s2 && s2.design ? 'the ' + s2.design + ' section' : 'section ' + n);
+    var head = s2 && s2.pieces ? (s2.pieces.filter(function (p) { return p.role === 'heading'; })[0] || {}).words : '';
+    if (head) name += ' ("' + head.slice(0, 50) + '")';
+    var piece = null, label = name;
+    if (el && el.closest('[data-gw-sec]') === sec) {
+      var m = /\bgogh-el-(\d+)\b/.exec(el.className);
+      if (m) {
+        piece = +m[1];
+        var pc = s2 && s2.pieces ? s2.pieces.filter(function (p) { return p.piece === piece; })[0] : null;
+        var role = pc ? pc.role : 'piece';
+        var words = (el.innerText || '').trim().slice(0, 80);
+        label = 'the ' + role + (words ? ' "' + words + '"' : '') + ' in ' + name;
+      }
+    }
+    (piece ? el : sec).classList.add('gw-chosen');
+    st.sel = { n: n, key: key.indexOf('gogh-sec') === 0 ? key : null, piece: piece, label: label };
+    pushContext();
   }
   // the words: headings, paragraphs and button labels, typed over in place
   function words(sec, n) {
@@ -240,7 +366,8 @@
         var now = target.innerText.replace(/ /g, ' ').trim();
         if (was == null || now === was.trim()) return;
         if (!now) { target.innerText = was; return; }
-        tool('gogh_change_words', { page_id: st.page.id, section: n, piece: piece, words: now }).then(function () {
+        var sk = secKey(sec);
+        tool('gogh_change_words', sk.indexOf('gogh-sec') === 0 ? { page_id: st.page.id, section_key: sk, piece: piece, words: now } : { page_id: st.page.id, section: n, piece: piece, words: now }).then(function (r) {
           saying('Saved. Not live yet.'); status(true); fit();
           tell('In the page panel the person changed words on "' + st.page.title + '", section ' + n + ': "' + was.trim().slice(0, 80) + '" → "' + now.slice(0, 80) + '".');
         }, function (e) { target.innerText = was; oops(e); });

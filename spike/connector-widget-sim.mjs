@@ -94,6 +94,35 @@ if (mode === 'editor-restore') {
   console.log('restore in url', /gogh-restore=1/.test(ed.url()));
   console.log('editor shows', JSON.stringify(await ed.evaluate(() => window.__gogh.sections().map((s) => (s.els.find((e) => e.type === 'heading') || {}).text))));
 }
+if (mode === 'live') {
+  const agent = async (name, args) => (await rpc('tools/call', { name, arguments: args })).result;
+  const pid = +process.env.PAGE;
+  // 1. point: click the hero heading
+  await w.evaluate(() => { const h = document.querySelector('[data-gw-sec="1"] h1, [data-gw-sec="1"] h2'); h.click(); h.blur(); });
+  await sleep(800);
+  console.log('1 context:', (await p.evaluate(() => window.__ctx.slice(-1)[0] || '')).split('\n')[1]);
+  // 2. the agent changes the heading by key while the panel is open
+  const pg = (await agent('gogh_read_page', { page_id: pid })).structuredContent;
+  const hero = pg.sections[0], hp = hero.pieces.find((x) => x.role === 'heading');
+  await agent('gogh_change_words', { page_id: pid, section_key: hero.key, piece: hp.piece, words: 'A morning at the wheel ' + Date.now() % 1000 });
+  let flashed = false;
+  for (let i = 0; i < 14 && !flashed; i++) { await sleep(500); flashed = await w.evaluate(() => document.querySelectorAll('.gw-flash').length > 0); }
+  console.log('2 flashed:', flashed);
+  console.log('2 panel after agent:', JSON.stringify(await w.evaluate(() => ({ heading: document.querySelector('[data-gw-sec="1"] h1, [data-gw-sec="1"] h2').innerText, flashing: document.querySelectorAll('.gw-flash').length, saying: document.getElementById('saving').textContent }))));
+  // 3. the person types in the panel
+  await w.evaluate(() => { const t = document.querySelector('[data-gw-sec="2"] h2, [data-gw-sec="2"] h1'); t.focus(); t.innerText = 'Choose your session'; t.blur(); });
+  await sleep(4000);
+  console.log('3 changes:', JSON.stringify(await w.evaluate(() => ({ btn: document.getElementById('changes').textContent, list: [...document.querySelectorAll('#logList li')].map((li) => li.innerText) }))));
+  // 4. undo the latest (the person's)
+  await w.evaluate(() => { document.getElementById('undo').click(); });
+  await sleep(5000);
+  console.log('4 after undo:', JSON.stringify(await w.evaluate(() => ({ h2: (document.querySelector('[data-gw-sec="2"] h2, [data-gw-sec="2"] h1') || {}).innerText, btn: document.getElementById('changes').textContent }))));
+  // 5. a newer panel opens for the page
+  await agent('gogh_open_page', { page_id: pid });
+  await sleep(4500);
+  console.log('5 stale:', await w.evaluate(() => !document.getElementById('stale').hidden));
+  console.log('context now:', JSON.stringify((await p.evaluate(() => window.__ctx.slice(-1)[0] || '')).slice(0, 400)));
+}
 if (mode === 'edit') {
   // type over the hero's heading
   await pg().evaluate(() => { const h = document.querySelector('[data-gw-sec="1"] h1, [data-gw-sec="1"] h2'); h.focus(); h.innerText = 'Stoneware for every day.'; h.blur(); });
