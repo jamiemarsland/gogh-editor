@@ -41,7 +41,7 @@ if (process.env.REALORIGIN) {
 }
 const b = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: 'new' });
 const p = await b.newPage(); await p.setViewport({ width: 800, height: 1000 });
-p.on('pageerror', (e) => console.log('pageerror', String(e).slice(0, 300)));
+p.on('pageerror', (e) => console.log('pageerror', String((e && e.stack) || e).slice(0, 600)));
 p.on('console', (m) => { if (m.type() === 'error' && !/font|Failed to load|interactivity|navigation/.test(m.text())) console.log('console', m.text().slice(0, 300)); });
 await p.exposeFunction('mcpCall', async (params) => (await rpc('tools/call', params)).result);
 await p.goto(hostUrl, { waitUntil: 'domcontentloaded' });
@@ -202,6 +202,28 @@ if (mode === 'explore2') {
   await sleep(5000);
   console.log('auto-opened:', JSON.stringify(await w.evaluate(() => ({ open: !document.getElementById('explore').hidden, note: (document.querySelector('.explore .note') || {}).textContent, tiles: document.querySelectorAll('#exTiles .tile').length }))));
   console.log('messages sent by the panel:', JSON.stringify(await p.evaluate(() => window.__said || [])));
+}
+if (mode === 'choose') {
+  const agent = async (name, args) => (await rpc('tools/call', { name, arguments: args })).result;
+  const pid = +process.env.PAGE;
+  await p.setViewport({ width: 900, height: 1200 });
+  await sleep(2500);
+  const q = async () => w.evaluate(() => ({ q: (document.querySelector('.choices .say p') || {}).innerText, dots: document.querySelectorAll('#qdots i').length, bar: [...document.querySelectorAll('#w > .bar > *')].filter((x) => x.offsetParent).map((x) => x.id || x.className) }));
+  console.log('first question:', JSON.stringify(await q()));
+  await p.screenshot({ path: out + '-q1.png' });
+  await w.evaluate(() => document.querySelector('.choices [data-pick="b"]').click());
+  await sleep(6000);
+  const s1 = (await agent('gogh_read_page', { page_id: pid })).structuredContent.sections[0];
+  console.log('after B:', s1.design, '| next:', JSON.stringify(await q()));
+  // Claude's deck arrives
+  await agent('gogh_prepare_choices', { page_id: pid, cards: [{ section_key: s1.key, question: 'How should your opening sound?', label_a: 'As it is', label_b: 'Everyday', taste_a: 'crafted', taste_b: 'warm', b: { heading: 'Mugs you will reach for first', text: 'Everyday stoneware from a railway arch in Bristol.' } }] });
+  await sleep(4500);
+  console.log('with Claude:', JSON.stringify(await q()));
+  await w.evaluate(() => document.querySelector('.choices [data-x="undo"]').click());
+  await sleep(6000);
+  const s2 = (await agent('gogh_read_page', { page_id: pid })).structuredContent.sections[0];
+  console.log('after undo:', s2.design, '| question:', JSON.stringify(await q()));
+  console.log('context:', JSON.stringify((await p.evaluate(() => window.__ctx.slice(-1)[0] || '')).split('\n').filter((l) => /taste|asking/.test(l))));
 }
 if (mode === 'edit') {
   // type over the hero's heading

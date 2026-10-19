@@ -158,13 +158,43 @@ function gogh_connector_app_tools() {
 		array(
 			'name'        => 'gogh_open_page',
 			'title'       => sprintf( 'Show a page of %s here in the chat', $site ),
-			'description' => sprintf( 'Shows a page of %s (the person\'s own website) right here in the chat, not in a browser: when they say "open my home page", "show me the about page" or "let me edit the site", this is the tool. ', $site ) . 'The page is drawn exactly as visitors see it (with any changes not live yet). They can click any words to change them, drag sections to reorder them, remove a section, throw changes away or publish. Use it whenever the person wants to look at or work on a page. Their edits are saved as they go; you will see them with gogh_read_page.',
+			'description' => sprintf( 'Shows a page of %s (the person\'s own website) right here in the chat, not in a browser: when they say "open my home page", "show me the about page" or "let me edit the site", this is the tool. Then call gogh_prepare_choices for the page. ', $site ) . 'The page is drawn exactly as visitors see it (with any changes not live yet). They can click any words to change them, drag sections to reorder them, remove a section, throw changes away or publish. Use it whenever the person wants to look at or work on a page. Their edits are saved as they go; you will see them with gogh_read_page.',
 			'inputSchema' => array(
 				'type'       => 'object',
 				'properties' => array( 'page_id' => array( 'type' => 'integer', 'description' => 'The page. Leave out for the home page.' ) ),
 			),
 			'annotations' => array( 'readOnlyHint' => true ),
 			'_meta'       => array( 'ui' => array( 'resourceUri' => gogh_connector_widget_uri() ) ),
+		),
+		array(
+			'name'        => 'gogh_prepare_choices',
+			'title'       => 'Prepare questions for the page',
+			'description' => 'Right after you open a page with gogh_open_page, and whenever the person says "more", prepare up to 8 questions for the panel. The panel asks them one at a time, each showing one section two ways: A is the section as it is now, B is your version. The person taps the one they like; that is how a beginner edits. Mostly WORDS (b with new eyebrow, heading, text, text2, button, button2: a real alternative, not a rewording), some shapes (b: { take, face } — another of gogh\'s designs, e.g. { take: "Cover" } for an opening) or ground (b: { ground: "dark" }). Questions in plain words a beginner understands ("How should your opening sound?"), short labels for each side ("Crafted" / "Everyday"), and one taste word for each side ("crafted" / "warm"). Follow the taste the panel reports. Do not change the page yourself while they choose.',
+			'inputSchema' => array(
+				'type'       => 'object',
+				'properties' => array(
+					'page_id' => array( 'type' => 'integer' ),
+					'cards'   => array(
+						'type'     => 'array',
+						'maxItems' => 8,
+						'items'    => array(
+							'type'       => 'object',
+							'properties' => array(
+								'section_key' => array( 'type' => 'string', 'description' => 'Which section (key from gogh_read_page).' ),
+								'question'    => array( 'type' => 'string' ),
+								'hint'        => array( 'type' => 'string', 'description' => 'Optional, one short line under the question.' ),
+								'label_a'     => array( 'type' => 'string' ),
+								'label_b'     => array( 'type' => 'string' ),
+								'taste_a'     => array( 'type' => 'string' ),
+								'taste_b'     => array( 'type' => 'string' ),
+								'b'           => array( 'type' => 'object', 'description' => 'Version B: new words (eyebrow, heading, text, text2, button, button2), and/or take + face, and/or ground ("dark").' ),
+							),
+							'required'   => array( 'section_key', 'question', 'label_a', 'label_b', 'b' ),
+						),
+					),
+				),
+				'required'   => array( 'page_id', 'cards' ),
+			),
 		),
 		array(
 			'name'        => 'gogh_explore',
@@ -342,6 +372,58 @@ function gogh_connector_explore( $args ) {
 	return array( 'content' => array( array( 'type' => 'text', 'text' => sprintf( 'The panel is drawing %d versions (round %d). Wait for the person to choose, or to ask for more like one of them.', count( $versions ), $round ) ) ) );
 }
 
+// a deck of questions for the panel: plain data only, kept two hours beside
+// the page, picked up by the open panel through ?gogh-state
+function gogh_connector_prepare_choices( $args ) {
+	$id = isset( $args['page_id'] ) ? (int) $args['page_id'] : 0;
+	if ( ! $id || ! current_user_can( 'edit_post', $id ) ) {
+		return array( 'content' => array( array( 'type' => 'text', 'text' => 'There is no page with that id that you can edit.' ) ), 'isError' => true );
+	}
+	$txt   = function ( $v, $n ) { return is_scalar( $v ) ? mb_substr( sanitize_text_field( (string) $v ), 0, $n ) : ''; };
+	$cards = array();
+	foreach ( array_slice( isset( $args['cards'] ) && is_array( $args['cards'] ) ? $args['cards'] : array(), 0, 8 ) as $c ) {
+		if ( ! is_array( $c ) || empty( $c['section_key'] ) || empty( $c['question'] ) || empty( $c['b'] ) || ! is_array( $c['b'] ) ) {
+			continue;
+		}
+		$b = array();
+		foreach ( array( 'eyebrow', 'heading', 'text', 'text2', 'button', 'button2' ) as $f ) {
+			if ( isset( $c['b'][ $f ] ) && '' !== $txt( $c['b'][ $f ], 400 ) ) {
+				$b[ $f ] = $txt( $c['b'][ $f ], 400 );
+			}
+		}
+		if ( ! empty( $c['b']['take'] ) && function_exists( 'gogh_pg_clean_designed' ) && in_array( $c['b']['take'], GOGH_PG_TAKES, true ) ) {
+			$b['take'] = (string) $c['b']['take'];
+		}
+		if ( ! empty( $c['b']['face'] ) ) {
+			$b['face'] = $txt( $c['b']['face'], 40 );
+		}
+		if ( isset( $c['b']['ground'] ) && 'dark' === $c['b']['ground'] ) {
+			$b['ground'] = 'dark';
+		}
+		if ( ! $b ) {
+			continue;
+		}
+		$cards[] = array(
+			'key'  => sanitize_key( (string) $c['section_key'] ),
+			'q'    => $txt( $c['question'], 140 ),
+			'hint' => isset( $c['hint'] ) ? $txt( $c['hint'], 140 ) : '',
+			'la'   => $txt( isset( $c['label_a'] ) ? $c['label_a'] : 'As it is', 30 ),
+			'lb'   => $txt( isset( $c['label_b'] ) ? $c['label_b'] : 'New', 30 ),
+			'ta'   => isset( $c['taste_a'] ) ? $txt( $c['taste_a'], 20 ) : '',
+			'tb'   => isset( $c['taste_b'] ) ? $txt( $c['taste_b'], 20 ) : '',
+			'b'    => $b,
+			'from' => 'claude',
+		);
+	}
+	if ( ! $cards ) {
+		return array( 'content' => array( array( 'type' => 'text', 'text' => 'Send at least one card with a section_key, a question, labels and a version b.' ) ), 'isError' => true );
+	}
+	$prev  = get_transient( 'gogh_deck_' . $id );
+	$round = is_array( $prev ) && isset( $prev['round'] ) ? (int) $prev['round'] + 1 : 1;
+	set_transient( 'gogh_deck_' . $id, array( 'cards' => $cards, 'round' => $round, 'at' => time() ), 2 * HOUR_IN_SECONDS );
+	return array( 'content' => array( array( 'type' => 'text', 'text' => sprintf( 'The panel will ask these %d questions one at a time (round %d). Wait for the person; the panel tells you their taste as they choose.', count( $cards ), $round ) ) ) );
+}
+
 function gogh_connector_open_page( $args ) {
 	$id = isset( $args['page_id'] ) ? (int) $args['page_id'] : 0;
 	if ( ! $id && 'page' === get_option( 'show_on_front' ) ) {
@@ -415,6 +497,9 @@ function gogh_connector_call( $name, $args ) {
 	if ( 'gogh_explore' === $name ) {
 		return gogh_connector_explore( $args );
 	}
+	if ( 'gogh_prepare_choices' === $name ) {
+		return gogh_connector_prepare_choices( $args );
+	}
 	if ( 'gogh_open_editor' === $name ) {
 		return gogh_connector_open_editor( $args );
 	}
@@ -464,7 +549,7 @@ function gogh_connector_message( $msg ) {
 			'capabilities'    => array( 'tools' => array( 'listChanged' => false ), 'resources' => array( 'listChanged' => false ) ),
 			'serverInfo'      => array( 'name' => 'gogh · ' . $site, 'version' => defined( 'GOGH_VERSION' ) ? GOGH_VERSION : '1' ),
 			'instructions'    => sprintf(
-				'This is %1$s, a real WordPress site drawn with gogh, and you act as %2$s. Start with gogh_describe_site, then gogh_read_page for the page in question. When the person explores a section in the panel, answer with gogh_explore (versions of its words and dials), not with a change. When the person wants to see or work on a page, open it with gogh_open_page: they can edit it there themselves, and the open panel redraws by itself when you change the page (no need to open it again). The panel tells you what they are pointing at: when they say "this", "here" or "it", that is what they mean. Address sections by their key (section_key), which stays the same when sections move. Every change goes into the page\'s change list with who made it; gogh_undo_change takes back the latest. After a change the panel also shows you a small picture of the section that changed: look at it the way a designer would (words too long for the design, words hard to read on a picture, a section that now feels crowded) and say so or fix it. Changes to a page are saved but not live: offer gogh_preview_page so the person can look, and use gogh_publish only when they say so. Remove sections or throw changes away only when asked.',
+				'This is %1$s, a real WordPress site drawn with gogh, and you act as %2$s. Start with gogh_describe_site, then gogh_read_page for the page in question. Right after opening a page with gogh_open_page, prepare questions for it with gogh_prepare_choices: that is how a beginner edits, by tapping the version they like. When the person explores a section in the panel, answer with gogh_explore (versions of its words and dials), not with a change. When the person wants to see or work on a page, open it with gogh_open_page: they can edit it there themselves, and the open panel redraws by itself when you change the page (no need to open it again). The panel tells you what they are pointing at: when they say "this", "here" or "it", that is what they mean. Address sections by their key (section_key), which stays the same when sections move. Every change goes into the page\'s change list with who made it; gogh_undo_change takes back the latest. After a change the panel also shows you a small picture of the section that changed: look at it the way a designer would (words too long for the design, words hard to read on a picture, a section that now feels crowded) and say so or fix it. Changes to a page are saved but not live: offer gogh_preview_page so the person can look, and use gogh_publish only when they say so. Remove sections or throw changes away only when asked.',
 				$site,
 				wp_get_current_user()->display_name
 			),

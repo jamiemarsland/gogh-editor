@@ -1185,6 +1185,8 @@ add_action( 'init', function () {
 		'newer'   => $latest && $latest !== $token,
 		// the latest round of versions for the explore view
 		'explore' => get_transient( 'gogh_explore_' . $id ) ? get_transient( 'gogh_explore_' . $id ) : null,
+		// the latest deck of questions the agent prepared
+		'deck'    => get_transient( 'gogh_deck_' . $id ) ? get_transient( 'gogh_deck_' . $id ) : null,
 	) );
 }, 1 );
 

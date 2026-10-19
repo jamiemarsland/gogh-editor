@@ -129,3 +129,40 @@ button[disabled] { opacity: .45; cursor: default; }
 .explore .thumb { position: relative; width: 100%; aspect-ratio: 1200 / 680; overflow: hidden; }
 .explore .thumb > .gw-stage { position: absolute; top: 0; left: 0; width: 1200px; transform-origin: 0 0; container-type: inline-size; }
 .explore .thumb > .gw-stage > .gogh-section { display: grid; }
+/* which do you prefer? */
+.bar .pill { display: none; }
+.qdots { display: flex; gap: 5px; margin-left: auto; }
+.qdots i { width: 7px; height: 7px; border-radius: 50%; background: var(--w-line); }
+.qdots i.past { background: #1f7a4d; }
+.qdots i.now { background: var(--w-accent); transform: scale(1.3); }
+#publish.ready { box-shadow: 0 0 0 4px color-mix(in srgb, var(--w-accent) 22%, transparent); }
+.bar { position: relative; }
+.moremenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 10px; background: var(--w-surface); border: 1px solid var(--w-line); box-shadow: 0 12px 30px -12px rgba(0,0,0,.35); min-width: 190px; }
+.moremenu[hidden] { display: none; }
+.moremenu button { text-align: left; width: 100%; }
+.moremenu button[hidden] { display: none; }
+.choices { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 12px; background: var(--w-surface); border: 1px solid var(--w-line); color: var(--w-ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.choices[hidden] { display: none; }
+.choices .say { display: flex; gap: 10px; align-items: flex-start; }
+.choices .me { flex: none; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffb37a, #e0703b); }
+.choices .say p { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.35; }
+.choices .say small { display: block; font-weight: 400; font-size: 13px; color: var(--w-muted); margin-top: 2px; }
+.choices .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 520px) { .choices .pair { grid-template-columns: 1fr; } }
+.choices .opt { appearance: none; border: 2px solid var(--w-line); border-radius: 10px; padding: 0; overflow: hidden; background: var(--w-surface); cursor: pointer; text-align: left; display: flex; flex-direction: column; color: var(--w-ink); font: inherit; transition: border-color .15s, transform .15s, box-shadow .15s; }
+.choices .opt:hover, .choices .opt:focus-visible { border-color: var(--w-accent); transform: translateY(-2px); box-shadow: 0 0 0 4px color-mix(in srgb, var(--w-accent) 18%, transparent); outline: none; }
+.choices .opt.chosen { border-color: #1f7a4d; }
+.choices .lab { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-weight: 600; font-size: 13.5px; }
+.choices .lab em { font-style: normal; font-size: 12px; color: var(--w-accent); }
+.choices .thumb { position: relative; width: 100%; aspect-ratio: 1200 / 640; overflow: hidden; }
+.choices .thumb > .gw-stage { position: absolute; top: 0; left: 0; width: 1200px; transform-origin: 0 0; container-type: inline-size; }
+.choices .thumb > .gw-stage > .gogh-section { display: grid; }
+.choices .thumb.live { aspect-ratio: auto; }
+.choices .thumb > .gw-live { width: 1280px; }
+.choices .outline { display: flex; flex-direction: column; gap: 4px; padding: 10px; }
+.choices .outline div { border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: color-mix(in srgb, var(--w-ink) 6%, var(--w-surface)); }
+.choices .outline div.hi { background: color-mix(in srgb, var(--w-accent) 16%, var(--w-surface)); font-weight: 600; }
+.choices .under { display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.choices .link { appearance: none; border: 0; background: none; color: var(--w-muted); font: 500 13px system-ui, sans-serif; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.choices .taste { font-size: 12px; color: var(--w-muted); }
+.choices .taste b { display: inline-block; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--w-accent) 14%, transparent); color: var(--w-ink); font-weight: 600; }

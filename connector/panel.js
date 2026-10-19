@@ -2,8 +2,20 @@
 (function () {
   'use strict';
   var H = window.goghHost;
-  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"go\" id=\"exploreBtn\" type=\"button\" hidden>Explore this section</button><button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"changes\" type=\"button\" hidden>0 changes</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"log\" id=\"log\" hidden><ol id=\"logList\"></ol><div class=\"logBar\"><button class=\"chip\" id=\"undo\" type=\"button\">Undo the latest</button><button class=\"chip\" id=\"logClose\" type=\"button\">Close</button></div></div><div class=\"stale\" id=\"stale\" hidden>There\u2019s a newer view of this page below. This one no longer takes edits.</div><div class=\"hint\" id=\"hint\">Click a section, then Explore it to see it many ways at once. Click any words to change them; drag a section by its handle to move it.</div>\n  <div class=\"explore\" id=\"explore\" hidden></div><div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
+  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"go\" id=\"exploreBtn\" type=\"button\" hidden>Explore this section</button><button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"changes\" type=\"button\" hidden>0 changes</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"choices\" id=\"choices\" hidden></div><div class=\"log\" id=\"log\" hidden><ol id=\"logList\"></ol><div class=\"logBar\"><button class=\"chip\" id=\"undo\" type=\"button\">Undo the latest</button><button class=\"chip\" id=\"logClose\" type=\"button\">Close</button></div></div><div class=\"stale\" id=\"stale\" hidden>There\u2019s a newer view of this page below. This one no longer takes edits.</div><div class=\"hint\" id=\"hint\">Click a section, then Explore it to see it many ways at once. Click any words to change them; drag a section by its handle to move it.</div>\n  <div class=\"explore\" id=\"explore\" hidden></div><div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
   var st = null, busy = 0, frame = null, W = 1280, G = window.goghDraw, info = null;
+  (function simplerBar() {
+    var bar = document.querySelector('#w > .bar'), pub = document.getElementById('publish');
+    var dots = document.createElement('span'); dots.className = 'qdots'; dots.id = 'qdots';
+    var mb = document.createElement('button'); mb.className = 'chip'; mb.id = 'moreBtn'; mb.type = 'button'; mb.textContent = 'More';
+    var menu = document.createElement('div'); menu.className = 'moremenu'; menu.id = 'moreMenu'; menu.hidden = true;
+    document.getElementById('editor').textContent = 'Edit by hand';
+    ['exploreBtn', 'editor', 'changes', 'discard'].forEach(function (id) { var el = document.getElementById(id); if (el) menu.appendChild(el); });
+    bar.insertBefore(dots, pub);
+    bar.appendChild(pub); bar.appendChild(mb); bar.appendChild(menu);
+    mb.onclick = function () { menu.hidden = !menu.hidden; sizeUp(); };
+    menu.addEventListener('click', function (ev) { if (ev.target.closest('button')) setTimeout(function () { menu.hidden = true; }, 0); });
+  })();
 
   /* ---------- the chat: the loader holds the conversation ---------- */
   var inHost = H.inHost;
@@ -44,6 +56,9 @@
     }
     var ch = st.changes || [];
     if (ch.length) lines.push('Changes not live yet (oldest first): ' + ch.map(function (c) { return (c.who === 'you' ? 'the person' : 'you') + ': ' + c.what; }).join('; ') + '.');
+    if (st.taste && st.taste.length) lines.push('The person\'s taste so far, from the versions they tapped: ' + st.taste.join(', ') + '.');
+    if (st.deck && st.deck.length) lines.push('The panel is asking them: "' + st.deck[0].q + '"');
+    else if (st.deckBuilt) lines.push('The panel has run out of questions. If they say "more", call gogh_prepare_choices with new ones that follow their taste.');
     if (st.exploring && ex) lines.push(st.exploring);
     lines.push('If the person says "explore this", asks for options or versions, or says "more like this", answer by calling gogh_explore for the section they are pointing at (or exploring): 3 to 5 genuinely different versions of its words and up to two dials. The panel shows them; do not change the page yourself.');
     if (lastNote) lines.push('Latest in the panel: ' + lastNote);
@@ -89,7 +104,8 @@
     pill.classList.toggle('pending', !!pending);
     document.getElementById('discard').hidden = !pending;
     document.getElementById('publish').hidden = !(pending || st.page.status !== 'publish') || !st.can_publish;
-    document.getElementById('publish').textContent = st.page.status === 'publish' ? 'Publish' : 'Publish page';
+    document.getElementById('publish').textContent = 'Show the world';
+    document.getElementById('publish').classList.toggle('ready', !!pending || st.page.status !== 'publish');
     sizeUp();
   }
   var askFn = null;
@@ -121,10 +137,10 @@
   };
   document.getElementById('publish').onclick = function () {
     var ch = (st.changes || []).map(function (c) { return '• ' + (c.who === 'you' ? 'You' : 'Claude') + ': ' + c.what; });
-    var q = (st.page.status === 'publish' ? 'Make these changes live on your site?' : 'Publish this page on your site?') + (ch.length ? '\n' + ch.join('\n') : '');
-    ask(q, 'Publish', function () {
+    var q = (st.page.status === 'publish' ? 'Show these changes to the world?' : 'Put this page on your site for everyone to see?') + (ch.length ? '\n' + ch.join('\n') : '');
+    ask(q, 'Show the world', function () {
       tool('gogh_publish', { page_id: st.page.id }).then(function () {
-        st.page.status = 'publish'; status(false); showChanges([]); saying('Published.');
+        st.page.status = 'publish'; status(false); showChanges([]); saying('It’s live.');
         tell('The person published "' + st.page.title + '" from the page panel.');
       }, oops);
     });
@@ -150,7 +166,7 @@
     });
     status(d.unpublished_changes);
     showChanges(d.changes || []);
-    st.sel = null;
+    st.sel = null; st.deck = []; st.deckBuilt = false; st.answered = []; st.taste = st.taste || []; st.deckSeen = null;
     watch();
     if (G && d.pictures) { G.mediaPool.imgs = d.pictures.imgs || []; G.mediaPool.bgs = d.pictures.bgs || []; G.mediaPool.fetched = true; }
     // sections waiting in words are drawn once the page is on screen, so
@@ -199,6 +215,7 @@
       fetch(url + '&t=' + Date.now(), { credentials: 'omit' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
         if (!d) return;
         if (d.newer) { goStale(); return; }
+        if (d.deck) takeDeck(d.deck);
         if (st.seenRound == null) st.seenRound = d.explore ? d.explore.round : 0;
         else if (d.explore) exploreRound(d.explore);
         showChanges(d.changes);
@@ -338,9 +355,11 @@
       reread().then(function () {
         wire(page);
         flashChanged();
+        if (!st.deckBuilt && G) { st.deckBuilt = true; st.deck = localCards().concat(st.deck || []); showCard(); }
         if (st.snapAt) { var at = st.snapAt; st.snapAt = null; var el2 = document.querySelector('#gw-page [data-gw-sec="' + at + '"]'); if (el2) snap(el2); }
         if (st.stale) goStale();
         if (st.waiting) { var l = st.waiting; st.waiting = null; compose(l); }
+        if (st.afterDraw) { var fn = st.afterDraw; st.afterDraw = null; fn(); }
       });
       window.scrollTo(0, keep);
     }).catch(oops);
@@ -628,6 +647,165 @@
     if (f) f.style.height = editorHeight() + 'px';
   });
 
+  /* ---------- which do you prefer? ---------- */
+  // A beginner edits by choosing: one question at a time, one section shown
+  // two ways (A as it is, B a new version), tap the one you like. The agent
+  // prepares the questions (gogh_prepare_choices) when it opens the page;
+  // the panel starts with ones it can make itself so nothing waits
+  function secInfo(key) { return info && info.sections ? info.sections.filter(function (x) { return x.key === key; })[0] : null; }
+  function faceNow(s2) { var fs = G.diceFaces(s2.design); return fs && s2.design_take && fs[s2.design_take] ? fs[s2.design_take].take : 'The original'; }
+  function headOf(s2) { var h = (s2.pieces || []).filter(function (p) { return p.role === 'heading'; })[0]; return h && h.words ? h.words : s2.design; }
+  function localCards() {
+    var list = (info && info.sections || []).filter(function (x) { return x.design && x.key; }), cards = [];
+    var first = list[0];
+    if (first && OPENERS.indexOf(first.design) !== -1) {
+      var alt = first.design === 'Cover' ? 'Hero' : 'Cover';
+      cards.push({ key: first.key, q: 'Which feels more like walking in?', hint: alt === 'Cover' ? 'Your picture beside the words, or all around them.' : 'Your picture all around the words, or beside them.', la: 'As it is', lb: alt === 'Cover' ? 'Photo all around' : 'Photo beside', ta: alt === 'Cover' ? 'calm' : 'bold', tb: alt === 'Cover' ? 'bold' : 'calm', b: { take: alt } });
+      if (first.design !== 'Cover' && !first.background_picture) cards.push({ key: first.key, q: 'Light and airy, or deep and rich?', hint: 'The colour behind your opening.', la: 'Light', lb: 'Deep', ta: 'light', tb: 'deep', b: { ground: 'dark' } });
+    }
+    list.slice(1).forEach(function (s2) {
+      if (cards.length >= 5) return;
+      var fs = G.diceFaces(s2.design); if (!fs || fs.length < 2) return;
+      var k = ((s2.design_take || 0) + 1) % fs.length, face = k ? fs[k].take : 'The original';
+      cards.push({ key: s2.key, q: 'Which shape suits “' + headOf(s2).slice(0, 40) + '”?', la: 'As it is', lb: face === 'The original' ? s2.design : face.replace(/^The /, 'The '), ta: '', tb: '', b: { face: face } });
+    });
+    if (list.length >= 4) cards.push({ kind: 'order', key: list[1].key, other: list[2].key, q: 'What should people see right after your opening?', la: headOf(list[1]).slice(0, 30), lb: headOf(list[2]).slice(0, 30), ta: '', tb: '' });
+    return cards;
+  }
+  function takeDeck(dk) {
+    if (st.deckSeen == null) { st.deckSeen = dk.at && (Date.now() / 1000 - dk.at) > 600 ? dk.round : 0; }
+    if (dk.round <= st.deckSeen) return;
+    st.deckSeen = dk.round;
+    var mine = (dk.cards || []).filter(function (c) { return secInfo(c.key); });
+    if (!mine.length) return;
+    var showing = st.deck && st.deck.length ? st.deck[0] : null;
+    st.deck = (showing ? [showing] : []).concat(mine, (st.deck || []).slice(showing ? 1 : 0));
+    saying('Claude prepared ' + mine.length + ' ideas.');
+    if (!showing) showCard();
+    else qdots();
+    pushContext();
+  }
+  function cardSec(card, scope) {
+    var s2 = secInfo(card.key); if (!s2) return null;
+    var spec = Object.assign({ take: s2.design, face: faceNow(s2) }, wordsOf(s2));
+    var b = card.b || {};
+    Object.keys(b).forEach(function (k) { if (k !== 'ground') spec[k] = b[k]; });
+    if (b.take && b.take !== s2.design && !b.face) delete spec.face;
+    var tpl = null;
+    try { tpl = G.fillTake(spec); } catch (e) {}
+    if (!tpl) return null;
+    var sec = secFrom(tpl, scope);
+    if (b.ground === 'dark' && !sec.bgImage) {
+      sec.bg = 'var(--wp--preset--color--contrast)';
+      sec.els.forEach(function (e) {
+        if (e.kids && e.kids.length) return;
+        if (e.type === 'button') { if (e.ghost) e.color = 'base'; else { e.btnBg = 'base'; e.btnText = 'contrast'; } }
+        else if (e.type === 'heading' || e.type === 'para' || e.type === 'badge') e.color = 'base';
+      });
+    }
+    return sec;
+  }
+  // A is the section itself, as the page draws it
+  function asIs(key) {
+    var el = null;
+    [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (x) { if (!el && secKey(x) === key) el = x; });
+    if (!el) return '';
+    var c = el.cloneNode(true);
+    [].forEach.call(c.querySelectorAll('.gw-tools, .gw-seam'), function (x) { x.remove(); });
+    c.classList.remove('gw-chosen', 'gw-flash');
+    [].forEach.call(c.querySelectorAll('[contenteditable]'), function (x) { x.removeAttribute('contenteditable'); });
+    return '<div class="thumb live"><div class="gw-stage gw-live">' + c.outerHTML + '</div></div>';
+  }
+  function outlineOf(order) {
+    return '<div class="outline">' + order.map(function (k, i) { var s2 = secInfo(k); return '<div' + (i === 1 ? ' class="hi"' : '') + '>' + (i + 1) + '. ' + (s2 ? headOf(s2).slice(0, 34) : k) + '</div>'; }).join('') + '</div>';
+  }
+  function keysNow() { return (info && info.sections || []).map(function (x) { return x.key || ('n' + x.section); }); }
+  function qdots() {
+    var el = document.getElementById('qdots'); if (!el) return;
+    var done = (st.answered || []).length, left = (st.deck || []).length, total = Math.min(12, done + left);
+    var h = '';
+    for (var i = 0; i < total; i++) h += '<i class="' + (i < done ? 'past' : (i === done && left ? 'now' : '')) + '"></i>';
+    el.innerHTML = h;
+  }
+  function showCard() {
+    var box = document.getElementById('choices');
+    var card = st.deck && st.deck[0];
+    qdots();
+    if (!card) {
+      if (!st.deckBuilt) { box.hidden = true; return; }
+      box.innerHTML = '<div class="say"><span class="me" aria-hidden="true"></span><p>That’s your page.<small>Press <b>Show the world</b> when you’re happy, or tell Claude <b>“more”</b> for new ideas.</small></p></div>';
+      box.hidden = false; document.getElementById('hint').hidden = true; sizeUp(); pushContext();
+      return;
+    }
+    var body;
+    if (card.kind === 'order') {
+      var now = keysNow(), swapped = now.slice(), i1 = now.indexOf(card.key), i2 = now.indexOf(card.other);
+      if (i1 < 0 || i2 < 0) { st.deck.shift(); showCard(); return; }
+      swapped[i1] = card.other; swapped[i2] = card.key;
+      body = '<button class="opt" type="button" data-pick="a"><span class="lab">' + esc(card.la) + ' <em>This one</em></span>' + outlineOf(now) + '</button>' +
+        '<button class="opt" type="button" data-pick="b"><span class="lab">' + esc(card.lb) + ' <em>This one</em></span>' + outlineOf(swapped) + '</button>';
+    } else {
+      // a question that no longer fits what they already chose is skipped
+      var s3 = secInfo(card.key), cb = card.b || {};
+      if (s3 && ((cb.take && cb.take === s3.design && !cb.face) || (cb.ground && (s3.design === 'Cover' || s3.background_picture)) || (cb.face && cb.face === faceNow(s3) && (!cb.take || cb.take === s3.design)))) { st.deck.shift(); showCard(); return; }
+      var bsec = cardSec(card, 'gw-q-b');
+      if (!bsec || !secInfo(card.key)) { st.deck.shift(); showCard(); return; }
+      body = '<button class="opt" type="button" data-pick="a"><span class="lab">' + esc(card.la || 'As it is') + ' <em>This one</em></span>' + asIs(card.key) + '</button>' +
+        '<button class="opt" type="button" data-pick="b"><span class="lab">' + esc(card.lb || 'New') + ' <em>This one</em></span>' + thumb(bsec) + '</button>';
+    }
+    box.innerHTML = '<div class="say"><span class="me" aria-hidden="true"></span><p>' + esc(card.q) + (card.hint ? '<small>' + esc(card.hint) + '</small>' : '') + '</p></div>' +
+      '<div class="pair">' + body + '</div>' +
+      '<div class="under"><button class="link" type="button" data-x="neither">Neither</button>' + ((st.answered || []).length ? '<button class="link" type="button" data-x="undo">Undo my last choice</button>' : '') +
+      (st.taste && st.taste.length ? '<span class="taste">Your taste: ' + st.taste.slice(-4).map(function (t) { return '<b>' + esc(t) + '</b>'; }).join(' ') + '</span>' : '') + '</div>';
+    box.hidden = false;
+    document.getElementById('hint').hidden = true;
+    box.querySelector('[data-pick="a"]').onclick = function () { answer(card, 'a', this); };
+    box.querySelector('[data-pick="b"]').onclick = function () { answer(card, 'b', this); };
+    box.querySelector('[data-x="neither"]').onclick = function () { st.deck.shift(); st.answered.push({ card: card, changed: false }); showCard(); pushContext(); };
+    var u = box.querySelector('[data-x="undo"]'); if (u) u.onclick = undoAnswer;
+    fitLive(); fitThumbs(); setTimeout(function () { fitLive(); fitThumbs(); }, 300);
+    pushContext();
+  }
+  function fitLive() {
+    [].forEach.call(document.querySelectorAll('.choices .gw-live'), function (s) {
+      var k = s.parentNode.clientWidth / W;
+      s.style.transform = 'scale(' + k + ')';
+      s.parentNode.style.height = Math.ceil(s.offsetHeight * k) + 'px';
+    });
+    sizeUp();
+  }
+  function answer(card, which, btn) {
+    btn.classList.add('chosen');
+    var word = which === 'a' ? card.ta : card.tb;
+    if (word && st.taste.indexOf(word) === -1) st.taste.push(word);
+    var done = function (changed) { st.deck.shift(); st.answered.push({ card: card, changed: changed, word: word }); showCard(); };
+    if (which === 'a') { setTimeout(function () { done(false); }, 220); return; }
+    var p;
+    if (card.kind === 'order') {
+      var now = keysNow(), to = now.indexOf(card.key) + 1;
+      p = tool('gogh_move_section', { page_id: st.page.id, section_key: card.other, to: to });
+    } else {
+      var sec = cardSec(card, card.key);
+      if (!sec) { done(false); return; }
+      p = tool('gogh_replace_section', { page_id: st.page.id, section_key: card.key, blocks: G.buildSectionBlocksV3(sec) });
+    }
+    p.then(function () {
+      saying(''); status(true);
+      var n2 = (secInfo(card.kind === 'order' ? card.other : card.key) || {}).section;
+      st.snapAt = n2 || null;
+      st.afterDraw = function () { done(true); };
+      draw();
+      tell('The person chose "' + card.lb + '" for: ' + card.q);
+    }, oops);
+  }
+  function undoAnswer() {
+    var last = st.answered.pop(); if (!last) return;
+    if (last.word) { var i = st.taste.lastIndexOf(last.word); if (i !== -1) st.taste.splice(i, 1); }
+    st.deck.unshift(last.card);
+    if (!last.changed) { showCard(); pushContext(); return; }
+    tool('gogh_undo_change', { page_id: st.page.id }).then(function () { saying('Undone.'); st.afterDraw = showCard; draw(); }, oops);
+  }
+
   /* ---------- explore this section ---------- */
   // Not one change per message: the agent writes a handful of versions and
   // the dials that tell them apart, once; the panel draws every combination
@@ -826,7 +1004,7 @@
     return '<div class="thumb"><style>' + shown(css) + '</style><div class="gw-stage gogh-wrap"><div class="gogh-section ' + sec.scope + '">' + shown(inner) + '</div></div></div>';
   }
   function fitThumbs() {
-    [].forEach.call(document.querySelectorAll('.pick .gw-stage, .explore .gw-stage'), function (s) { s.style.transform = 'scale(' + (s.parentNode.clientWidth / 1200) + ')'; });
+    [].forEach.call(document.querySelectorAll('.pick .gw-stage, .explore .gw-stage, .choices .gw-stage:not(.gw-live)'), function (s) { s.style.transform = 'scale(' + (s.parentNode.clientWidth / 1200) + ')'; });
     sizeUp();
   }
   function showPick(title, tabs, onTab) {
