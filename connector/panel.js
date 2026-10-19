@@ -34,6 +34,14 @@
     request('ui/update-model-context', { content: [{ type: 'text', text: text }] }).catch(function () {});
   }
 
+  // the site may name itself http:// or https:// depending on the request:
+  // both become the address the chat can reach
+  function toPublic(html) {
+    var host = st.site_origin.replace(/^https?:\/\//, ''), pub = st.public_origin;
+    return html.split('https://' + host).join(pub).split('http://' + host).join(pub)
+      .split('https:\\/\\/' + host).join(pub.replace(/\//g, '\\/')).split('http:\\/\\/' + host).join(pub.replace(/\//g, '\\/'));
+  }
+
   /* ---------- the bar ---------- */
   function saying(t) { document.getElementById('saving').textContent = t || ''; }
   function status(pending) {
@@ -106,7 +114,7 @@
       if (!r.ok) throw new Error('The page did not load (' + r.status + ').');
       return r.text();
     }).then(function (html) {
-      html = html.split(st.site_origin).join(st.public_origin);
+      html = toPublic(html);
       // every address in full: a chat may ignore the panel's <base>, and a
       // site-relative picture or font then looks for itself in the chat
       var pub = st.public_origin;
@@ -275,6 +283,12 @@
     }, oops);
   }
 
+  // TEMPORARY probe: what the chat's sandbox blocks, reported to the site
+  document.addEventListener('securitypolicyviolation', function (e) {
+    if (!st) return;
+    try { fetch(st.public_origin + '/?gogh-probe=' + encodeURIComponent(e.violatedDirective + ' ' + e.blockedURI + ' ' + (e.originalPolicy || '').slice(0, 900)), { mode: 'no-cors' }); } catch (x) {}
+  });
+
   /* ---------- the full editor, full screen ---------- */
   // gogh's real editor, in a frame on the site's own address, signed in by a
   // short-lived pass from the connector: drag, resize, pictures, styles —
@@ -290,22 +304,34 @@
   document.getElementById('editor').onclick = function () {
     if (!st) return;
     request('ui/request-display-mode', { mode: 'fullscreen' }).catch(function () {});
+    saying('Opening the editor…');
     tool('gogh_open_editor', { page_id: st.page.id }).then(function (d) {
+      return fetch(d.editor, { credentials: 'omit' }).then(function (r) {
+        if (!r.ok) throw new Error('The editor did not load (' + r.status + ').');
+        return r.text();
+      });
+    }).then(function (html) {
       saying('');
+      html = toPublic(html);
+      var pub = st.public_origin;
+      // site-relative addresses in full: the frame has no address of its own
+      html = html.replace(/(\s(?:src|href|srcset|poster|action)=["'])\/(?!\/)/g, '$1' + pub + '/')
+        .replace(/(,\s*)\/(?!\/)(wp-content|wp-includes)/g, '$1' + pub + '/$2')
+        .replace(/url\((['"]?)\/(?!\/)/g, 'url($1' + pub + '/');
       editorOn(true);
       var stage = document.getElementById('stage');
       stage.innerHTML = '';
       var f = document.createElement('iframe');
-      f.src = d.editor;
       f.title = 'gogh editor';
-      f.setAttribute('allow', 'clipboard-read; clipboard-write; fullscreen');
+      f.setAttribute('allow', 'clipboard-read; clipboard-write');
       f.style.cssText = 'display:block;width:100%;border:0;height:' + editorHeight() + 'px;background:#fff';
+      f.srcdoc = html;
       stage.style.height = 'auto';
       stage.appendChild(f);
       frame = null;
       setTimeout(function () { f.style.height = editorHeight() + 'px'; sizeUp(); }, 400);
       tell('The person opened gogh\'s full editor on "' + st.page.title + '" in the panel. Changes made there are saved by the editor itself; read the page again afterwards.');
-    }, oops);
+    }).catch(oops);
   };
   document.getElementById('back').onclick = function () {
     request('ui/request-display-mode', { mode: 'inline' }).catch(function () {});
@@ -334,7 +360,7 @@
   }
   function shown(html) {
     var pub = st.public_origin;
-    if (st.site_origin !== pub) html = html.split(st.site_origin).join(pub);
+    html = toPublic(html);
     return html.replace(/(\s(?:src|srcset)=["'])\/(?!\/)/g, '$1' + pub + '/').replace(/url\((['"]?)\/(?!\/)/g, 'url($1' + pub + '/');
   }
   function thumb(sec) {

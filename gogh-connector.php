@@ -210,6 +210,10 @@ add_filter( 'determine_current_user', function ( $user ) {
 	$u = $t ? gogh_connector_pass_user( $t ) : 0;
 	if ( $u ) {
 		$GLOBALS['gogh_editor_pass'] = $t;
+		// the panel fetches the editor page itself, from the chat's sandbox
+		if ( ! empty( $_GET['gogh-editor'] ) && ! headers_sent() ) {
+			header( 'Access-Control-Allow-Origin: *' );
+		}
 	}
 	if ( $u && ! empty( $_GET['gogh-editor'] ) && ! headers_sent() ) {
 		header( 'Set-Cookie: gogh_editor=' . $t . '; Path=/; Max-Age=' . GOGH_EDITOR_PASS_TTL . '; Secure; HttpOnly; SameSite=None; Partitioned', false );
@@ -218,17 +222,30 @@ add_filter( 'determine_current_user', function ( $user ) {
 }, 30 );
 
 // a page opened with a pass hands it to its own requests (a frame inside a
-// chat may not keep cookies): every same-site fetch carries it as a header,
-// and links within the site carry it in the address
+// chat may not keep cookies, and inside the panel the page has no address of
+// its own): every request to the site — same-origin, the site's address, or a
+// site-relative path — carries the pass as a header and goes to the site;
+// links within the site carry it in the address; and the editor's switches
+// ride GOGH_SEARCH
 add_action( 'wp_head', function () {
 	if ( empty( $GLOBALS['gogh_editor_pass'] ) ) {
 		return;
 	}
-	$t = $GLOBALS['gogh_editor_pass'];
-	echo '<script>(function(t){var f=window.fetch;window.fetch=function(i,o){try{var u=new URL(typeof i==="string"?i:i.url,location.href);if(u.origin===location.origin){o=Object.assign({},o||{});var h=new Headers(o.headers||(typeof i!=="string"&&i.headers)||{});h.set("X-Gogh-Editor",t);o.headers=h;}}catch(e){}return f.call(this,i,o);};' .
-		'var xo=XMLHttpRequest.prototype.open,xs=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.open=function(m,u){try{this.__goghSame=new URL(u,location.href).origin===location.origin;}catch(e){}return xo.apply(this,arguments);};XMLHttpRequest.prototype.send=function(){if(this.__goghSame){try{this.setRequestHeader("X-Gogh-Editor",t);}catch(e){}}return xs.apply(this,arguments);};' .
-		'document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a[href]");if(!a)return;try{var u=new URL(a.href,location.href);if(u.origin===location.origin&&!u.searchParams.get("gogh-editor")){u.searchParams.set("gogh-editor",t);a.href=u.toString();}}catch(x){}},true);' .
-		'})(' . wp_json_encode( $t ) . ');</script>' . "\n";
+	$t    = $GLOBALS['gogh_editor_pass'];
+	$site = gogh_connector_public_origin();
+	$qs   = array();
+	foreach ( array( 'gogh-edit', 'gogh-restore' ) as $k ) {
+		if ( isset( $_GET[ $k ] ) ) {
+			$qs[] = $k . '=' . rawurlencode( (string) $_GET[ $k ] );
+		}
+	}
+	echo '<script>window.GOGH_SEARCH=' . wp_json_encode( implode( '&', $qs ) ) . ';window.GOGH_FONT_PROXY=' . wp_json_encode( $site ) . ';(function(t,S){' .
+		'var away=location.origin!==S;' .
+		'function fix(u){try{var x=new URL(u,away?S+"/":location.href);return{url:x,ours:x.origin===S||x.origin===location.origin};}catch(e){return null;}}' .
+		'var f=window.fetch;window.fetch=function(i,o){var raw=typeof i==="string"?i:(i&&i.url);var r=raw?fix(raw):null;if(r&&r.ours){o=Object.assign({},o||{});var h=new Headers(o.headers||(typeof i!=="string"&&i.headers)||{});h.set("X-Gogh-Editor",t);o.headers=h;if(typeof i==="string"&&away)i=r.url.toString();}return f.call(window,i,o);};' .
+		'var xo=XMLHttpRequest.prototype.open,xs=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.open=function(m,u){var r=fix(u);this.__goghOurs=!!(r&&r.ours);var a=[].slice.call(arguments);if(r&&r.ours&&away)a[1]=r.url.toString();return xo.apply(this,a);};XMLHttpRequest.prototype.send=function(){if(this.__goghOurs){try{this.setRequestHeader("X-Gogh-Editor",t);}catch(e){}}return xs.apply(this,arguments);};' .
+		'document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a[href]");if(!a)return;var r=fix(a.getAttribute("href"));if(r&&r.ours&&!r.url.searchParams.get("gogh-editor")){r.url.searchParams.set("gogh-editor",t);a.href=r.url.toString();}},true);' .
+		'})(' . wp_json_encode( $t ) . ',' . wp_json_encode( $site ) . ');</script>' . "\n";
 }, 0 );
 
 // a frame inside a sandboxed panel may have no origin of its own, so the

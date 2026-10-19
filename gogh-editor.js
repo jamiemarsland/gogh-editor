@@ -7,6 +7,16 @@
   'use strict';
 
   var cfg = window.GOGH;
+  // the editor's switches (gogh-edit=1 and friends) come from the address —
+  // or, when it runs inside a chat's panel with no address of its own, from
+  // the ones the site handed it (the site connector's GOGH_SEARCH)
+  var QS = location.search + (window.GOGH_SEARCH ? '&' + String(window.GOGH_SEARCH).replace(/^\?/, '') : '');
+  // a font file the editor adds at run time: inside a chat's panel it comes
+  // through the site's font route, which says other origins may use it
+  function goghFontUrl(src) {
+    var m = window.GOGH_FONT_PROXY && /\/(wp-content\/[^?#]+\.(?:woff2?|ttf|otf))/i.exec(String(src || ''));
+    return m ? window.GOGH_FONT_PROXY + '/?gogh-font=' + encodeURIComponent(m[1]) : src;
+  }
   // poster type: three stops ABOVE the theme's largest preset. Container
   // units scale with the section (phones included); the px floor keeps the
   // smallest screens readable. Emitted into the section stylesheet, so
@@ -114,7 +124,7 @@
   // hero and the panel ended up sharing a stylesheet for logged-in eyes
   // (James: "a newly made mega menu looks quite broken")
   var wrapTags = [].slice.call(document.querySelectorAll('.gogh-wrap')).filter(function (w) { return !w.closest('.gogh-mega'); });
-  var wantEdit = /[?&]gogh-edit=1/.test(location.search);
+  var wantEdit = /[?&]gogh-edit=1/.test(QS);
   // a page whose content is native blocks (a starter site's page, a classic
   // page) is NOT an empty page — the blank-canvas machinery must leave it be
   function goghHasNativeContent() {
@@ -273,7 +283,7 @@
 
   if (wantEdit) document.documentElement.classList.add('gogh-editing');
   // arriving from a page-style switch: fade in instead of popping
-  if (/[?&]gogh-ps=1/.test(location.search)) {
+  if (/[?&]gogh-ps=1/.test(QS)) {
     (function () {
       var ov0 = document.createElement('div');
       ov0.className = 'gogh-pagefade is-on';
@@ -14540,7 +14550,7 @@
     if (outcome === 'done') toast('That’s gogh. Everything else is just more of this.', { ttl: 5200 });
     // the suite and ?gogh-minute=1 rehearse the minute — a rehearsal
     // never retires the show and never writes the clock
-    if (fm.forced || /[?&]gogh-test=1/.test(location.search)) return;
+    if (fm.forced || /[?&]gogh-test=1/.test(QS)) return;
     try {
       fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/first-minute', {
         method: 'POST',
@@ -14560,7 +14570,7 @@
   // ?gogh-minute=1 re-arms a spent minute for TESTING (James: "im trying
   // to test the first 60 seconds") — a forced run is a rehearsal: it
   // plays in full but writes no meta and no log
-  if (/[?&]gogh-minute=1/.test(location.search)) {
+  if (/[?&]gogh-minute=1/.test(QS)) {
     fm.armed = true;
     fm.forced = true;
   }
@@ -14578,7 +14588,7 @@
     [].forEach.call(document.querySelectorAll('.gogh-seammark'), function (n) { n.remove(); });
     if (picker.__io) { picker.__io.disconnect(); picker.__io = null; }
     picker.classList.remove('is-open');
-    if (/gogh-test/.test(location.search)) {
+    if (/gogh-test/.test(QS)) {
       // the suite runs synchronously — no 240ms of half-open picker
       picker.hidden = true;
       return;
@@ -15767,7 +15777,7 @@
         step.textContent = 'Opening your site';
         discarding = true; // the scratch on this canvas was never meant to be kept
         // the front door: a build asked for it opens the new site on six looks
-        var frontDoor = /[?&]gogh-front-door=1/.test(location.search);
+        var frontDoor = /[?&]gogh-front-door=1/.test(QS);
         var home = cfg.homeUrl || '/';
         setTimeout(function () {
           // a writer's site opens on its newest post, in the writing room
@@ -17267,7 +17277,7 @@
     if (!ask) return;
     // the suite exercises miss and undo paths on purpose — its reports
     // are rehearsals, not feedback (day one: 50 fake entries, 1 real)
-    if (/[?&]gogh-test=1/.test(location.search)) return;
+    if (/[?&]gogh-test=1/.test(QS)) return;
     try {
       fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/ask-log', {
         method: 'POST',
@@ -20222,6 +20232,7 @@
         if (have) return;
         if (fontLoads[key]) { jobs.push(fontLoads[key]); return; } // in flight — wait for it
         if (src.indexOf('file:./') === 0) src = location.origin + '/wp-content/themes/' + cfg.theme + '/' + src.slice(7);
+        src = goghFontUrl(src);
         var p;
         try {
           var ff2 = new FontFace(fam, 'url("' + src + '")', { weight: weight, style: style });
@@ -23187,6 +23198,7 @@
         var src = face && face.src ? [].concat(face.src)[0] : null;
         if (!src) return;
         if (src.indexOf('file:./') === 0) src = location.origin + '/wp-content/themes/' + cfg.theme + '/' + src.slice(7);
+        src = goghFontUrl(src);
         faceCss += '@font-face{font-family:"' + fam + '";src:url("' + src + '") format("woff2");'
           + 'font-weight:' + (face.fontWeight || '400') + ';font-style:' + (face.fontStyle || 'normal') + ';font-display:swap;}';
       });
@@ -24406,7 +24418,7 @@
     return !!door;
   }
   window.__gogh.openPasteDoor = openPasteDoor;
-  if (/[?&]gogh-paste=1/.test(location.search)) {
+  if (/[?&]gogh-paste=1/.test(QS)) {
     // the picker can redraw itself just after it opens (My sections
     // arriving) — keep knocking for a moment until the pane is really there
     var knocks = 0;
@@ -25761,7 +25773,7 @@
     if (!editing || chipBusy || !isDirty()) return Promise.resolve(!isDirty());
     // the suite wrecks the page BY DESIGN (delete-everything tests) — backing
     // that up would shadow the real fixture on every next boot
-    if (/gogh-test/.test(location.search)) return Promise.resolve(false);
+    if (/gogh-test/.test(QS)) return Promise.resolve(false);
     // pending native sections live outside serialize() — fingerprint them
     // too, or pending-only changes would skip the backup
     var snap = serialize() + '\u0000' + pendingBlocks.map(function (pe) { return pe.raw; }).join('\u0000');
@@ -25802,7 +25814,7 @@
       if (!models.length || !backupDiffers(models)) return; // matches the live page
       // opened from the site connector's page panel: the changes made there
       // ARE the work in hand, so the editor starts from them, no question
-      if (/[?&]gogh-restore=1(?:&|$)/.test(location.search)) { restoreAutosave(a); return; }
+      if (/[?&]gogh-restore=1(?:&|$)/.test(QS)) { restoreAutosave(a); return; }
       // they chose 'keep my changes for later' when they left: welcome back
       var kept = null;
       try { kept = localStorage.getItem(keptKey()); localStorage.removeItem(keptKey()); } catch (e) {}
@@ -31914,7 +31926,7 @@
   // a page that Add a page just made announces itself once the editor is
   // up: the menu offer and the way back (own path, so nothing else in the
   // boot can skip it)
-  if (wantEdit && /[?&]gogh-new=1/.test(location.search)) {
+  if (wantEdit && /[?&]gogh-new=1/.test(QS)) {
     (function () {
       var fromNew = '';
       try {
@@ -31938,9 +31950,9 @@
     }
     if (wantEdit) {
       setEditing(true);
-      var willBuild = !!(cfg.siteDef && /[?&]gogh-build=1/.test(location.search));
+      var willBuild = !!(cfg.siteDef && /[?&]gogh-build=1/.test(QS));
       if (willBuild) scheduleSiteBuild();
-      if (!willBuild && /[?&]gogh-front-door=1/.test(location.search)) setTimeout(openFrontDoor, 700);
+      if (!willBuild && /[?&]gogh-front-door=1/.test(QS)) setTimeout(openFrontDoor, 700);
       var bootContent = S.filter(function (s) { return !s.chrome; });
       // the blank-canvas greeting is for genuinely EMPTY pages — a page
       // full of native blocks (a starter site's home) is not one, and

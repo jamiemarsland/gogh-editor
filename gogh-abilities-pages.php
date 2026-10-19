@@ -635,14 +635,22 @@ add_action( 'init', function () {
 
 // a widget preview's fonts point at that route
 add_action( 'template_redirect', function () {
-	if ( empty( $_GET['gogh-preview'] ) || empty( $_GET['gogh-widget'] ) ) {
+	if ( ( empty( $_GET['gogh-preview'] ) || empty( $_GET['gogh-widget'] ) ) && empty( $_GET['gogh-editor'] ) ) {
 		return;
 	}
 	ob_start( function ( $html ) {
 		$home = untrailingslashit( home_url() );
-		$out = preg_replace_callback( '~url\\(\\s*([\'"]?)((?:' . preg_quote( $home, '~' ) . ')?/(wp-content/[^\'")\\s?#]+\\.(?:woff2?|ttf|otf)))[^\'")]*\\1\\s*\\)~i', function ( $m ) use ( $home ) {
+		$host = preg_replace( '~^https?://~', '', $home );
+		$out = preg_replace_callback( '~url\\(\\s*([\'"]?)((?:https?://' . preg_quote( $host, '~' ) . ')?/(wp-content/[^\'")\\s?#]+\\.(?:woff2?|ttf|otf)))[^\'")]*\\1\\s*\\)~i', function ( $m ) use ( $home ) {
 			return 'url(' . $m[1] . $home . '/?gogh-font=' . rawurlencode( $m[3] ) . $m[1] . ')';
 		}, $html );
+		if ( null !== $out ) {
+			// the page's font preload hints point at the same files
+			$pre = preg_replace_callback( '~(<link\\b[^>]*\\bhref=)([\'"])(?:https?://' . preg_quote( $host, '~' ) . ')?/(wp-content/[^\'"?#]+\\.(?:woff2?|ttf|otf))\\2~i', function ( $m ) use ( $home ) {
+				return $m[1] . $m[2] . $home . '/?gogh-font=' . rawurlencode( $m[3] ) . $m[2];
+			}, $out );
+			$out = null === $pre ? $out : $pre;
+		}
 		return null === $out ? $html : $out; // never lose the page to a pattern
 	} );
 } );
