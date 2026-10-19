@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var H = window.goghHost;
-  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"changes\" type=\"button\" hidden>0 changes</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"log\" id=\"log\" hidden><ol id=\"logList\"></ol><div class=\"logBar\"><button class=\"chip\" id=\"undo\" type=\"button\">Undo the latest</button><button class=\"chip\" id=\"logClose\" type=\"button\">Close</button></div></div><div class=\"stale\" id=\"stale\" hidden>There\u2019s a newer view of this page below. This one no longer takes edits.</div><div class=\"hint\" id=\"hint\">Click any words to change them. Drag a section by its handle to move it. Add a section from the + under any section.</div>\n  <div class=\"explore\" id=\"explore\" hidden></div><div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
+  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"go\" id=\"exploreBtn\" type=\"button\" hidden>Explore this section</button><button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"changes\" type=\"button\" hidden>0 changes</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"log\" id=\"log\" hidden><ol id=\"logList\"></ol><div class=\"logBar\"><button class=\"chip\" id=\"undo\" type=\"button\">Undo the latest</button><button class=\"chip\" id=\"logClose\" type=\"button\">Close</button></div></div><div class=\"stale\" id=\"stale\" hidden>There\u2019s a newer view of this page below. This one no longer takes edits.</div><div class=\"hint\" id=\"hint\">Click a section, then Explore it to see it many ways at once. Click any words to change them; drag a section by its handle to move it.</div>\n  <div class=\"explore\" id=\"explore\" hidden></div><div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
   var st = null, busy = 0, frame = null, W = 1280, G = window.goghDraw, info = null;
 
   /* ---------- the chat: the loader holds the conversation ---------- */
@@ -106,6 +106,7 @@
     var id = +this.value;
     tool('gogh_open_page', { page_id: id }).then(function (d) { saying(''); open(d); }, oops);
   };
+  document.getElementById('exploreBtn').onclick = function () { if (st && st.sel) exploreStart(st.sel.n); };
   document.getElementById('changes').onclick = function () { var l = document.getElementById('log'); l.hidden = !l.hidden; sizeUp(); };
   document.getElementById('logClose').onclick = function () { document.getElementById('log').hidden = true; sizeUp(); };
   document.getElementById('undo').onclick = function () {
@@ -394,7 +395,7 @@
   }
   function choose(sec, el) {
     [].forEach.call(document.querySelectorAll('#gw-page .gw-chosen'), function (x) { x.classList.remove('gw-chosen'); });
-    if (!sec) { st.sel = null; pushContext(); return; }
+    if (!sec) { st.sel = null; document.getElementById('exploreBtn').hidden = true; pushContext(); return; }
     var n = +sec.getAttribute('data-gw-sec'), key = secKey(sec);
     var s2 = info && info.sections ? info.sections.filter(function (x) { return x.key === key; })[0] || info.sections[n - 1] : null;
     var name = (s2 && s2.design ? 'the ' + s2.design + ' section' : 'section ' + n);
@@ -413,6 +414,10 @@
     }
     (piece ? el : sec).classList.add('gw-chosen');
     st.sel = { n: n, key: key.indexOf('gogh-sec') === 0 ? key : null, piece: piece, label: label };
+    var eb = document.getElementById('exploreBtn');
+    eb.hidden = !(s2 && s2.design) || editing;
+    eb.textContent = s2 && s2.design ? 'Explore the ' + s2.design : 'Explore this section';
+    sizeUp();
     pushContext();
   }
   // the words: headings, paragraphs and button labels, typed over in place
