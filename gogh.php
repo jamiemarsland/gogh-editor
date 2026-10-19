@@ -18,6 +18,8 @@ define( 'GOGH_VERSION', '0.99.778' );
 
 // what an agent may ask of the site, through WordPress's Abilities API (6.9+)
 require_once __DIR__ . '/gogh-abilities.php';
+require_once __DIR__ . '/gogh-abilities-pages.php';
+require_once __DIR__ . '/gogh-connector.php';
 // gogh on a Spacefast space: pages drawn through the REST door, sites built without eval
 require_once __DIR__ . '/gogh-space.php';
 
