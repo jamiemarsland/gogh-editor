@@ -99,7 +99,99 @@ function gogh_connector_tool( $tool, $a ) {
 	return $t;
 }
 
+// ---------- the page widget (an MCP app) ------------------------------------
+
+const GOGH_PAGE_WIDGET_URI = 'ui://gogh/page.html';
+
+// the address the connector was reached at: the site's own, or a tunnel's
+// or proxy's in front of it — the widget must load the page from there
+function gogh_connector_public_origin() {
+	$host  = ! empty( $_SERVER['HTTP_X_FORWARDED_HOST'] ) ? $_SERVER['HTTP_X_FORWARDED_HOST'] : ( isset( $_SERVER['HTTP_HOST'] ) ? $_SERVER['HTTP_HOST'] : '' );
+	$host  = preg_replace( '/[^A-Za-z0-9.:\-]/', '', explode( ',', (string) $host )[0] );
+	$https = is_ssl() || ( ! empty( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) && 'https' === strtolower( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) ) || ( ! empty( $_SERVER['HTTP_CF_VISITOR'] ) && false !== strpos( $_SERVER['HTTP_CF_VISITOR'], 'https' ) );
+	return $host ? ( $https ? 'https://' : 'http://' ) . $host : gogh_connector_site_origin();
+}
+function gogh_connector_site_origin() {
+	$u = wp_parse_url( home_url( '/' ) );
+	return $u['scheme'] . '://' . $u['host'] . ( isset( $u['port'] ) ? ':' . $u['port'] : '' );
+}
+
+function gogh_connector_app_tools() {
+	return array(
+		array(
+			'name'        => 'gogh_open_page',
+			'title'       => 'Open a page',
+			'description' => 'Shows the person one page of their site in the chat, drawn exactly as visitors see it (with any changes not live yet). They can click any words to change them, drag sections to reorder them, remove a section, throw changes away or publish. Use it whenever the person wants to look at or work on a page. Their edits are saved as they go; you will see them with gogh_read_page.',
+			'inputSchema' => array(
+				'type'       => 'object',
+				'properties' => array( 'page_id' => array( 'type' => 'integer', 'description' => 'The page. Leave out for the home page.' ) ),
+			),
+			'annotations' => array( 'readOnlyHint' => true ),
+			'_meta'       => array( 'ui' => array( 'resourceUri' => GOGH_PAGE_WIDGET_URI ) ),
+		),
+	);
+}
+
+function gogh_connector_open_page( $args ) {
+	$id = isset( $args['page_id'] ) ? (int) $args['page_id'] : 0;
+	if ( ! $id && 'page' === get_option( 'show_on_front' ) ) {
+		$id = (int) get_option( 'page_on_front' );
+	}
+	$post = $id ? get_post( $id ) : null;
+	if ( ! $post || 'page' !== $post->post_type || ! current_user_can( 'edit_post', $post->ID ) ) {
+		return array( 'content' => array( array( 'type' => 'text', 'text' => 'There is no page with that id that you can edit.' ) ), 'isError' => true );
+	}
+	$pv = wp_get_ability( 'gogh/preview-page' )->execute( array( 'page_id' => $post->ID ) );
+	if ( is_wp_error( $pv ) ) {
+		return array( 'content' => array( array( 'type' => 'text', 'text' => $pv->get_error_message() ) ), 'isError' => true );
+	}
+	$site  = gogh_connector_site_origin();
+	$pub   = gogh_connector_public_origin();
+	$pages = array();
+	foreach ( get_posts( array( 'post_type' => 'page', 'post_status' => array( 'publish', 'draft', 'private' ), 'numberposts' => 60, 'orderby' => 'menu_order title', 'order' => 'ASC' ) ) as $p ) {
+		if ( current_user_can( 'edit_post', $p->ID ) ) {
+			$pages[] = array( 'id' => (int) $p->ID, 'title' => html_entity_decode( get_the_title( $p ), ENT_QUOTES, 'UTF-8' ) );
+		}
+	}
+	$data = array(
+		'page'                => array( 'id' => (int) $post->ID, 'title' => html_entity_decode( get_the_title( $post ), ENT_QUOTES, 'UTF-8' ), 'status' => $post->post_status ),
+		'pages'               => $pages,
+		'preview'             => add_query_arg( 'gogh-widget', '1', str_replace( $site, $pub, $pv['preview'] ) ),
+		'site_origin'         => $site,
+		'public_origin'       => $pub,
+		'unpublished_changes' => $pv['unpublished_changes'],
+		'can_publish'         => current_user_can( 'publish_pages' ),
+	);
+	return array(
+		'content'           => array( array( 'type' => 'text', 'text' => sprintf( 'Showing "%s" in the panel. The person can change words, move and remove sections, and publish there. Their edits are saved as they go; read the page again with gogh_read_page before changing it yourself.', $data['page']['title'] ) ) ),
+		'structuredContent' => $data,
+		'_meta'             => array( 'ui' => array( 'resourceUri' => GOGH_PAGE_WIDGET_URI ) ),
+	);
+}
+
+function gogh_connector_read_resource( $uri ) {
+	if ( GOGH_PAGE_WIDGET_URI !== $uri ) {
+		return null;
+	}
+	$pub = gogh_connector_public_origin();
+	return array( 'contents' => array( array(
+		'uri'      => $uri,
+		'mimeType' => 'text/html;profile=mcp-app',
+		'text'     => (string) file_get_contents( __DIR__ . '/connector/page-widget.html' ),
+		'_meta'    => array( 'ui' => array(
+			'csp'           => array(
+				'connectDomains'  => array( $pub ),
+				'resourceDomains' => array( $pub, 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://images.unsplash.com', 'https://raw.githubusercontent.com' ),
+			),
+			'prefersBorder' => true,
+		) ),
+	) ) );
+}
+
 function gogh_connector_call( $name, $args ) {
+	if ( 'gogh_open_page' === $name ) {
+		return gogh_connector_open_page( $args );
+	}
 	$tools = gogh_connector_abilities();
 	if ( ! isset( $tools[ $name ] ) ) {
 		return array( 'content' => array( array( 'type' => 'text', 'text' => 'Unknown tool ' . $name ) ), 'isError' => true );
@@ -138,10 +230,10 @@ function gogh_connector_message( $msg ) {
 		$site = html_entity_decode( get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8' );
 		return $ok( array(
 			'protocolVersion' => in_array( $want, GOGH_CONNECTOR_PROTOCOLS, true ) ? $want : GOGH_CONNECTOR_PROTOCOLS[0],
-			'capabilities'    => array( 'tools' => array( 'listChanged' => false ) ),
+			'capabilities'    => array( 'tools' => array( 'listChanged' => false ), 'resources' => array( 'listChanged' => false ) ),
 			'serverInfo'      => array( 'name' => 'gogh · ' . $site, 'version' => defined( 'GOGH_VERSION' ) ? GOGH_VERSION : '1' ),
 			'instructions'    => sprintf(
-				'This is %1$s, a real WordPress site drawn with gogh, and you act as %2$s. Start with gogh_describe_site, then gogh_read_page for the page in question. Changes to a page are saved but not live: offer gogh_preview_page so the person can look, and use gogh_publish only when they say so. Remove sections or throw changes away only when asked.',
+				'This is %1$s, a real WordPress site drawn with gogh, and you act as %2$s. Start with gogh_describe_site, then gogh_read_page for the page in question. When the person wants to see or work on a page, open it with gogh_open_page: they can edit it there themselves. Changes to a page are saved but not live: offer gogh_preview_page so the person can look, and use gogh_publish only when they say so. Remove sections or throw changes away only when asked.',
 				$site,
 				wp_get_current_user()->display_name
 			),
@@ -155,7 +247,17 @@ function gogh_connector_message( $msg ) {
 		foreach ( gogh_connector_abilities() as $tool => $a ) {
 			$list[] = gogh_connector_tool( $tool, $a );
 		}
-		return $ok( array( 'tools' => $list ) );
+		return $ok( array( 'tools' => array_merge( gogh_connector_app_tools(), $list ) ) );
+	}
+	if ( 'resources/list' === $method ) {
+		return $ok( array( 'resources' => array( array( 'uri' => GOGH_PAGE_WIDGET_URI, 'name' => 'gogh page', 'description' => 'One page of the site, to edit in place.', 'mimeType' => 'text/html;profile=mcp-app' ) ) ) );
+	}
+	if ( 'resources/templates/list' === $method ) {
+		return $ok( array( 'resourceTemplates' => array() ) );
+	}
+	if ( 'resources/read' === $method ) {
+		$r = gogh_connector_read_resource( isset( $params['uri'] ) ? (string) $params['uri'] : '' );
+		return $r ? $ok( $r ) : $err( -32002, 'Resource not found' );
 	}
 	if ( 'tools/call' === $method ) {
 		$name = isset( $params['name'] ) ? (string) $params['name'] : '';

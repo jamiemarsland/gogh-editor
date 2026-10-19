@@ -456,13 +456,67 @@ add_filter( 'the_posts', function ( $posts, $q ) {
 		return $posts;
 	}
 	$pending = gogh_ab_pending_backup( $posts[0] );
-	if ( $pending ) {
-		$posts[0]               = clone $posts[0];
-		$posts[0]->post_content = $pending->post_content;
+	$content = $pending ? $pending->post_content : $posts[0]->post_content;
+	// the page widget needs to know which drawn part is which section: a
+	// marker comment before each top-level block (comments draw nothing)
+	if ( ! empty( $_GET['gogh-widget'] ) ) {
+		$parts = array();
+		foreach ( gogh_pg_blocks( $content ) as $k => $b ) {
+			$parts[] = '<!--gogh-sec:' . ( $k + 1 ) . '-->' . "\n" . serialize_block( $b );
+		}
+		$content = implode( "\n\n", $parts ) . "\n<!--gogh-sec:end-->";
 	}
+	$posts[0]               = clone $posts[0];
+	$posts[0]->post_content = $content;
 	if ( ! headers_sent() ) {
 		nocache_headers();
 		header( 'X-Robots-Tag: noindex' );
+		// the page widget fetches this from inside the chat's sandbox
+		header( 'Access-Control-Allow-Origin: *' );
 	}
 	return $posts;
 }, 10, 2 );
+
+// the page widget draws the preview inside the chat's sandbox, where a font
+// only loads if its server says it may (CORS) — and plain font files do
+// not. So in a widget preview, fonts are served through this route
+add_action( 'init', function () {
+	if ( empty( $_GET['gogh-font'] ) ) {
+		return;
+	}
+	$rel  = ltrim( str_replace( array( '..', '\\' ), '', (string) wp_unslash( $_GET['gogh-font'] ) ), '/' );
+	$file = realpath( ABSPATH . $rel );
+	$root = realpath( WP_CONTENT_DIR );
+	$type = array( 'woff2' => 'font/woff2', 'woff' => 'font/woff', 'ttf' => 'font/ttf', 'otf' => 'font/otf' );
+	$ext  = strtolower( pathinfo( (string) $file, PATHINFO_EXTENSION ) );
+	if ( ! $file || ! $root || 0 !== strpos( $file, $root . DIRECTORY_SEPARATOR ) || ! isset( $type[ $ext ] ) || ! is_readable( $file ) ) {
+		status_header( 404 );
+		exit;
+	}
+	header( 'Content-Type: ' . $type[ $ext ] );
+	header( 'Access-Control-Allow-Origin: *' );
+	header( 'Cache-Control: public, max-age=86400' );
+	header( 'Content-Length: ' . filesize( $file ) );
+	readfile( $file );
+	exit;
+}, 0 );
+
+// a widget preview's fonts point at that route
+add_action( 'template_redirect', function () {
+	if ( empty( $_GET['gogh-preview'] ) || empty( $_GET['gogh-widget'] ) ) {
+		return;
+	}
+	ob_start( function ( $html ) {
+		$home = untrailingslashit( home_url() );
+		$out = preg_replace_callback( '~url\\(\\s*([\'"]?)((?:' . preg_quote( $home, '~' ) . ')?/(wp-content/[^\'")\\s?#]+\\.(?:woff2?|ttf|otf)))[^\'")]*\\1\\s*\\)~i', function ( $m ) use ( $home ) {
+			return 'url(' . $m[1] . $home . '/?gogh-font=' . rawurlencode( $m[3] ) . $m[1] . ')';
+		}, $html );
+		return null === $out ? $html : $out; // never lose the page to a pattern
+	} );
+} );
+
+// a preview reached through another address (a tunnel, a proxy) stays
+// there: WordPress would otherwise send it to the site's own address
+add_filter( 'redirect_canonical', function ( $to ) {
+	return empty( $_GET['gogh-preview'] ) ? $to : false;
+} );

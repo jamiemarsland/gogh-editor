@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your page</title>
+<style id="gw-own">
+/* gogh's page widget: one page of the person's real site, drawn exactly as
+   visitors see it (its own preview, inside a frame at desktop width, scaled
+   to the chat), with the words editable in place and the sections movable.
+   Every change goes through the site's own connector (tools/call), as the
+   signed-in person, and stays "not live yet" until Publish. */
+:root {
+  --w-surface: #ffffff;
+  --w-line: #dcdfe4;
+  --w-ink: #1a1c20;
+  --w-muted: #646a74;
+  --w-accent: #2271b1;
+  --w-accent-ink: #ffffff;
+  --w-warn: #9a5b00;
+  --w-warn-bg: #fff4e0;
+  --w-ok: #1f7a4d;
+  --w-ok-bg: #e7f5ee;
+}
+:root[data-theme="dark"] {
+  --w-surface: #1f2125;
+  --w-line: #34373d;
+  --w-ink: #eceef2;
+  --w-muted: #9aa1ab;
+  --w-accent: #5a9fdc;
+  --w-accent-ink: #0d1117;
+  --w-warn: #f0b860;
+  --w-warn-bg: #3a2c14;
+  --w-ok: #5ccf96;
+  --w-ok-bg: #173226;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+/* no type on body: the page's own body type must reach the page */
+.w { display: flex; flex-direction: column; gap: 8px; padding: 2px; }
+.msg { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--w-muted); }
+.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+select, button { font: inherit; color: inherit; }
+select { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); border-radius: 8px; padding: 5px 26px 5px 10px; font-weight: 600; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%; background-size: 4px 4px; background-repeat: no-repeat; cursor: pointer; }
+.pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--w-ok-bg); color: var(--w-ok); white-space: nowrap; }
+.pill.pending { background: var(--w-warn-bg); color: var(--w-warn); }
+.saving { font-size: 12px; color: var(--w-muted); margin-right: auto; min-height: 1em; }
+.chip { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); padding: 5px 11px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.chip:hover { border-color: var(--w-muted); }
+.go { appearance: none; border: 0; background: var(--w-accent); color: var(--w-accent-ink); font-weight: 600; font-size: 13px; padding: 7px 13px; border-radius: 8px; cursor: pointer; }
+:is(.chip, .go, select):focus-visible { outline: 2px solid var(--w-accent); outline-offset: 2px; }
+button[disabled] { opacity: .45; cursor: default; }
+.ask { display: none; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--w-warn-bg); color: var(--w-ink); font-size: 13px; }
+.ask.on { display: flex; }
+.ask span { margin-right: auto; }
+.hint { font-size: 12px; color: var(--w-muted); }
+.stage { position: relative; width: 100%; overflow: hidden; border-radius: 8px; box-shadow: 0 0 0 1px var(--w-line); }
+.stage #gw-page { position: absolute; top: 0; left: 0; width: 1280px; transform-origin: 0 0; }
+/* the panel's own parts keep their own type, whatever the site's styles say */
+.w > .bar, .w > .ask, .w > .hint { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--w-ink); }
+.w > .bar :is(select, button), .w > .ask button { font: inherit; font-size: 13px; letter-spacing: normal; text-transform: none; }
+#gw-page [data-gw-sec] { position: relative; }
+#gw-page [data-gw-sec]:hover { outline: 3px solid rgba(34,113,177,.55); outline-offset: -3px; }
+#gw-page [contenteditable] { cursor: text; }
+#gw-page [contenteditable]:hover { box-shadow: 0 0 0 3px rgba(34,113,177,.35); }
+#gw-page [contenteditable]:focus { outline: none; box-shadow: 0 0 0 3px #2271b1; background: rgba(34,113,177,.06); }
+#gw-page .gw-tools { position: absolute; top: 14px; right: 14px; z-index: 9999; display: none; gap: 6px; font: 600 22px/1 system-ui, sans-serif; }
+#gw-page [data-gw-sec]:hover > .gw-tools, #gw-page .gw-tools.on { display: flex; }
+#gw-page .gw-tools button { all: unset; cursor: pointer; background: #1d2327; color: #fff; border-radius: 10px; padding: 10px 14px; box-shadow: 0 4px 14px rgba(0,0,0,.25); font: 600 22px/1 system-ui, sans-serif; }
+#gw-page .gw-tools button:hover { background: #2271b1; }
+#gw-page .gw-tools .gw-grip { cursor: grab; }
+#gw-page .gw-drop { position: absolute; left: 0; right: 0; height: 8px; background: #2271b1; z-index: 9999; pointer-events: none; }
+#gw-page .gw-dim { opacity: .35; }
+.msg { padding: 28px; text-align: center; color: var(--w-muted); }
+</style>
+</head>
+<body>
+<div class="w" id="w">
+  <div class="bar">
+    <select id="pages" aria-label="Page"></select>
+    <span class="pill" id="pill">Live</span>
+    <span class="saving" id="saving" aria-live="polite"></span>
+    <button class="chip" id="discard" type="button" hidden>Throw away changes</button>
+    <button class="go" id="publish" type="button" hidden>Publish</button>
+  </div>
+  <div class="ask" id="ask" role="alertdialog" aria-live="assertive"><span id="askText"></span><button class="chip" id="askNo" type="button">Cancel</button><button class="go" id="askYes" type="button">Yes</button></div>
+  <div class="hint">Click any words to change them. Drag a section by its handle to move it.</div>
+  <div class="stage" id="stage"><div class="msg" id="msg">Opening your page…</div></div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var st = null, busy = 0, frame = null, W = 1280;
+
+  /* ---------- the chat: MCP Apps over postMessage ---------- */
+  var rid = 0, pend = {}, inHost = window.parent !== window;
+  function send(m) { try { window.parent.postMessage(m, '*'); } catch (e) {} }
+  function request(method, params, ms) {
+    return new Promise(function (res, rej) {
+      var id = ++rid; pend[id] = { res: res, rej: rej };
+      send({ jsonrpc: '2.0', id: id, method: method, params: params || {} });
+      setTimeout(function () { if (pend[id]) { delete pend[id]; rej(new Error('The chat did not answer.')); } }, ms || 30000);
+    });
+  }
+  function notify(method, params) { send({ jsonrpc: '2.0', method: method, params: params || {} }); }
+  window.addEventListener('message', function (ev) {
+    var m = ev.data;
+    if (!m || m.jsonrpc !== '2.0') return;
+    if (m.id != null && !m.method && pend[m.id]) {
+      var p = pend[m.id]; delete pend[m.id];
+      if (m.error) p.rej(new Error(m.error.message || 'error')); else p.res(m.result);
+      return;
+    }
+    if (!m.method) return;
+    var a = m.params || {};
+    if (m.method === 'ui/notifications/tool-result' && a.structuredContent && a.structuredContent.preview) open(a.structuredContent);
+    else if (m.method === 'ui/notifications/host-context-changed') theme(a);
+    if (m.id != null) send({ jsonrpc: '2.0', id: m.id, result: {} });
+  });
+  function theme(ctx) { if (ctx && (ctx.theme === 'dark' || ctx.theme === 'light')) document.documentElement.setAttribute('data-theme', ctx.theme); }
+  var lastH = 0;
+  function sizeUp() {
+    if (!inHost) return;
+    var h = Math.ceil(document.getElementById('w').getBoundingClientRect().height) + 4;
+    if (Math.abs(h - lastH) < 2) return;
+    lastH = h; notify('ui/notifications/size-changed', { height: h });
+  }
+  // a tool on the site, run through the chat as the signed-in person
+  function tool(name, args) {
+    busy++; saying('Saving…');
+    return request('tools/call', { name: name, arguments: args }).then(function (r) {
+      busy--;
+      if (!r || r.isError) throw new Error((r && r.content && r.content[0] && r.content[0].text) || 'That did not work.');
+      return r.structuredContent || {};
+    }, function (e) { busy--; throw e; });
+  }
+  function tell(text) { // the agent should know what the person did here
+    request('ui/update-model-context', { content: [{ type: 'text', text: text }] }).catch(function () {});
+  }
+
+  /* ---------- the bar ---------- */
+  function saying(t) { document.getElementById('saving').textContent = t || ''; }
+  function status(pending) {
+    st.pending = !!pending;
+    var pill = document.getElementById('pill');
+    pill.textContent = pending ? 'Changes not live yet' : 'Live';
+    pill.classList.toggle('pending', !!pending);
+    document.getElementById('discard').hidden = !pending;
+    document.getElementById('publish').hidden = !(pending || st.page.status !== 'publish') || !st.can_publish;
+    document.getElementById('publish').textContent = st.page.status === 'publish' ? 'Publish' : 'Publish page';
+    sizeUp();
+  }
+  var askFn = null;
+  function ask(text, yes, fn) {
+    document.getElementById('askText').textContent = text;
+    document.getElementById('askYes').textContent = yes;
+    document.getElementById('ask').classList.add('on');
+    askFn = fn; document.getElementById('askYes').focus(); sizeUp();
+  }
+  function unask() { document.getElementById('ask').classList.remove('on'); askFn = null; sizeUp(); }
+  document.getElementById('askNo').onclick = unask;
+  document.getElementById('askYes').onclick = function () { var f = askFn; unask(); if (f) f(); };
+  function oops(e) { saying(''); ask(String(e && e.message || e), 'OK', null); document.getElementById('askNo').hidden = true; setTimeout(function () { document.getElementById('askNo').hidden = false; }, 0); }
+
+  document.getElementById('pages').onchange = function () {
+    var id = +this.value;
+    tool('gogh_open_page', { page_id: id }).then(function (d) { saying(''); open(d); }, oops);
+  };
+  document.getElementById('publish').onclick = function () {
+    ask(st.page.status === 'publish' ? 'Make these changes live on your site?' : 'Publish this page on your site?', 'Publish', function () {
+      tool('gogh_publish', { page_id: st.page.id }).then(function () {
+        st.page.status = 'publish'; status(false); saying('Published.');
+        tell('The person published "' + st.page.title + '" from the page panel.');
+      }, oops);
+    });
+  };
+  document.getElementById('discard').onclick = function () {
+    ask('Throw away the changes that are not live yet?', 'Throw away', function () {
+      tool('gogh_discard_changes', { page_id: st.page.id }).then(function () {
+        status(false); saying('Changes thrown away.'); draw();
+        tell('The person threw away the unpublished changes to "' + st.page.title + '".');
+      }, oops);
+    });
+  };
+
+  /* ---------- the page ---------- */
+  function open(d) {
+    st = d;
+    var sel = document.getElementById('pages');
+    sel.innerHTML = '';
+    (d.pages || []).forEach(function (p) {
+      var o = document.createElement('option'); o.value = p.id; o.textContent = p.title;
+      if (p.id === d.page.id) o.selected = true;
+      sel.appendChild(o);
+    });
+    status(d.unpublished_changes);
+    draw();
+  }
+  function draw() {
+    var keep = window.scrollY;
+    fetch(st.preview + '&t=' + Date.now(), { credentials: 'omit' }).then(function (r) {
+      if (!r.ok) throw new Error('The page did not load (' + r.status + ').');
+      return r.text();
+    }).then(function (html) {
+      html = html.split(st.site_origin).join(st.public_origin);
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      // the page's own styles join the panel's (scripts never do); root-
+      // relative addresses resolve on the site
+      [].forEach.call(document.head.querySelectorAll('[data-gw]'), function (n) { n.remove(); });
+      var base = document.createElement('base'); base.href = st.public_origin + '/'; base.target = '_blank'; base.setAttribute('data-gw', '');
+      document.head.insertBefore(base, document.head.firstChild);
+      var root = doc.querySelector('.wp-site-blocks') || doc.body;
+      // every sheet the page wears, wherever WordPress printed it (blocks'
+      // styles often land at the foot of the page), except the sections'
+      // own, which travel with the page
+      [].forEach.call(doc.querySelectorAll('link[rel~="stylesheet"], style'), function (n) {
+        if (root !== doc.body && root.contains(n)) return;
+        var c = document.importNode(n, true); c.setAttribute('data-gw', '');
+        document.head.insertBefore(c, document.getElementById('gw-own'));
+      });
+      [].forEach.call(root.querySelectorAll('script'), function (n) { n.remove(); });
+      var stage = document.getElementById('stage');
+      var page = document.createElement('div');
+      page.id = 'gw-page';
+      page.className = doc.body.className;
+      page.appendChild(document.importNode(root, true));
+      stage.innerHTML = '';
+      stage.appendChild(page);
+      frame = page;
+      wire(page);
+      window.scrollTo(0, keep);
+    }).catch(oops);
+  }
+  function fit() {
+    if (!frame) return;
+    var stage = document.getElementById('stage');
+    var k = stage.clientWidth / W;
+    frame.style.transform = 'scale(' + k + ')';
+    stage.style.height = Math.ceil(frame.scrollHeight * k) + 'px';
+    sizeUp();
+  }
+
+  // which drawn part is which section: the preview puts <!--gogh-sec:N-->
+  // before each top-level block
+  function sections(root) {
+    var out = [], walk = document.createTreeWalker(root, NodeFilter.SHOW_COMMENT), c, marks = [];
+    while ((c = walk.nextNode())) { var m = /^gogh-sec:(\d+|end)$/.exec(c.nodeValue.trim()); if (m) marks.push({ node: c, n: m[1] === 'end' ? 0 : +m[1] }); }
+    marks.forEach(function (mk) {
+      if (!mk.n) return;
+      var el = mk.node.nextSibling;
+      while (el && el.nodeType !== 1) { if (el.nodeType === 8 && /gogh-sec:/.test(el.nodeValue)) { el = null; break; } el = el.nextSibling; }
+      if (el) { el.setAttribute('data-gw-sec', mk.n); out.push(el); }
+    });
+    return out;
+  }
+  function wire(page) {
+    // a click on a link inside the page never leaves the panel
+    page.addEventListener('click', function (ev) { var a = ev.target.closest && ev.target.closest('a'); if (a) ev.preventDefault(); }, true);
+    var secs = sections(page);
+    secs.forEach(function (el) {
+      var n = +el.getAttribute('data-gw-sec');
+      if (el.classList.contains('wp-block-gogh-section')) words(el, n);
+      tools(el, n, secs.length);
+    });
+    if (document.fonts) document.fonts.ready.then(fit);
+    [].forEach.call(page.querySelectorAll('img'), function (im) { if (!im.complete) im.addEventListener('load', fit); });
+    fit();
+    setTimeout(fit, 800);
+  }
+  // the words: headings, paragraphs and button labels, typed over in place
+  function words(sec, n) {
+    [].forEach.call(sec.querySelectorAll('[class*="gogh-el-"]'), function (el) {
+      if (el.closest('.gogh-widget') || el.closest('[data-gw-sec]') !== sec) return;
+      var m = /\bgogh-el-(\d+)\b/.exec(el.className); if (!m) return;
+      var piece = +m[1], target = null;
+      if (/^(P|H[1-6])$/.test(el.tagName)) target = el;
+      else if (el.classList.contains('wp-block-buttons')) target = el.querySelector('.wp-block-button__link');
+      if (!target) return;
+      target.setAttribute('contenteditable', 'plaintext-only');
+      target.setAttribute('spellcheck', 'true');
+      var was = null;
+      target.addEventListener('focus', function () { was = target.innerText; });
+      target.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); target.blur(); }
+        if (ev.key === 'Escape') { target.innerText = was; target.blur(); }
+      });
+      target.addEventListener('blur', function () {
+        var now = target.innerText.replace(/ /g, ' ').trim();
+        if (was == null || now === was.trim()) return;
+        if (!now) { target.innerText = was; return; }
+        tool('gogh_change_words', { page_id: st.page.id, section: n, piece: piece, words: now }).then(function () {
+          saying('Saved. Not live yet.'); status(true); fit();
+          tell('In the page panel the person changed words on "' + st.page.title + '", section ' + n + ': "' + was.trim().slice(0, 80) + '" → "' + now.slice(0, 80) + '".');
+        }, function (e) { target.innerText = was; oops(e); });
+      });
+    });
+  }
+  // a section's handle: drag to move, or up / down / remove
+  var dragFrom = 0;
+  function tools(sec, n, count) {
+    var doc = document;
+    var t = doc.createElement('div'); t.className = 'gw-tools';
+    t.setAttribute('contenteditable', 'false');
+    t.innerHTML = '<button class="gw-grip" draggable="true" title="Drag to move">⠿</button>' +
+      (n > 1 ? '<button data-a="up" title="Move up">↑</button>' : '') +
+      (n < count ? '<button data-a="down" title="Move down">↓</button>' : '') +
+      (count > 1 ? '<button data-a="remove" title="Remove this section">Remove</button>' : '');
+    sec.appendChild(t);
+    t.addEventListener('click', function (ev) {
+      var b = ev.target.closest('button'); if (!b) return;
+      ev.preventDefault(); ev.stopPropagation();
+      var a = b.getAttribute('data-a');
+      if (a === 'up') move(n, n - 1);
+      if (a === 'down') move(n, n + 1);
+      if (a === 'remove') { t.classList.add('on'); ask('Remove this section from the page? You can throw the change away until it is published.', 'Remove', function () { remove(n); }); }
+    });
+    var grip = t.querySelector('.gw-grip');
+    grip.addEventListener('dragstart', function (ev) { dragFrom = n; sec.classList.add('gw-dim'); ev.dataTransfer.effectAllowed = 'move'; try { ev.dataTransfer.setData('text/plain', 'gogh-sec-' + n); ev.dataTransfer.setDragImage(sec, 40, 40); } catch (e) {} });
+    grip.addEventListener('dragend', function () { sec.classList.remove('gw-dim'); line(doc, null); });
+    sec.addEventListener('dragover', function (ev) {
+      if (!dragFrom) return;
+      ev.preventDefault();
+      var r = sec.getBoundingClientRect(), below = ev.clientY > r.top + r.height / 2;
+      sec.__gwTo = below ? n + 1 : n;
+      line(doc, sec, below);
+    });
+    sec.addEventListener('drop', function (ev) {
+      if (!dragFrom) return;
+      ev.preventDefault();
+      var from = dragFrom, to = sec.__gwTo || n;
+      dragFrom = 0; line(doc, null);
+      if (to > from) to--; // the slot below shifts up once the section leaves
+      if (to !== from) move(from, to);
+    });
+  }
+  function line(doc, sec, below) {
+    var l = doc.querySelector('.gw-drop');
+    if (!sec) { if (l) l.remove(); return; }
+    if (!l) { l = doc.createElement('div'); l.className = 'gw-drop'; }
+    // the line lives in the unscaled page, so measure there
+    var y = sec.offsetTop + (below ? sec.offsetHeight : 0);
+    var host = sec.offsetParent || frame;
+    if (l.parentNode !== host) host.appendChild(l);
+    l.style.top = (y - 4) + 'px';
+  }
+  function move(from, to) {
+    tool('gogh_move_section', { page_id: st.page.id, section: from, to: to }).then(function () {
+      saying('Moved. Not live yet.'); status(true); draw();
+      tell('In the page panel the person moved section ' + from + ' of "' + st.page.title + '" to place ' + to + '.');
+    }, oops);
+  }
+  function remove(n) {
+    tool('gogh_remove_section', { page_id: st.page.id, section: n }).then(function () {
+      saying('Removed. Not live yet.'); status(true); draw();
+      tell('In the page panel the person removed section ' + n + ' of "' + st.page.title + '".');
+    }, oops);
+  }
+
+  window.addEventListener('resize', fit);
+  window.__goghPage = function () { return st; };
+  if (!inHost) { document.getElementById('msg').textContent = 'Open this page from your assistant.'; return; }
+  request('ui/initialize', { appInfo: { name: 'gogh page', version: '1.0.0' }, appCapabilities: {}, protocolVersion: '2026-01-26' }, 8000)
+    .then(function (r) { theme(r && r.hostContext); notify('ui/notifications/initialized', {}); })
+    .catch(function () { document.getElementById('msg').textContent = 'This chat cannot show the page panel.'; });
+})();
+</script>
+</body>
+</html>
