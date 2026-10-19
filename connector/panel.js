@@ -803,9 +803,18 @@
       moved.splice(Math.max(0, to), 0, f.key);
       return '<div><div class="lab">Now</div>' + outlineOf(now, now.indexOf(f.key)) + '</div><div><div class="lab">With the fix</div>' + outlineOf(moved, moved.indexOf(f.key)) + '</div>';
     }
+    // new words read best as words: what it says now, and what it would say
+    var was = wordsOf(secInfo(n.key) || {}), rows = '';
+    WORD_FIELDS.forEach(function (fl) {
+      if (b[fl[0]] == null || b[fl[0]] === was[fl[0]]) return;
+      rows += '<div class="wrow"><span class="wlab">' + fl[1] + '</span>' + (was[fl[0]] ? '<s>' + esc(was[fl[0]]) + '</s>' : '<i>Nothing yet</i>') + '<b>' + esc(b[fl[0]]) + '</b></div>';
+    });
+    var looks = ['take', 'face', 'ground'].some(function (k) { return b[k]; });
+    if (!looks) return rows ? '<div class="words">' + rows + '</div>' : '';
     var sec = cardSec(f, 'gw-n' + i + '-' + (ed.opt[i] || 0));
-    return '<div><div class="lab">Now</div>' + asIs(n.key) + '</div><div><div class="lab">With the fix</div>' + (sec ? thumb(sec) : '') + '</div>';
+    return '<div><div class="lab">Now</div>' + asIs(n.key) + '</div><div><div class="lab">With the fix</div>' + (sec ? thumb(sec) : '') + '</div>' + (rows ? '<div class="words">' + rows + '</div>' : '');
   }
+  var WORD_FIELDS = [['eyebrow', 'Small heading'], ['heading', 'Heading'], ['text', 'Words'], ['text2', 'More words'], ['button', 'Button'], ['button2', 'Second button']];
   function outlineOf(order, hi) {
     return '<div class="outline">' + order.map(function (k, i) { var s2 = secInfo(k); return '<div' + (i === hi ? ' class="hi"' : '') + '>' + (i + 1) + '. ' + esc(s2 ? headOf(s2).slice(0, 30) : k) + '</div>'; }).join('') + '</div>';
   }

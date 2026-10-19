@@ -227,3 +227,10 @@ button[disabled] { opacity: .45; cursor: default; }
 .msgs .mini > div { min-width: 0; }
 .thread :is(h4, p, ol, li, b, small) { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: normal; text-transform: none; }
 .msgs .note h4 { font-weight: 600; color: var(--w-ink); }
+.msgs .mini .words { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; }
+.msgs .mini .wrow { display: flex; flex-direction: column; gap: 2px; padding: 7px 9px; border-radius: 8px; background: var(--w-surface); box-shadow: 0 0 0 1px var(--w-line); font-size: 13px; line-height: 1.4; }
+.msgs .mini .wlab { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--w-muted); }
+.msgs .mini .wrow s { color: var(--w-muted); text-decoration-thickness: 1px; }
+.msgs .mini .wrow i { color: var(--w-muted); font-style: normal; }
+.msgs .mini .wrow b { font-weight: 600; color: var(--w-ink); }
+.msgs .mini .wrow b::before { content: "\2192\00a0"; color: var(--w-ok); }
