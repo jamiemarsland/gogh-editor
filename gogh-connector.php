@@ -104,7 +104,16 @@ function gogh_connector_tool( $tool, $a ) {
 
 // ---------- the page widget (an MCP app) ------------------------------------
 
-const GOGH_PAGE_WIDGET_URI = 'ui://gogh/page.html';
+// the panel's address carries its version: chats keep a panel they have
+// read before, so a new panel needs a new address
+function gogh_connector_widget_uri() {
+	static $uri = null;
+	if ( null === $uri ) {
+		$h   = md5( (string) @file_get_contents( __DIR__ . '/connector/page-widget.html' ) . (string) @filemtime( __DIR__ . '/connector/gogh-draw.js' ) );
+		$uri = 'ui://gogh/page-' . substr( $h, 0, 10 ) . '.html';
+	}
+	return $uri;
+}
 
 // the address the connector was reached at: the site's own, or a tunnel's
 // or proxy's in front of it — the widget must load the page from there
@@ -131,7 +140,7 @@ function gogh_connector_app_tools() {
 				'properties' => array( 'page_id' => array( 'type' => 'integer', 'description' => 'The page. Leave out for the home page.' ) ),
 			),
 			'annotations' => array( 'readOnlyHint' => true ),
-			'_meta'       => array( 'ui' => array( 'resourceUri' => GOGH_PAGE_WIDGET_URI ) ),
+			'_meta'       => array( 'ui' => array( 'resourceUri' => gogh_connector_widget_uri() ) ),
 		),
 	);
 }
@@ -170,12 +179,12 @@ function gogh_connector_open_page( $args ) {
 	return array(
 		'content'           => array( array( 'type' => 'text', 'text' => sprintf( 'Showing "%s" in the panel. The person can change words, move and remove sections, and publish there. Their edits are saved as they go; read the page again with gogh_read_page before changing it yourself.', $data['page']['title'] ) ) ),
 		'structuredContent' => $data,
-		'_meta'             => array( 'ui' => array( 'resourceUri' => GOGH_PAGE_WIDGET_URI ) ),
+		'_meta'             => array( 'ui' => array( 'resourceUri' => gogh_connector_widget_uri() ) ),
 	);
 }
 
 function gogh_connector_read_resource( $uri ) {
-	if ( GOGH_PAGE_WIDGET_URI !== $uri ) {
+	if ( 0 !== strpos( $uri, 'ui://gogh/page' ) ) {
 		return null;
 	}
 	$pub = gogh_connector_public_origin();
@@ -187,6 +196,7 @@ function gogh_connector_read_resource( $uri ) {
 		'_meta'    => array( 'ui' => array(
 			'csp'           => array(
 				'connectDomains'  => array( $pub ),
+				'baseUriDomains'  => array( $pub ),
 				'resourceDomains' => array( $pub, 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://images.unsplash.com', 'https://raw.githubusercontent.com' ),
 			),
 			'prefersBorder' => true,
@@ -256,7 +266,7 @@ function gogh_connector_message( $msg ) {
 		return $ok( array( 'tools' => array_merge( gogh_connector_app_tools(), $list ) ) );
 	}
 	if ( 'resources/list' === $method ) {
-		return $ok( array( 'resources' => array( array( 'uri' => GOGH_PAGE_WIDGET_URI, 'name' => 'gogh page', 'description' => 'One page of the site, to edit in place.', 'mimeType' => 'text/html;profile=mcp-app' ) ) ) );
+		return $ok( array( 'resources' => array( array( 'uri' => gogh_connector_widget_uri(), 'name' => 'gogh page', 'description' => 'One page of the site, to edit in place.', 'mimeType' => 'text/html;profile=mcp-app' ) ) ) );
 	}
 	if ( 'resources/templates/list' === $method ) {
 		return $ok( array( 'resourceTemplates' => array() ) );

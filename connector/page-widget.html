@@ -234,6 +234,12 @@ button[disabled] { opacity: .45; cursor: default; }
       return r.text();
     }).then(function (html) {
       html = html.split(st.site_origin).join(st.public_origin);
+      // every address in full: a chat may ignore the panel's <base>, and a
+      // site-relative picture or font then looks for itself in the chat
+      var pub = st.public_origin;
+      html = html.replace(/(\s(?:src|href|srcset|poster|data-src)=["'])\/(?!\/)/g, '$1' + pub + '/')
+        .replace(/(,\s*)\/(?!\/)(wp-content|wp-includes)/g, '$1' + pub + '/$2')
+        .replace(/url\((['"]?)\/(?!\/)/g, 'url($1' + pub + '/');
       var doc = new DOMParser().parseFromString(html, 'text/html');
       // the page's own styles join the panel's (scripts never do); root-
       // relative addresses resolve on the site
@@ -410,7 +416,11 @@ button[disabled] { opacity: .45; cursor: default; }
     if (tpl.cls) m = Object.assign(m || {}, { cls: tpl.cls });
     return { scope: scope, els: els, minH: tpl.minH || null, bg: tpl.bg || null, bgImage: G.tplBgFor(tpl) || null, bgA: tpl.bgA != null ? tpl.bgA : null, m: m, divider: null, fx: null, anchor: null };
   }
-  function shown(html) { return st.site_origin === st.public_origin ? html : html.split(st.site_origin).join(st.public_origin); }
+  function shown(html) {
+    var pub = st.public_origin;
+    if (st.site_origin !== pub) html = html.split(st.site_origin).join(pub);
+    return html.replace(/(\s(?:src|srcset)=["'])\/(?!\/)/g, '$1' + pub + '/').replace(/url\((['"]?)\/(?!\/)/g, 'url($1' + pub + '/');
+  }
   function thumb(sec) {
     var css = G.buildCSS(sec.els, sec.scope, sec.minH, { bg: sec.bg, bgImage: sec.bgImage, bgA: sec.bgA });
     var inner = sec.els.map(function (e, i) { return G.makeNode(e, i).outerHTML; }).join('');
