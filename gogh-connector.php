@@ -117,11 +117,12 @@ function gogh_connector_site_origin() {
 }
 
 function gogh_connector_app_tools() {
+	$site = html_entity_decode( get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8' );
 	return array(
 		array(
 			'name'        => 'gogh_open_page',
-			'title'       => 'Open a page',
-			'description' => 'Shows the person one page of their site in the chat, drawn exactly as visitors see it (with any changes not live yet). They can click any words to change them, drag sections to reorder them, remove a section, throw changes away or publish. Use it whenever the person wants to look at or work on a page. Their edits are saved as they go; you will see them with gogh_read_page.',
+			'title'       => sprintf( 'Show a page of %s here in the chat', $site ),
+			'description' => sprintf( 'Shows a page of %s (the person\'s own website) right here in the chat, not in a browser: when they say "open my home page", "show me the about page" or "let me edit the site", this is the tool. ', $site ) . 'The page is drawn exactly as visitors see it (with any changes not live yet). They can click any words to change them, drag sections to reorder them, remove a section, throw changes away or publish. Use it whenever the person wants to look at or work on a page. Their edits are saved as they go; you will see them with gogh_read_page.',
 			'inputSchema' => array(
 				'type'       => 'object',
 				'properties' => array( 'page_id' => array( 'type' => 'integer', 'description' => 'The page. Leave out for the home page.' ) ),
