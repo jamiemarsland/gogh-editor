@@ -25800,6 +25800,9 @@
       if (dismissed && a.modified_gmt <= dismissed) return; // user already said no
       var models = extractModels((a.content && (a.content.raw || a.content.rendered)) || '');
       if (!models.length || !backupDiffers(models)) return; // matches the live page
+      // opened from the site connector's page panel: the changes made there
+      // ARE the work in hand, so the editor starts from them, no question
+      if (/[?&]gogh-restore=1(?:&|$)/.test(location.search)) { restoreAutosave(a); return; }
       // they chose 'keep my changes for later' when they left: welcome back
       var kept = null;
       try { kept = localStorage.getItem(keptKey()); localStorage.removeItem(keptKey()); } catch (e) {}

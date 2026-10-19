@@ -160,6 +160,101 @@ function gogh_connector_app_tools() {
 			'annotations' => array( 'readOnlyHint' => true ),
 			'_meta'       => array( 'ui' => array( 'resourceUri' => gogh_connector_widget_uri() ) ),
 		),
+		array(
+			'name'        => 'gogh_open_editor',
+			'title'       => 'Open gogh\'s editor in the panel',
+			'description' => 'Used by the page panel to open gogh\'s full editor, full screen, for one page.',
+			'inputSchema' => array(
+				'type'       => 'object',
+				'properties' => array( 'page_id' => array( 'type' => 'integer' ) ),
+				'required'   => array( 'page_id' ),
+			),
+			'_meta'       => array( 'ui' => array( 'visibility' => array( 'app' ) ) ),
+		),
+	);
+}
+
+// ---------- the full editor, inside the chat --------------------------------
+//
+// "Open the editor" in the panel shows gogh's real editor, full screen, in a
+// frame of its own on the site's address — every feature, no new editing
+// code. The frame has no WordPress login, so the panel asks for a short-lived
+// editor pass: it signs that frame in as the person the connector acts for,
+// for one page, for 30 minutes. (Experiment: it rides on the stand-in
+// sign-in, and real sign-in must mint these passes before this ships.)
+
+const GOGH_EDITOR_PASS_TTL = 1800;
+
+function gogh_connector_editor_pass( $user_id, $page_id ) {
+	$t = wp_generate_password( 40, false );
+	set_transient( 'gogh_ed_' . hash( 'sha256', $t ), array( 'user' => (int) $user_id, 'page' => (int) $page_id ), GOGH_EDITOR_PASS_TTL );
+	return $t;
+}
+function gogh_connector_pass_user( $t ) {
+	if ( ! is_string( $t ) || strlen( $t ) < 32 || ! preg_match( '/^[A-Za-z0-9]+$/', $t ) ) {
+		return 0;
+	}
+	$p = get_transient( 'gogh_ed_' . hash( 'sha256', $t ) );
+	return is_array( $p ) && ! empty( $p['user'] ) ? (int) $p['user'] : 0;
+}
+// the pass arrives in the address once, then rides a cookie that lives only
+// inside the chat's frame (partitioned), so the editor's own requests and
+// page changes carry it
+add_filter( 'determine_current_user', function ( $user ) {
+	if ( $user ) {
+		return $user;
+	}
+	$t = ! empty( $_GET['gogh-editor'] ) ? (string) $_GET['gogh-editor']
+		: ( ! empty( $_SERVER['HTTP_X_GOGH_EDITOR'] ) ? (string) $_SERVER['HTTP_X_GOGH_EDITOR']
+		: ( ! empty( $_COOKIE['gogh_editor'] ) ? (string) $_COOKIE['gogh_editor'] : '' ) );
+	$u = $t ? gogh_connector_pass_user( $t ) : 0;
+	if ( $u ) {
+		$GLOBALS['gogh_editor_pass'] = $t;
+	}
+	if ( $u && ! empty( $_GET['gogh-editor'] ) && ! headers_sent() ) {
+		header( 'Set-Cookie: gogh_editor=' . $t . '; Path=/; Max-Age=' . GOGH_EDITOR_PASS_TTL . '; Secure; HttpOnly; SameSite=None; Partitioned', false );
+	}
+	return $u ? $u : $user;
+}, 30 );
+
+// a page opened with a pass hands it to its own requests (a frame inside a
+// chat may not keep cookies): every same-site fetch carries it as a header,
+// and links within the site carry it in the address
+add_action( 'wp_head', function () {
+	if ( empty( $GLOBALS['gogh_editor_pass'] ) ) {
+		return;
+	}
+	$t = $GLOBALS['gogh_editor_pass'];
+	echo '<script>(function(t){var f=window.fetch;window.fetch=function(i,o){try{var u=new URL(typeof i==="string"?i:i.url,location.href);if(u.origin===location.origin){o=Object.assign({},o||{});var h=new Headers(o.headers||(typeof i!=="string"&&i.headers)||{});h.set("X-Gogh-Editor",t);o.headers=h;}}catch(e){}return f.call(this,i,o);};' .
+		'var xo=XMLHttpRequest.prototype.open,xs=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.open=function(m,u){try{this.__goghSame=new URL(u,location.href).origin===location.origin;}catch(e){}return xo.apply(this,arguments);};XMLHttpRequest.prototype.send=function(){if(this.__goghSame){try{this.setRequestHeader("X-Gogh-Editor",t);}catch(e){}}return xs.apply(this,arguments);};' .
+		'document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a[href]");if(!a)return;try{var u=new URL(a.href,location.href);if(u.origin===location.origin&&!u.searchParams.get("gogh-editor")){u.searchParams.set("gogh-editor",t);a.href=u.toString();}}catch(x){}},true);' .
+		'})(' . wp_json_encode( $t ) . ');</script>' . "\n";
+}, 0 );
+
+// a frame inside a sandboxed panel may have no origin of its own, so the
+// editor's same-site requests arrive as cross-origin: let the pass through
+add_filter( 'rest_allowed_cors_headers', function ( $h ) {
+	$h[] = 'X-Gogh-Editor';
+	return $h;
+} );
+
+function gogh_connector_open_editor( $args ) {
+	$id   = isset( $args['page_id'] ) ? (int) $args['page_id'] : 0;
+	$post = $id ? get_post( $id ) : null;
+	if ( ! $post || ! current_user_can( 'edit_post', $id ) ) {
+		return array( 'content' => array( array( 'type' => 'text', 'text' => 'There is no page with that id that you can edit.' ) ), 'isError' => true );
+	}
+	$pass = gogh_connector_editor_pass( get_current_user_id(), $id );
+	$args = array( 'gogh-edit' => '1', 'gogh-editor' => $pass );
+	// changes made in the panel and not live yet: the editor starts from them
+	if ( function_exists( 'gogh_ab_pending_backup' ) && gogh_ab_pending_backup( $post ) ) {
+		$args['gogh-restore'] = '1';
+	}
+	$url = add_query_arg( $args, get_permalink( $id ) );
+	$url  = str_replace( gogh_connector_site_origin(), gogh_connector_public_origin(), $url );
+	return array(
+		'content'           => array( array( 'type' => 'text', 'text' => 'The editor is open in the panel.' ) ),
+		'structuredContent' => array( 'editor' => $url, 'minutes' => GOGH_EDITOR_PASS_TTL / 60 ),
 	);
 }
 
@@ -214,6 +309,7 @@ function gogh_connector_read_resource( $uri ) {
 			'csp'           => array(
 				'connectDomains'  => array( $pub ),
 				'baseUriDomains'  => array( $pub ),
+				'frameDomains'    => array( $pub ),
 				'resourceDomains' => array( $pub, 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://images.unsplash.com', 'https://raw.githubusercontent.com' ),
 			),
 			'prefersBorder' => true,
@@ -224,6 +320,9 @@ function gogh_connector_read_resource( $uri ) {
 function gogh_connector_call( $name, $args ) {
 	if ( 'gogh_open_page' === $name ) {
 		return gogh_connector_open_page( $args );
+	}
+	if ( 'gogh_open_editor' === $name ) {
+		return gogh_connector_open_editor( $args );
 	}
 	$tools = gogh_connector_abilities();
 	if ( ! isset( $tools[ $name ] ) ) {

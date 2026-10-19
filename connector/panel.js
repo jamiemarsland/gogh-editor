@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var H = window.goghHost;
-  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"hint\" id=\"hint\">Click any words to change them. Drag a section by its handle to move it. Add a section from the + under any section.</div>\n  <div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
+  document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"hint\" id=\"hint\">Click any words to change them. Drag a section by its handle to move it. Add a section from the + under any section.</div>\n  <div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
   var st = null, busy = 0, frame = null, W = 1280, G = window.goghDraw, info = null;
 
   /* ---------- the chat: the loader holds the conversation ---------- */
@@ -274,6 +274,49 @@
       tell('In the page panel the person removed section ' + n + ' of "' + st.page.title + '".');
     }, oops);
   }
+
+  /* ---------- the full editor, full screen ---------- */
+  // gogh's real editor, in a frame on the site's own address, signed in by a
+  // short-lived pass from the connector: drag, resize, pictures, styles —
+  // everything the editor does, with no new editing code here
+  var editing = false;
+  function editorOn(on) {
+    editing = on;
+    ['pages', 'pill', 'saving', 'discard', 'publish', 'editor'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = on ? 'none' : ''; });
+    document.getElementById('back').hidden = !on;
+    document.getElementById('hint').hidden = on;
+  }
+  function editorHeight() { return Math.max(520, window.innerHeight - document.getElementById('stage').getBoundingClientRect().top - 8); }
+  document.getElementById('editor').onclick = function () {
+    if (!st) return;
+    request('ui/request-display-mode', { mode: 'fullscreen' }).catch(function () {});
+    tool('gogh_open_editor', { page_id: st.page.id }).then(function (d) {
+      saying('');
+      editorOn(true);
+      var stage = document.getElementById('stage');
+      stage.innerHTML = '';
+      var f = document.createElement('iframe');
+      f.src = d.editor;
+      f.title = 'gogh editor';
+      f.setAttribute('allow', 'clipboard-read; clipboard-write; fullscreen');
+      f.style.cssText = 'display:block;width:100%;border:0;height:' + editorHeight() + 'px;background:#fff';
+      stage.style.height = 'auto';
+      stage.appendChild(f);
+      frame = null;
+      setTimeout(function () { f.style.height = editorHeight() + 'px'; sizeUp(); }, 400);
+      tell('The person opened gogh\'s full editor on "' + st.page.title + '" in the panel. Changes made there are saved by the editor itself; read the page again afterwards.');
+    }, oops);
+  };
+  document.getElementById('back').onclick = function () {
+    request('ui/request-display-mode', { mode: 'inline' }).catch(function () {});
+    editorOn(false);
+    // what the editor did is on the site now: start from it
+    tool('gogh_open_page', { page_id: st.page.id }).then(function (d) { saying(''); open(d); }, function () { draw(); });
+  };
+  window.addEventListener('resize', function () {
+    var f = editing && document.querySelector('#stage iframe');
+    if (f) f.style.height = editorHeight() + 'px';
+  });
 
   /* ---------- new sections, drawn with gogh's own code ---------- */
   var INTENTS = [['introduce', 'Introduce'], ['showcase', 'Showcase'], ['sell', 'Sell'], ['share', 'Share']];

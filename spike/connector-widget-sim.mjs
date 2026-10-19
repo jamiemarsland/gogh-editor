@@ -23,6 +23,7 @@ window.addEventListener('message', async function (ev) {
   else if (m.method === 'ui/notifications/size-changed') f.style.height = m.params.height + 'px';
   else if (m.method === 'tools/call') reply(await window.mcpCall(m.params));
   else if (m.method === 'ui/update-model-context') { window.__ctx.push(m.params.content[0].text); reply({}); }
+  else if (m.method === 'ui/request-display-mode') { f.style.width = '1260px'; f.style.height = '860px'; reply({ mode: m.params.mode }); }
 });
 </script></body></html>`;
 fs.writeFileSync(out + '.html', host);
@@ -56,6 +57,42 @@ if (mode === 'design') {
   await w.evaluate((pick) => { [...document.querySelectorAll('.pick .opt')].find((b) => new RegExp(pick).test(b.textContent)).click(); }, process.env.PICK || 'mirror');
   await sleep(6000);
   console.log('after design', JSON.stringify(await info()));
+}
+if (mode === 'editor') {
+  await p.setViewport({ width: 1300, height: 900 });
+  await w.evaluate(() => { document.getElementById('editor').click(); });
+  await sleep(14000);
+  const ed = p.frames().find((x) => /gogh-editor=/.test(x.url()));
+  console.log('editor frame', !!ed);
+  if (ed) console.log('editor', JSON.stringify(await ed.evaluate(() => ({ editing: document.documentElement.classList.contains('gogh-editing'), sections: window.__gogh ? window.__gogh.sections().length : -1, user: !!document.getElementById('wpadminbar'), title: document.title }))));
+  // a real REST call from inside the editor, as the signed-in person
+  if (ed) console.log('rest', await ed.evaluate(async () => { const out = [];
+    for (const [k, fn] of [['plain', () => fetch('/wp-json/')], ['edit', () => fetch('/wp-json/wp/v2/pages/6?context=edit')], ['xhr', () => new Promise((res) => { const x = new XMLHttpRequest(); x.open('GET', '/wp-json/wp/v2/pages/6?context=edit'); x.onload = () => res({ status: x.status }); x.onerror = () => res({ status: 'xhr-error' }); x.send(); })]]) {
+      try { const r = await fn(); out.push(k + ':' + r.status); } catch (e) { out.push(k + ':' + e.message); } }
+    return out.join(' | '); }));
+}
+if (mode === 'editor-publish') {
+  await p.setViewport({ width: 1300, height: 900 });
+  await w.evaluate(() => { document.getElementById('editor').click(); });
+  await sleep(14000);
+  const ed = p.frames().find((x) => /gogh-editor=/.test(x.url()));
+  // change the first heading through the editor itself, then its own Publish
+  console.log('publish', await ed.evaluate(async () => { const G = window.__gogh; const s0 = G.sections()[0]; const h = s0.els.find((e) => e.type === 'heading'); h.text = 'Watch us throw on Tuesdays'; G.renderSection(s0); G.pushState(); const ok = await G.publish(); return String(ok); }));
+  await sleep(2000);
+  await p.screenshot({ path: out + '-editor.png' });
+  await w.evaluate(() => { document.getElementById('back').click(); });
+  await sleep(6000);
+  console.log('after', JSON.stringify(await info()));
+  const live = await (await fetch('http://localhost:9007/studio/?x=' + Date.now())).text();
+  console.log('live has it', /Watch us throw on Tuesdays/.test(live));
+}
+if (mode === 'editor-restore') {
+  await p.setViewport({ width: 1300, height: 900 });
+  await w.evaluate(() => { document.getElementById('editor').click(); });
+  await sleep(16000);
+  const ed = p.frames().find((x) => /gogh-editor=/.test(x.url()));
+  console.log('restore in url', /gogh-restore=1/.test(ed.url()));
+  console.log('editor shows', JSON.stringify(await ed.evaluate(() => window.__gogh.sections().map((s) => (s.els.find((e) => e.type === 'heading') || {}).text))));
 }
 if (mode === 'edit') {
   // type over the hero's heading
