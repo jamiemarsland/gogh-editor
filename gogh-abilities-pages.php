@@ -56,6 +56,7 @@ function gogh_pg_save_blocks( $blocks ) {
 // is simply updated
 function gogh_pg_keep( $post, $content, $what = '' ) {
 	gogh_pg_admin_post();
+	$content = gogh_pg_own_addresses( $content );
 	if ( '' !== $what ) {
 		gogh_pg_log( $post, $what );
 	}
@@ -70,6 +71,24 @@ function gogh_pg_keep( $post, $content, $what = '' ) {
 	}
 	$r = wp_update_post( wp_slash( array( 'ID' => $post->ID, 'post_content' => $content, 'page_template' => '' ) ), true );
 	return is_wp_error( $r ) ? $r : true;
+}
+
+// what is saved names the site by its own address: a panel reached through
+// another address (a tunnel, a proxy) sees pictures there, and a section it
+// draws would otherwise keep that address after the tunnel is gone
+function gogh_pg_own_addresses( $content ) {
+	if ( ! function_exists( 'gogh_connector_public_origin' ) ) {
+		return $content;
+	}
+	$pub  = gogh_connector_public_origin();
+	$site = gogh_connector_site_origin();
+	if ( ! $pub || $pub === $site ) {
+		return $content;
+	}
+	$host = preg_replace( '#^https?://#', '', $pub );
+	$from = array( 'https://' . $host, 'http://' . $host, 'https:\\/\\/' . $host, 'http:\\/\\/' . $host );
+	$to   = array( $site, $site, str_replace( '/', '\\/', $site ), str_replace( '/', '\\/', $site ) );
+	return str_replace( $from, $to, (string) $content );
 }
 
 // ---------- the change list ---------------------------------------------------
@@ -1063,6 +1082,42 @@ add_action( 'wp_abilities_api_init', function () {
 	) );
 } );
 
+// each section of the page as it stands, against the live page: the panel
+// marks every part that is not live yet, whoever changed it
+function gogh_pg_diff( $post, $content ) {
+	$live = array();
+	$order = array();
+	foreach ( gogh_pg_blocks( $post->post_content ) as $k => $b ) {
+		if ( ! empty( $b['attrs']['scope'] ) ) {
+			$live[ $b['attrs']['scope'] ] = md5( serialize_block( $b ) );
+			$order[] = $b['attrs']['scope'];
+		}
+	}
+	$out = array();
+	$now = array();
+	foreach ( gogh_pg_blocks( $content ) as $b ) {
+		if ( ! empty( $b['attrs']['scope'] ) ) {
+			$now[] = $b['attrs']['scope'];
+		}
+	}
+	$kept = array_values( array_intersect( $order, $now ) );
+	$here = array_values( array_intersect( $now, $order ) );
+	foreach ( gogh_pg_blocks( $content ) as $b ) {
+		$key = isset( $b['attrs']['scope'] ) ? $b['attrs']['scope'] : '';
+		if ( '' === $key || 'publish' !== $post->post_status ) {
+			continue;
+		}
+		if ( ! isset( $live[ $key ] ) ) {
+			$out[] = array( 'key' => $key, 'is' => 'new' );
+		} elseif ( $live[ $key ] !== md5( serialize_block( $b ) ) ) {
+			$out[] = array( 'key' => $key, 'is' => 'changed' );
+		} elseif ( array_search( $key, $kept, true ) !== array_search( $key, $here, true ) ) {
+			$out[] = array( 'key' => $key, 'is' => 'moved' );
+		}
+	}
+	return $out;
+}
+
 // a preview link shows the page with its pending changes, to anyone holding
 // the token, for two hours — nothing else about the site changes
 add_filter( 'the_posts', function ( $posts, $q ) {
@@ -1092,7 +1147,8 @@ add_filter( 'the_posts', function ( $posts, $q ) {
 		return $posts;
 	}
 	$pending = gogh_ab_pending_backup( $posts[0] );
-	$content = $pending ? $pending->post_content : $posts[0]->post_content;
+	// gogh-live: the page as visitors see it now, for comparing
+	$content = ( $pending && empty( $_GET['gogh-live'] ) ) ? $pending->post_content : $posts[0]->post_content;
 	// the page widget needs to know which drawn part is which section: a
 	// marker comment before each top-level block (comments draw nothing)
 	if ( ! empty( $_GET['gogh-widget'] ) ) {
@@ -1177,7 +1233,19 @@ add_action( 'init', function () {
 	}
 	$content = gogh_pg_current( $post );
 	$latest  = (string) get_transient( 'gogh_pv_latest_' . $id );
+	// one live section, to put back as it was ("use my old one")
+	if ( ! empty( $_GET['gogh-block'] ) ) {
+		$want = sanitize_key( wp_unslash( $_GET['gogh-block'] ) );
+		foreach ( gogh_pg_blocks( $post->post_content ) as $k => $b ) {
+			if ( isset( $b['attrs']['scope'] ) && $b['attrs']['scope'] === $want ) {
+				wp_send_json( array( 'block' => serialize_block( $b ), 'at' => $k + 1 ) );
+			}
+		}
+		wp_send_json( array( 'block' => null ) );
+	}
 	wp_send_json( array(
+		// how each section differs from the live page: new, changed, moved
+		'sections' => gogh_pg_diff( $post, $content ),
 		'stamp'   => md5( $content . '|' . $post->post_status . '|' . get_post_meta( $id, '_gogh_compose', true ) ),
 		'status'  => $post->post_status,
 		'pending' => (bool) gogh_ab_pending_backup( $post ),

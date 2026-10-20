@@ -4,17 +4,15 @@
   var H = window.goghHost;
   document.getElementById('gw-root').innerHTML = "<div class=\"w\" id=\"w\">\n  <div class=\"bar\">\n    <select id=\"pages\" aria-label=\"Page\"></select>\n    <span class=\"pill\" id=\"pill\">Live</span>\n    <span class=\"saving\" id=\"saving\" aria-live=\"polite\"></span>\n    <button class=\"go\" id=\"exploreBtn\" type=\"button\" hidden>Explore this section</button><button class=\"chip\" id=\"editor\" type=\"button\">Open the editor</button><button class=\"chip\" id=\"back\" type=\"button\" hidden>Back to the page</button><button class=\"chip\" id=\"changes\" type=\"button\" hidden>0 changes</button><button class=\"chip\" id=\"discard\" type=\"button\" hidden>Throw away changes</button>\n    <button class=\"go\" id=\"publish\" type=\"button\" hidden>Publish</button>\n  </div>\n  <div class=\"ask\" id=\"ask\" role=\"alertdialog\" aria-live=\"assertive\"><span id=\"askText\"></span><button class=\"chip\" id=\"askNo\" type=\"button\">Cancel</button><button class=\"go\" id=\"askYes\" type=\"button\">Yes</button></div>\n  <div class=\"choices\" id=\"choices\" hidden></div><div class=\"log\" id=\"log\" hidden><ol id=\"logList\"></ol><div class=\"logBar\"><button class=\"chip\" id=\"undo\" type=\"button\">Undo the latest</button><button class=\"chip\" id=\"logClose\" type=\"button\">Close</button></div></div><div class=\"stale\" id=\"stale\" hidden>There\u2019s a newer view of this page below. This one no longer takes edits.</div><div class=\"hint\" id=\"hint\">Tap Do it on Claude\u2019s notes, or change things yourself: click any words to type over them, drag a section by its handle to move it.</div>\n  <div class=\"explore\" id=\"explore\" hidden></div><div class=\"pick\" id=\"pick\" hidden>\n    <div class=\"head\"><span id=\"pickTitle\">Add a section</span><button class=\"chip\" id=\"pickClose\" type=\"button\">Cancel</button></div>\n    <div class=\"tabs\" id=\"pickTabs\"></div>\n    <div class=\"grid\" id=\"pickGrid\"></div>\n  </div>\n  <div class=\"stage\" id=\"stage\"><div class=\"msg\" id=\"msg\">Opening your page\u2026</div></div>\n</div>";
   var st = null, busy = 0, frame = null, W = 1280, G = window.goghDraw, info = null;
-  // the page and Claude's notes side by side (stacked when the chat is narrow)
-  (function besideThePage() {
+  // the page, with a place for what Claude changed, and Now / Claude's version
+  (function versionParts() {
     var w = document.getElementById('w'), stage = document.getElementById('stage');
-    var duo = document.createElement('div'); duo.className = 'duo'; duo.id = 'duo';
     var col = document.createElement('div'); col.className = 'pagecol'; col.id = 'pagecol';
-    var th = document.createElement('aside'); th.className = 'thread'; th.id = 'thread'; th.setAttribute('aria-label', 'Claude\u2019s notes');
-    th.innerHTML = '<div class="th-head"><span class="me" aria-hidden="true"></span><div><b>Claude</b><small>Your page\u2019s editor</small></div></div>' +
-      '<div class="msgs" id="msgs" aria-live="polite"></div>' +
-      '<div class="th-foot"><div class="about" id="about" hidden></div><div class="quick"><button class="chip" type="button" id="undoThat">Undo that</button></div>' +
-      '<p class="tip">Anything else? Tell Claude in the chat. Tap part of your page first and say \u201cthis\u201d.</p></div>';
-    w.insertBefore(duo, stage); col.appendChild(stage); duo.appendChild(col); duo.appendChild(th);
+    var pop = document.createElement('div'); pop.className = 'vpop'; pop.id = 'vpop'; pop.hidden = true; pop.setAttribute('role', 'dialog');
+    w.insertBefore(col, stage); col.appendChild(stage); col.appendChild(pop);
+    var seg = document.createElement('span'); seg.className = 'vseg'; seg.id = 'vseg'; seg.hidden = true; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Compare');
+    seg.innerHTML = '<button type="button" id="vNow" aria-pressed="false">Now</button><button type="button" id="vMine" aria-pressed="true">Claude\u2019s version</button>';
+    var bar = document.querySelector('#w > .bar'); bar.insertBefore(seg, document.getElementById('publish'));
   })();
   (function simplerBar() {
     var bar = document.querySelector('#w > .bar'), pub = document.getElementById('publish');
@@ -68,9 +66,7 @@
     }
     var ch = st.changes || [];
     if (ch.length) lines.push('Changes not live yet (oldest first): ' + ch.map(function (c) { return (c.who === 'you' ? 'the person' : 'you') + ': ' + c.what; }).join('; ') + '.');
-    if (ed.notes.length) {
-      lines.push('Beside the page the panel shows your notes as a conversation' + (ed.goal ? ' (you read the page for: ' + ed.goal + ')' : '') + ': ' + ed.notes.map(function (n, i) { return (i + 1) + '. ' + n.q + ' (' + (ed.done[i] ? 'done' : ed.skipped[i] ? 'not now' : i === ed.cur ? 'showing now' : 'waiting') + ')'; }).join('; ') + '. When the person taps Do it the panel makes the change; do not make it yourself. If they ask for something else, do it with your tools: the panel shows it in the conversation. For new notes, call gogh_prepare_choices again (it replaces these).');
-    } else lines.push('There are no notes beside the page yet. Right after opening a page, or when the person wants it better, read it and look at it as a visitor would and send your notes with gogh_prepare_choices: one card per note, most helpful first, with the goal you read the page for.');
+    versionContext(lines);
     if (st.exploring && ex) lines.push(st.exploring);
     lines.push('If the person says "explore this", asks for options or versions, or says "more like this", answer by calling gogh_explore for the section they are pointing at (or exploring): 3 to 5 genuinely different versions of its words and up to two dials. The panel shows them; do not change the page yourself.');
     if (lastNote) lines.push('Latest in the panel: ' + lastNote);
@@ -94,7 +90,6 @@
   function saying(t) { document.getElementById('saving').textContent = t || ''; }
   function showChanges(list) {
     st.changes = list || [];
-    receipts(st.changes);
     var b = document.getElementById('changes'), n = st.changes.length;
     b.hidden = !n || editing;
     b.textContent = n + (n === 1 ? ' change' : ' changes');
@@ -169,7 +164,7 @@
 
   /* ---------- the page ---------- */
   function open(d) {
-    if (!ed.page || ed.page !== d.page.id) resetNotes(d.page.id);
+    if (!vs.page || vs.page !== d.page.id) resetVersion(d.page.id);
     st = d;
     var sel = document.getElementById('pages');
     sel.innerHTML = '';
@@ -186,6 +181,7 @@
     // sections waiting in words are drawn once the page is on screen, so
     // their names never clash with the sections already there
     st.waiting = (G && d.compose && d.compose.sections && d.compose.sections.length) ? d.compose.sections : null;
+    viewBar(); probeModes();
     draw();
   }
   // sections the agent described in words: drawn here with gogh's own code,
@@ -230,7 +226,7 @@
         if (!d) return;
         if (d.newer) { goStale(); return; }
         if (d.deck) takeDeck(d.deck);
-        if (!ed.looked) { ed.looked = true; if (!ed.notes.length) intro(); }
+        if (d.sections) diffs(d.sections);
         if (st.seenRound == null) st.seenRound = d.explore ? d.explore.round : 0;
         else if (d.explore) exploreRound(d.explore);
         showChanges(d.changes);
@@ -331,8 +327,10 @@
     });
   }
   function draw() {
-    var keep = window.scrollY;
-    fetch(st.preview + '&t=' + Date.now(), { credentials: 'omit' }).then(function (r) {
+    var keep = window.scrollY, nowView = vs.view === 'now';
+    // what each section is comes from the site at the same time as the page
+    var rrP = reread();
+    fetch(st.preview + (nowView ? '&gogh-live=1' : '') + '&t=' + Date.now(), { credentials: 'omit' }).then(function (r) {
       if (!r.ok) throw new Error('The page did not load (' + r.status + ').');
       return r.text();
     }).then(function (html) {
@@ -367,10 +365,12 @@
       stage.innerHTML = '';
       stage.appendChild(page);
       frame = page;
-      reread().then(function () {
+      rrP.then(function () {
+        // Now is to look at: nothing there takes edits
+        if (nowView) { page.addEventListener('click', function (ev) { var a = ev.target.closest && ev.target.closest('a'); if (a) ev.preventDefault(); }, true); sections(page); fit(); setTimeout(fit, 800); return; }
         wire(page);
         flashChanged();
-        pins();
+        dots();
         if (st.snapAt) { var at = st.snapAt; st.snapAt = null; var el2 = document.querySelector('#gw-page [data-gw-sec="' + at + '"]'); if (el2) snap(el2); }
         if (st.stale) goStale();
         if (st.waiting) { var l = st.waiting; st.waiting = null; compose(l); }
@@ -406,7 +406,7 @@
     page.addEventListener('click', function (ev) { var a = ev.target.closest && ev.target.closest('a'); if (a) ev.preventDefault(); }, true);
     // point and say: what they click is what "this" means to the agent
     page.addEventListener('click', function (ev) {
-      if (!ev.target.closest || ev.target.closest('.gw-tools, .gw-seam, .gw-empty, .gw-pin')) return;
+      if (!ev.target.closest || ev.target.closest('.gw-tools, .gw-seam, .gw-empty, .gw-dot')) return;
       var sec = ev.target.closest('[data-gw-sec]');
       choose(sec, sec && ev.target.closest('[class*="gogh-el-"]'));
     });
@@ -714,143 +714,169 @@
     sizeUp();
   }
 
-  /* ---------- Claude as the page's editor ---------- */
-  // Claude reads the page for a goal and sends a few notes, most helpful
-  // first (gogh_prepare_choices). They arrive here as a conversation beside
-  // the page, numbered on the page too: each with the section now and with
-  // the fix, and Do it / Another way / Not now. Every change, whoever made
-  // it, gets a receipt here while the page lights it up. What the person
-  // wants beyond the notes they say to Claude in the chat itself: the panel
-  // never writes in their message box
-  var ed = { page: null, notes: [] }, full = false;
-  function resetNotes(pageId) {
-    ed = { page: pageId, goal: '', notes: [], done: {}, skipped: {}, opt: {}, cur: -1, seen: null, seenCh: null, applying: 0, stack: [], looked: false };
-    var m = document.getElementById('msgs'); if (m) m.innerHTML = '';
-    layout();
+  /* ---------- Claude's version ---------- */
+  // One conversation: the chat's own. Claude makes a whole better version of
+  // the page (its notes, gogh_prepare_choices, all applied at once); the
+  // panel shows that version, numbers every part that is not live yet —
+  // whoever changed it — and the person flips to Now to compare or puts any
+  // part back. Changes appear on the page the moment they are made (drawn
+  // here with gogh's own code) and save behind
+  var vs = { page: null, view: 'mine', diff: [], notes: {}, seen: null, open: null }, full = false, probed = false;
+  function resetVersion(pageId) {
+    vs = { page: pageId, view: 'mine', diff: [], notes: {}, seen: null, open: null };
+    viewBar(); layout();
   }
+  function about() {}
   function layout() {
     var w = document.getElementById('w'); if (!w) return;
-    w.classList.toggle('side', window.innerWidth >= 720);
     w.classList.toggle('full', full);
     var sb = document.getElementById('sideBtn');
     if (sb) { sb.hidden = editing; sb.textContent = full ? 'Back to the chat' : 'Full screen'; }
-    // in full screen the chat's own message box sits just below the notes:
-    // point at it (a panel cannot hold the chat's box, and never types in it)
     var ins = H.context && H.context.safeAreaInsets;
     w.style.setProperty('--gw-safe-b', (ins && ins.bottom > 0 ? ins.bottom : 104) + 'px');
-    var tip = document.querySelector('.th-foot .tip');
-    if (tip) tip.textContent = full ? 'Anything else? Type to Claude in the box below \u2193 Tap part of your page first and say \u201cthis\u201d.' : 'Anything else? Tell Claude in the chat. Tap part of your page first and say \u201cthis\u201d.';
   }
   document.getElementById('sideBtn').onclick = function () {
     request('ui/request-display-mode', { mode: full ? 'inline' : 'fullscreen' }).then(function (r) {
-      full = !!(r && r.mode === 'fullscreen'); layout(); fit(); fitLive(); fitThumbs();
+      full = !!(r && r.mode === 'fullscreen'); layout(); fit();
     }, function () {});
   };
-  function say(who, html) {
-    var box = document.getElementById('msgs');
-    var m = document.createElement('div');
-    m.className = 'm ' + who;
-    m.innerHTML = html;
-    box.appendChild(m);
-    box.scrollTop = box.scrollHeight;
-    fitLive(); fitThumbs(); sizeUp();
-    return m;
+  // TEMPORARY check: which ways the chat can show this panel (inline, full
+  // screen, picture in picture), reported to the test site's log
+  function probeModes() {
+    if (probed || !st) return;
+    probed = true;
+    var c = H.context || {};
+    var out = { displayMode: c.displayMode, available: c.availableDisplayModes, dims: c.containerDimensions, platform: c.platform, keys: Object.keys(c), w: window.innerWidth, h: window.innerHeight };
+    try { fetch(st.public_origin + '/?gogh-probe=' + encodeURIComponent('MODES ' + JSON.stringify(out)), { mode: 'no-cors' }).catch(function () {}); } catch (e) {}
   }
-  function you(text) { say('you', esc(text)); }
-  function retire() { [].forEach.call(document.querySelectorAll('#msgs .note button'), function (b) { b.disabled = true; }); }
-  function about(label) {
-    var a = document.getElementById('about'); if (!a) return;
-    a.hidden = !label; a.textContent = label ? 'You’re pointing at ' + label.replace(/ \(in the full editor\)$/, '') : '';
+  function viewBar() {
+    var seg = document.getElementById('vseg'); if (!seg || !st) return;
+    seg.hidden = !st.page || st.page.status !== 'publish' || (!vs.diff.length && vs.view !== 'now');
+    document.getElementById('vNow').setAttribute('aria-pressed', vs.view === 'now');
+    document.getElementById('vMine').setAttribute('aria-pressed', vs.view !== 'now');
+    var h = document.getElementById('hint');
+    if (h) h.textContent = vs.view === 'now' ? 'This is your page as visitors see it now. Flip back to Claude’s version to keep working.'
+      : vs.diff.length ? 'Numbers mark what is not live yet. Tap one to keep it or put back your old one, or flip to Now to compare. Click any words to change them yourself.'
+      : 'Ask Claude to make this page better, or click any words to change them yourself.';
   }
-  function intro() {
-    say('claude', '<p>I’m your page’s editor. Ask me in the chat what would make this page better: I’ll read it the way a visitor would, and my notes will appear here, numbered on your page.</p>');
-  }
-  function secName(key) {
-    var s2 = secInfo(key); if (!s2) return 'that section';
-    var h = headOf(s2);
-    return h && h !== s2.design ? '“' + h.slice(0, 40) + (h.length > 40 ? '…' : '') + '”' : 'the ' + (s2.design || 'section');
-  }
-  // cards that share a section and a question are one note, other ways to fix it
-  function takeDeck(dk) {
-    if (ed.seen == null) ed.seen = dk.at && (Date.now() / 1000 - dk.at) > 600 ? dk.round : 0;
-    if (dk.round <= ed.seen) return;
-    ed.seen = dk.round;
-    var list = [], at = {};
-    (dk.cards || []).forEach(function (c) {
-      if (!secInfo(c.key)) return;
-      var id = c.key + '|' + c.q;
-      if (at[id] == null) { at[id] = list.length; list.push({ key: c.key, q: c.q, hint: c.hint, fixes: [] }); }
-      list[at[id]].fixes.push(c);
-    });
-    if (!list.length) return;
-    retire();
-    var again = ed.notes.length > 0;
-    ed.notes = list; ed.done = {}; ed.skipped = {}; ed.opt = {}; ed.cur = -1; ed.goal = dk.goal || '';
-    say('claude', '<p>' + (again ? 'Here are ' + list.length + ' new ' + (list.length === 1 ? 'note' : 'notes') : 'I read your page' + (ed.goal ? ' as someone who wants to ' + esc(ed.goal.replace(/^to /i, '')) : ' the way a visitor would') + '. ' + list.length + (list.length === 1 ? ' thing' : ' things') + ' would help most') + ', most helpful first. They’re numbered on your page too.</p>' +
-      '<ol class="list">' + list.map(function (n, i) { return '<li><span class="num">' + (i + 1) + '</span><span>' + esc(n.q) + '</span></li>'; }).join('') + '</ol>');
-    pins();
-    setTimeout(function () { offer(0); }, 500);
+  function setView(v) {
+    if (vs.view === v) return;
+    vs.view = v; closePop(); viewBar(); draw();
     pushContext();
   }
-  function nextNote(from) {
-    for (var i = 0; i < ed.notes.length; i++) { var k = (from + i) % ed.notes.length; if (!ed.done[k] && !ed.skipped[k]) return k; }
-    return -1;
+  document.getElementById('vNow').onclick = function () { setView('now'); };
+  document.getElementById('vMine').onclick = function () { setView('mine'); };
+
+  // what differs from the live page, from the site (every few seconds)
+  function diffs(list) {
+    var sig = JSON.stringify(list || []);
+    if (sig === vs.sig) return;
+    vs.sig = sig; vs.diff = list || [];
+    if (vs.open && !vs.diff.some(function (d) { return d.key === vs.open; })) closePop();
+    dots(); viewBar(); pushContext();
   }
-  function mini(n, f, i) {
+  function secEl(key) {
+    var el = null;
+    [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (x) { if (!el && secKey(x) === key) el = x; });
+    return el;
+  }
+  function diffOf(key) { return vs.diff.filter(function (d) { return d.key === key; })[0]; }
+  function dots() {
+    [].forEach.call(document.querySelectorAll('#gw-page .gw-dot'), function (p) { p.remove(); });
+    if (vs.view === 'now' || !frame) return;
+    var n = 0;
+    [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (el) {
+      var key = secKey(el); if (!diffOf(key)) return;
+      var num = ++n, b = document.createElement('button');
+      b.type = 'button'; b.className = 'gw-dot' + (vs.open === key ? ' open' : '');
+      b.setAttribute('contenteditable', 'false');
+      b.setAttribute('aria-label', 'Change ' + num + ': what changed here');
+      b.textContent = String(num);
+      b.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); if (vs.open === key) closePop(); else openPop(key, num); };
+      el.appendChild(b);
+    });
+    if (vs.open) placePop();
+  }
+  function closePop() { vs.open = null; var p = document.getElementById('vpop'); if (p) { p.hidden = true; p.innerHTML = ''; } [].forEach.call(document.querySelectorAll('#gw-page .gw-dot.open'), function (d) { d.classList.remove('open'); }); }
+  function placePop() {
+    var p = document.getElementById('vpop'), el = secEl(vs.open), stage = document.getElementById('stage');
+    if (!p || !el || !stage) return;
+    var k = stage.clientWidth / W;
+    p.style.top = (stage.offsetTop + el.offsetTop * k + 46) + 'px';
+  }
+  function openPop(key, num) {
+    var d = diffOf(key); if (!d) return;
+    vs.open = key;
+    var note = vs.notes[key], s2 = secInfo(key);
+    var name = s2 ? (headOf(s2) || s2.design || 'this section') : 'this section';
+    var title = note ? note.lb : d.is === 'new' ? 'A new section' : d.is === 'moved' ? 'Moved' : 'Changed';
+    var why = note ? note.q + (note.hint ? ' ' + note.hint : '') : (d.is === 'new' ? 'It is not on your live page yet.' : d.is === 'moved' ? 'It sits somewhere else on your live page.' : 'Your live page still has the old version.');
+    var p = document.getElementById('vpop');
+    p.innerHTML = '<div class="vp-n">' + num + '</div><div><h4>' + esc(title) + '</h4><p>' + esc(why) + '</p><div class="row"><button class="go" type="button" data-keep>Keep it</button><button class="chip" type="button" data-back>' + (d.is === 'new' ? 'Take it out' : 'Use my old one') + '</button></div></div>';
+    p.hidden = false;
+    p.querySelector('[data-keep]').onclick = function () { closePop(); tell('The person kept your change to "' + name + '".'); };
+    p.querySelector('[data-back]').onclick = function () { putBack(key, d, name); };
+    [].forEach.call(document.querySelectorAll('#gw-page .gw-dot'), function (b) { b.classList.toggle('open', b.textContent === String(num)); });
+    placePop(); sizeUp();
+  }
+  // "use my old one": the section as it is live goes back in its live place;
+  // a section that is not live at all comes out
+  function putBack(key, d, name) {
+    closePop();
+    var m = /gogh-preview=([A-Za-z0-9]+)/.exec(st.preview || '');
+    var el = secEl(key);
+    if (el && d.is === 'new') el.style.display = 'none';
+    saying('Putting it back…');
+    var p = d.is === 'new' ? tool('gogh_remove_section', { page_id: st.page.id, section_key: key })
+      : fetch(st.public_origin + '/?gogh-state=' + (m && m[1]) + '&gogh-block=' + encodeURIComponent(key) + '&t=' + Date.now(), { credentials: 'omit' }).then(function (r) { return r.json(); }).then(function (j) {
+        if (!j || !j.block) throw new Error('That part is not on your live page.');
+        var steps = d.is === 'moved' ? Promise.resolve() : tool('gogh_replace_section', { page_id: st.page.id, section_key: key, blocks: j.block });
+        return steps.then(function () { return keysNow().indexOf(key) + 1 !== j.at ? tool('gogh_move_section', { page_id: st.page.id, section_key: key, to: j.at }) : null; });
+      });
+    p.then(function () {
+      delete vs.notes[key];
+      vs.diff = vs.diff.filter(function (x) { return x.key !== key; }); vs.sig = null;
+      status(true); saying('Put back.'); draw();
+      tell('In the panel the person put back their live version of "' + name + '" (section_key ' + key + ').');
+    }, function (e) { if (el) el.style.display = ''; oops(e); });
+  }
+
+  // a change drawn on the page at once, with gogh's own code, before the
+  // site has saved it
+  function onPage(f) {
+    var el = secEl(f.key); if (!el) return;
     var b = f.b || {};
-    if (b.after) {
-      var now = keysNow(), moved = now.filter(function (k) { return k !== f.key; }), to = b.after === 'top' ? 0 : moved.indexOf(b.after) + 1;
-      moved.splice(Math.max(0, to), 0, f.key);
-      return '<div><div class="lab">Now</div>' + outlineOf(now, now.indexOf(f.key)) + '</div><div><div class="lab">With the fix</div>' + outlineOf(moved, moved.indexOf(f.key)) + '</div>';
+    if (Object.keys(b).some(function (k) { return k !== 'after'; })) {
+      var sec = cardSec(f, 'gw-now-' + f.key.replace(/[^a-z0-9-]/gi, ''));
+      if (sec) {
+        var css = G.buildCSS(sec.els, sec.scope, sec.minH, { bg: sec.bg, bgImage: sec.bgImage, bgA: sec.bgA });
+        var inner = sec.els.map(function (e, i) { return G.makeNode(e, i).outerHTML; }).join('');
+        // the section keeps its wrapper and its name (data-gogh-scope); its
+        // inside is redrawn, wearing a scope of its own so the old rules let go
+        var inside = el.querySelector('[data-gogh-scope]');
+        if (inside) {
+          inside.className = 'gogh-section ' + sec.scope;
+          inside.innerHTML = shown(inner);
+          var sty = document.createElement('style'); sty.textContent = shown(css);
+          el.insertBefore(sty, el.firstChild);
+        }
+      }
     }
-    // new words read best as words: what it says now, and what it would say
-    var was = wordsOf(secInfo(n.key) || {}), rows = '';
-    WORD_FIELDS.forEach(function (fl) {
-      if (b[fl[0]] == null || b[fl[0]] === was[fl[0]]) return;
-      rows += '<div class="wrow"><span class="wlab">' + fl[1] + '</span>' + (was[fl[0]] ? '<s>' + esc(was[fl[0]]) + '</s>' : '<i>Nothing yet</i>') + '<b>' + esc(b[fl[0]]) + '</b></div>';
-    });
-    var looks = ['take', 'face', 'ground'].some(function (k) { return b[k]; });
-    if (!looks) return rows ? '<div class="words">' + rows + '</div>' : '';
-    var sec = cardSec(f, 'gw-n' + i + '-' + (ed.opt[i] || 0));
-    return '<div><div class="lab">Now</div>' + asIs(n.key) + '</div><div><div class="lab">With the fix</div>' + (sec ? thumb(sec) : '') + '</div>' + (rows ? '<div class="words">' + rows + '</div>' : '');
+    if (b.after) {
+      var to = b.after === 'top' ? null : secEl(b.after);
+      var first = document.querySelector('#gw-page [data-gw-sec]');
+      if (b.after === 'top' && first && first !== el) first.parentNode.insertBefore(el, first);
+      else if (to && to !== el) to.parentNode.insertBefore(el, to.nextSibling);
+    }
+    el.classList.remove('gw-flash'); void el.offsetWidth; el.classList.add('gw-flash');
+    if (!diffOf(f.key)) vs.diff.push({ key: f.key, is: 'changed' });
+    dots(); fit();
   }
-  var WORD_FIELDS = [['eyebrow', 'Small heading'], ['heading', 'Heading'], ['text', 'Words'], ['text2', 'More words'], ['button', 'Button'], ['button2', 'Second button']];
-  function outlineOf(order, hi) {
-    return '<div class="outline">' + order.map(function (k, i) { var s2 = secInfo(k); return '<div' + (i === hi ? ' class="hi"' : '') + '>' + (i + 1) + '. ' + esc(s2 ? headOf(s2).slice(0, 30) : k) + '</div>'; }).join('') + '</div>';
-  }
-  function offer(i) {
-    if (i < 0) { finish(); return; }
-    var n = ed.notes[i];
-    if (!secInfo(n.key)) { ed.skipped[i] = true; offer(nextNote(i + 1)); return; }
-    ed.cur = i; pins();
-    var f = n.fixes[ed.opt[i] || 0];
-    var m = say('claude', '<div class="note"><h4><span class="num">' + (i + 1) + '</span>' + esc(n.q) + '</h4>' + (n.hint ? '<p class="why">' + esc(n.hint) + '</p>' : '') +
-      '<p class="why">My suggestion: <b data-label>' + esc(f.lb || 'A new version') + '</b></p><div class="mini" data-mini>' + mini(n, f, i) + '</div>' +
-      '<div class="btns"><button class="go" type="button" data-do>Do it</button>' + (n.fixes.length > 1 ? '<button class="chip" type="button" data-other>Another way</button>' : '') + '<button class="chip" type="button" data-not>Not now</button></div></div>');
-    m.querySelector('[data-do]').onclick = function () { doIt(i); };
-    m.querySelector('[data-not]').onclick = function () {
-      retire(); you('Not now'); ed.skipped[i] = true;
-      tell('The person said "not now" to your note ' + (i + 1) + ' ("' + n.q + '").');
-      offer(nextNote(i + 1));
-    };
-    var other = m.querySelector('[data-other]');
-    if (other) other.onclick = function () {
-      ed.opt[i] = ((ed.opt[i] || 0) + 1) % n.fixes.length;
-      var f2 = n.fixes[ed.opt[i]];
-      m.querySelector('[data-label]').textContent = f2.lb || 'Another version';
-      m.querySelector('[data-mini]').innerHTML = mini(n, f2, i);
-      fitLive(); fitThumbs(); setTimeout(function () { fitLive(); fitThumbs(); }, 300);
-    };
-    setTimeout(function () { fitLive(); fitThumbs(); }, 300);
-    showOnPage(n.key, false);
-    pushContext();
-  }
-  // a fix is a new look for the section (words, design, ground) and/or a move
   function applyFix(f) {
     var b = f.b || {}, steps = [];
     if (Object.keys(b).some(function (k) { return k !== 'after'; })) steps.push(function () {
       var sec = cardSec(f, f.key);
-      if (!sec) throw new Error('That note no longer fits this section.');
+      if (!sec) throw new Error('That change no longer fits this section.');
       return tool('gogh_replace_section', { page_id: st.page.id, section_key: f.key, blocks: G.buildSectionBlocksV3(sec) });
     });
     if (b.after) steps.push(function () {
@@ -858,94 +884,39 @@
       if (to < 1) throw new Error('The section to move it under is no longer on the page.');
       return tool('gogh_move_section', { page_id: st.page.id, section_key: f.key, to: to });
     });
-    ed.applying += steps.length;
-    return steps.reduce(function (p, s) { return p.then(s); }, Promise.resolve()).then(function () { return steps.length; });
+    return steps.reduce(function (p, s) { return p.then(s); }, Promise.resolve());
   }
-  function doIt(i) {
-    var n = ed.notes[i], f = n.fixes[ed.opt[i] || 0];
-    retire(); you(ed.opt[i] ? f.lb : 'Do it');
-    applyFix(f).then(function (count) {
+  // Claude's version arrives: every note's first fix, on the page one after
+  // another, saved behind
+  function takeDeck(dk) {
+    if (vs.seen == null) vs.seen = dk.at && (Date.now() / 1000 - dk.at) > 600 ? dk.round : 0;
+    if (dk.round <= vs.seen) return;
+    vs.seen = dk.round;
+    var picked = [], at = {};
+    (dk.cards || []).forEach(function (c) {
+      if (!secInfo(c.key) || at[c.key]) return;
+      at[c.key] = 1; picked.push(c);
+    });
+    if (!picked.length) return;
+    if (vs.view === 'now') { vs.view = 'mine'; viewBar(); }
+    var total = picked.length, done = 0, chain = Promise.resolve(), motion = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    saying('Claude is making your version…');
+    picked.forEach(function (c, i) {
+      vs.notes[c.key] = { q: c.q, hint: c.hint, lb: c.lb };
+      setTimeout(function () { onPage(c); }, motion ? 300 + i * 550 : 0);
+      chain = chain.then(function () { return applyFix(c); }).then(function () { done++; saying('Saving Claude’s version… ' + done + ' of ' + total); });
+    });
+    chain.then(function () {
       status(true);
-      ed.done[i] = true; ed.cur = -1; ed.stack.push({ i: i, count: count }); ed.since = 0;
-      var s2 = secInfo(n.key); st.snapAt = s2 ? s2.section : null;
-      st.afterDraw = function () {
-        say('claude', '<p>Done: ' + esc(f.lb || 'the new version') + '.</p><span class="receipt">Changed ' + esc(secName(n.key)) + ' · not live yet</span>');
-        showOnPage(n.key, true);
-        setTimeout(function () { offer(nextNote(i + 1)); }, 1400);
-      };
+      st.afterDraw = function () { saying('Claude’s version: ' + total + (total === 1 ? ' change' : ' changes') + ', numbered on the page.'); };
       draw();
-      tell('The person tapped Do it on your note ' + (i + 1) + ' ("' + n.q + '"): the panel made the change "' + (f.lb || '') + '". It is saved, not live yet.');
-    }, function (e) { ed.applying = 0; oops(e); });
+      tell('The panel made your version: ' + picked.map(function (c) { return c.lb; }).join('; ') + '. It is saved, not live yet.');
+    }, function (e) { draw(); oops(e); });
   }
-  function finish() {
-    ed.cur = -1; pins();
-    var done = Object.keys(ed.done).length;
-    say('claude', '<p>' + (done ? 'That’s my notes done. Have a look, then press <b>Publish</b> when you’re happy.' : 'That’s all my notes for now.') + '</p><p>Want more ideas, or something else changed? Tell me in the chat.</p>');
-    pushContext();
+  function versionContext(lines) {
+    if (vs.diff.length) lines.push('The panel shows your version of the page: ' + vs.diff.length + ' part(s) not live yet, numbered on the page (' + vs.diff.map(function (d) { var n = vs.notes[d.key]; return d.key + ' ' + d.is + (n ? ': ' + n.lb : ''); }).join('; ') + '). The person is looking at ' + (vs.view === 'now' ? 'Now, the live page' : 'your version') + '; they can flip to compare and put back any part. Small changes they ask for, make directly with your tools: the panel shows each one on the page.');
+    else lines.push('Nothing on this page differs from the live page yet. When the person wants it better, read it and look at it as a visitor would, then send your version with gogh_prepare_choices (one card per change, most helpful first, with the goal you read it for): the panel applies them all at once.');
   }
-  // every change gets a receipt: the notes' own above, everyone else's here
-  function receipts(list) {
-    var n = list.length;
-    if (ed.seenCh == null || n < ed.seenCh) { ed.seenCh = n; return; }
-    list.slice(ed.seenCh).forEach(function (c) {
-      if (ed.applying > 0) { ed.applying--; return; }
-      ed.since = (ed.since || 0) + 1;
-      say('line', '<span class="receipt">' + (c.who === 'you' ? 'You' : 'Claude') + ': ' + esc(c.what) + '</span>');
-    });
-    ed.seenCh = n;
-  }
-  document.getElementById('undoThat').onclick = function () {
-    if (!st) return;
-    you('Undo that');
-    tool('gogh_undo_change', { page_id: st.page.id }).then(function (r) {
-      status(!!r.left);
-      if (!r.undone) { say('claude', '<p>There’s nothing to undo.</p>'); return; }
-      // a note comes undone only when its own change was the latest
-      var top = ed.stack[ed.stack.length - 1];
-      if (ed.since > 0) ed.since--;
-      else if (top) { top.count--; if (top.count <= 0) { ed.stack.pop(); delete ed.done[top.i]; } }
-      say('claude', '<p>Undone: ' + esc(r.undone) + '.</p>');
-      st.afterDraw = pins;
-      draw();
-      tell('The person undid the latest change (' + r.undone + ').');
-    }, oops);
-  };
-  // the notes on the page: a numbered marker on each section a note is about
-  function pins() {
-    [].forEach.call(document.querySelectorAll('#gw-page .gw-pin'), function (p) { p.remove(); });
-    ed.notes.forEach(function (n, i) {
-      var el = null;
-      [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (x) { if (!el && secKey(x) === n.key) el = x; });
-      if (!el) return;
-      var others = el.querySelectorAll('.gw-pin').length;
-      var b = document.createElement('button');
-      b.type = 'button'; b.className = 'gw-pin' + (ed.done[i] ? ' done' : '') + (ed.cur === i ? ' now' : '');
-      b.setAttribute('contenteditable', 'false');
-      b.setAttribute('aria-label', 'Note ' + (i + 1));
-      b.textContent = ed.done[i] ? '✓' : String(i + 1);
-      b.style.left = (24 + others * 76) + 'px';
-      b.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); pinTap(i); };
-      el.appendChild(b);
-    });
-  }
-  function pinTap(i) {
-    if (ed.done[i]) { say('claude', '<p>Note ' + (i + 1) + ' is done. Tap <b>Undo that</b> if it was the latest, or tell me in the chat.</p>'); return; }
-    if (ed.cur === i) return;
-    retire(); you('Show me note ' + (i + 1)); delete ed.skipped[i]; offer(i);
-  }
-  // full screen: bring the section into view in the page's own column
-  function showOnPage(key, light) {
-    var el = null;
-    [].forEach.call(document.querySelectorAll('#gw-page [data-gw-sec]'), function (x) { if (!el && secKey(x) === key) el = x; });
-    if (!el) return;
-    if (light) { el.classList.remove('gw-flash'); void el.offsetWidth; el.classList.add('gw-flash'); setTimeout(function () { el.classList.remove('gw-flash'); }, 2600); }
-    var col = document.getElementById('pagecol');
-    if (full && col && frame) {
-      var k = document.getElementById('stage').clientWidth / W;
-      col.scrollTo({ top: Math.max(0, el.offsetTop * k - 40), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-    }
-  }
-
 
   /* ---------- explore this section ---------- */
   // Not one change per message: the agent writes a handful of versions and
@@ -1209,7 +1180,7 @@
       else if (p.role === 'text') texts.push(p.words);
       else if (p.role === 'button') buttons.push(p.words);
       else if (p.role === 'picture' && p.src && !pic) pic = p.src;
-      else if (p.role === 'cards' && p.cards && !items) items = p.cards.map(function (c) { return { title: c.title, text: c.text, quote: c.text, name: c.name || c.role, role: c.role, price: c.price, eyebrow: c.eyebrow, image: c.src }; });
+      else if (p.role === 'cards' && p.cards && !items) items = p.cards.map(function (c) { return { title: c.title, text: c.text, quote: c.text, name: c.name || c.role, role: c.role, price: c.price, eyebrow: c.eyebrow, image: c.src, button: c.button }; });
     });
     if (texts[0]) w.text = texts[0]; if (texts[1]) w.text2 = texts[1]; if (texts[2]) w.text3 = texts[2];
     if (buttons[0]) w.button = buttons[0]; if (buttons[1]) w.button2 = buttons[1];
