@@ -9,7 +9,9 @@
     var w = document.getElementById('w'), stage = document.getElementById('stage');
     var col = document.createElement('div'); col.className = 'pagecol'; col.id = 'pagecol';
     var pop = document.createElement('div'); pop.className = 'vpop'; pop.id = 'vpop'; pop.hidden = true; pop.setAttribute('role', 'dialog');
-    w.insertBefore(col, stage); col.appendChild(stage); col.appendChild(pop);
+    var zb = document.createElement('div'); zb.className = 'zoombar'; zb.setAttribute('role', 'group'); zb.setAttribute('aria-label', 'Zoom');
+    zb.innerHTML = '<button type="button" id="zOut" aria-label="Zoom out" title="See more of the page">\u2212</button><button type="button" id="zLab" title="Back to full width">Full width</button><button type="button" id="zIn" aria-label="Zoom in" title="Closer" disabled>+</button>';
+    w.insertBefore(col, stage); col.appendChild(zb); col.appendChild(stage); col.appendChild(pop);
     var seg = document.createElement('span'); seg.className = 'vseg'; seg.id = 'vseg'; seg.hidden = true; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Compare');
     seg.innerHTML = '<button type="button" id="vNow" aria-pressed="false">Now</button><button type="button" id="vMine" aria-pressed="true">Claude\u2019s version</button>';
     var bar = document.querySelector('#w > .bar'); bar.insertBefore(seg, document.getElementById('publish'));
@@ -379,13 +381,33 @@
       window.scrollTo(0, keep);
     }).catch(oops);
   }
+  // zoom: the page fills the width, or steps back to show more of itself,
+  // down to the whole page at once
+  var ZOOMS = [1, 0.75, 0.5, 'whole'], zoom = 1;
+  function scaleNow() {
+    var stage = document.getElementById('stage'), base = stage.clientWidth / W;
+    if (zoom !== 'whole') return { k: base * zoom, x: (stage.clientWidth - W * base * zoom) / 2 };
+    var col = document.getElementById('pagecol');
+    var room = full && col ? col.clientHeight - 24 : Math.max(420, Math.min(760, window.innerHeight - 80));
+    var k = Math.min(base, room / Math.max(1, frame ? frame.scrollHeight : 1));
+    return { k: k, x: (stage.clientWidth - W * k) / 2 };
+  }
   function fit() {
     if (!frame) return;
-    var stage = document.getElementById('stage');
-    var k = stage.clientWidth / W;
-    frame.style.transform = 'scale(' + k + ')';
-    stage.style.height = Math.ceil(frame.scrollHeight * k) + 'px';
+    var stage = document.getElementById('stage'), s = scaleNow();
+    frame.style.transform = 'translate(' + Math.max(0, s.x) + 'px, 0) scale(' + s.k + ')';
+    stage.style.height = Math.ceil(frame.scrollHeight * s.k) + 'px';
+    stage.classList.toggle('zoomed', zoom !== 1);
+    if (vs.open) placePop();
     sizeUp();
+  }
+  function setZoom(z) {
+    zoom = z;
+    var i = ZOOMS.indexOf(zoom);
+    document.getElementById('zOut').disabled = i === ZOOMS.length - 1;
+    document.getElementById('zIn').disabled = i === 0;
+    document.getElementById('zLab').textContent = zoom === 'whole' ? 'Whole page' : zoom === 1 ? 'Full width' : Math.round(zoom * 100) + '%';
+    fit();
   }
 
   // which drawn part is which section: the preview puts <!--gogh-sec:N-->
@@ -402,6 +424,17 @@
     return out;
   }
   function wire(page) {
+    // zoomed out, a click on a part of the page goes back in, to that part
+    page.addEventListener('click', function (ev) {
+      if (zoom === 1 || (ev.target.closest && ev.target.closest('.gw-dot'))) return;
+      var sec = ev.target.closest && ev.target.closest('[data-gw-sec]');
+      if (!sec) return;
+      ev.preventDefault(); ev.stopPropagation();
+      setZoom(1);
+      var col = document.getElementById('pagecol'), stage = document.getElementById('stage');
+      if (full && col) col.scrollTo({ top: Math.max(0, stage.offsetTop + sec.offsetTop * scaleNow().k - 40), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      else sec.scrollIntoView({ block: 'start' });
+    }, true);
     // a click on a link inside the page never leaves the panel
     page.addEventListener('click', function (ev) { var a = ev.target.closest && ev.target.closest('a'); if (a) ev.preventDefault(); }, true);
     // point and say: what they click is what "this" means to the agent
@@ -765,6 +798,9 @@
     pushContext();
   }
   document.getElementById('vNow').onclick = function () { setView('now'); };
+  document.getElementById('zOut').onclick = function () { var i = ZOOMS.indexOf(zoom); if (i < ZOOMS.length - 1) setZoom(ZOOMS[i + 1]); };
+  document.getElementById('zIn').onclick = function () { var i = ZOOMS.indexOf(zoom); if (i > 0) setZoom(ZOOMS[i - 1]); };
+  document.getElementById('zLab').onclick = function () { setZoom(zoom === 1 ? 'whole' : 1); };
   document.getElementById('vMine').onclick = function () { setView('mine'); };
 
   // what differs from the live page, from the site (every few seconds)
@@ -801,8 +837,9 @@
   function placePop() {
     var p = document.getElementById('vpop'), el = secEl(vs.open), stage = document.getElementById('stage');
     if (!p || !el || !stage) return;
-    var k = stage.clientWidth / W;
-    p.style.top = (stage.offsetTop + el.offsetTop * k + 46) + 'px';
+    var s = scaleNow();
+    p.style.top = (stage.offsetTop + el.offsetTop * s.k + 46) + 'px';
+    p.style.left = (Math.max(0, s.x) + 12) + 'px';
   }
   function openPop(key, num) {
     var d = diffOf(key); if (!d) return;
