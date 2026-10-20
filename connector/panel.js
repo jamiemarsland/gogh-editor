@@ -117,7 +117,7 @@
     pill.classList.toggle('pending', !!pending);
     document.getElementById('discard').hidden = !pending;
     document.getElementById('publish').hidden = !(pending || st.page.status !== 'publish') || !st.can_publish;
-    document.getElementById('publish').textContent = 'Show the world';
+    document.getElementById('publish').textContent = 'Publish';
     document.getElementById('publish').classList.toggle('ready', !!pending || st.page.status !== 'publish');
     sizeUp();
   }
@@ -150,8 +150,8 @@
   };
   document.getElementById('publish').onclick = function () {
     var ch = (st.changes || []).map(function (c) { return '• ' + (c.who === 'you' ? 'You' : 'Claude') + ': ' + c.what; });
-    var q = (st.page.status === 'publish' ? 'Show these changes to the world?' : 'Put this page on your site for everyone to see?') + (ch.length ? '\n' + ch.join('\n') : '');
-    ask(q, 'Show the world', function () {
+    var q = (st.page.status === 'publish' ? 'Publish these changes? Everyone visiting your site will see them.' : 'Publish this page? Everyone visiting your site will see it.') + (ch.length ? '\n' + ch.join('\n') : '');
+    ask(q, 'Publish', function () {
       tool('gogh_publish', { page_id: st.page.id }).then(function () {
         st.page.status = 'publish'; status(false); showChanges([]); saying('It’s live.');
         tell('The person published "' + st.page.title + '" from the page panel.');
@@ -880,7 +880,7 @@
   function finish() {
     ed.cur = -1; pins();
     var done = Object.keys(ed.done).length;
-    say('claude', '<p>' + (done ? 'That’s my notes done. Have a look, then press <b>Show the world</b> when you’re happy.' : 'That’s all my notes for now.') + '</p><p>Want more ideas, or something else changed? Tell me in the chat.</p>');
+    say('claude', '<p>' + (done ? 'That’s my notes done. Have a look, then press <b>Publish</b> when you’re happy.' : 'That’s all my notes for now.') + '</p><p>Want more ideas, or something else changed? Tell me in the chat.</p>');
     pushContext();
   }
   // every change gets a receipt: the notes' own above, everyone else's here
