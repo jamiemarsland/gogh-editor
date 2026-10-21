@@ -2401,7 +2401,10 @@
       // v0.99.701: docked on the right, full height under the bar, the page fitted beside it
       var hr = sheet.getBoundingClientRect(), ab = document.getElementById('wpadminbar');
       expect(Math.abs(hr.right - window.innerWidth) < 2 && Math.abs(hr.bottom - window.innerHeight) < 2, 'help should dock to the right edge, full height: ' + Math.round(hr.right) + '/' + Math.round(hr.bottom));
-      if (ab) expect(Math.abs(hr.top - ab.getBoundingClientRect().bottom) < 2, 'help should start where the bar ends');
+      // where the bar ends, or (editing) where the page's tabs under it end
+      var tabsEl = document.documentElement.classList.contains('gogh-tabbed') && q('.gogh-pagetabs');
+      var edge = tabsEl && !tabsEl.hidden ? tabsEl.getBoundingClientRect().bottom : ab && ab.getBoundingClientRect().bottom;
+      if (ab) expect(Math.abs(hr.top - edge) < 2, 'help should start where the bar (and the page’s tabs) end: ' + Math.round(hr.top) + ' vs ' + Math.round(edge));
       expect(document.documentElement.classList.contains('gogh-zoomed'), 'the page should be fitted beside the help');
       // where the page is going (the zoom eases there; no frames pass in a quick test)
       var wrapEl = document.querySelector('.wp-site-blocks'), tfm = /translateX\(([-\d.]+)px\) scale\(([\d.]+)\)/.exec(wrapEl.style.transform) || [];
@@ -9088,6 +9091,57 @@
         C.frontId = wasFront;
       }
       return 'menu first, current and Home marked, draft labelled, Sample Page opened in the editor';
+    });
+
+    testAsync('the page’s tabs: the menu’s pages along the top of the framed page, this one marked, More and +, a click opens another in the editor', async function () {
+      var C = window.GOGH, wasFront = C.frontId, trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
+      var o = location.origin, here = location.pathname;
+      G.nav.setPages([
+        { id: C.postId, name: C.postTitle || 'This page', link: o + here, status: 'publish' },
+        { id: 99991, name: 'Sample Page', link: o + '/sample-page/', status: 'publish' },
+        { id: 99992, name: 'Zine library', link: o + '/?page_id=99992', status: 'draft' },
+        { id: 99993, name: 'Front', link: o + '/front-test/', status: 'publish' },
+      ]);
+      C.frontId = 99993;
+      try {
+        G.nav.tabs();
+        var bar = q('.gogh-pagetabs'), html = document.documentElement, ab = document.getElementById('wpadminbar');
+        expect(bar && !bar.hidden && html.classList.contains('gogh-tabbed'), 'editing, the page wears its tabs');
+        expect(q('.gogh-pageframe') && getComputedStyle(q('.gogh-pageframe')).display !== 'none', 'and its frame');
+        var br = bar.getBoundingClientRect();
+        expect(Math.abs(br.top - ab.getBoundingClientRect().bottom) < 2, 'the tabs sit right under the bar: ' + Math.round(br.top) + ' vs ' + Math.round(ab.getBoundingClientRect().bottom));
+        var m = parseFloat(getComputedStyle(html).marginTop);
+        expect(Math.abs(m - br.bottom) < 2, 'the page starts under the tabs: margin ' + m + ', tabs end ' + Math.round(br.bottom));
+        var cur = bar.querySelector('.gogh-pagetab.is-current');
+        expect(cur && +cur.dataset.id === +C.postId && cur.getAttribute('aria-current') === 'page', 'the page being edited is marked');
+        var headLinks = [].map.call(document.querySelectorAll('header.wp-block-template-part a[href]'), function (a) { return a.pathname.replace(/\/+$/, ''); });
+        if (headLinks.indexOf('/sample-page') !== -1) expect(bar.querySelector('.gogh-pagetab[data-id="99991"]'), 'a page in the header menu is a tab');
+        expect(!bar.querySelector('.gogh-pagetab[data-id="99992"]') && bar.querySelector('.gogh-pagetabs-more'), 'a page outside the menu waits behind More');
+        expect(!!bar.querySelector('.gogh-pagetabs-add') === !!C.canPages, '+ adds a page (when pages may be added)');
+        G.openSide('page');
+        await new Promise(function (r) { setTimeout(r, 60); });
+        expect(Math.abs(q('.gogh-side').getBoundingClientRect().top - br.bottom) < 2, 'the drawer docks under the tabs, not under the bar');
+        G.nav.closePages();
+        bar.querySelector('.gogh-pagetabs-more').click();
+        await new Promise(function (r) { setTimeout(r, 120); });
+        var menu = q('.gogh-pagemenu');
+        expect(menu && !menu.hidden && menu.querySelector('[data-id="99992"]'), 'More opens every page, the drafts too: ' + (menu ? (menu.hidden ? 'hidden' : menu.textContent.slice(0, 160)) : 'no list'));
+        expect(Math.abs(menu.getBoundingClientRect().top - br.bottom) < 12, 'More opens under the tabs');
+        G.nav.closePages();
+        var other = bar.querySelector('.gogh-pagetab[data-id]:not(.is-current)');
+        if (other) {
+          other.click();
+          expect(trips.length === 1 && /gogh-edit=1/.test(trips[0]), 'a tab opens its page in the editor: ' + trips.join(' '));
+        }
+        G.closeSide && G.closeSide(true);
+      } finally {
+        unwatch();
+        G.nav.closePages();
+        G.nav.setPages(null);
+        C.frontId = wasFront;
+        G.nav.tabs();
+      }
+      return 'tabs under the bar, page and drawer under the tabs, this page marked, More and +, a tab opened in the editor';
     });
 
     testAsync('Make this the home page: from the page’s ⋯ menu, with Undo, never for a draft, only for whoever may change settings', async function () {
