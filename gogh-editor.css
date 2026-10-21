@@ -4632,50 +4632,14 @@ html.gogh-history-preview .gogh-wrap .gogh-section { outline: 2px dashed rgba(56
 .gogh-pageswitch-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gogh-pageswitch svg { flex: 0 0 auto; opacity: .6; }
 /* Page: Home ▾ in the admin bar (v0.99.782), after View site, while editing */
-#wpadminbar #wp-admin-bar-gogh-page { display: flex; align-items: center; height: 32px; padding: 0 4px; float: left; }
-#wpadminbar #wp-admin-bar-gogh-page[hidden] { display: none !important; }
-#wpadminbar #wp-admin-bar-gogh-page.is-centred { position: absolute; left: 50%; top: 0; transform: translateX(-50%); float: none; }
-#wpadminbar .gogh-pagebtn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 24px; max-width: 260px; padding: 0 10px; border-radius: 5px; background: #2c3338; color: #f0f0f1; font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
-#wpadminbar .gogh-pagebtn:hover, #wpadminbar .gogh-pagebtn[aria-expanded="true"] { background: #3c434a; }
-#wpadminbar .gogh-pagebtn:focus-visible { outline: 2px solid #72aee6; outline-offset: 1px; }
-#wpadminbar .gogh-pagebtn-lab { color: #a7aaad; font-weight: 500; }
-#wpadminbar .gogh-pagebtn-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#wpadminbar .gogh-pagebtn svg { flex: none; }
-#wpadminbar .gogh-pagebtn .gogh-pagemenu-house { display: inline-flex; color: #c3c4c7; }
-#wpadminbar .gogh-pagebtn .gogh-sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-@media screen and (max-width: 782px) {
-  #wpadminbar #wp-admin-bar-gogh-page { display: flex !important; height: 46px; }
-  #wpadminbar .gogh-pagebtn { height: 32px; font-size: 14px; }
-}
-#wpadminbar .gogh-pagebtn-ic { display: none; }
-@media screen and (max-width: 782px) { #wpadminbar .gogh-pagebtn-lab { display: none; } #wpadminbar .gogh-pagebtn { max-width: 170px; } }
-@media screen and (max-width: 720px) { #wpadminbar .gogh-pagebtn { max-width: 118px; } html.gogh-editing #wpadminbar #wp-admin-bar-gogh-style .gogh-stylebar-word { display: none; } }
+/* Page ▾ and the page list: gogh-pagebar.css (shared with the Shop and posts pages) */
+@media screen and (max-width: 720px) { html.gogh-editing #wpadminbar #wp-admin-bar-gogh-style .gogh-stylebar-word { display: none; } }
 @media screen and (max-width: 600px) {
   html.gogh-editing #wpadminbar #wp-admin-bar-gogh-edit > .ab-item { font-size: 0; gap: 0; padding: 0 10px; }
   html.gogh-editing #wpadminbar #wp-admin-bar-gogh-edit > .ab-item .gogh-ab-ic { width: 20px; height: 20px; }
 }
 /* the bar's right-hand group needs every pixel it has on a phone-narrow
    window: the button shrinks, then is a page icon (its name in the title) */
-@media screen and (max-width: 560px) { #wpadminbar #wp-admin-bar-gogh-page { padding: 0 2px; } #wpadminbar .gogh-pagebtn { max-width: 100px; padding: 0 8px; } }
-@media screen and (max-width: 480px) { #wpadminbar .gogh-pagebtn-name, #wpadminbar .gogh-pagebtn .gogh-pagemenu-house { display: none; } #wpadminbar .gogh-pagebtn-ic { display: block; } #wpadminbar .gogh-pagebtn { gap: 3px; } }
-.gogh-pagemenu-add { all: unset; box-sizing: border-box; cursor: pointer; display: block; padding: 9px 10px; border-radius: 8px; color: #3858e9; font-weight: 600; }
-.gogh-pagemenu-add:hover, .gogh-pagemenu-add:focus-visible { background: #f3f4f6; }
-.gogh-pagemenu { position: fixed; z-index: 100002; box-sizing: border-box; max-height: min(70vh, 520px); display: flex; flex-direction: column; background: #fff; color: #1c1e24; border: 1px solid #e2e4e8; border-radius: 12px; box-shadow: 0 18px 44px rgba(20, 20, 30, .22); padding: 8px; font: 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
-.gogh-pagemenu[hidden] { display: none; }
-.gogh-pagemenu-list { overflow-y: auto; display: flex; flex-direction: column; gap: 1px; min-height: 0; }
-.gogh-pagemenu-lab { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #6b7280; padding: 8px 10px 4px; }
-.gogh-pagemenu-it { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; }
-.gogh-pagemenu-it[hidden] { display: none; }
-.gogh-pagemenu-it:hover, .gogh-pagemenu-it:focus-visible { background: #f2f4f8; }
-.gogh-pagemenu-it:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; }
-.gogh-pagemenu-it.is-current { background: #eef1ff; color: #1e3fd8; font-weight: 600; }
-.gogh-pagemenu-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gogh-pagemenu-home { flex: 0 0 auto; font-size: 11px; font-weight: 600; color: #1e7f4f; background: #e6f4ec; border-radius: 999px; padding: 2px 8px; }
-.gogh-pagemenu-st { flex: 0 0 auto; font-size: 11.5px; color: #6b7280; }
-.gogh-pagemenu-wait { padding: 10px; color: #6b7280; }
-.gogh-pagemenu-find { display: block; margin-bottom: 6px; }
-.gogh-pagemenu-find input { box-sizing: border-box; width: 100%; height: 34px; border: 1px solid #e2e4e8; border-radius: 8px; padding: 0 10px; font: 14px/1 inherit; color: inherit; }
-.gogh-pagemenu-find input:focus { outline: none; border-color: #3858e9; box-shadow: 0 0 0 3px rgba(56, 88, 233, .18); }
 .gogh-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .gogh-leave-col { display: flex; flex-direction: column; gap: 8px; }
 .gogh-leave-col .gogh-btn { width: 100%; box-shadow: none; }
@@ -4700,12 +4664,7 @@ html.gogh-history-preview .gogh-wrap .gogh-section { outline: 2px dashed rgba(56
 .gogh-pagemore-it:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; }
 .gogh-pagemore-it:disabled { cursor: default; color: #8a8f99; background: none; }
 .gogh-pagemore-it small { font-size: 11.5px; color: #6b7280; }
-.gogh-pagemenu-ic { flex: 0 0 16px; display: grid; place-items: center; color: #1e7f4f; }
-.gogh-pagemenu-house { display: inline-flex; align-items: center; color: #1e7f4f; }
 .gogh-pageswitch .gogh-pagemenu-house { flex: 0 0 auto; }
-.gogh-pagemenu-st { color: #8a8f99; font-weight: 400; }
-.gogh-pagemenu-it.is-current .gogh-pagemenu-st { color: #6b7cd6; }
-.gogh-pagemenu-sep { height: 1px; background: #eef0f3; margin: 6px 6px; flex: 0 0 auto; }
 
 /* the drawer carried across a page change opens as it was: no slide */
 .gogh-side.gogh-side-instant { transition: none !important; }
