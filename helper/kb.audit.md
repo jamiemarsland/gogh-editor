@@ -1,12 +1,6 @@
-# Knowledge-base audit — plugin v0.99.782
+# Knowledge-base audit — plugin v0.99.783
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
-
-## STALE (1)
-
-The prose names something that no longer exists.
-
-- UI label "Add a page" was removed in this release, but the prose still describes it
 
 ## MISSING (103)
 
@@ -164,10 +158,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.781 → 0.99.782
-- removed UI label: "Add a page"
-- removed UI label: "Every page of the site"
-- removed UI label: "Open ' + esc(name) + ' in the editor"
-- removed UI label: "Switch to another page"
-- removed UI label: "The page you are editing"
-- added UI label: "+ Add a page"
+- version: 0.99.782 → 0.99.783
