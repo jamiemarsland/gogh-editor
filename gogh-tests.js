@@ -1353,9 +1353,7 @@
         expect(home && home.contains(chipEl) && !home.hidden, 'the chip is not in the admin bar');
         expect(home.previousElementSibling && home.previousElementSibling.id === 'wp-admin-bar-my-account', 'Publish should be the very corner, after the account; after: ' + (home.previousElementSibling || {}).id);
         var pbr = chipEl.querySelector('.gogh-chip-btn').getBoundingClientRect();
-        // the bar is WordPress's 32px one, or (editing) gogh's own 52px one
-        var abH = q('#wpadminbar').getBoundingClientRect().height;
-        expect(pbr.height >= abH * 0.6 && pbr.height <= abH * 0.82 && pbr.width >= 80, 'Publish should be wide and sit in the bar with room above and below: ' + Math.round(pbr.width) + 'x' + Math.round(pbr.height) + ' in ' + Math.round(abH));
+        expect(pbr.height >= 23 && pbr.height <= 26 && pbr.width >= 80, 'Publish should be wide and sit in the bar with room above and below: ' + Math.round(pbr.width) + 'x' + Math.round(pbr.height));
         expect(home.getBoundingClientRect().left > window.innerWidth / 2, 'the chip should be on the right of the bar');
         var pb = chipEl.querySelector('.gogh-chip-btn');
         expect(/rgb\(56, 88, 233\)|var\(/.test(getComputedStyle(pb).backgroundColor) || getComputedStyle(pb).backgroundColor !== 'rgb(234, 176, 56)', 'Publish should wear the admin blue, not yellow: ' + getComputedStyle(pb).backgroundColor);
@@ -9095,7 +9093,7 @@
       return 'menu first, current and Home marked, draft labelled, Sample Page opened in the editor';
     });
 
-    testAsync('one bar: editing, the admin bar is gogh’s light toolbar with the page’s tabs in it, plugins’ items in the site menu, More and +, a tab opens its page', async function () {
+    testAsync('the page’s tabs: the menu’s pages along the top of the framed page, this one marked, More and +, a click opens another in the editor', async function () {
       var C = window.GOGH, wasFront = C.frontId, trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
       var o = location.origin, here = location.pathname;
       G.nav.setPages([
@@ -9110,23 +9108,10 @@
         var bar = q('.gogh-pagetabs'), html = document.documentElement, ab = document.getElementById('wpadminbar');
         expect(bar && !bar.hidden && html.classList.contains('gogh-tabbed'), 'editing, the page wears its tabs');
         expect(q('.gogh-pageframe') && getComputedStyle(q('.gogh-pageframe')).display !== 'none', 'and its frame');
-        var br = bar.getBoundingClientRect(), abr = ab.getBoundingClientRect();
-        expect(Math.abs(br.top - abr.top) < 2 && br.bottom <= abr.bottom + 1, 'the tabs sit IN the bar: tabs ' + Math.round(br.top) + '–' + Math.round(br.bottom) + ', bar ' + Math.round(abr.top) + '–' + Math.round(abr.bottom));
-        expect(Math.abs(abr.height - 52) < 2 && getComputedStyle(ab).backgroundColor === 'rgb(255, 255, 255)', 'the bar is gogh’s light 52px one: ' + Math.round(abr.height) + ' ' + getComputedStyle(ab).backgroundColor);
+        var br = bar.getBoundingClientRect();
+        expect(Math.abs(br.top - ab.getBoundingClientRect().bottom) < 2, 'the tabs sit right under the bar: ' + Math.round(br.top) + ' vs ' + Math.round(ab.getBoundingClientRect().bottom));
         var m = parseFloat(getComputedStyle(html).marginTop);
-        expect(Math.abs(m - abr.bottom) < 2, 'the page starts under the bar: margin ' + m + ', bar ends ' + Math.round(abr.bottom));
-        expect(q('#wp-admin-bar-site-name .gogh-site-ic'), 'the site wears its initial or icon');
-        // another plugin's item moves into the site menu, under From your plugins
-        var stray = document.createElement('li');
-        stray.id = 'wp-admin-bar-test-plugin-item';
-        stray.innerHTML = '<a class="ab-item" href="#">Clear cache</a>';
-        var sec2 = document.getElementById('wp-admin-bar-top-secondary');
-        if (sec2) {
-          sec2.appendChild(stray);
-          G.nav.tabs();
-          expect(stray.parentNode && stray.parentNode.id === 'wp-admin-bar-gogh-plugins', 'a plugin’s bar item moves into the site menu: ' + (stray.parentNode && stray.parentNode.id));
-          stray.remove();
-        }
+        expect(Math.abs(m - br.bottom) < 2, 'the page starts under the tabs: margin ' + m + ', tabs end ' + Math.round(br.bottom));
         var cur = bar.querySelector('.gogh-pagetab.is-current');
         expect(cur && +cur.dataset.id === +C.postId && cur.getAttribute('aria-current') === 'page', 'the page being edited is marked');
         var headLinks = [].map.call(document.querySelectorAll('header.wp-block-template-part a[href]'), function (a) { return a.pathname.replace(/\/+$/, ''); });
@@ -9135,13 +9120,13 @@
         expect(!!bar.querySelector('.gogh-pagetabs-add') === !!C.canPages, '+ adds a page (when pages may be added)');
         G.openSide('page');
         await new Promise(function (r) { setTimeout(r, 60); });
-        expect(Math.abs(q('.gogh-side').getBoundingClientRect().top - abr.bottom) < 2, 'the drawer docks under the bar');
+        expect(Math.abs(q('.gogh-side').getBoundingClientRect().top - br.bottom) < 2, 'the drawer docks under the tabs, not under the bar');
         G.nav.closePages();
         bar.querySelector('.gogh-pagetabs-more').click();
         await new Promise(function (r) { setTimeout(r, 120); });
         var menu = q('.gogh-pagemenu');
         expect(menu && !menu.hidden && menu.querySelector('[data-id="99992"]'), 'More opens every page, the drafts too: ' + (menu ? (menu.hidden ? 'hidden' : menu.textContent.slice(0, 160)) : 'no list'));
-        expect(Math.abs(menu.getBoundingClientRect().top - abr.bottom) < 14, 'More opens under the bar: ' + Math.round(menu.getBoundingClientRect().top));
+        expect(Math.abs(menu.getBoundingClientRect().top - br.bottom) < 12, 'More opens under the tabs');
         G.nav.closePages();
         var other = bar.querySelector('.gogh-pagetab[data-id]:not(.is-current)');
         if (other) {
@@ -9156,7 +9141,7 @@
         C.frontId = wasFront;
         G.nav.tabs();
       }
-      return 'light 52px bar with the tabs in it, page and drawer under it, plugin item in the site menu, More and +, a tab opened in the editor';
+      return 'tabs under the bar, page and drawer under the tabs, this page marked, More and +, a tab opened in the editor';
     });
 
     testAsync('Make this the home page: from the page’s ⋯ menu, with Undo, never for a draft, only for whoever may change settings', async function () {

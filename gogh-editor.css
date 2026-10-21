@@ -5270,105 +5270,42 @@ html.gogh-editing .gogh-cs-link a, html.gogh-editing .gogh-cs-btns .wp-block-but
 .gogh-cschoice.is-current { color: #3858e9; font-weight: 650; }
 @media (prefers-reduced-motion: reduce) { .gogh-csrow .gogh-siterow-chev { transition: none; } }
 
-/* ONE BAR (v0.99.780). Editing, WordPress's bar becomes gogh's own light
-   toolbar, 52px: the site (its menu holds Dashboard, plugins' items, your
-   account), View site, the page's tabs in the middle, then Site styles,
-   Computer | Phone, the status and Publish. The page sits in a thin frame in
-   the admin colour that the current tab's underline runs into. View site and
-   wp-admin keep WordPress's own bar. The bar-height variable is 52px, so the
-   page, sticky headers and every drawer docked under the bar follow it */
-html.gogh-tabbed { margin-top: 52px !important; --wp-admin--admin-bar--height: 52px; }
-html.gogh-tabbed #wpadminbar { height: 52px !important; background: #fff !important; color: #1d2327; border-bottom: 1px solid #dcdcde; box-sizing: border-box; box-shadow: 0 1px 2px rgba(0, 0, 0, .04); }
-html.gogh-tabbed #wpadminbar .quicklinks .ab-top-menu > li { height: 51px !important; display: flex; align-items: center; }
-html.gogh-tabbed #wpadminbar .quicklinks .ab-top-menu > li > .ab-item,
-html.gogh-tabbed #wpadminbar .quicklinks .ab-top-menu > li > a.ab-item { height: 36px !important; line-height: 36px !important; padding: 0 10px !important; margin: 0 2px; border-radius: 8px; color: #1d2327 !important; background: transparent !important; display: inline-flex !important; align-items: center; gap: 7px; font: 500 13.5px/36px -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif !important; }
-html.gogh-tabbed #wpadminbar .quicklinks .ab-top-menu > li > .ab-item .gogh-ab-ic { color: #1d2327; }
-html.gogh-tabbed #wpadminbar .ab-top-menu > li.hover > .ab-item,
-html.gogh-tabbed #wpadminbar .ab-top-menu > li:hover > .ab-item,
-html.gogh-tabbed #wpadminbar .ab-top-menu > li > .ab-item:focus { background: #f0f0f1 !important; color: #1d2327 !important; }
-html.gogh-tabbed #wpadminbar .ab-top-menu > li.hover, html.gogh-tabbed #wpadminbar .ab-top-menu > li:hover { background: transparent !important; }
-/* the site: its initial (or icon) in a rounded square, its name, a chevron */
-html.gogh-tabbed #wpadminbar #wp-admin-bar-site-name > .ab-item:before { display: none !important; }
-html.gogh-tabbed #wpadminbar #wp-admin-bar-site-name > .ab-item { font-weight: 600 !important; padding-left: 6px !important; }
-#wpadminbar .gogh-site-ic { display: none; }
-html.gogh-tabbed #wpadminbar .gogh-site-ic { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--gogh-publish, #2271b1); color: #fff; font: 700 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow: hidden; flex: none; }
-html.gogh-tabbed #wpadminbar .gogh-site-ic img { width: 100%; height: 100%; object-fit: cover; }
-html.gogh-tabbed #wpadminbar #wp-admin-bar-site-name > .ab-item:after { content: ""; width: 7px; height: 7px; border: solid #50575e; border-width: 0 1.8px 1.8px 0; transform: translateY(-2px) rotate(45deg); margin-left: 2px; }
-/* its menu, light */
-html.gogh-tabbed #wpadminbar .menupop .ab-sub-wrapper { background: #fff !important; border: 1px solid #dcdcde; border-radius: 12px; box-shadow: 0 18px 44px rgba(20, 20, 30, .22) !important; padding: 6px 0; overflow: hidden; }
-html.gogh-tabbed #wpadminbar #wp-admin-bar-site-name > .ab-sub-wrapper { top: 48px; left: 6px; min-width: 240px; }
-html.gogh-tabbed #wpadminbar .quicklinks .menupop ul li .ab-item,
-html.gogh-tabbed #wpadminbar .quicklinks .menupop ul li a { color: #1d2327 !important; height: auto !important; line-height: 1.3 !important; padding: 9px 14px !important; font: 400 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif !important; }
-html.gogh-tabbed #wpadminbar .quicklinks .menupop ul li:hover > .ab-item,
-html.gogh-tabbed #wpadminbar .quicklinks .menupop ul li > .ab-item:focus { background: #f0f0f1 !important; color: #1d2327 !important; }
-html.gogh-tabbed #wpadminbar .quicklinks .menupop ul li .ab-item .gogh-ab-ic { color: #50575e; }
-html.gogh-tabbed #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-gogh-account { background: #f6f7f7 !important; padding: 6px 0; border-top: 1px solid #f0f0f1; }
-html.gogh-tabbed #wpadminbar #wp-admin-bar-gogh-plugins { border-top: 1px solid #f0f0f1; padding: 4px 0; }
-html.gogh-tabbed #wpadminbar #wp-admin-bar-gogh-plugins:before { content: "From your plugins"; display: block; padding: 8px 14px 4px; font: 600 11px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #8c8f94; }
-html.gogh-tabbed #wpadminbar #wp-admin-bar-gogh-plugins .menupop > .ab-item:after { content: "\203A"; float: right; margin-left: 10px; color: #8c8f94; }
-/* the tools on the right, light */
-html.gogh-tabbed #wpadminbar #wp-admin-bar-gogh-device,
-html.gogh-tabbed #wpadminbar #wp-admin-bar-gogh-publish { height: 51px !important; }
-html.gogh-tabbed #wpadminbar .gogh-devpill { background: #f0f0f1; }
-html.gogh-tabbed #wpadminbar .gogh-devpill .gogh-dev { color: #50575e; }
-html.gogh-tabbed #wpadminbar .gogh-devpill .gogh-dev:hover { color: #1d2327; }
-html.gogh-tabbed #wpadminbar .gogh-devpill .gogh-dev.is-on { background: #fff; color: #1d2327; box-shadow: 0 1px 2px rgba(0, 0, 0, .18); }
-html.gogh-tabbed #wpadminbar .gogh-devpill .gogh-dev:focus-visible { outline-color: var(--gogh-publish, #2271b1); }
-html.gogh-tabbed #wpadminbar .gogh-chip-bar { color: #50575e; height: 51px; }
-html.gogh-tabbed #wpadminbar .gogh-chip-bar.is-dirty, html.gogh-tabbed #wpadminbar .gogh-chip-bar.is-saving { color: #50575e; }
-html.gogh-tabbed #wpadminbar .gogh-chip-bar.is-error { color: #b32d2e; }
-html.gogh-tabbed #wpadminbar .gogh-chip-bar .gogh-chip-btn { height: 36px; border-radius: 8px; }
-html.gogh-tabbed #wpadminbar .gogh-chip-bar .gogh-chip-btn:disabled { background: transparent; color: #8c8f94; box-shadow: inset 0 0 0 1px #dcdcde; }
-html.gogh-tabbed #wpadminbar .gogh-chip-bar .gogh-chip-btn:focus-visible { outline-color: var(--gogh-publish, #2271b1); }
-html.gogh-tabbed #wpadminbar .ab-item:focus-visible { outline: 2px solid var(--gogh-publish, #2271b1) !important; outline-offset: 1px; }
-/* the page's tabs: laid over the middle of the bar, between the two groups
-   (JS sets left/right to the gap); a pill when they don't fit */
+/* the page's tabs: editing, the page sits in a thin frame in the admin
+   colour, and the frame's top edge lists the site's pages (the header menu's
+   order, Home first). The bar-height variable grows by the tabs, so the page,
+   sticky headers and every drawer docked under the bar move down with it */
+html.gogh-tabbed { margin-top: 70px !important; --wp-admin--admin-bar--height: 70px; }
+@media screen and (max-width: 782px) { html.gogh-tabbed { margin-top: 84px !important; --wp-admin--admin-bar--height: 84px; } }
 .gogh-pagetabs {
-  position: fixed; z-index: 100000; left: 0; right: 0;
-  top: calc(var(--wp-admin--admin-bar--height, 52px) - 52px); height: 51px;
-  box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 0 8px; pointer-events: none;
-  font: 500 13.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #50575e;
+  position: fixed; z-index: 99997; left: 0; right: 0;
+  top: calc(var(--wp-admin--admin-bar--height, 70px) - 38px); height: 38px;
+  box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 10px;
+  background: #f6f7f7; border-bottom: 1px solid #dcdcde;
+  font: 500 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #50575e;
 }
-.gogh-pagetabs > * { pointer-events: auto; }
 .gogh-pagetabs[hidden], .gogh-pageframe[hidden] { display: none; }
 html:not(.gogh-tabbed) .gogh-pagetabs, html:not(.gogh-tabbed) .gogh-pageframe { display: none; }
-.gogh-pagetabs-lab, .gogh-pagetabs-end { display: none; }
-.gogh-pagetabs-list { min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.gogh-pagetabs-lab, .gogh-pagetabs-end { flex: none; width: 84px; }
+.gogh-pagetabs-lab { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--gogh-publish, #2271b1); }
+.gogh-pagetabs-list { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: none; }
 .gogh-pagetabs-list::-webkit-scrollbar { display: none; }
-.gogh-pagetabs.is-folded .gogh-pagetabs-list { display: none; }
-.gogh-pagetab, .gogh-pagepill {
+/* centred while they fit; past that they scroll from the first one */
+.gogh-pagetabs-list > :first-child { margin-left: auto; }
+.gogh-pagetabs-list > :last-child { margin-right: auto; }
+.gogh-pagetab {
   all: unset; box-sizing: border-box; cursor: pointer; flex: none; display: inline-flex; align-items: center; gap: 5px;
-  height: 36px; padding: 0 11px; border-radius: 8px; white-space: nowrap; color: #50575e; font: inherit;
+  padding: 6px 11px; border-radius: 6px; white-space: nowrap; color: #50575e; font: inherit;
 }
-.gogh-pagetab:hover { background: #f0f0f1; color: #1d2327; }
-.gogh-pagetab.is-current { background: #f0f0f1; color: #1d2327; border-radius: 8px 8px 0 0; box-shadow: inset 0 -2px 0 var(--gogh-publish, #2271b1); cursor: default; }
-.gogh-pagetab:focus-visible, .gogh-pagepill:focus-visible { outline: 2px solid var(--gogh-publish, #2271b1); outline-offset: 1px; }
-.gogh-pagetab svg, .gogh-pagepill svg { flex: none; }
+.gogh-pagetab:hover { background: #fff; color: #1d2327; }
+.gogh-pagetab.is-current { background: #fff; color: #1d2327; box-shadow: 0 0 0 1px #c3c4c7; cursor: default; }
+.gogh-pagetab:focus-visible { outline: 2px solid var(--gogh-publish, #2271b1); outline-offset: 1px; }
+.gogh-pagetab svg { flex: none; }
 .gogh-pagetab-st { font-size: 11px; color: #8c8f94; }
 .gogh-pagetabs-sep { flex: none; width: 1px; height: 18px; background: #dcdcde; margin: 0 6px; }
-.gogh-pagetabs-add { font-size: 18px; padding: 0 10px 2px; }
-.gogh-pagepill { display: none; font-weight: 600; color: #1d2327; background: #f0f0f1; max-width: 100%; }
-.gogh-pagepill span { overflow: hidden; text-overflow: ellipsis; }
-.gogh-pagetabs.is-folded .gogh-pagepill { display: inline-flex; }
-/* a tight bar: the words step aside, the icons stay (with their tooltips) */
-html.gogh-tabbed.gogh-bar-tight #wpadminbar #wp-admin-bar-gogh-style .gogh-stylebar-word,
-html.gogh-tabbed.gogh-bar-tight #wpadminbar .gogh-chip-bar .gogh-chip-txt { display: none; }
-html.gogh-tabbed.gogh-bar-tight #wpadminbar #wp-admin-bar-gogh-edit > .ab-item,
-html.gogh-tabbed.gogh-bar-tight #wpadminbar #wp-admin-bar-site-name > .ab-item { font-size: 0 !important; gap: 0; }
-html.gogh-tabbed.gogh-bar-tight #wpadminbar #wp-admin-bar-gogh-edit > .ab-item .gogh-ab-ic { width: 18px; height: 18px; }
-html.gogh-tabbed.gogh-bar-tight #wpadminbar #wp-admin-bar-site-name > .ab-item:after { margin-left: 8px; }
-html.gogh-tabbed.gogh-bar-tight #wpadminbar #wp-admin-bar-gogh-edit > .ab-item { font-size: 0 !important; }
-/* a phone-narrow window is a phone already: Computer | Phone steps aside */
-@media screen and (max-width: 480px) { html.gogh-tabbed.gogh-bar-tight #wpadminbar #wp-admin-bar-gogh-device { display: none !important; } }
-/* WordPress's own narrow-screen bar hides the site's name by pushing it out
-   of the box: here the box keeps its icon */
-@media screen and (max-width: 782px) {
-  html.gogh-tabbed #wpadminbar #wp-admin-bar-site-name > .ab-item { text-indent: 0 !important; width: auto !important; font-size: 0 !important; }
-  html.gogh-tabbed #wpadminbar .quicklinks .ab-top-menu > li > .ab-item { padding: 0 8px !important; }
-}
-.gogh-pagepill { min-width: 0; }
+.gogh-pagetabs-add { font-size: 17px; padding: 3px 10px 5px; }
 .gogh-pageframe {
-  position: fixed; z-index: 99996; left: 0; right: 0; bottom: 0; top: var(--wp-admin--admin-bar--height, 52px);
+  position: fixed; z-index: 99996; left: 0; right: 0; bottom: 0; top: var(--wp-admin--admin-bar--height, 70px);
   border: 2px solid var(--gogh-publish, #2271b1); border-top: 0; pointer-events: none;
 }
+@media (max-width: 600px) { .gogh-pagetabs-lab, .gogh-pagetabs-end { display: none; } }
 @media print { .gogh-pagetabs, .gogh-pageframe { display: none; } }
