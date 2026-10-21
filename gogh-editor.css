@@ -4628,13 +4628,32 @@ html.gogh-history-preview .gogh-wrap .gogh-section { outline: 2px dashed rgba(56
 .gogh-pagerow { display: flex; align-items: center; gap: 10px; margin: -4px 0 12px; min-width: 0; }
 .gogh-pagerow .gogh-chip-name { flex: 0 0 auto; margin: 0; font-weight: 500; color: #6b7280; }
 .gogh-pagerow .gogh-chip-name.is-unnamed { color: #b47816; font-weight: 600; }
-.gogh-pageswitch { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid var(--gogh-ui-border, #e2e4e8); border-radius: 10px; font: 650 14px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg, #1c1e24); }
-.gogh-pageswitch:hover { border-color: #9db8ff; }
-.gogh-pageswitch[aria-expanded="true"] { border-color: #3858e9; background: #f5f7ff; }
-.gogh-pageswitch:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
-.gogh-pageswitch-lab { font-size: 11.5px; font-weight: 600; color: #6b7280; flex: 0 0 auto; }
+.gogh-pageswitch { box-sizing: border-box; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 2px 0; font: 650 15px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg, #1c1e24); }
 .gogh-pageswitch-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gogh-pageswitch svg { flex: 0 0 auto; opacity: .6; }
+/* Page: Home ▾ in the admin bar (v0.99.782), after View site, while editing */
+#wpadminbar #wp-admin-bar-gogh-page { display: flex; align-items: center; height: 32px; padding: 0 4px; float: left; }
+#wpadminbar #wp-admin-bar-gogh-page[hidden] { display: none !important; }
+#wpadminbar .gogh-pagebtn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 24px; max-width: 260px; padding: 0 10px; border-radius: 5px; background: #2c3338; color: #f0f0f1; font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+#wpadminbar .gogh-pagebtn:hover, #wpadminbar .gogh-pagebtn[aria-expanded="true"] { background: #3c434a; }
+#wpadminbar .gogh-pagebtn:focus-visible { outline: 2px solid #72aee6; outline-offset: 1px; }
+#wpadminbar .gogh-pagebtn-lab { color: #a7aaad; font-weight: 500; }
+#wpadminbar .gogh-pagebtn-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#wpadminbar .gogh-pagebtn svg { flex: none; }
+#wpadminbar .gogh-pagebtn .gogh-pagemenu-house { display: inline-flex; color: #c3c4c7; }
+#wpadminbar .gogh-pagebtn .gogh-sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media screen and (max-width: 782px) {
+  #wpadminbar #wp-admin-bar-gogh-page { display: flex !important; height: 46px; }
+  #wpadminbar .gogh-pagebtn { height: 32px; font-size: 14px; }
+}
+#wpadminbar .gogh-pagebtn-ic { display: none; }
+@media screen and (max-width: 640px) { #wpadminbar .gogh-pagebtn-lab { display: none; } #wpadminbar .gogh-pagebtn { max-width: 150px; } }
+/* the bar's right-hand group needs every pixel it has on a phone-narrow
+   window: the button shrinks, then is a page icon (its name in the title) */
+@media screen and (max-width: 520px) { #wpadminbar #wp-admin-bar-gogh-page { padding: 0 2px; } #wpadminbar .gogh-pagebtn { max-width: 112px; padding: 0 8px; } }
+@media screen and (max-width: 440px) { #wpadminbar .gogh-pagebtn-name, #wpadminbar .gogh-pagebtn .gogh-pagemenu-house { display: none; } #wpadminbar .gogh-pagebtn-ic { display: block; } #wpadminbar .gogh-pagebtn { gap: 3px; } }
+.gogh-pagemenu-add { all: unset; box-sizing: border-box; cursor: pointer; display: block; padding: 9px 10px; border-radius: 8px; color: #3858e9; font-weight: 600; }
+.gogh-pagemenu-add:hover, .gogh-pagemenu-add:focus-visible { background: #f3f4f6; }
 .gogh-pagemenu { position: fixed; z-index: 100002; box-sizing: border-box; max-height: min(70vh, 520px); display: flex; flex-direction: column; background: #fff; color: #1c1e24; border: 1px solid #e2e4e8; border-radius: 12px; box-shadow: 0 18px 44px rgba(20, 20, 30, .22); padding: 8px; font: 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
 .gogh-pagemenu[hidden] { display: none; }
 .gogh-pagemenu-list { overflow-y: auto; display: flex; flex-direction: column; gap: 1px; min-height: 0; }
@@ -5269,3 +5288,6 @@ html.gogh-editing .gogh-cs-link a, html.gogh-editing .gogh-cs-btns .wp-block-but
 .gogh-cschoice:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; border-radius: 6px; }
 .gogh-cschoice.is-current { color: #3858e9; font-weight: 650; }
 @media (prefers-reduced-motion: reduce) { .gogh-csrow .gogh-siterow-chev { transition: none; } }
+/* a window this narrow is a phone already: Computer | Phone steps aside so
+   Page, the brush and Publish keep one row (v0.99.782) */
+@media screen and (max-width: 400px) { html.gogh-editing #wpadminbar #wp-admin-bar-gogh-device { display: none !important; } }

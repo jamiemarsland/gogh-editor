@@ -5785,6 +5785,7 @@
     side.hidden = !on;
     railBox.hidden = !on;
     if (on) mountDevPill();
+    if (pageHome) { if (on) mountPageBtn(); pageHome.hidden = !on || !!cfg.writeUrl; }
     devHome.hidden = !on || !!cfg.writeUrl; // the write room has no canvas to preview
     styleHome.hidden = !on;
     // a room's Done reloads the page; the drawer it came from comes back
@@ -24136,7 +24137,7 @@
   }
   window.__gogh = {
     refreshChip: function () { refreshChip(); },
-    nav: { carry: drawerCarried, more: openPageMore, closeMore: closePageMore, setHome: setHomePage, go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, backup: backupNow, setPages: function (l) { pageList = l; },
+    nav: { carry: drawerCarried, more: openPageMore, closeMore: closePageMore, setHome: setHomePage, go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, backup: backupNow, setPages: function (l) { pageList = l; pageListGen++; pageListP = null; }, pageBtn: function () { return pageBtn; },
       watch: function (fn) { var was = goTo; goTo = fn; return function () { goTo = was; discarding = false; }; } },
     history: { open: openHistoryPanel, leave: historyLeave, viewing: function () { return historyView; }, when: historyWhen },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
@@ -24782,11 +24783,10 @@
   // the page switcher: 'Editing Workshops ▾' opens every page of the site,
   // the menu's first, Home marked; choosing one opens it in the editor.
   // The name beside it stays the way to rename this page
-  var pageSwitch = document.createElement('button');
-  pageSwitch.type = 'button';
+  // (v0.99.782) the switcher moved to the admin bar as 'Page: Home ▾' (the
+  // same dark bar viewing and editing, James); the drawer just names its page
+  var pageSwitch = document.createElement('div');
   pageSwitch.className = 'gogh-pageswitch';
-  pageSwitch.setAttribute('aria-haspopup', 'listbox');
-  pageSwitch.setAttribute('aria-expanded', 'false');
   // ⋯: what you can do to THIS page (rename it, make it home), kept out of
   // the list of pages (James: the switcher 'feels overwhelming')
   var pageMore = document.createElement('button');
@@ -24805,17 +24805,39 @@
   pageMore.addEventListener('click', function () { if (pageMoreMenu && !pageMoreMenu.hidden) closePageMore(); else openPageMore(); });
   var pageCards = side.querySelector('.gogh-cards-page');
   if (pageCards) pageCards.insertBefore(pageRow, pageCards.firstChild); else document.body.appendChild(pageRow);
-  pageSwitch.addEventListener('click', function () { if (pageMenu && !pageMenu.hidden) closePageMenu(); else openPageMenu(); });
+  // PAGE: HOME ▾ in the admin bar, after View site, while editing: which page
+  // this is, and every page of the site a click away (drafts and pages
+  // outside the menu too), Add a page at the end. The site's own menu stays
+  // the main way around; this is the place for everything else
+  var pageHome = document.createElement('li');
+  pageHome.id = 'wp-admin-bar-gogh-page';
+  pageHome.hidden = true;
+  var pageBtn = document.createElement('button');
+  pageBtn.type = 'button';
+  pageBtn.className = 'gogh-pagebtn';
+  pageBtn.setAttribute('aria-haspopup', 'listbox');
+  pageBtn.setAttribute('aria-expanded', 'false');
+  pageBtn.setAttribute('aria-label', 'Pages');
+  pageHome.appendChild(pageBtn);
+  pageBtn.addEventListener('click', function () { if (pageMenu && !pageMenu.hidden) closePageMenu(); else openPageMenu(pageBtn); });
+  function mountPageBtn() {
+    if (pageHome.parentNode) return;
+    var ed = document.getElementById('wp-admin-bar-gogh-edit');
+    if (ed && ed.parentNode) ed.parentNode.insertBefore(pageHome, ed.nextSibling);
+  }
+  if (editing) { mountPageBtn(); pageHome.hidden = !!cfg.writeUrl; } // (else setEditing shows it)
   var chipTxt = chip.querySelector('.gogh-chip-txt');
   var chipBtn = chip.querySelector('.gogh-chip-btn');
   chipName.addEventListener('click', function () { openPageNamePanel('rename'); });
   function refreshChipName() {
     var t = String(cfg.postTitle || '').trim();
-    pageSwitch.innerHTML = '<span class="gogh-pageswitch-lab">Editing</span>' +
-      (cfg.postType === 'page' && +cfg.postId === +cfg.frontId ? '<span class="gogh-pagemenu-house" title="Home page"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span class="gogh-sr">Home page</span></span>' : '') +
-      '<span class="gogh-pageswitch-name">' + esc(t || (cfg.postType === 'page' ? 'Untitled page' : 'this post')) + '</span>' +
-      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
-    pageSwitch.title = 'Switch to another page';
+    var house = (cfg.postType === 'page' && +cfg.postId === +cfg.frontId ? '<span class="gogh-pagemenu-house" title="Home page"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span class="gogh-sr">Home page</span></span>' : '');
+    var nm = esc(t || (cfg.postType === 'page' ? 'Untitled page' : 'this post'));
+    pageSwitch.innerHTML = house + '<span class="gogh-pageswitch-name">' + nm + '</span>';
+    pageBtn.title = 'Editing ' + (t || 'this page') + ' \u00b7 every page of the site';
+    pageBtn.setAttribute('aria-label', 'Page: ' + (t || 'this page') + '. Every page of the site');
+    pageBtn.innerHTML = '<svg class="gogh-pagebtn-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span class="gogh-pagebtn-lab">Page</span>' + house + '<span class="gogh-pagebtn-name">' + nm + '</span>' +
+      '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
     if (cfg.postType !== 'page') { chipName.hidden = true; pageMore.hidden = true; return; }
     pageMore.hidden = false;
     // a named page renames from ⋯; an unnamed one keeps the amber
@@ -24872,7 +24894,7 @@
   function closePageMenu() {
     if (!pageMenu) return;
     pageMenu.hidden = true;
-    pageSwitch.setAttribute('aria-expanded', 'false');
+    if (pageMenuAt) { pageMenuAt.setAttribute('aria-expanded', 'false'); pageMenuAt = null; }
     document.removeEventListener('pointerdown', pageMenuAway, true);
   }
   // the home page setting, with Undo putting back exactly what was there
@@ -24911,21 +24933,29 @@
       return false;
     });
   }
+  var pageMenuAt = null; // what opened the list (the bar's Page button)
   function pageMenuAway(ev) {
-    if (pageMenu && !pageMenu.contains(ev.target) && !pageSwitch.contains(ev.target)) closePageMenu();
+    if (pageMenu && !pageMenu.contains(ev.target) && !(pageMenuAt && pageMenuAt.contains(ev.target))) closePageMenu();
   }
+  // one fetch at a time, and a list set while it was out (setPages) is never
+  // overwritten by its late answer
+  var pageListP = null, pageListGen = 0;
   function fetchPageList() {
     if (pageList) return Promise.resolve(pageList);
     if (!cfg.canPages) return Promise.resolve([]);
-    return fetch(restQ(GSROOT + 'pages', 'context=edit&per_page=100&status=publish,draft,private,future&orderby=menu_order&order=asc&_fields=id,title,link,status'), {
+    if (pageListP) return pageListP;
+    var gen = pageListGen;
+    return (pageListP = fetch(restQ(GSROOT + 'pages', 'context=edit&per_page=100&status=publish,draft,private,future&orderby=menu_order&order=asc&_fields=id,title,link,status'), {
       headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
     }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (list) {
+      pageListP = null;
+      if (gen !== pageListGen) return pageList || [];
       pageList = (Array.isArray(list) ? list : []).map(function (pg) {
         var title = (pg.title && (pg.title.raw != null ? pg.title.raw : pg.title.rendered)) || '';
         return { id: pg.id, name: String(title).replace(/<[^>]*>/g, '').trim() || 'Untitled page', link: pg.link, status: pg.status };
       });
       return pageList;
-    });
+    }));
   }
   // the pages the header's menu shows, in its order (read from the page)
   function menuOrder() {
@@ -24940,22 +24970,23 @@
     });
     return out;
   }
-  function openPageMenu() {
+  function openPageMenu(anchor) {
     closePageMore();
+    pageMenuAt = anchor && anchor.nodeType === 1 ? anchor : (pageBtn.getBoundingClientRect().width ? pageBtn : null);
     if (!pageMenu) {
       pageMenu = document.createElement('div');
       pageMenu.className = 'gogh-pagemenu';
       pageMenu.hidden = true;
       document.body.appendChild(pageMenu);
-      pageMenu.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { closePageMenu(); pageSwitch.focus(); } });
+      pageMenu.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { var back = pageMenuAt; closePageMenu(); if (back) back.focus(); } });
     }
-    var r = pageSwitch.getBoundingClientRect();
-    pageMenu.style.left = Math.round(r.left) + 'px';
+    var r = pageMenuAt ? pageMenuAt.getBoundingClientRect() : { left: 16, bottom: barBottom() };
+    pageMenu.style.left = Math.round(Math.max(8, Math.min(r.left, window.innerWidth - 288))) + 'px';
     pageMenu.style.top = Math.round(r.bottom + 6) + 'px';
-    pageMenu.style.width = Math.round(Math.max(280, (side.getBoundingClientRect().width || 340) - 2 * (r.left - side.getBoundingClientRect().left))) + 'px';
+    pageMenu.style.width = '280px';
     pageMenu.innerHTML = '<div class="gogh-pagemenu-wait">Finding your pages\u2026</div>';
     pageMenu.hidden = false;
-    pageSwitch.setAttribute('aria-expanded', 'true');
+    if (pageMenuAt) pageMenuAt.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', pageMenuAway, true);
     fetchPageList().then(function (list) {
       if (pageMenu.hidden) return;
@@ -24988,8 +25019,11 @@
       html += rest.map(row).join('');
       if (!list.length) html += '<div class="gogh-pagemenu-wait">No other pages yet.</div>';
       html += '</div>';
-      // no Add a page here: the Page drawer has it as a card, once is enough
+      // Add a page closes the list: the page list is where pages come from
+      if (cfg.canPages) html += '<div class="gogh-pagemenu-sep" role="separator"></div><button type="button" class="gogh-pagemenu-add">+ Add a page</button>';
       pageMenu.innerHTML = html;
+      var addB = pageMenu.querySelector('.gogh-pagemenu-add');
+      if (addB) addB.addEventListener('click', function () { var at = pageMenuAt || pageBtn; closePageMenu(); openAddPagePanel(at); });
       pageMenu.querySelectorAll('.gogh-pagemenu-it').forEach(function (b) {
         b.addEventListener('click', function () {
           var pg = list.filter(function (x) { return +x.id === +b.dataset.id; })[0];

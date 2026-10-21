@@ -9042,7 +9042,7 @@
       return 'asked, stayed, and a failed keep never left the page';
     });
 
-    testAsync('the page switcher lists every page, the menu’s first, Home marked, and opens one in the editor', async function () {
+    testAsync('Page ▾ in the bar lists every page, the menu’s first, Home marked, Add a page last, and opens one in the editor', async function () {
       var C = window.GOGH, wasFront = C.frontId, trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
       var o = location.origin;
       var here = location.pathname;
@@ -9054,8 +9054,15 @@
       ]);
       C.frontId = 99993;
       try {
+        // the drawer names its page; the switching is the bar's Page ▾ (v0.99.782)
         var sw = q('.gogh-pagerow .gogh-pageswitch');
-        expect(sw && /^Editing/.test(sw.textContent), 'the Page drawer should open with “Editing <page> ▾”: ' + (sw && sw.textContent));
+        expect(sw && sw.tagName !== 'BUTTON' && !/Editing/.test(sw.textContent) && sw.querySelector('.gogh-pageswitch-name'), 'the Page drawer names its page, no switcher: ' + (sw && sw.outerHTML.slice(0, 100)));
+        var pb = q('#wp-admin-bar-gogh-page .gogh-pagebtn');
+        if (q('#wpadminbar')) {
+          expect(pb && !q('#wp-admin-bar-gogh-page').hidden, 'editing, the bar has Page ▾');
+          expect(q('#wp-admin-bar-gogh-page').previousElementSibling && q('#wp-admin-bar-gogh-page').previousElementSibling.id === 'wp-admin-bar-gogh-edit', 'Page ▾ sits right after View site');
+          expect(pb.textContent.indexOf(String(C.postTitle || '').trim()) !== -1, 'Page ▾ names the page being edited: ' + pb.textContent);
+        }
         expect(q('.gogh-pagerow .gogh-chip-name'), 'Rename stays beside it');
         G.nav.openPages();
         await new Promise(function (r) { setTimeout(r, 50); });
@@ -9073,7 +9080,8 @@
         expect(/Home page/.test(menu.querySelector('[data-id="99993"]').textContent), 'the home page says so');
         expect(/\u00b7 draft/.test(menu.querySelector('[data-id="99992"]').textContent), 'a draft says so, quietly');
         expect(menu.querySelector('[data-id="99993"] .gogh-pagemenu-house') && !menu.querySelector('.gogh-pagemenu-home-set'), 'Home wears a house; page actions are not in the list');
-        expect(!menu.querySelector('.gogh-pagemenu-add') && !/Add a page/.test(menu.textContent), 'Add a page lives in the Page drawer, not in this list');
+        expect(!!menu.querySelector('.gogh-pagemenu-add') === !!C.canPages, 'Add a page ends the list (when pages may be added)');
+        if (pb && pb.getBoundingClientRect().width) expect(Math.abs(menu.getBoundingClientRect().top - pb.getBoundingClientRect().bottom - 6) < 3, 'the list opens under Page ▾');
         G.openSide('page');
         menu.querySelector('[data-id="99991"]').click();
         expect(menu.hidden, 'choosing a page closes the list');
