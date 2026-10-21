@@ -50,9 +50,6 @@
   // mode the bar is moved down a few pixels (gogh-frame-nudge), and the
   // drawers docked at its height overlapped it (James)
   function barBottom() {
-    // editing, the page's tabs sit under the bar: things dock under THEM
-    var tabs = document.documentElement.classList.contains('gogh-tabbed') && document.querySelector('.gogh-pagetabs');
-    if (tabs && !tabs.hidden) return Math.max(0, Math.round(tabs.getBoundingClientRect().bottom));
     var ab = document.getElementById('wpadminbar');
     if (!ab || getComputedStyle(ab).display === 'none') return 0;
     return Math.max(0, Math.round(ab.getBoundingClientRect().bottom));
@@ -5769,7 +5766,6 @@
     if (on) fetchMediaPool(); // starters dress in THEIR photos
     editing = on;
     document.documentElement.classList.toggle('gogh-editing', on);
-    paintTabs();
     if (on) veilChrome(); else unveilChrome();
     [elbar, secBar, hbar].forEach(function (b) { if (b) b.classList.remove('gogh-byebye'); });
     // the admin-bar landmark flips with the MODE, not just the URL — the
@@ -24140,7 +24136,7 @@
   }
   window.__gogh = {
     refreshChip: function () { refreshChip(); },
-    nav: { carry: drawerCarried, more: openPageMore, closeMore: closePageMore, setHome: setHomePage, go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, tabs: paintTabs, backup: backupNow, setPages: function (l) { pageList = l; pageListGen++; pageListP = null; },
+    nav: { carry: drawerCarried, more: openPageMore, closeMore: closePageMore, setHome: setHomePage, go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, backup: backupNow, setPages: function (l) { pageList = l; },
       watch: function (fn) { var was = goTo; goTo = fn; return function () { goTo = was; discarding = false; }; } },
     history: { open: openHistoryPanel, leave: historyLeave, viewing: function () { return historyView; }, when: historyWhen },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
@@ -24814,7 +24810,6 @@
   var chipBtn = chip.querySelector('.gogh-chip-btn');
   chipName.addEventListener('click', function () { openPageNamePanel('rename'); });
   function refreshChipName() {
-    paintTabs();
     var t = String(cfg.postTitle || '').trim();
     pageSwitch.innerHTML = '<span class="gogh-pageswitch-lab">Editing</span>' +
       (cfg.postType === 'page' && +cfg.postId === +cfg.frontId ? '<span class="gogh-pagemenu-house" title="Home page"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span class="gogh-sr">Home page</span></span>' : '') +
@@ -24878,7 +24873,6 @@
     if (!pageMenu) return;
     pageMenu.hidden = true;
     pageSwitch.setAttribute('aria-expanded', 'false');
-    if (pageMenuAt) { pageMenuAt.setAttribute('aria-expanded', 'false'); pageMenuAt = null; }
     document.removeEventListener('pointerdown', pageMenuAway, true);
   }
   // the home page setting, with Undo putting back exactly what was there
@@ -24917,29 +24911,21 @@
       return false;
     });
   }
-  var pageMenuAt = null; // what opened the list: the switcher, or the tabs' More
   function pageMenuAway(ev) {
-    if (pageMenu && !pageMenu.contains(ev.target) && !(pageMenuAt || pageSwitch).contains(ev.target)) closePageMenu();
+    if (pageMenu && !pageMenu.contains(ev.target) && !pageSwitch.contains(ev.target)) closePageMenu();
   }
-  // one fetch at a time (the tabs and the switcher both ask), and a list
-  // set while it was out (setPages) is never overwritten by its late answer
-  var pageListP = null, pageListGen = 0;
   function fetchPageList() {
     if (pageList) return Promise.resolve(pageList);
     if (!cfg.canPages) return Promise.resolve([]);
-    if (pageListP) return pageListP;
-    var gen = pageListGen;
-    return (pageListP = fetch(restQ(GSROOT + 'pages', 'context=edit&per_page=100&status=publish,draft,private,future&orderby=menu_order&order=asc&_fields=id,title,link,status'), {
+    return fetch(restQ(GSROOT + 'pages', 'context=edit&per_page=100&status=publish,draft,private,future&orderby=menu_order&order=asc&_fields=id,title,link,status'), {
       headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
     }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (list) {
-      pageListP = null;
-      if (gen !== pageListGen) return pageList || [];
       pageList = (Array.isArray(list) ? list : []).map(function (pg) {
         var title = (pg.title && (pg.title.raw != null ? pg.title.raw : pg.title.rendered)) || '';
         return { id: pg.id, name: String(title).replace(/<[^>]*>/g, '').trim() || 'Untitled page', link: pg.link, status: pg.status };
       });
       return pageList;
-    }));
+    });
   }
   // the pages the header's menu shows, in its order (read from the page)
   function menuOrder() {
@@ -24954,24 +24940,8 @@
     });
     return out;
   }
-  // the menu's pages in its order (Home where the menu links home), then the rest
-  function sortPages(list) {
-    var order = menuOrder();
-    var key = function (pg) {
-      try { var u = new URL(pg.link, location.href); return u.pathname.replace(/\/+$/, '') + u.search; } catch (e) { return ''; }
-    };
-    var inMenu = [], rest = [];
-    list.forEach(function (pg) {
-      var k = key(pg), at = order.indexOf(k);
-      if (+pg.id === +cfg.frontId && at === -1) at = order.indexOf('');
-      if (at !== -1) inMenu.push({ pg: pg, at: at }); else rest.push(pg);
-    });
-    inMenu.sort(function (a, b) { return a.at - b.at; });
-    return { inMenu: inMenu.map(function (x) { return x.pg; }), rest: rest };
-  }
-  function openPageMenu(anchor) {
+  function openPageMenu() {
     closePageMore();
-    pageMenuAt = anchor && anchor.nodeType === 1 ? anchor : null;
     if (!pageMenu) {
       pageMenu = document.createElement('div');
       pageMenu.className = 'gogh-pagemenu';
@@ -24979,18 +24949,27 @@
       document.body.appendChild(pageMenu);
       pageMenu.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { closePageMenu(); pageSwitch.focus(); } });
     }
-    var r = (pageMenuAt || pageSwitch).getBoundingClientRect();
-    var mw = pageMenuAt ? 280 : Math.round(Math.max(280, (side.getBoundingClientRect().width || 340) - 2 * (r.left - side.getBoundingClientRect().left)));
-    pageMenu.style.left = Math.round(Math.max(8, Math.min(r.left, window.innerWidth - mw - 8))) + 'px';
+    var r = pageSwitch.getBoundingClientRect();
+    pageMenu.style.left = Math.round(r.left) + 'px';
     pageMenu.style.top = Math.round(r.bottom + 6) + 'px';
-    pageMenu.style.width = mw + 'px';
+    pageMenu.style.width = Math.round(Math.max(280, (side.getBoundingClientRect().width || 340) - 2 * (r.left - side.getBoundingClientRect().left))) + 'px';
     pageMenu.innerHTML = '<div class="gogh-pagemenu-wait">Finding your pages\u2026</div>';
     pageMenu.hidden = false;
-    (pageMenuAt || pageSwitch).setAttribute('aria-expanded', 'true');
+    pageSwitch.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', pageMenuAway, true);
     fetchPageList().then(function (list) {
       if (pageMenu.hidden) return;
-      var sorted = sortPages(list), inMenu = sorted.inMenu.map(function (pg) { return { pg: pg }; }), rest = sorted.rest;
+      var order = menuOrder();
+      var key = function (pg) {
+        try { var u = new URL(pg.link, location.href); return u.pathname.replace(/\/+$/, '') + u.search; } catch (e) { return ''; }
+      };
+      var inMenu = [], rest = [];
+      list.forEach(function (pg) {
+        var k = key(pg), at = order.indexOf(k);
+        if (+pg.id === +cfg.frontId && at === -1) at = order.indexOf('');
+        if (at !== -1) inMenu.push({ pg: pg, at: at }); else rest.push(pg);
+      });
+      inMenu.sort(function (a, b) { return a.at - b.at; });
       var row = function (pg) {
         var cur = +pg.id === +cfg.postId, home = +pg.id === +cfg.frontId;
         return '<button type="button" role="option" class="gogh-pagemenu-it' + (cur ? ' is-current' : '') + '" aria-selected="' + (cur ? 'true' : 'false') + '" data-id="' + pg.id + '">' +
@@ -25034,62 +25013,6 @@
       }
     });
   }
-  // THE PAGE'S TABS. Editing, the page sits in a thin frame in the admin
-  // colour, and the frame's top edge lists the site's pages: the header
-  // menu's order, Home first, the page being edited marked. One click opens
-  // any of them in the editor (the same trip as a menu link, leave question
-  // and all). Pages that aren't in the menu wait behind More; + adds a page.
-  // The same picture as Start a site's preview window (James: 'a pretty cool
-  // way for folks to navigate around pages in gogh')
-  var pageTabs = document.createElement('nav');
-  pageTabs.className = 'gogh-pagetabs';
-  pageTabs.setAttribute('aria-label', 'Pages');
-  pageTabs.hidden = true;
-  var pageFrame = document.createElement('div');
-  pageFrame.className = 'gogh-pageframe';
-  pageFrame.setAttribute('aria-hidden', 'true');
-  pageFrame.hidden = true;
-  document.body.appendChild(pageFrame);
-  document.body.appendChild(pageTabs);
-  var TAB_HOUSE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>';
-  function tabbed() { return !!pageTabs && editing && !cfg.writeUrl; }
-  function paintTabs() {
-    if (!pageTabs) return;
-    var on = tabbed();
-    document.documentElement.classList.toggle('gogh-tabbed', on);
-    pageTabs.hidden = pageFrame.hidden = !on;
-    if (!on) return;
-    var here = { id: cfg.postId, name: String(cfg.postTitle || '').trim() || (cfg.postType === 'page' ? 'Untitled page' : 'This post'), status: cfg.postStatus };
-    var tab = function (pg) {
-      var cur = +pg.id === +cfg.postId, home = +pg.id === +cfg.frontId;
-      var name = cur ? here.name : pg.name;
-      return '<button type="button" class="gogh-pagetab' + (cur ? ' is-current' : '') + '" data-id="' + pg.id + '"' + (cur ? ' aria-current="page"' : '') +
-        (cur ? ' title="The page you are editing"' : ' title="Open ' + esc(name) + ' in the editor"') + '>' +
-        (home ? TAB_HOUSE : '') + esc(name) + (pg.status === 'draft' ? '<span class="gogh-pagetab-st">draft</span>' : '') + '</button>';
-    };
-    var draw = function (list) {
-      var sorted = sortPages(list), shown = sorted.inMenu;
-      var html = '<span class="gogh-pagetabs-lab">Editing</span><div class="gogh-pagetabs-list">' + shown.map(tab).join('');
-      // a page that isn't in the menu still shows while it's the one open
-      if (!shown.some(function (pg) { return +pg.id === +cfg.postId; })) html += (shown.length ? '<span class="gogh-pagetabs-sep"></span>' : '') + tab(here);
-      if (sorted.rest.some(function (pg) { return +pg.id !== +cfg.postId; })) html += '<button type="button" class="gogh-pagetab gogh-pagetabs-more" aria-haspopup="listbox" aria-expanded="false" title="Every page of the site">More <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>';
-      if (cfg.canPages) html += '<button type="button" class="gogh-pagetab gogh-pagetabs-add" aria-label="Add a page" title="Add a page">+</button>';
-      pageTabs.innerHTML = html + '</div><span class="gogh-pagetabs-end"></span>';
-      var cur = pageTabs.querySelector('.is-current');
-      if (cur && cur.scrollIntoView) { var lst = pageTabs.querySelector('.gogh-pagetabs-list'); if (lst.scrollWidth > lst.clientWidth) lst.scrollLeft = Math.max(0, cur.offsetLeft - lst.clientWidth / 2); }
-    };
-    if (pageList) draw(pageList);
-    else { draw([]); fetchPageList().then(function (list) { if (tabbed()) draw(list); }); }
-  }
-  pageTabs.addEventListener('click', function (ev) {
-    var b = ev.target.closest('button'); if (!b) return;
-    if (b.classList.contains('gogh-pagetabs-add')) { openAddPagePanel(b); return; }
-    if (b.classList.contains('gogh-pagetabs-more')) { if (pageMenu && !pageMenu.hidden) closePageMenu(); else openPageMenu(b); return; }
-    var id = +b.dataset.id; if (!id || id === +cfg.postId) return;
-    var pg = (pageList || []).filter(function (x) { return +x.id === id; })[0];
-    if (pg) goToPage(editUrlFor(pg.link, deviceMode === 'phone'), pg.name);
-  });
-  if (editing) paintTabs(); // (else setEditing paints them when editing starts)
   var chipBusy = false;
   var chipTimer = null;
   function setChip(state, txt, btnLabel) {
