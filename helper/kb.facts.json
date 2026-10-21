@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.779",
+    "plugin_version": "0.99.780",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.779-chrome"
+    "asset_version": "0.99.780-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -685,6 +685,7 @@
     "Start writing — a reading column, cursor ready",
     "Switch design",
     "Switch it on",
+    "Switch to another page",
     "Text",
     "Text alignment",
     "Text colour",

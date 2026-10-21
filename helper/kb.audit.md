@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.779
+# Knowledge-base audit — plugin v0.99.780
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -159,8 +159,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.778 → 0.99.779
-- added UI label: "Add a page"
-- added UI label: "Every page of the site"
-- added UI label: "Open ' + esc(name) + ' in the editor"
-- added UI label: "The page you are editing"
+- version: 0.99.779 → 0.99.780
+- added UI label: "Switch to another page"
