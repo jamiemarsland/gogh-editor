@@ -1,5 +1,5 @@
-/* gogh: Page ▾ on the pages gogh's canvas doesn't edit, the Shop and the
- * posts page (v0.99.784). The same button the editor puts dead centre of
+/* gogh: Page ▾ on the pages gogh's canvas doesn't edit, the Shop, the
+ * posts page (v0.99.784) and product categories and tags (v0.99.785). The same button the editor puts dead centre of
  * the admin bar, and the same list of pages: the header menu's first,
  * then drafts and the rest after a line, Add a page at the end. Choosing a
  * page opens it in the editor; Add a page makes one and opens it the way
@@ -33,8 +33,8 @@
     btn.setAttribute('aria-haspopup', 'listbox');
     btn.setAttribute('aria-expanded', 'false');
     btn.title = 'On ' + cfg.name + ' · every page of the site';
-    btn.setAttribute('aria-label', 'Page: ' + cfg.name + '. Every page of the site');
-    btn.innerHTML = PAGE_IC + '<span class="gogh-pagebtn-lab">Page</span>' + (cfg.isFront ? HOUSE : '') + '<span class="gogh-pagebtn-name">' + esc(cfg.name) + '</span>' + CHEV;
+    btn.setAttribute('aria-label', (cfg.label || 'Page') + ': ' + cfg.name + '. Every page of the site');
+    btn.innerHTML = PAGE_IC + '<span class="gogh-pagebtn-lab">' + esc(cfg.label || 'Page') + '</span>' + (cfg.isFront ? HOUSE : '') + '<span class="gogh-pagebtn-name">' + esc(cfg.name) + '</span>' + CHEV;
     li.appendChild(btn);
     root.appendChild(li);
 
