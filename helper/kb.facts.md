@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.781**
+- Plugin version: **0.99.782**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.781`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.782`). Quote the plugin header version.
 
 ## Design constants
 
@@ -139,7 +139,6 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `wp_head` | action | 10 |
 | `wp_head` | action | 10 |
 | `wp_head` | action | 10 |
-| `wp_head` | action | 10 |
 | `enqueue_block_assets` | action | 10 |
 | `init` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
@@ -234,6 +233,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + sh.label + '"
 - "' + whereTip(it.where !== 'desktop', 'phone') + '"
 - "' + whereTip(it.where !== 'phone', 'desktop') + '"
+- "+ Add a page"
 - "+ Link"
 - "+ Page"
 - "A card — drop pieces inside and they stay together, even on mobile"
@@ -247,7 +247,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add a card"
 - "Add a card here"
 - "Add a category ↗"
-- "Add a page"
 - "Add a page to this menu"
 - "Add a picture or video"
 - "Add a product ↗"
@@ -327,7 +326,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
 - "Equal gaps top to bottom"
 - "Even gaps"
-- "Every page of the site"
 - "Everything"
 - "Experience"
 - "Featured product"
@@ -401,7 +399,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "None"
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
-- "Open ' + esc(name) + ' in the editor"
 - "Open interactive experience"
 - "Open the map"
 - "Open your products in WordPress"
@@ -465,7 +462,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
 - "Switch it on"
-- "Switch to another page"
 - "Text"
 - "Text alignment"
 - "Text colour"
@@ -474,7 +470,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The gogh build this tab is running"
 - "The header rides along as visitors scroll"
 - "The look before this one"
-- "The page you are editing"
 - "Theme default"
 - "Tidy up"
 - "Too big — the longest word would run off the page"
