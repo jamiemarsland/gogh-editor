@@ -1,0 +1,587 @@
+{
+ "name": "The Long Way",
+ "tagline": "Slow travel by train, ferry and foot",
+ "palette": {
+  "base": "#F4F2EC",
+  "contrast": "#1B2430",
+  "accents": [
+   "#24575E",
+   "#1B2430",
+   "#1B2430",
+   "#1B2430",
+   "#6A6F74",
+   "#E6EAE6"
+  ]
+ },
+ "fonts": {
+  "heading": "Bricolage Grotesque",
+  "body": "Newsreader"
+ },
+ "chrome": {
+  "header": "gogh-header-classic",
+  "footer": "gogh-footer-simple",
+  "sticky": false
+ },
+ "blog_look": "cover",
+ "pages": [
+  {
+   "title": "Home",
+   "slug": "home",
+   "front": true,
+   "sections": [
+    {
+     "name": "The long way",
+     "minH": 720,
+     "image": "https://images.unsplash.com/photo-1677325453685-5b85031869b2?w=1600&q=80&fm=jpg&fit=max",
+     "background": "#1B2430",
+     "tint": 45,
+     "els": [
+      {
+       "type": "para",
+       "x": 96,
+       "y": 288,
+       "w": 640,
+       "h": 24,
+       "text": "A travel journal by Kit Arden",
+       "tf": {
+        "fs": 16,
+        "col": "#F4F2EC"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 96,
+       "y": 336,
+       "w": 960,
+       "h": 120,
+       "text": "The long way round.",
+       "fs": "__disp-s",
+       "color": "base"
+      },
+      {
+       "type": "para",
+       "x": 96,
+       "y": 480,
+       "w": 600,
+       "h": 72,
+       "text": "Slow travel by train, ferry and foot. No flights since 2023, and no hurry.",
+       "tf": {
+        "fs": 21,
+        "col": "#F4F2EC"
+       }
+      },
+      {
+       "type": "button",
+       "x": 96,
+       "y": 576,
+       "w": 264,
+       "h": 48,
+       "text": "Read the latest story",
+       "href": "/?name=three-weeks-in-the-faroe-islands",
+       "btnBg": "accent-1"
+      }
+     ]
+    },
+    {
+     "take": "Latest posts",
+     "name": "Latest stories",
+     "heading": "Latest stories",
+     "posts": {
+      "look": "cover",
+      "count": 4,
+      "show": {
+       "date": true,
+       "excerpt": true
+      }
+     }
+    },
+    {
+     "name": "Since 2023",
+     "minH": 360,
+     "els": [
+      {
+       "type": "para",
+       "x": 96,
+       "y": 72,
+       "w": 1008,
+       "h": 24,
+       "text": "Since I stopped flying",
+       "tf": {
+        "fs": 16,
+        "col": "#24575E"
+       }
+      },
+      {
+       "type": "para",
+       "x": 96,
+       "y": 120,
+       "w": 240,
+       "h": 72,
+       "text": "14",
+       "tf": {
+        "fs": 52
+       }
+      },
+      {
+       "type": "para",
+       "x": 96,
+       "y": 192,
+       "w": 240,
+       "h": 24,
+       "text": "countries",
+       "tf": {
+        "fs": 17,
+        "col": "#6A6F74"
+       }
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 120,
+       "w": 240,
+       "h": 72,
+       "text": "9,200 km",
+       "tf": {
+        "fs": 52
+       }
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 192,
+       "w": 240,
+       "h": 24,
+       "text": "by rail",
+       "tf": {
+        "fs": 17,
+        "col": "#6A6F74"
+       }
+      },
+      {
+       "type": "para",
+       "x": 624,
+       "y": 120,
+       "w": 240,
+       "h": 72,
+       "text": "31",
+       "tf": {
+        "fs": 52
+       }
+      },
+      {
+       "type": "para",
+       "x": 624,
+       "y": 192,
+       "w": 240,
+       "h": 24,
+       "text": "ferries",
+       "tf": {
+        "fs": 17,
+        "col": "#6A6F74"
+       }
+      },
+      {
+       "type": "para",
+       "x": 888,
+       "y": 120,
+       "w": 240,
+       "h": 72,
+       "text": "0",
+       "tf": {
+        "fs": 52
+       }
+      },
+      {
+       "type": "para",
+       "x": 888,
+       "y": 192,
+       "w": 240,
+       "h": 24,
+       "text": "flights",
+       "tf": {
+        "fs": 17,
+        "col": "#6A6F74"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Right now",
+     "minH": 576,
+     "background": "#E6EAE6",
+     "els": [
+      {
+       "type": "para",
+       "x": 96,
+       "y": 144,
+       "w": 456,
+       "h": 24,
+       "text": "Right now",
+       "tf": {
+        "fs": 16,
+        "col": "#24575E"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 96,
+       "y": 192,
+       "w": 504,
+       "h": 72,
+       "text": "Tórshavn, Faroe Islands",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 96,
+       "y": 288,
+       "w": 456,
+       "h": 72,
+       "text": "Three weeks of ferries, fog and sheep. The next boat leaves for Shetland on Thursday, weather permitting.",
+       "tf": {
+        "fs": 19
+       }
+      },
+      {
+       "type": "button",
+       "x": 96,
+       "y": 384,
+       "w": 216,
+       "h": 48,
+       "text": "Read the story",
+       "href": "/?name=three-weeks-in-the-faroe-islands",
+       "ghost": true
+      },
+      {
+       "type": "embed",
+       "x": 624,
+       "y": 72,
+       "w": 504,
+       "h": 432,
+       "url": "https://www.google.com/maps?q=T%C3%B3rshavn,+Faroe+Islands&z=9&output=embed",
+       "radius": 16
+      }
+     ]
+    },
+    {
+     "name": "About",
+     "minH": 576,
+     "els": [
+      {
+       "type": "image",
+       "x": 72,
+       "y": 72,
+       "w": 480,
+       "h": 432,
+       "src": "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "A map, a notebook, a camera and a rucksack on a wooden floor",
+       "radius": 16
+      },
+      {
+       "type": "para",
+       "x": 648,
+       "y": 120,
+       "w": 456,
+       "h": 24,
+       "text": "Hello",
+       "tf": {
+        "fs": 16,
+        "col": "#24575E"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 648,
+       "y": 168,
+       "w": 456,
+       "h": 120,
+       "text": "I’m Kit. I stopped flying and found out how big Europe is.",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 648,
+       "y": 312,
+       "w": 456,
+       "h": 96,
+       "text": "Every story here was reached by land or sea, with the route and the timetable at the bottom so you can go too.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "button",
+       "x": 648,
+       "y": 432,
+       "w": 216,
+       "h": 48,
+       "text": "More about me",
+       "href": "/about/",
+       "ghost": true
+      }
+     ]
+    },
+    {
+     "name": "Postcards",
+     "minH": 432,
+     "background": "#1B2430",
+     "els": [
+      {
+       "type": "heading",
+       "x": 200,
+       "y": 96,
+       "w": 800,
+       "h": 72,
+       "text": "A new story every other Friday",
+       "fs": "xx-large",
+       "align": "center",
+       "color": "base"
+      },
+      {
+       "type": "para",
+       "x": 300,
+       "y": 192,
+       "w": 600,
+       "h": 48,
+       "text": "Follow along in any feed reader, or write and tell me where I should go next.",
+       "tf": {
+        "fs": 19,
+        "col": "#F4F2EC"
+       },
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 372,
+       "y": 288,
+       "w": 216,
+       "h": 48,
+       "text": "Follow by RSS",
+       "href": "/feed/",
+       "btnBg": "accent-1"
+      },
+      {
+       "type": "button",
+       "x": 612,
+       "y": 288,
+       "w": 216,
+       "h": 48,
+       "text": "Suggest a place",
+       "href": "/contact/",
+       "btnBg": "base",
+       "btnText": "contrast"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Stories",
+   "slug": "stories",
+   "blog": true,
+   "sections": []
+  },
+  {
+   "title": "About",
+   "slug": "about",
+   "sections": [
+    {
+     "name": "About",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 96,
+       "y": 120,
+       "w": 456,
+       "h": 24,
+       "text": "About",
+       "tf": {
+        "fs": 16,
+        "col": "#24575E"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 96,
+       "y": 168,
+       "w": 480,
+       "h": 96,
+       "text": "Kit Arden",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 96,
+       "y": 288,
+       "w": 456,
+       "h": 144,
+       "text": "In 2023 I took one flight too many and decided it was my last. Since then I have travelled by train, ferry, bus and, once, a borrowed bicycle.",
+       "tf": {
+        "fs": 19
+       }
+      },
+      {
+       "type": "para",
+       "x": 96,
+       "y": 456,
+       "w": 456,
+       "h": 120,
+       "text": "It takes longer. That turned out to be the point. Every story ends with how I got there, so you can do it too.",
+       "tf": {
+        "fs": 19
+       }
+      },
+      {
+       "type": "image",
+       "x": 624,
+       "y": 96,
+       "w": 504,
+       "h": 528,
+       "src": "https://images.unsplash.com/photo-1663712403806-3b179940202d?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Fields and wooded hills seen through a train window",
+       "radius": 16
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Contact",
+   "slug": "contact",
+   "sections": [
+    {
+     "take": "Get in touch",
+     "eyebrow": "Write to me",
+     "heading": "Where should I go next?",
+     "text": "Tell me about a route, a ferry or a town I should see. I read everything and answer most of it, usually from a train."
+    }
+   ]
+  }
+ ],
+ "posts": [
+  {
+   "title": "Three weeks in the Faroe Islands",
+   "slug": "three-weeks-in-the-faroe-islands",
+   "date": "2026-09-25",
+   "cats": [
+    "Stories"
+   ],
+   "image": "https://images.unsplash.com/photo-1539634936668-036d13a9cc3b?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "Eighteen islands, one ferry timetable and more sheep than people. The weather decides everything here.",
+   "content": "<!-- wp:paragraph --><p>The ferry from Denmark takes thirty-six hours, and for the last six of them you can see nothing but grey. Then the cliffs come out of the fog all at once, much closer than you expected.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>I came for a week and stayed for three. Nobody hurries in the Faroes, mostly because the weather will not let you. A bus timetable is a suggestion. A ferry timetable is a hope.</p><!-- /wp:paragraph -->\n\n<!-- wp:image {\"sizeSlug\":\"large\"} --><figure class=\"wp-block-image size-large\"><img src=\"https://images.unsplash.com/photo-1610962427218-1d6878a96662?w=1600&q=80&fm=jpg&fit=max\" alt=\"Three sheep on a green hillside above a fjord\"/></figure><!-- /wp:image -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>You do not plan a day in the Faroes. You ask the sky what it has in mind.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Getting there</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>Train to Hirtshals in northern Denmark</li><!-- /wp:list-item --><!-- wp:list-item --><li>Smyril Line ferry to Tórshavn, about 36 hours</li><!-- /wp:list-item --><!-- wp:list-item --><li>A cabin is worth it; the sea is not always kind</li><!-- /wp:list-item --></ul><!-- /wp:list -->"
+  },
+  {
+   "title": "The night train to Vienna",
+   "slug": "the-night-train-to-vienna",
+   "date": "2026-09-11",
+   "cats": [
+    "Stories"
+   ],
+   "image": "https://images.unsplash.com/photo-1758461848768-49bfa6904a69?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "Fall asleep in Brussels, wake up to coffee and the Danube. The best hotel I have ever paid for moves at 120 km/h.",
+   "content": "<!-- wp:paragraph --><p>The sleeper leaves Brussels at seven in the evening. By nine I had eaten a surprisingly good goulash, made friends with a retired engineer from Ghent and fallen asleep somewhere near Cologne.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>I woke at Linz to a knock on the door and a tray with coffee and a bread roll. Two hours later we pulled into Vienna, and I had crossed a continent without once looking at a departures board.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>A night train is a hotel room that ends somewhere else.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Getting there</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>Nightjet from Brussels Midi to Wien Hauptbahnhof, about 14 hours</li><!-- /wp:list-item --><!-- wp:list-item --><li>Book a couchette for the price of a cheap hotel</li><!-- /wp:list-item --><!-- wp:list-item --><li>Breakfast is included; the view is free</li><!-- /wp:list-item --></ul><!-- /wp:list -->"
+  },
+  {
+   "title": "Lisbon by tram",
+   "slug": "lisbon-by-tram",
+   "date": "2026-08-28",
+   "cats": [
+    "Stories"
+   ],
+   "image": "https://images.unsplash.com/photo-1599069158346-684fee0e414a?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "The old yellow trams climb streets a car would think twice about. I rode every line I could find.",
+   "content": "<!-- wp:paragraph --><p>Lisbon is built on seven hills, and the trams that climb them were built a century ago. They creak, lurch and squeal on the bends, and the drivers handle them like old horses.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>Everyone rides the 28. I liked the 24 better: fewer people, steeper hills, and a stop right beside a bakery that sells custard tarts still warm.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>The best way to see a hilly city is to let something older than you carry you up it.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Getting there</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>Train from Madrid on the new direct service, about 9 hours</li><!-- /wp:list-item --><!-- wp:list-item --><li>A 24-hour transport pass covers trams, buses and the funiculars</li><!-- /wp:list-item --></ul><!-- /wp:list -->"
+  },
+  {
+   "title": "North along the Norwegian coast",
+   "slug": "north-along-the-norwegian-coast",
+   "date": "2026-08-14",
+   "cats": [
+    "Stories"
+   ],
+   "image": "https://images.unsplash.com/photo-1616072224282-c2696dc9853b?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "Six days on the coastal ferry, stopping at every harbour between Bergen and the top of the map.",
+   "content": "<!-- wp:paragraph --><p>The coastal ferry is a working boat: it carries the post, fish boxes and the occasional tractor, and it stops at thirty-four ports whether anyone is waiting or not.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>Some stops last fifteen minutes. You learn to run to the end of the pier, look at the mountains and run back. By day three the crew knew me as the one who always ran.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>Thirty-four harbours, and every one of them had someone waving.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Getting there</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>Train from Oslo to Bergen, one of the great rail journeys</li><!-- /wp:list-item --><!-- wp:list-item --><li>Coastal ferry north from Bergen; deck passage is cheaper than you think</li><!-- /wp:list-item --></ul><!-- /wp:list -->"
+  },
+  {
+   "title": "Island hopping by slow ferry",
+   "slug": "island-hopping-by-slow-ferry",
+   "date": "2026-07-31",
+   "cats": [
+    "Stories"
+   ],
+   "image": "https://images.unsplash.com/photo-1665679681815-68a84ddbbabf?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "The fast boats save an hour. The slow ones save the whole trip.",
+   "content": "<!-- wp:paragraph --><p>In the Cyclades there are fast catamarans with reclining seats and closed windows, and there are old car ferries with a deck, a bar and a view. I took the slow ones every time.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>The trick is to stop planning. Buy a ticket the night before, sit on the top deck, and get off wherever looks good from the water.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>The fast boat saves you an hour. The slow boat gives you the sea.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Getting there</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>Train to Bari or Ancona, then the overnight ferry to Patras</li><!-- /wp:list-item --><!-- wp:list-item --><li>Island ferries leave from Piraeus; buy tickets at the port</li><!-- /wp:list-item --></ul><!-- /wp:list -->"
+  },
+  {
+   "title": "A long weekend in Kraków",
+   "slug": "a-long-weekend-in-krakow",
+   "date": "2026-07-17",
+   "cats": [
+    "Stories"
+   ],
+   "image": "https://images.unsplash.com/photo-1562050380-55da3bae840c?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "A trumpet from a tower every hour, soup in bread bowls, and a market square that never seems to sleep.",
+   "content": "<!-- wp:paragraph --><p>Every hour a trumpeter plays from the tower of St Mary’s, and every hour the tune stops halfway through, as it has for centuries. Everyone in the square looks up. Nobody explains.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>I ate żurek in a bread bowl, walked the whole old town twice and spent an afternoon in a milk bar where lunch cost less than a coffee at home.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>Some cities you see. Kraków you hear, once an hour.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Getting there</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>Train from Berlin via Wrocław, about 8 hours</li><!-- /wp:list-item --><!-- wp:list-item --><li>The old town is small: walk everywhere</li><!-- /wp:list-item --></ul><!-- /wp:list -->"
+  },
+  {
+   "title": "Over the Alps in winter",
+   "slug": "over-the-alps-in-winter",
+   "date": "2026-07-03",
+   "cats": [
+    "Stories"
+   ],
+   "image": "https://images.unsplash.com/photo-1783060793568-de1bae4d4728?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "A red train, a white world, and four hours with my face pressed to the glass.",
+   "content": "<!-- wp:paragraph --><p>The line climbs from Chur to St Moritz through spiral tunnels and over viaducts that should not be possible. In January, everything outside the window is white except the train itself.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>I had brought a book. I did not open it once.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>In winter the Alps are a black-and-white film, and the train is the only colour.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Getting there</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>Train from Zürich to Chur, then the Albula line to St Moritz</li><!-- /wp:list-item --><!-- wp:list-item --><li>Sit on the left going up for the best of the viaducts</li><!-- /wp:list-item --></ul><!-- /wp:list -->"
+  }
+ ],
+ "credits": [
+  {
+   "name": "Sebastian Boring",
+   "link": "https://unsplash.com/@sebastianboring"
+  },
+  {
+   "name": "viktor rejent",
+   "link": "https://unsplash.com/@viktor_rejent"
+  },
+  {
+   "name": "André Lergier",
+   "link": "https://unsplash.com/@andrelergier"
+  },
+  {
+   "name": "Rudi De Meyer",
+   "link": "https://unsplash.com/@rudi0307"
+  },
+  {
+   "name": "DD GR",
+   "link": "https://unsplash.com/@anandass"
+  },
+  {
+   "name": "Severinus Dewantara",
+   "link": "https://unsplash.com/@dwntara"
+  },
+  {
+   "name": "Mark",
+   "link": "https://unsplash.com/@mprage"
+  },
+  {
+   "name": "Dylan Shaw",
+   "link": "https://unsplash.com/@dylanshaw"
+  },
+  {
+   "name": "kimny",
+   "link": "https://unsplash.com/@kimny"
+  },
+  {
+   "name": "Annie Spratt",
+   "link": "https://unsplash.com/@anniespratt"
+  },
+  {
+   "name": "Etienne Girardet",
+   "link": "https://unsplash.com/@etiennegirardet"
+  }
+ ]
+}

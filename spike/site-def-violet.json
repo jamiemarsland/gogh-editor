@@ -1,0 +1,1386 @@
+{
+ "name": "The Violet Hour",
+ "tagline": "Small-batch candles & scent, Edinburgh.",
+ "variations": [
+  "Libre Baskerville + Figtree"
+ ],
+ "currency": "GBP",
+ "pages": [
+  {
+   "title": "Home",
+   "slug": "home",
+   "front": true,
+   "template": "template-page-no-title",
+   "menu": false,
+   "sections": [
+    {
+     "name": "Hero",
+     "minH": 792,
+     "background": "var(--wp--preset--color--theme-5)",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 120,
+       "w": 440,
+       "h": 24,
+       "text": "Small-batch candles & scent · Edinburgh",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 168,
+       "w": 540,
+       "h": 288,
+       "text": "Light something <em>slow</em>.",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 456,
+       "w": 440,
+       "h": 96,
+       "text": "Candles, room scents and eaux de parfum, poured by hand in batches of forty in a small studio off Broughton Street. Made for the hour after the day’s work.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 576,
+       "w": 216,
+       "h": 48,
+       "text": "Shop the collection",
+       "href": "/shop/"
+      },
+      {
+       "type": "button",
+       "x": 312,
+       "y": 576,
+       "w": 160,
+       "h": 48,
+       "text": "Our story",
+       "href": "/our-story/",
+       "ghost": true
+      },
+      {
+       "type": "image",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 600,
+       "src": "https://images.unsplash.com/photo-1729087176919-35aad04d37dd?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Violet, blush and bone dinner candles lit in brass holders",
+       "radius": 0
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 696,
+       "w": 480,
+       "h": 24,
+       "text": "Evening Tapers in Violet, Blush and Bone, £18",
+       "tf": {
+        "fs": 13
+       },
+       "align": "right"
+      }
+     ]
+    },
+    {
+     "name": "The spring pour",
+     "minH": 936,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 72,
+       "w": 440,
+       "h": 24,
+       "text": "New this season",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 120,
+       "w": 640,
+       "h": 48,
+       "text": "The spring pour",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 760,
+       "y": 144,
+       "w": 360,
+       "h": 24,
+       "text": "<a href=\"/shop/\">See everything →</a>",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "shop",
+       "x": 80,
+       "y": 216,
+       "w": 1040,
+       "h": 648,
+       "shop": {
+        "cat": "candles",
+        "count": 4,
+        "order": "date",
+        "aspect": "portrait",
+        "spacing": "m",
+        "show": {
+         "price": true,
+         "rating": false,
+         "button": true
+        },
+        "layout": "book"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Find your hour",
+     "minH": 504,
+     "background": "color-mix(in srgb, var(--wp--preset--color--theme-5) 45%, var(--wp--preset--color--theme-1))",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 72,
+       "w": 440,
+       "h": 24,
+       "text": "Shop by",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 120,
+       "w": 640,
+       "h": 48,
+       "text": "Find your hour",
+       "fs": "xx-large"
+      },
+      {
+       "type": "shop",
+       "x": 80,
+       "y": 216,
+       "w": 1040,
+       "h": 192,
+       "shop": {
+        "kind": "categories",
+        "count": 4,
+        "spacing": "m"
+       }
+      }
+     ]
+    },
+    {
+     "name": "The studio",
+     "minH": 720,
+     "background": "var(--wp--preset--color--theme-3)",
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 96,
+       "w": 480,
+       "h": 528,
+       "src": "https://images.unsplash.com/photo-1714228499605-367154d9bdb2?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "An amber glass candle lit beside dried cotton stems",
+       "radius": 0
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 144,
+       "w": 440,
+       "h": 24,
+       "text": "The studio",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 640,
+       "y": 192,
+       "w": 480,
+       "h": 96,
+       "text": "Poured by hand,<br>forty at a time.",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 312,
+       "w": 460,
+       "h": 120,
+       "text": "We melt coconut and rapeseed wax, pour it by hand into glass we choose a box at a time, and let every candle cure for two weeks before it leaves. Nothing is rushed, including the scent.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "box",
+       "x": 640,
+       "y": 432,
+       "w": 480,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 640,
+       "y": 480,
+       "w": 140,
+       "h": 48,
+       "text": "50 hrs",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 528,
+       "w": 140,
+       "h": 24,
+       "text": "burn time",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 800,
+       "y": 480,
+       "w": 140,
+       "h": 48,
+       "text": "14 days",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 800,
+       "y": 528,
+       "w": 140,
+       "h": 24,
+       "text": "curing",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 960,
+       "y": 480,
+       "w": 160,
+       "h": 48,
+       "text": "40",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 960,
+       "y": 528,
+       "w": 160,
+       "h": 24,
+       "text": "candles a batch",
+       "tf": {
+        "fs": 13
+       }
+      }
+     ]
+    },
+    {
+     "name": "Why",
+     "minH": 504,
+     "image": "https://images.unsplash.com/photo-1612885488634-0a698136fed9?w=2000&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-5)",
+     "tint": 30,
+     "els": [
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 168,
+       "w": 880,
+       "h": 96,
+       "text": "“The hour after the day’s work, before the evening starts. That’s who we make these for.”",
+       "fs": "x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 160,
+       "y": 288,
+       "w": 880,
+       "h": 24,
+       "text": "Isla Moray, who pours them",
+       "tf": {
+        "fs": 14
+       },
+       "align": "center"
+      }
+     ]
+    },
+    {
+     "name": "An evening, set",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 168,
+       "w": 300,
+       "h": 24,
+       "text": "Shop the photo",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 216,
+       "w": 320,
+       "h": 96,
+       "text": "An evening,<br>set.",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 336,
+       "w": 300,
+       "h": 120,
+       "text": "Lavender from the studio, a Linen &amp; Iris to light first, and a Lilac &amp; Smoke votive for later. Tap a dot to see each one.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "shop",
+       "x": 440,
+       "y": 96,
+       "w": 680,
+       "h": 528,
+       "shop": {
+        "layout": "photo",
+        "scene": "https://images.unsplash.com/photo-1758356345661-49276f7b3100?w=1600&q=80&fm=jpg&fit=max",
+        "sceneAlt": "Dried lavender in a glass jar, white candles in glass and pink peonies on an old wooden table",
+        "spots": [
+         {
+          "product": "dried-lavender-bundle",
+          "x": 24,
+          "y": 40
+         },
+         {
+          "product": "linen-and-iris",
+          "x": 45,
+          "y": 63
+         },
+         {
+          "product": "lilac-and-smoke",
+          "x": 25,
+          "y": 74
+         }
+        ],
+        "show": {
+         "price": true,
+         "rating": false,
+         "button": true
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "For the room",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 320,
+       "h": 24,
+       "text": "For the room",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 320,
+       "h": 96,
+       "text": "Scent the whole house",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 264,
+       "w": 300,
+       "h": 96,
+       "text": "Reed diffusers that last three months, and a mist for the moment you walk in. The same oils as the candles, no flame needed.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 408,
+       "w": 232,
+       "h": 48,
+       "text": "Shop room & home",
+       "href": "/product-category/room/",
+       "ghost": true
+      },
+      {
+       "type": "shop",
+       "x": 440,
+       "y": 120,
+       "w": 680,
+       "h": 432,
+       "shop": {
+        "cat": "room",
+        "count": 3,
+        "order": "date",
+        "aspect": "portrait",
+        "spacing": "m",
+        "show": {
+         "price": true,
+         "rating": false,
+         "button": false
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "The Evening Box",
+     "minH": 648,
+     "background": "var(--wp--preset--color--theme-5)",
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 96,
+       "w": 520,
+       "h": 432,
+       "src": "https://images.unsplash.com/photo-1557471311-da136cd4fb86?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Gifts wrapped in brown paper with sprigs of lilac",
+       "radius": 0
+      },
+      {
+       "type": "para",
+       "x": 680,
+       "y": 144,
+       "w": 440,
+       "h": 24,
+       "text": "Gifts",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 680,
+       "y": 192,
+       "w": 440,
+       "h": 48,
+       "text": "The Evening Box",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 680,
+       "y": 264,
+       "w": 420,
+       "h": 120,
+       "text": "A candle, a diffuser and a small bottle of Violet Hour, wrapped in lilac tissue and sealed with wax. Tell us who it’s for and we’ll write the card by hand.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "para",
+       "x": 680,
+       "y": 384,
+       "w": 420,
+       "h": 24,
+       "text": "£85 · free UK delivery",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      },
+      {
+       "type": "button",
+       "x": 680,
+       "y": 432,
+       "w": 184,
+       "h": 48,
+       "text": "Send one",
+       "href": "/product/the-evening-box/"
+      }
+     ]
+    },
+    {
+     "name": "Visit",
+     "minH": 576,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "Come and smell them",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 480,
+       "h": 96,
+       "text": "14 Broughton Street,<br>Edinburgh",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 264,
+       "w": 440,
+       "h": 48,
+       "text": "The studio is also the shop. Thursday to Saturday, 11 till 6, and by appointment for weddings and hotels.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 360,
+       "w": 200,
+       "h": 48,
+       "text": "Plan a visit",
+       "href": "/visit/",
+       "ghost": true
+      },
+      {
+       "type": "embed",
+       "radius": 0,
+       "x": 640,
+       "y": 120,
+       "w": 480,
+       "h": 312,
+       "url": "https://www.google.com/maps?q=Broughton+Street,+Edinburgh&output=embed"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Shop",
+   "woo": "shop"
+  },
+  {
+   "title": "Our story",
+   "slug": "our-story",
+   "template": "template-page-no-title",
+   "sections": [
+    {
+     "name": "Our story",
+     "minH": 720,
+     "background": "var(--wp--preset--color--theme-5)",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 120,
+       "w": 440,
+       "h": 24,
+       "text": "Our story",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 168,
+       "w": 560,
+       "h": 288,
+       "text": "One candle, one <em>very</em> small kitchen.",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 432,
+       "w": 480,
+       "h": 120,
+       "text": "Isla started pouring candles at her kitchen table in Leith in 2019, for friends, then friends of friends. Five years on there are four of us, a studio on Broughton Street, and still no machines.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "image",
+       "x": 680,
+       "y": 96,
+       "w": 440,
+       "h": 528,
+       "src": "https://images.unsplash.com/photo-1623056030146-fed96ea69bbd?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Lilac in bloom, close up",
+       "radius": 0
+      }
+     ]
+    },
+    {
+     "name": "How a candle gets made",
+     "minH": 576,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "How a candle gets made",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 640,
+       "h": 72,
+       "text": "Three steps, no shortcuts",
+       "fs": "xx-large"
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 240,
+       "w": 1040,
+       "h": 240,
+       "cards": {
+        "items": [
+         {
+          "t": "01 · Pour",
+          "d": "Wax is melted slowly with the oils at 70°, then poured by hand in two goes so the top sets flat."
+         },
+         {
+          "t": "02 · Cure",
+          "d": "Two weeks on a cool shelf. The scent needs time to bind to the wax; a rushed candle smells of nothing when lit."
+         },
+         {
+          "t": "03 · Trim",
+          "d": "Every wick is trimmed, every jar wiped and labelled by the person who poured it. Their initials are on the base."
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 0,
+        "titles": 1,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "fs": "large",
+          "tag": "h2"
+         },
+         "d": {
+          "tf": {
+           "fs": 16
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "gap": 10,
+         "minH": 192,
+         "rule": 48,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 18%, transparent)"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "The match",
+     "minH": 648,
+     "background": "var(--wp--preset--color--theme-3)",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 144,
+       "w": 440,
+       "h": 24,
+       "text": "What we leave out",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 192,
+       "w": 520,
+       "h": 96,
+       "text": "No paraffin. No plastic.<br>No hurry.",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 312,
+       "w": 480,
+       "h": 120,
+       "text": "Our wax is plant-based, our wicks are wood or cotton, our jars are made to be kept, and our boxes are card you can recycle. Bring an empty jar back to the studio and we’ll refill it for £18.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "image",
+       "x": 680,
+       "y": 96,
+       "w": 440,
+       "h": 456,
+       "src": "https://images.unsplash.com/photo-1771911434558-6b85496cf608?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "A white candle with two wooden wicks",
+       "radius": 0
+      }
+     ]
+    },
+    {
+     "name": "Find your hour",
+     "minH": 432,
+     "els": [
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 120,
+       "w": 880,
+       "h": 48,
+       "text": "Find your hour",
+       "fs": "xx-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 260,
+       "y": 192,
+       "w": 680,
+       "h": 24,
+       "text": "Ten scents, each named for a time and a place we love.",
+       "tf": {
+        "fs": 18
+       },
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 492,
+       "y": 240,
+       "w": 216,
+       "h": 48,
+       "text": "Shop the collection",
+       "href": "/shop/"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Visit",
+   "slug": "visit",
+   "template": "template-page-no-title",
+   "sections": [
+    {
+     "name": "Visit",
+     "minH": 648,
+     "background": "var(--wp--preset--color--theme-5)",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 120,
+       "w": 440,
+       "h": 24,
+       "text": "Visit the studio",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 168,
+       "w": 480,
+       "h": 96,
+       "text": "Come and smell<br>them first.",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 288,
+       "w": 440,
+       "h": 48,
+       "text": "14 Broughton Street, Edinburgh EH1 3RH. Five minutes from Princes Street; the door with the lilac in the window.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 360,
+       "w": 440,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 408,
+       "w": 200,
+       "h": 24,
+       "text": "Thursday – Saturday",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 408,
+       "w": 200,
+       "h": 24,
+       "text": "11am – 6pm",
+       "tf": {
+        "fs": 15
+       },
+       "align": "right"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 432,
+       "w": 200,
+       "h": 24,
+       "text": "Sunday",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 432,
+       "w": 200,
+       "h": 24,
+       "text": "12 – 4pm",
+       "tf": {
+        "fs": 15
+       },
+       "align": "right"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 456,
+       "w": 200,
+       "h": 24,
+       "text": "Monday – Wednesday",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 456,
+       "w": 200,
+       "h": 24,
+       "text": "by appointment",
+       "tf": {
+        "fs": 15
+       },
+       "align": "right"
+      },
+      {
+       "type": "embed",
+       "radius": 0,
+       "x": 600,
+       "y": 120,
+       "w": 520,
+       "h": 408,
+       "url": "https://www.google.com/maps?q=Broughton+Street,+Edinburgh&output=embed"
+      }
+     ]
+    },
+    {
+     "name": "Write to us",
+     "minH": 576,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "Write to us",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 480,
+       "h": 96,
+       "text": "Weddings, hotels<br>and gifts in bulk",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 264,
+       "w": 440,
+       "h": 48,
+       "text": "We pour custom scents for weddings and small hotels, and we’re happy to send forty of anything. Tell us what you have in mind.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 360,
+       "w": 232,
+       "h": 48,
+       "text": "hello@violethour.co",
+       "href": "mailto:hello@violethour.co"
+      },
+      {
+       "type": "image",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 336,
+       "src": "https://images.unsplash.com/photo-1526228446530-49914082ff8a?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "A sprig of lilac on a grey table",
+       "radius": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Basket",
+   "woo": "cart",
+   "menu": false
+  },
+  {
+   "title": "Checkout",
+   "woo": "checkout",
+   "menu": false
+  },
+  {
+   "title": "Your account",
+   "woo": "myaccount",
+   "menu": false
+  }
+ ],
+ "categories": [
+  {
+   "name": "Candles",
+   "slug": "candles",
+   "image": "https://images.unsplash.com/photo-1729087176896-f29ebee17f69?w=1200&q=80&fm=jpg&fit=max",
+   "description": "Hand-poured in coconut and rapeseed wax, cured for two weeks."
+  },
+  {
+   "name": "Eaux de parfum",
+   "slug": "eau-de-parfum",
+   "image": "https://images.unsplash.com/photo-1586858248759-4a773ca946e8?w=1200&q=80&fm=jpg&fit=max",
+   "description": "The candles’ scents, to wear."
+  },
+  {
+   "name": "Room & home",
+   "slug": "room",
+   "image": "https://images.unsplash.com/photo-1750429431308-96eb0e8b6f6f?w=1200&q=80&fm=jpg&fit=max",
+   "description": "Diffusers, mists and dried flowers."
+  },
+  {
+   "name": "Gifts",
+   "slug": "gifts",
+   "image": "https://images.unsplash.com/photo-1557471311-da136cd4fb86?w=1600&q=80&fm=jpg&fit=max",
+   "description": "Boxed, wrapped and sealed by hand."
+  }
+ ],
+ "attributes": [
+  {
+   "name": "Size",
+   "slug": "size",
+   "terms": [
+    "Classic",
+    "Grand"
+   ]
+  }
+ ],
+ "products": [
+  {
+   "name": "No. 04 Lilac & Smoke",
+   "slug": "lilac-and-smoke",
+   "price": 34,
+   "category": "candles",
+   "image": "https://images.unsplash.com/photo-1612179543058-ab74d388e0ce?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Lilac in late May, a struck match, a little smoke from the next garden. Our first scent and still the one people come back for.",
+   "description": "<!-- wp:paragraph --><p>Top notes of lilac and violet leaf over a base of cedar and birch smoke. Poured into clear glass that makes a good tumbler once the candle is done.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Classic is 220g and burns for about 50 hours. Grand is 480g with two wicks, about 90 hours.</p><!-- /wp:paragraph -->",
+   "attributes": {
+    "size": [
+     "classic",
+     "grand"
+    ]
+   },
+   "variations": [
+    {
+     "attributes": {
+      "size": "classic"
+     },
+     "price": 34
+    },
+    {
+     "attributes": {
+      "size": "grand"
+     },
+     "price": 58
+    }
+   ],
+   "weight": "0.45"
+  },
+  {
+   "name": "No. 01 Fig Leaf & Vetiver",
+   "slug": "fig-leaf-and-vetiver",
+   "price": 32,
+   "category": "candles",
+   "image": "https://images.unsplash.com/photo-1662452429806-bfbd5d40acc9?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Green fig leaf, cut stems and vetiver root. Smells like a greenhouse after it’s been watered.",
+   "description": "<!-- wp:paragraph --><p>Fig leaf and cassis at the top, vetiver and a little oakmoss underneath. Poured into a grey concrete vessel, cast for us in Leith.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Classic is 220g, about 50 hours. Grand is 480g, about 90 hours.</p><!-- /wp:paragraph -->",
+   "attributes": {
+    "size": [
+     "classic",
+     "grand"
+    ]
+   },
+   "variations": [
+    {
+     "attributes": {
+      "size": "classic"
+     },
+     "price": 32
+    },
+    {
+     "attributes": {
+      "size": "grand"
+     },
+     "price": 56
+    }
+   ],
+   "weight": "0.45"
+  },
+  {
+   "name": "No. 07 Amber Room",
+   "slug": "amber-room",
+   "price": 30,
+   "category": "candles",
+   "image": "https://images.unsplash.com/photo-1669334388727-9a3437e12fa2?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Warm amber, tobacco leaf and a library chair. For the darkest week of the year.",
+   "description": "<!-- wp:paragraph --><p>Labdanum, tonka and tobacco leaf in ribbed amber glass. 200g, about 45 hours.</p><!-- /wp:paragraph -->",
+   "weight": "0.4"
+  },
+  {
+   "name": "No. 02 Linen & Iris",
+   "slug": "linen-and-iris",
+   "price": 28,
+   "category": "candles",
+   "image": "https://images.unsplash.com/photo-1623426851809-84464742d88b?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Clean sheets, powdery iris, a window open in March.",
+   "description": "<!-- wp:paragraph --><p>Orris, white musk and a little pear, poured into a stone-grey ceramic bowl. 180g, about 40 hours.</p><!-- /wp:paragraph -->",
+   "weight": "0.35"
+  },
+  {
+   "name": "Evening Tapers, set of four",
+   "slug": "evening-tapers",
+   "price": 18,
+   "category": "candles",
+   "image": "https://images.unsplash.com/photo-1729087176953-7b6b71db7dcb?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Hand-dipped dinner candles in Violet, Blush and Bone. About eight hours each, and they don’t drip.",
+   "description": "<!-- wp:paragraph --><p>Dipped by hand in rapeseed wax, eleven times each, then left to harden for a week. Fits a standard 2.2cm holder.</p><!-- /wp:paragraph -->",
+   "weight": "0.3"
+  },
+  {
+   "name": "Violet Hour Eau de Parfum",
+   "slug": "violet-hour-eau-de-parfum",
+   "price": 78,
+   "category": "eau-de-parfum",
+   "image": "https://images.unsplash.com/photo-1586858249274-7922b9e404ac?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Our signature scent to wear: violet leaf, lilac, iris butter and a soft, woody dry-down.",
+   "description": "<!-- wp:paragraph --><p>Blended in small runs and aged for six weeks before bottling. 50ml in a refillable glass atomiser.</p><!-- /wp:paragraph -->",
+   "weight": "0.3"
+  },
+  {
+   "name": "Night Garden Eau de Parfum",
+   "slug": "night-garden-eau-de-parfum",
+   "price": 72,
+   "category": "eau-de-parfum",
+   "image": "https://images.unsplash.com/photo-1594125311687-3b1b3eafa9f4?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Jasmine and tuberose that only open after dark, over cool green moss.",
+   "description": "<!-- wp:paragraph --><p>Jasmine sambac, tuberose, galbanum and oakmoss. 50ml.</p><!-- /wp:paragraph -->",
+   "weight": "0.3"
+  },
+  {
+   "name": "Sea Fennel Eau de Parfum",
+   "slug": "sea-fennel-eau-de-parfum",
+   "price": 72,
+   "category": "eau-de-parfum",
+   "image": "https://images.unsplash.com/photo-1720423514789-15a33e59fc81?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Salt air, wild fennel and driftwood from the beach at Portobello.",
+   "description": "<!-- wp:paragraph --><p>Sea fennel, bergamot, ambrette and driftwood accord. 50ml.</p><!-- /wp:paragraph -->",
+   "weight": "0.3"
+  },
+  {
+   "name": "Reed Diffuser, Lilac & Smoke",
+   "slug": "reed-diffuser-lilac-and-smoke",
+   "price": 38,
+   "category": "room",
+   "image": "https://images.unsplash.com/photo-1620733719370-0c388a50fe9c?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Our first scent for the hallway, in a white ceramic bottle with rattan reeds. Lasts about three months.",
+   "description": "<!-- wp:paragraph --><p>Turn two reeds a week and it lasts the season. Refills are £24.</p><!-- /wp:paragraph -->",
+   "weight": "0.5"
+  },
+  {
+   "name": "Reed Diffuser, Cedar Hall",
+   "slug": "reed-diffuser-cedar-hall",
+   "price": 38,
+   "category": "room",
+   "image": "https://images.unsplash.com/photo-1607047411619-12ca1b2b72c4?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Cedarwood, black pepper and a wool coat drying by the door.",
+   "description": "<!-- wp:paragraph --><p>200ml with eight reeds; about three months. Refills are £24.</p><!-- /wp:paragraph -->",
+   "weight": "0.5"
+  },
+  {
+   "name": "Room Mist, Lavender & Salt",
+   "slug": "room-mist-lavender-and-salt",
+   "price": 22,
+   "category": "room",
+   "image": "https://images.unsplash.com/photo-1550572017-4b7a301b9d81?w=1200&q=80&fm=jpg&fit=max",
+   "short": "Three sprays when you walk in. Lavender, sea salt and a little cedar, for rooms that have been shut all day.",
+   "description": "<!-- wp:paragraph --><p>100ml in a refillable glass bottle. Safe on linen; keep it off polished wood.</p><!-- /wp:paragraph -->",
+   "weight": "0.2"
+  },
+  {
+   "name": "Dried Lavender Bundle",
+   "slug": "dried-lavender-bundle",
+   "price": 12,
+   "category": "room",
+   "image": "https://images.unsplash.com/photo-1634304387535-e9b7ed3180d4?w=1200&q=80&fm=jpg&fit=max",
+   "short": "A fat bundle of Scottish lavender, dried in the studio and tied with cotton.",
+   "description": "<!-- wp:paragraph --><p>Grown in Fife and dried upside down above our pouring bench. Lovely in a drawer or a jug.</p><!-- /wp:paragraph -->",
+   "weight": "0.1"
+  },
+  {
+   "name": "The Evening Box",
+   "slug": "the-evening-box",
+   "price": 85,
+   "category": "gifts",
+   "image": "https://images.unsplash.com/photo-1557471311-da136cd4fb86?w=1200&q=80&fm=jpg&fit=max",
+   "short": "A Classic candle, a reed diffuser and a 10ml Violet Hour, wrapped in lilac tissue and sealed with wax.",
+   "description": "<!-- wp:paragraph --><p>Choose the candle and diffuser scents at checkout, or leave it to us. We write the card by hand and send it with free UK delivery.</p><!-- /wp:paragraph -->",
+   "weight": "1.2"
+  }
+ ],
+ "shop": {
+  "layout": "showroom",
+  "category": "editorial",
+  "product": "gogh-product-story"
+ },
+ "css": ".wp-block-image.gogh-img, .gogh-section .gogh-embed, .gogh-shop-cats li.wc-block-product-categories-list-item > a { border-radius: 0 !important; }",
+ "footer": "<!-- wp:group {\"align\":\"full\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"0\",\"bottom\":\"0\"},\"padding\":{\"top\":\"var:preset|spacing|70\",\"bottom\":\"var:preset|spacing|50\"}}},\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group alignfull\" style=\"margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--50)\"><!-- wp:columns {\"align\":\"wide\",\"style\":{\"spacing\":{\"blockGap\":{\"top\":\"var:preset|spacing|30\",\"left\":\"var:preset|spacing|50\"}}}} -->\n<div class=\"wp-block-columns alignwide\"><!-- wp:column {\"width\":\"40%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:40%\"><!-- wp:site-title {\"level\":0} /-->\n\n<!-- wp:group {\"layout\":{\"type\":\"constrained\",\"contentSize\":\"280px\",\"justifyContent\":\"left\"}} -->\n<div class=\"wp-block-group\"><!-- wp:site-tagline {\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|10\"}}}} /--></div>\n<!-- /wp:group --></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"30%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:30%\"><!-- wp:heading {\"level\":4} -->\n<h4 class=\"wp-block-heading\">Visit</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>14 Broughton Street<br>Edinburgh EH1 3RH<br>Thursday – Sunday</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"15%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:15%\"><!-- wp:heading {\"level\":4} -->\n<h4 class=\"wp-block-heading\">Shop</h4>\n<!-- /wp:heading -->\n\n<!-- wp:navigation {\"overlayMenu\":\"never\",\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|10\"}},\"layout\":{\"type\":\"flex\",\"orientation\":\"vertical\"}} -->\n<!-- wp:navigation-link {\"label\":\"Candles\",\"url\":\"/product-category/candles/\"} /-->\n<!-- wp:navigation-link {\"label\":\"Eaux de parfum\",\"url\":\"/product-category/eau-de-parfum/\"} /-->\n<!-- wp:navigation-link {\"label\":\"Room & home\",\"url\":\"/product-category/room/\"} /-->\n<!-- wp:navigation-link {\"label\":\"Gifts\",\"url\":\"/product-category/gifts/\"} /-->\n<!-- /wp:navigation --></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"15%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:15%\"><!-- wp:heading {\"level\":4} -->\n<h4 class=\"wp-block-heading\">Studio</h4>\n<!-- /wp:heading -->\n\n<!-- wp:navigation {\"overlayMenu\":\"never\",\"style\":{\"spacing\":{\"blockGap\":\"var:preset|spacing|10\"}},\"layout\":{\"type\":\"flex\",\"orientation\":\"vertical\"}} -->\n<!-- wp:navigation-link {\"label\":\"Our story\",\"url\":\"/our-story/\"} /-->\n<!-- wp:navigation-link {\"label\":\"Visit\",\"url\":\"/visit/\"} /-->\n<!-- wp:navigation-link {\"label\":\"Your account\",\"url\":\"/my-account/\"} /-->\n<!-- wp:navigation-link {\"label\":\"Write to us\",\"url\":\"mailto:hello@violethour.co\"} /-->\n<!-- /wp:navigation --></div>\n<!-- /wp:column --></div>\n<!-- /wp:columns -->\n\n<!-- wp:group {\"align\":\"wide\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|50\"},\"padding\":{\"top\":\"var:preset|spacing|30\"}}},\"layout\":{\"type\":\"flex\",\"flexWrap\":\"wrap\",\"justifyContent\":\"space-between\"}} -->\n<div class=\"wp-block-group alignwide\" style=\"margin-top:var(--wp--preset--spacing--50);padding-top:var(--wp--preset--spacing--30)\"><!-- wp:paragraph {\"textColor\":\"theme-4\",\"fontSize\":\"small\"} -->\n<p class=\"has-theme-4-color has-text-color has-small-font-size\">© 2026 The Violet Hour · Poured by hand in Edinburgh</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph {\"textColor\":\"theme-4\",\"fontSize\":\"small\"} -->\n<p class=\"has-theme-4-color has-text-color has-small-font-size\">Free UK delivery over £50 · Jars refilled at the studio</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:group --></div>\n<!-- /wp:group -->\n",
+ "credits": [
+  {
+   "name": "KaLisa Veer",
+   "link": "https://unsplash.com/@kalisaveer"
+  },
+  {
+   "name": "Natali Martynova",
+   "link": "https://unsplash.com/@natamarty"
+  },
+  {
+   "name": "Daniele Levis Pelusi",
+   "link": "https://unsplash.com/@yogidan2012"
+  },
+  {
+   "name": "Tetiana Shadrina",
+   "link": "https://unsplash.com/@shadrinaphotography"
+  },
+  {
+   "name": "Olha Suntsova",
+   "link": "https://unsplash.com/@olasun"
+  },
+  {
+   "name": "Kira De Vries",
+   "link": "https://unsplash.com/@kiradevries1"
+  },
+  {
+   "name": "Monika Grabkowska",
+   "link": "https://unsplash.com/@moniqa"
+  },
+  {
+   "name": "Laura Chouette",
+   "link": "https://unsplash.com/@laurachouette"
+  },
+  {
+   "name": "Chamfjord.",
+   "link": "https://unsplash.com/@chamfjord"
+  },
+  {
+   "name": "Anastasia Anastasia",
+   "link": "https://unsplash.com/@anastasia3385437"
+  },
+  {
+   "name": "Markus Winkler",
+   "link": "https://unsplash.com/@markuswinkler"
+  },
+  {
+   "name": "Mateusz Roman",
+   "link": "https://unsplash.com/@mateusz_roman"
+  },
+  {
+   "name": "Nataliya Melnychuk",
+   "link": "https://unsplash.com/@natinati"
+  },
+  {
+   "name": "Fulvio Ciccolo",
+   "link": "https://unsplash.com/@scentspiracy"
+  },
+  {
+   "name": "Muhammad Sulyman",
+   "link": "https://unsplash.com/@msulyman"
+  },
+  {
+   "name": "Mediamodifier",
+   "link": "https://unsplash.com/@mediamodifier"
+  },
+  {
+   "name": "Ryul Davidson",
+   "link": "https://unsplash.com/@ryuldavidson"
+  },
+  {
+   "name": "Brett Jordan",
+   "link": "https://unsplash.com/@brett_jordan"
+  },
+  {
+   "name": "Iain Robertson",
+   "link": "https://unsplash.com/@yoiain"
+  },
+  {
+   "name": "Caryn Mac",
+   "link": "https://unsplash.com/@caryn_mac"
+  }
+ ]
+}
