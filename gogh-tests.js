@@ -9047,7 +9047,7 @@
       return 'asked, stayed, and a failed keep never left the page';
     });
 
-    testAsync('the page list (the bar’s More) lists every page, the menu’s first, Home marked, and opens one in the editor', async function () {
+    testAsync('the page switcher lists every page, the menu’s first, Home marked, and opens one in the editor', async function () {
       var C = window.GOGH, wasFront = C.frontId, trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
       var o = location.origin;
       var here = location.pathname;
@@ -9059,10 +9059,8 @@
       ]);
       C.frontId = 99993;
       try {
-        // the drawer names its page plainly; moving between pages is the bar's
-        // tabs now (the 'Editing <page> ▾' switcher went in v0.99.781)
         var sw = q('.gogh-pagerow .gogh-pageswitch');
-        expect(sw && sw.tagName !== 'BUTTON' && !/Editing/.test(sw.textContent) && sw.querySelector('.gogh-pageswitch-name'), 'the Page drawer names its page, no switcher: ' + (sw && sw.outerHTML.slice(0, 120)));
+        expect(sw && /^Editing/.test(sw.textContent), 'the Page drawer should open with “Editing <page> ▾”: ' + (sw && sw.textContent));
         expect(q('.gogh-pagerow .gogh-chip-name'), 'Rename stays beside it');
         G.nav.openPages();
         await new Promise(function (r) { setTimeout(r, 50); });
