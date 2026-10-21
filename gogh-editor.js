@@ -50,11 +50,12 @@
   // mode the bar is moved down a few pixels (gogh-frame-nudge), and the
   // drawers docked at its height overlapped it (James)
   function barBottom() {
-    // editing, the page's tabs sit under the bar: things dock under THEM
-    var tabs = document.documentElement.classList.contains('gogh-tabbed') && document.querySelector('.gogh-pagetabs');
-    if (tabs && !tabs.hidden) return Math.max(0, Math.round(tabs.getBoundingClientRect().bottom));
     var ab = document.getElementById('wpadminbar');
-    if (!ab || getComputedStyle(ab).display === 'none') return 0;
+    if (!ab || getComputedStyle(ab).display === 'none') {
+      // no WordPress bar: editing, the page's tabs are the bar
+      var tabs = document.documentElement.classList.contains('gogh-tabbed') && document.querySelector('.gogh-pagetabs');
+      return tabs && !tabs.hidden ? Math.max(0, Math.round(tabs.getBoundingClientRect().bottom)) : 0;
+    }
     return Math.max(0, Math.round(ab.getBoundingClientRect().bottom));
   }
   // Publish wears the user's admin colour scheme, as core's buttons do
@@ -24140,7 +24141,7 @@
   }
   window.__gogh = {
     refreshChip: function () { refreshChip(); },
-    nav: { carry: drawerCarried, more: openPageMore, closeMore: closePageMore, setHome: setHomePage, go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, tabs: paintTabs, backup: backupNow, setPages: function (l) { pageList = l; pageListGen++; pageListP = null; },
+    nav: { carry: drawerCarried, more: openPageMore, closeMore: closePageMore, setHome: setHomePage, go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, tabs: paintTabs, layoutTabs: layoutTabs, backup: backupNow, setPages: function (l) { pageList = l; pageListGen++; pageListP = null; },
       watch: function (fn) { var was = goTo; goTo = fn; return function () { goTo = was; discarding = false; }; } },
     history: { open: openHistoryPanel, leave: historyLeave, viewing: function () { return historyView; }, when: historyWhen },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
@@ -25034,9 +25035,10 @@
       }
     });
   }
-  // THE PAGE'S TABS. Editing, the page sits in a thin frame in the admin
-  // colour, and the frame's top edge lists the site's pages: the header
-  // menu's order, Home first, the page being edited marked. One click opens
+  // THE PAGE'S TABS, in the middle of the ONE BAR (v0.99.780: editing, the
+  // admin bar is gogh's own light toolbar). The page sits in a thin frame in
+  // the admin colour; the tabs list the site's pages: the header menu's
+  // order, Home first, the page being edited marked. One click opens
   // any of them in the editor (the same trip as a menu link, leave question
   // and all). Pages that aren't in the menu wait behind More; + adds a page.
   // The same picture as Start a site's preview window (James: 'a pretty cool
@@ -25058,6 +25060,7 @@
     var on = tabbed();
     document.documentElement.classList.toggle('gogh-tabbed', on);
     pageTabs.hidden = pageFrame.hidden = !on;
+    oneBar(on);
     if (!on) return;
     var here = { id: cfg.postId, name: String(cfg.postTitle || '').trim() || (cfg.postType === 'page' ? 'Untitled page' : 'This post'), status: cfg.postStatus };
     var tab = function (pg) {
@@ -25074,9 +25077,13 @@
       if (!shown.some(function (pg) { return +pg.id === +cfg.postId; })) html += (shown.length ? '<span class="gogh-pagetabs-sep"></span>' : '') + tab(here);
       if (sorted.rest.some(function (pg) { return +pg.id !== +cfg.postId; })) html += '<button type="button" class="gogh-pagetab gogh-pagetabs-more" aria-haspopup="listbox" aria-expanded="false" title="Every page of the site">More <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>';
       if (cfg.canPages) html += '<button type="button" class="gogh-pagetab gogh-pagetabs-add" aria-label="Add a page" title="Add a page">+</button>';
-      pageTabs.innerHTML = html + '</div><span class="gogh-pagetabs-end"></span>';
+      // too narrow for the tabs: the page's name, opening the list of pages
+      html += '</div><button type="button" class="gogh-pagepill" aria-haspopup="listbox" aria-expanded="false" title="Switch to another page">' +
+        (+cfg.postId === +cfg.frontId ? TAB_HOUSE : '') + '<span>' + esc(here.name) + '</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>';
+      pageTabs.innerHTML = html + '<span class="gogh-pagetabs-end"></span>';
+      layoutTabs();
       var cur = pageTabs.querySelector('.is-current');
-      if (cur && cur.scrollIntoView) { var lst = pageTabs.querySelector('.gogh-pagetabs-list'); if (lst.scrollWidth > lst.clientWidth) lst.scrollLeft = Math.max(0, cur.offsetLeft - lst.clientWidth / 2); }
+      if (cur) { var lst = pageTabs.querySelector('.gogh-pagetabs-list'); if (lst.scrollWidth > lst.clientWidth) lst.scrollLeft = Math.max(0, cur.offsetLeft - lst.clientWidth / 2); }
     };
     if (pageList) draw(pageList);
     else { draw([]); fetchPageList().then(function (list) { if (tabbed()) draw(list); }); }
@@ -25084,11 +25091,85 @@
   pageTabs.addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b) return;
     if (b.classList.contains('gogh-pagetabs-add')) { openAddPagePanel(b); return; }
-    if (b.classList.contains('gogh-pagetabs-more')) { if (pageMenu && !pageMenu.hidden) closePageMenu(); else openPageMenu(b); return; }
+    if (b.classList.contains('gogh-pagetabs-more') || b.classList.contains('gogh-pagepill')) { if (pageMenu && !pageMenu.hidden) closePageMenu(); else openPageMenu(b); return; }
     var id = +b.dataset.id; if (!id || id === +cfg.postId) return;
     var pg = (pageList || []).filter(function (x) { return +x.id === id; })[0];
     if (pg) goToPage(editUrlFor(pg.link, deviceMode === 'phone'), pg.name);
   });
+  // the tabs sit in the gap between the bar's two groups: centred on the
+  // window when they fit there, else in the gap, else folded into the pill
+  function layoutTabs() {
+    if (!tabbed() || pageTabs.hidden) return;
+    // still no room for the page's name: the bar's words step aside (View
+    // site, Site styles, the site's name and the status keep their icons)
+    var html = document.documentElement;
+    html.classList.remove('gogh-bar-tight');
+    if (!placeTabs()) { html.classList.add('gogh-bar-tight'); placeTabs(); }
+  }
+  function placeTabs() {
+    var ab = document.getElementById('wpadminbar'), W = window.innerWidth, left = 8, rightEdge = W - 8;
+    if (ab && getComputedStyle(ab).display !== 'none') {
+      ab.querySelectorAll('#wp-admin-bar-root-default > li').forEach(function (li) { var r = li.getBoundingClientRect(); if (r.width) left = Math.max(left, r.right + 12); });
+      ab.querySelectorAll('#wp-admin-bar-top-secondary > li').forEach(function (li) { var r = li.getBoundingClientRect(); if (r.width) rightEdge = Math.min(rightEdge, r.left - 12); });
+    }
+    var right = W - rightEdge, m = Math.max(left, right);
+    var list = pageTabs.querySelector('.gogh-pagetabs-list');
+    pageTabs.classList.remove('is-folded');
+    pageTabs.style.left = '0px'; pageTabs.style.right = '0px';
+    var need = list ? list.scrollWidth : 0;
+    if (need <= W - 2 * m) { pageTabs.style.left = m + 'px'; pageTabs.style.right = m + 'px'; return true; }
+    pageTabs.style.left = left + 'px'; pageTabs.style.right = right + 'px';
+    if (need <= rightEdge - left) return true;
+    pageTabs.classList.add('is-folded');
+    // the pill's whole name (its words can shrink to an ellipsis, so measure them)
+    var pill = pageTabs.querySelector('.gogh-pagepill'), words = pill && pill.querySelector('span');
+    return !pill || (words ? words.scrollWidth + 60 : pill.scrollWidth + 16) <= rightEdge - left;
+  }
+  window.addEventListener('resize', layoutTabs);
+  if (window.ResizeObserver) {
+    // the status beside Publish grows and shrinks ('Changes not live yet')
+    var tabsRO = new ResizeObserver(function () { layoutTabs(); });
+    ['wp-admin-bar-root-default', 'wp-admin-bar-top-secondary'].forEach(function (id) { var el = document.getElementById(id); if (el) tabsRO.observe(el); });
+  }
+  // the bar while editing: the site wears its initial (or icon), and any
+  // other plugin's items move into the site's menu, under 'From your
+  // plugins', so nothing is lost and nothing crowds the bar. Leaving the
+  // editor puts them back where WordPress had them
+  var oneBarMoved = [];
+  function oneBar(on) {
+    var ab = document.getElementById('wpadminbar');
+    if (!ab) return;
+    var site = ab.querySelector('#wp-admin-bar-site-name > .ab-item');
+    if (on && site && !site.querySelector('.gogh-site-ic')) {
+      var ic = document.createElement('span');
+      ic.className = 'gogh-site-ic';
+      ic.setAttribute('aria-hidden', 'true');
+      var icon = document.querySelector('link[rel~="icon"][href*="/wp-content/"]');
+      if (icon) { var im = document.createElement('img'); im.src = icon.href; im.alt = ''; ic.appendChild(im); }
+      else ic.textContent = (site.textContent.trim().charAt(0) || 'S').toUpperCase();
+      site.insertBefore(ic, site.firstChild);
+    }
+    if (!on) {
+      oneBarMoved.forEach(function (x) { if (x.parent) x.parent.insertBefore(x.li, x.next && x.next.parentNode === x.parent ? x.next : null); });
+      oneBarMoved = [];
+      return;
+    }
+    var subWrap = ab.querySelector('#wp-admin-bar-site-name > .ab-sub-wrapper');
+    if (!subWrap) return;
+    var KEEP = /^wp-admin-bar-(site-name|gogh-[\w-]+|my-account|search|wp-logo|menu-toggle)$/;
+    var group = subWrap.querySelector('#wp-admin-bar-gogh-plugins');
+    [].slice.call(ab.querySelectorAll('#wp-admin-bar-root-default > li, #wp-admin-bar-top-secondary > li')).forEach(function (li) {
+      if (KEEP.test(li.id || '')) return;
+      if (!group) {
+        group = document.createElement('ul');
+        group.id = 'wp-admin-bar-gogh-plugins';
+        group.className = 'ab-submenu';
+        subWrap.insertBefore(group, subWrap.querySelector('#wp-admin-bar-gogh-account'));
+      }
+      oneBarMoved.push({ li: li, parent: li.parentNode, next: li.nextSibling });
+      group.appendChild(li);
+    });
+  }
   if (editing) paintTabs(); // (else setEditing paints them when editing starts)
   var chipBusy = false;
   var chipTimer = null;
