@@ -9060,7 +9060,11 @@
         var pb = q('#wp-admin-bar-gogh-page .gogh-pagebtn');
         if (q('#wpadminbar')) {
           expect(pb && !q('#wp-admin-bar-gogh-page').hidden, 'editing, the bar has Page ▾');
-          expect(q('#wp-admin-bar-gogh-page').previousElementSibling && q('#wp-admin-bar-gogh-page').previousElementSibling.id === 'wp-admin-bar-gogh-edit', 'Page ▾ sits right after View site');
+          var ph = q('#wp-admin-bar-gogh-page'), phr = ph.getBoundingClientRect();
+          expect(ph.previousElementSibling && ph.previousElementSibling.id === 'wp-admin-bar-gogh-edit', 'Page ▾ comes after View site (where it sits on a narrow window)');
+          // dead centre of the bar when it clears both groups (v0.99.783)
+          if (ph.classList.contains('is-centred')) expect(Math.abs((phr.left + phr.right) / 2 - window.innerWidth / 2) < 2, 'Page ▾ sits dead centre: ' + Math.round((phr.left + phr.right) / 2) + ' of ' + window.innerWidth);
+          else expect(phr.left >= q('#wp-admin-bar-gogh-edit').getBoundingClientRect().right - 1, 'not centred, it follows View site');
           expect(pb.textContent.indexOf(String(C.postTitle || '').trim()) !== -1, 'Page ▾ names the page being edited: ' + pb.textContent);
         }
         expect(q('.gogh-pagerow .gogh-chip-name'), 'Rename stays beside it');

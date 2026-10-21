@@ -5785,7 +5785,7 @@
     side.hidden = !on;
     railBox.hidden = !on;
     if (on) mountDevPill();
-    if (pageHome) { if (on) mountPageBtn(); pageHome.hidden = !on || !!cfg.writeUrl; }
+    if (pageHome) { if (on) mountPageBtn(); pageHome.hidden = !on || !!cfg.writeUrl; if (on) placePageBtn(); }
     devHome.hidden = !on || !!cfg.writeUrl; // the write room has no canvas to preview
     styleHome.hidden = !on;
     // a room's Done reloads the page; the drawer it came from comes back
@@ -24826,6 +24826,22 @@
     if (ed && ed.parentNode) ed.parentNode.insertBefore(pageHome, ed.nextSibling);
   }
   if (editing) { mountPageBtn(); pageHome.hidden = !!cfg.writeUrl; } // (else setEditing shows it)
+  // dead centre of the bar (James: 'how about we put it dead center?') while
+  // it clears both groups; a narrower window keeps it after View site
+  function placePageBtn() {
+    if (!pageHome || pageHome.hidden || !pageHome.parentNode) return;
+    pageHome.classList.add('is-centred');
+    var r = pageHome.getBoundingClientRect(), left = 0, right = window.innerWidth;
+    document.querySelectorAll('#wp-admin-bar-root-default > li').forEach(function (li) { if (li === pageHome) return; var b = li.getBoundingClientRect(); if (b.width) left = Math.max(left, b.right); });
+    document.querySelectorAll('#wp-admin-bar-top-secondary > li').forEach(function (li) { var b = li.getBoundingClientRect(); if (b.width) right = Math.min(right, b.left); });
+    if (!r.width || r.left < left + 16 || r.right > right - 16) pageHome.classList.remove('is-centred');
+  }
+  window.addEventListener('resize', placePageBtn);
+  if (window.ResizeObserver) {
+    // the status beside Publish grows and shrinks ('Changes not live yet')
+    var pageBtnRO = new ResizeObserver(function () { placePageBtn(); });
+    ['wp-admin-bar-top-secondary', 'wp-admin-bar-root-default'].forEach(function (id) { var el = document.getElementById(id); if (el) pageBtnRO.observe(el); });
+  }
   var chipTxt = chip.querySelector('.gogh-chip-txt');
   var chipBtn = chip.querySelector('.gogh-chip-btn');
   chipName.addEventListener('click', function () { openPageNamePanel('rename'); });
@@ -24836,6 +24852,7 @@
     pageSwitch.innerHTML = house + '<span class="gogh-pageswitch-name">' + nm + '</span>';
     pageBtn.title = 'Editing ' + (t || 'this page') + ' \u00b7 every page of the site';
     pageBtn.setAttribute('aria-label', 'Page: ' + (t || 'this page') + '. Every page of the site');
+    setTimeout(placePageBtn, 0);
     pageBtn.innerHTML = '<svg class="gogh-pagebtn-ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span class="gogh-pagebtn-lab">Page</span>' + house + '<span class="gogh-pagebtn-name">' + nm + '</span>' +
       '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
     if (cfg.postType !== 'page') { chipName.hidden = true; pageMore.hidden = true; return; }
