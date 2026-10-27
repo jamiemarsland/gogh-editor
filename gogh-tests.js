@@ -8563,13 +8563,13 @@
       expect(JSON.stringify(after) === JSON.stringify(before), 'restore did not put the page back: ' + JSON.stringify(after) + ' vs ' + JSON.stringify(before));
     });
 
-    test('steer it: the pad turns a look’s character — Quiet/Compact is plain and regular, Bold/Airy a grand bold opening, the colours stay readable', function () {
+    test('steer it: the pad turns a look’s character — Calm/Smaller is plain and regular, Colourful/Bigger a grand coloured opening, the colours stay readable', function () {
       if (!G.padLook) return 'no pad on this branch';
       var light = { colors: { background: '#ffffff', text: '#16181c', accent: '#3355ff', accent2: '#3355ff' }, fonts: null, scale: 100, rhythm: 'plain' };
       var dark = { colors: { background: '#111318', text: '#f1f2f4', accent: '#7aa2ff', accent2: '#7aa2ff' }, fonts: null, scale: 100, rhythm: 'plain' };
       var q = G.padLook(0.05, 0.92, light), b = G.padLook(0.95, 0.08, light), m = G.padLook(0.5, 0.5, light);
-      expect(q.rhythm === 'plain' && q.scale === 100 && /^Quieter/.test(q.name), 'quiet + compact: one ground, regular type: ' + q.rhythm + ' ' + q.scale + ' ' + q.name);
-      expect(b.rhythm === 'dark-hero' && b.scale === 120 && b.name === 'Bolder, with more room', 'bold + airy: a dark opening, grand type: ' + b.rhythm + ' ' + b.scale + ' ' + b.name);
+      expect(q.rhythm === 'plain' && q.scale === 100 && /^Calmer/.test(q.name), 'quiet + compact: one ground, regular type: ' + q.rhythm + ' ' + q.scale + ' ' + q.name);
+      expect(b.rhythm === 'dark-hero' && b.scale === 120 && b.name === 'More colourful, bigger text', 'bold + airy: a dark opening, grand type: ' + b.rhythm + ' ' + b.scale + ' ' + b.name);
       expect(m.scale === 110 && m.rhythm === 'accent-hero', 'the middle is airy-ish and accent-washed: ' + m.rhythm + ' ' + m.scale);
       expect(G.padLook(0.95, 0.5, dark).rhythm !== 'dark-hero', 'a dark ground never asks for a darker opening');
       [q, b, m].forEach(function (c) { expect(c.colors.background === '#ffffff' && c.colors.text === '#16181c', 'the pad never touches the ground or the words'); });

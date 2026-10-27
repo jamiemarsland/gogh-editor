@@ -21865,7 +21865,22 @@
     if (entry && entry.padBase) return entry.padBase;
     if (entry && entry.cand) return entry.cand;
     var now = currentLook();
-    return { colors: { background: now.background, text: now.text, accent: now.accent, accent2: now.accent2 || now.accent }, fonts: now.fonts, scale: now.scale, rhythm: now.rhythm, divider: now.divider, fx: now.fx };
+    return { colors: { background: now.background, text: now.text, accent: now.accent, accent2: now.accent2 || now.accent }, fonts: now.fonts || padFontsNow(), scale: now.scale, rhythm: now.rhythm, divider: now.divider, fx: now.fx };
+  }
+  // the fonts on the page now, as the catalogue's slugs: a look built from
+  // the site's own (not a brand, not a roll) must carry them, or the
+  // variation falls back to the theme's default pair (the wedding's
+  // Platypi & Ysabeau became Manrope)
+  function padFontsNow() {
+    var smp = siteSample(), cat = fontCatalogue();
+    var slugOf = function (el) {
+      if (!el) return null;
+      var name = firstFamily(getComputedStyle(el).fontFamily).toLowerCase();
+      var hit = cat.filter(function (x) { return firstFamily(x.fontFamily).toLowerCase() === name || String(x.name || '').toLowerCase() === name; })[0];
+      return hit ? hit.slug : null;
+    };
+    var h = slugOf(smp.h), b = slugOf(smp.p) || h;
+    return h || b ? { heading: h || b, body: b || h } : null;
   }
   function padLook(x, y, base) {
     var bgL = hexToHsl(base.colors.background), dark = !!(bgL && bgL.l < 0.5);
@@ -21882,8 +21897,9 @@
       ac = fitAccent(ac, colors.background, colors.text, 2.2);
       if (remixRatio(ac, colors.background) >= 2) { if (colors.accent2 === colors.accent) colors.accent2 = ac; colors.accent = ac; }
     }
-    var mood = x < 0.35 ? 'Quieter' : x > 0.65 ? 'Bolder' : 'Balanced';
-    var room = y < 0.34 ? ', with more room' : y > 0.67 ? ', compact' : '';
+    // named for what it changes (James: the words have to be right)
+    var mood = x < 0.35 ? 'Calmer' : x > 0.65 ? 'More colourful' : 'A little colour';
+    var room = y < 0.34 ? ', bigger text' : y > 0.67 ? ', smaller text' : '';
     var rhythmSay = (REMIX_RHYTHMS.filter(function (r) { return r.key === rhythm; })[0] || REMIX_RHYTHMS[0]).say;
     var scaleSay = (REMIX_SCALES.filter(function (r) { return r[0] === scale; })[0] || [100, 'regular'])[1];
     return {
@@ -23018,8 +23034,8 @@
             // closure, not a decision: the look is already on; Keep just says so and closes the panel
             '<button type="button" class="gogh-remixkeep" title="It is already on your site — this closes the panel">Keep this</button></span></span></div>' +
           '<div class="gogh-pad"><span class="gogh-pad-lab">Steer it</span>' +
-            '<div class="gogh-pad-box" tabindex="0" role="slider" aria-label="Steer the look: drag between Quiet and Bold, Compact and Airy, or use the arrow keys" aria-valuetext="">' +
-            '<span class="gogh-pad-t">Airy</span><span class="gogh-pad-b">Compact</span><span class="gogh-pad-l">Quiet</span><span class="gogh-pad-r">Bold</span><i class="gogh-pad-dot"></i></div></div>';
+            '<div class="gogh-pad-box" tabindex="0" role="slider" aria-label="Steer the look: drag left for calmer, right for more colour, up for bigger text, down for smaller; or use the arrow keys" aria-valuetext="">' +
+            '<span class="gogh-pad-t">Bigger text</span><span class="gogh-pad-b">Smaller text</span><span class="gogh-pad-l">Calm</span><span class="gogh-pad-r">Colourful</span><i class="gogh-pad-dot"></i></div></div>';
         top.appendChild(wrap);
         var wearingBox = wrap.querySelector('.gogh-remixwearing');
         var backBtn = wrap.querySelector('.gogh-remixback');
