@@ -45,7 +45,7 @@
       {
        "type": "para",
        "x": 80,
-       "y": 456,
+       "y": 480,
        "w": 440,
        "h": 96,
        "text": "Candles, room scents and eaux de parfum, poured by hand in batches of forty in a small studio off Broughton Street. Made for the hour after the day’s work.",
@@ -56,7 +56,7 @@
       {
        "type": "button",
        "x": 80,
-       "y": 576,
+       "y": 600,
        "w": 216,
        "h": 48,
        "text": "Shop the collection",
@@ -65,7 +65,7 @@
       {
        "type": "button",
        "x": 312,
-       "y": 576,
+       "y": 600,
        "w": 160,
        "h": 48,
        "text": "Our story",

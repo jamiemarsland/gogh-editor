@@ -578,7 +578,7 @@
    "sections": [
     {
      "name": "The menu",
-     "minH": 432,
+     "minH": 456,
      "els": [
       {
        "type": "para",
@@ -607,7 +607,7 @@
       {
        "type": "para",
        "x": 80,
-       "y": 336,
+       "y": 360,
        "w": 640,
        "h": 48,
        "text": "It changes every day. Tell us about allergies when you book and the kitchen will cook around them.",
@@ -620,7 +620,7 @@
     },
     {
      "name": "Snacks",
-     "minH": 432,
+     "minH": 456,
      "els": [
       {
        "type": "heading",
@@ -632,150 +632,73 @@
        "fs": "large"
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 144,
        "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 144,
-       "w": 400,
-       "h": 24,
-       "text": "Bread from the oven",
-       "tf": {
-        "fs": 17,
-        "fw": 500
+       "h": 240,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Bread from the oven",
+          "d": "Cultured butter, smoked salt",
+          "price": "4"
+         },
+         {
+          "t": "Gordal olives",
+          "d": "Warm, orange, fennel",
+          "price": "5"
+         },
+         {
+          "t": "Flatbread",
+          "d": "Whipped cod’s roe, dill oil",
+          "price": "7"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 500
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 144,
-       "w": 460,
-       "h": 24,
-       "text": "Cultured butter, smoked salt",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 144,
-       "w": 120,
-       "h": 24,
-       "text": "4",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 192,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 240,
-       "w": 400,
-       "h": 24,
-       "text": "Gordal olives",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 240,
-       "w": 460,
-       "h": 24,
-       "text": "Warm, orange, fennel",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 240,
-       "w": 120,
-       "h": 24,
-       "text": "5",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 288,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 288,
-       "w": 400,
-       "h": 24,
-       "text": "Flatbread",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 288,
-       "w": 460,
-       "h": 24,
-       "text": "Whipped cod’s roe, dill oil",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 288,
-       "w": 120,
-       "h": 24,
-       "text": "7",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 336,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
       }
      ]
     },
     {
      "name": "Small plates",
-     "minH": 504,
+     "minH": 528,
      "els": [
       {
        "type": "heading",
@@ -787,194 +710,78 @@
        "fs": "large"
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 144,
        "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 144,
-       "w": 400,
-       "h": 24,
-       "text": "Charred leeks",
-       "tf": {
-        "fs": 17,
-        "fw": 500
+       "h": 312,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Charred leeks",
+          "d": "Hazelnut, brown butter, sheep’s curd",
+          "price": "9"
+         },
+         {
+          "t": "Beetroot from the embers",
+          "d": "Horseradish, rye crumb",
+          "price": "8"
+         },
+         {
+          "t": "Mackerel",
+          "d": "Rhubarb, cucumber, buttermilk",
+          "price": "11"
+         },
+         {
+          "t": "Pig’s head croquette",
+          "d": "Mustard, pickled shallot",
+          "price": "9"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 500
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 144,
-       "w": 460,
-       "h": 24,
-       "text": "Hazelnut, brown butter, sheep’s curd",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 144,
-       "w": 120,
-       "h": 24,
-       "text": "9",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 192,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 240,
-       "w": 400,
-       "h": 24,
-       "text": "Beetroot from the embers",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 240,
-       "w": 460,
-       "h": 24,
-       "text": "Horseradish, rye crumb",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 240,
-       "w": 120,
-       "h": 24,
-       "text": "8",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 288,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 288,
-       "w": 400,
-       "h": 24,
-       "text": "Mackerel",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 288,
-       "w": 460,
-       "h": 24,
-       "text": "Rhubarb, cucumber, buttermilk",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 288,
-       "w": 120,
-       "h": 24,
-       "text": "11",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 336,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 384,
-       "w": 400,
-       "h": 24,
-       "text": "Pig’s head croquette",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 384,
-       "w": 460,
-       "h": 24,
-       "text": "Mustard, pickled shallot",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 384,
-       "w": 120,
-       "h": 24,
-       "text": "9",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 432,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
       }
      ]
     },
     {
      "name": "From the fire",
-     "minH": 504,
+     "minH": 528,
      "els": [
       {
        "type": "heading",
@@ -986,194 +793,78 @@
        "fs": "large"
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 144,
        "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 144,
-       "w": 400,
-       "h": 24,
-       "text": "Lamb chop",
-       "tf": {
-        "fs": 17,
-        "fw": 500
+       "h": 312,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Lamb chop",
+          "d": "Anchovy, salsa verde, burnt lemon",
+          "price": "16"
+         },
+         {
+          "t": "Hake over the embers",
+          "d": "Mussels, cider, sea herbs",
+          "price": "22"
+         },
+         {
+          "t": "Whole roast cauliflower",
+          "d": "Tahini, chilli butter, dukkah",
+          "price": "14"
+         },
+         {
+          "t": "Aged beef rib, for two",
+          "d": "Bone marrow gravy, watercress",
+          "price": "58"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 500
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 144,
-       "w": 460,
-       "h": 24,
-       "text": "Anchovy, salsa verde, burnt lemon",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 144,
-       "w": 120,
-       "h": 24,
-       "text": "16",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 192,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 240,
-       "w": 400,
-       "h": 24,
-       "text": "Hake over the embers",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 240,
-       "w": 460,
-       "h": 24,
-       "text": "Mussels, cider, sea herbs",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 240,
-       "w": 120,
-       "h": 24,
-       "text": "22",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 288,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 288,
-       "w": 400,
-       "h": 24,
-       "text": "Whole roast cauliflower",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 288,
-       "w": 460,
-       "h": 24,
-       "text": "Tahini, chilli butter, dukkah",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 288,
-       "w": 120,
-       "h": 24,
-       "text": "14",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 336,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 384,
-       "w": 400,
-       "h": 24,
-       "text": "Aged beef rib, for two",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 384,
-       "w": 460,
-       "h": 24,
-       "text": "Bone marrow gravy, watercress",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 384,
-       "w": 120,
-       "h": 24,
-       "text": "58",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 432,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
       }
      ]
     },
     {
      "name": "Sides",
-     "minH": 360,
+     "minH": 384,
      "els": [
       {
        "type": "heading",
@@ -1185,106 +876,68 @@
        "fs": "large"
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 144,
        "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 144,
-       "w": 400,
-       "h": 24,
-       "text": "Potatoes in beef fat",
-       "tf": {
-        "fs": 17,
-        "fw": 500
+       "h": 168,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Potatoes in beef fat",
+          "d": "Rosemary",
+          "price": "6"
+         },
+         {
+          "t": "Bitter leaves",
+          "d": "Pear, walnut",
+          "price": "5"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 500
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 144,
-       "w": 460,
-       "h": 24,
-       "text": "Rosemary",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 144,
-       "w": 120,
-       "h": 24,
-       "text": "6",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 192,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 240,
-       "w": 400,
-       "h": 24,
-       "text": "Bitter leaves",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 240,
-       "w": 460,
-       "h": 24,
-       "text": "Pear, walnut",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 240,
-       "w": 120,
-       "h": 24,
-       "text": "5",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 288,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
       }
      ]
     },
     {
      "name": "Puddings",
-     "minH": 432,
+     "minH": 456,
      "els": [
       {
        "type": "heading",
@@ -1296,144 +949,67 @@
        "fs": "large"
       },
       {
-       "type": "box",
+       "type": "cards",
        "x": 80,
        "y": 144,
        "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 144,
-       "w": 400,
-       "h": 24,
-       "text": "Burnt honey tart",
-       "tf": {
-        "fs": 17,
-        "fw": 500
+       "h": 240,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Burnt honey tart",
+          "d": "Crème fraîche, thyme",
+          "price": "8"
+         },
+         {
+          "t": "Baked apple",
+          "d": "Oat crumble, custard",
+          "price": "7"
+         },
+         {
+          "t": "Cheese from the north",
+          "d": "Oatcakes, quince",
+          "price": "10"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 500
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)"
+        }
        }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 144,
-       "w": 460,
-       "h": 24,
-       "text": "Crème fraîche, thyme",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 144,
-       "w": 120,
-       "h": 24,
-       "text": "8",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 192,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 240,
-       "w": 400,
-       "h": 24,
-       "text": "Baked apple",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 240,
-       "w": 460,
-       "h": 24,
-       "text": "Oat crumble, custard",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 240,
-       "w": 120,
-       "h": 24,
-       "text": "7",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 288,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 288,
-       "w": 400,
-       "h": 24,
-       "text": "Cheese from the north",
-       "tf": {
-        "fs": 17,
-        "fw": 500
-       }
-      },
-      {
-       "type": "para",
-       "x": 520,
-       "y": 288,
-       "w": 460,
-       "h": 24,
-       "text": "Oatcakes, quince",
-       "tf": {
-        "fs": 15,
-        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 62%, transparent)"
-       }
-      },
-      {
-       "type": "para",
-       "x": 1000,
-       "y": 288,
-       "w": 120,
-       "h": 24,
-       "text": "10",
-       "tf": {
-        "fs": 17
-       },
-       "align": "right"
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 336,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #fff) 18%, transparent)) center / 100% 1px no-repeat"
       }
      ]
     },
