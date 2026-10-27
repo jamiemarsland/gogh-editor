@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.785
+# Knowledge-base audit — plugin v0.99.786
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -159,5 +159,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.784 → 0.99.785
-- added WP hook: "woocommerce_checkout_redirect_empty_cart"
+- version: 0.99.785 → 0.99.786
