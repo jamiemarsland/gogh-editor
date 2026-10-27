@@ -8563,6 +8563,23 @@
       expect(JSON.stringify(after) === JSON.stringify(before), 'restore did not put the page back: ' + JSON.stringify(after) + ' vs ' + JSON.stringify(before));
     });
 
+    test('steer it: the pad turns a look’s character — Quiet/Compact is plain and regular, Bold/Airy a grand bold opening, the colours stay readable', function () {
+      if (!G.padLook) return 'no pad on this branch';
+      var light = { colors: { background: '#ffffff', text: '#16181c', accent: '#3355ff', accent2: '#3355ff' }, fonts: null, scale: 100, rhythm: 'plain' };
+      var dark = { colors: { background: '#111318', text: '#f1f2f4', accent: '#7aa2ff', accent2: '#7aa2ff' }, fonts: null, scale: 100, rhythm: 'plain' };
+      var q = G.padLook(0.05, 0.92, light), b = G.padLook(0.95, 0.08, light), m = G.padLook(0.5, 0.5, light);
+      expect(q.rhythm === 'plain' && q.scale === 100 && /^Quieter/.test(q.name), 'quiet + compact: one ground, regular type: ' + q.rhythm + ' ' + q.scale + ' ' + q.name);
+      expect(b.rhythm === 'dark-hero' && b.scale === 120 && b.name === 'Bolder, with more room', 'bold + airy: a dark opening, grand type: ' + b.rhythm + ' ' + b.scale + ' ' + b.name);
+      expect(m.scale === 110 && m.rhythm === 'accent-hero', 'the middle is airy-ish and accent-washed: ' + m.rhythm + ' ' + m.scale);
+      expect(G.padLook(0.95, 0.5, dark).rhythm !== 'dark-hero', 'a dark ground never asks for a darker opening');
+      [q, b, m].forEach(function (c) { expect(c.colors.background === '#ffffff' && c.colors.text === '#16181c', 'the pad never touches the ground or the words'); });
+      var hsl = function (h) { var n = parseInt(h.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, bl = (n & 255) / 255, mx = Math.max(r, g, bl), mn = Math.min(r, g, bl); return mx === mn ? 0 : (mx + mn > 1 ? (mx - mn) / (2 - mx - mn) : (mx - mn) / (mx + mn)); };
+      expect(hsl(b.colors.accent) > hsl(q.colors.accent), 'bolder turns the accent up: ' + q.colors.accent + ' → ' + b.colors.accent);
+      var pos = G.padPosOf({ rhythm: 'dark-hero', scale: 120 });
+      expect(pos.x > 0.7 && pos.y < 0.3, 'a bold grand look sits top right on the pad: ' + JSON.stringify(pos));
+      return 'quiet/compact plain 100, bold/airy dark-hero 120, dark ground safe, accent turns up, ground and words untouched';
+    });
+
     test('remix: a direction nudges from where you are — darker is dark, calmer is quiet, warmer leans warm', function () {
       var lum = function (hex) {
         var n = parseInt(hex.slice(1), 16);

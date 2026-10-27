@@ -5256,3 +5256,20 @@ html.gogh-editing .gogh-cs-link a, html.gogh-editing .gogh-cs-btns .wp-block-but
 /* a window this narrow is a phone already: Computer | Phone steps aside so
    Page, the brush and Publish keep one row (v0.99.782) */
 @media screen and (max-width: 400px) { html.gogh-editing #wpadminbar #wp-admin-bar-gogh-device { display: none !important; } }
+
+/* Steer it (explore/character-pad): a dot between Quiet and Bold, Compact and
+   Airy, under the die. The corners are words; the picture is the page */
+.gogh-pad { display: grid; gap: 6px; margin-top: 4px; }
+.gogh-pad-lab { font: 600 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #6b7280; }
+.gogh-pad-box { position: relative; height: 150px; border-radius: 12px; background-color: #f6f7f9; background-image: radial-gradient(#d5d8de 1px, transparent 1px); background-size: 16px 16px; background-position: 8px 8px; border: 1px solid var(--gogh-ui-border, #e2e4e8); cursor: crosshair; touch-action: none; user-select: none; }
+.gogh-pad-box:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
+.gogh-pad-box span { position: absolute; font: 500 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #8a8f99; pointer-events: none; }
+.gogh-pad-t { top: 8px; left: 50%; transform: translateX(-50%); }
+.gogh-pad-b { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.gogh-pad-l { left: 8px; top: 50%; transform: translateY(-50%); }
+.gogh-pad-r { right: 8px; top: 50%; transform: translateY(-50%); }
+.gogh-pad-dot { position: absolute; left: 14%; top: 83%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #1c1e24; box-shadow: 0 0 0 4px rgba(28, 30, 36, .14), 0 2px 6px rgba(0, 0, 0, .25); pointer-events: none; transition: left .18s ease, top .18s ease; }
+.gogh-pad-box.is-steering .gogh-pad-dot { transition: none; box-shadow: 0 0 0 6px rgba(56, 88, 233, .2), 0 2px 6px rgba(0, 0, 0, .25); }
+@media (prefers-reduced-motion: reduce) { .gogh-pad-dot { transition: none; } }
+/* in the top row's wrap: the pad takes the full width, under the receipt */
+.gogh-toprow .gogh-pad { order: 6; flex: 1 1 100%; width: 100%; }

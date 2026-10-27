@@ -21847,6 +21847,81 @@
     remixWearEntry(remixHistory[remixAt]);
     return cand;
   }
+  // ---- STEER IT (explore/character-pad): a dot between Quiet and Bold,
+  // Compact and Airy, under the die (from Graphical's theme creator; the
+  // paper 'Steer, don't pick'). The die lands a look; the dot shows where it
+  // sits and dragging steers its character on the real page. The look's own
+  // colours, hue and fonts stay: Quiet→Bold turns how much the accent is
+  // used (section rhythm, accent strength), Compact→Airy the type size.
+  // One drag is one step of the look history, so Back undoes it whole
+  var PAD_RHYTHMS = [[0.25, 'plain'], [0.5, 'alternate'], [0.75, 'accent-hero'], [1.01, 'dark-hero']];
+  var PAD_RHYTHM_AT = { plain: 0.14, alternate: 0.38, 'accent-hero': 0.62, 'dark-hero': 0.86, bookends: 0.94 };
+  function padPosOf(look) {
+    var x = PAD_RHYTHM_AT[look && look.rhythm] != null ? PAD_RHYTHM_AT[look.rhythm] : 0.14;
+    var sc = (look && look.scale) || 100;
+    return { x: x, y: sc >= 120 ? 0.17 : sc >= 110 ? 0.5 : 0.83 };
+  }
+  function padBaseOf(entry) {
+    if (entry && entry.padBase) return entry.padBase;
+    if (entry && entry.cand) return entry.cand;
+    var now = currentLook();
+    return { colors: { background: now.background, text: now.text, accent: now.accent, accent2: now.accent2 || now.accent }, fonts: now.fonts, scale: now.scale, rhythm: now.rhythm, divider: now.divider, fx: now.fx };
+  }
+  function padLook(x, y, base) {
+    var bgL = hexToHsl(base.colors.background), dark = !!(bgL && bgL.l < 0.5);
+    var rhythm = PAD_RHYTHMS.filter(function (r) { return x < r[0]; })[0][1];
+    if (dark && rhythm === 'dark-hero') rhythm = 'accent-hero'; // a dark ground has no darker opening
+    var scale = y < 0.34 ? 120 : y < 0.67 ? 110 : 100;
+    var colors = { background: base.colors.background, text: base.colors.text, accent: base.colors.accent, accent2: base.colors.accent2 || base.colors.accent };
+    var brandLocked = !!(cfg.brand && cfg.brand.colors && cfg.brand.colors.background);
+    var a = hexToHsl(colors.accent), step = Math.round(x * 6) / 6;
+    if (!brandLocked && a && a.s > 0.08) {
+      // the accent's strength follows the dot, in steps (so a drag does not
+      // re-dress the page every pixel); the gate keeps its words readable
+      var ac = hslToHex(a.h, Math.max(0.14, Math.min(0.95, a.s * (0.6 + step * 0.7))), a.l);
+      ac = fitAccent(ac, colors.background, colors.text, 2.2);
+      if (remixRatio(ac, colors.background) >= 2) { if (colors.accent2 === colors.accent) colors.accent2 = ac; colors.accent = ac; }
+    }
+    var mood = x < 0.35 ? 'Quieter' : x > 0.65 ? 'Bolder' : 'Balanced';
+    var room = y < 0.34 ? ', with more room' : y > 0.67 ? ', compact' : '';
+    var rhythmSay = (REMIX_RHYTHMS.filter(function (r) { return r.key === rhythm; })[0] || REMIX_RHYTHMS[0]).say;
+    var scaleSay = (REMIX_SCALES.filter(function (r) { return r[0] === scale; })[0] || [100, 'regular'])[1];
+    return {
+      key: 'pad|' + rhythm + '|' + scale + '|' + step.toFixed(2),
+      name: mood + room, brand: false, pad: { x: x, y: y },
+      detail: scaleSay + ' type, ' + rhythmSay,
+      colors: colors, fonts: base.fonts || null, families: base.families || null,
+      scale: scale, rhythm: rhythm, divider: base.divider || null, fx: base.fx || null,
+      parts: base.parts || null,
+    };
+  }
+  var padDrag = null; // { entry } while a drag steers one history step
+  function padSteer(x, y, done) {
+    if (remixAt === -1) {
+      var origin = remixOriginEntry();
+      remixHistory = [origin];
+      remixAt = 0;
+      remixFetchOrigin(origin);
+    }
+    if (!padDrag) {
+      // a new step: steered from the look worn now (a pad step keeps steering
+      // from ITS base, so going back and forth never compounds)
+      var worn = remixHistory[remixAt];
+      var base = padBaseOf(worn);
+      remixHistory = remixHistory.slice(0, remixAt + 1);
+      remixHistory.push({ cand: padLook(x, y, base), padBase: base });
+      remixAt = remixHistory.length - 1;
+      padDrag = { entry: remixHistory[remixAt] };
+      remixWearEntry(padDrag.entry);
+    } else {
+      var next = padLook(x, y, padDrag.entry.padBase);
+      var was = padDrag.entry.cand;
+      padDrag.entry.cand = next;
+      if (next.key !== was.key) remixWearEntry(padDrag.entry); else remixSayWearing();
+    }
+    if (done) padDrag = null;
+    return remixHistory[remixAt].cand;
+  }
   function remixBack() {
     if (remixAt <= 0) return false;
     remixAt--;
@@ -22941,15 +23016,46 @@
             '<span class="gogh-remixwearing-foot"><span class="gogh-remixwearing-count"></span>' +
             '<span class="gogh-remixwearing-ways"><button type="button" class="gogh-remixback" title="The look before this one">↶ Back</button>' +
             // closure, not a decision: the look is already on; Keep just says so and closes the panel
-            '<button type="button" class="gogh-remixkeep" title="It is already on your site — this closes the panel">Keep this</button></span></span></div>';
+            '<button type="button" class="gogh-remixkeep" title="It is already on your site — this closes the panel">Keep this</button></span></span></div>' +
+          '<div class="gogh-pad"><span class="gogh-pad-lab">Steer it</span>' +
+            '<div class="gogh-pad-box" tabindex="0" role="slider" aria-label="Steer the look: drag between Quiet and Bold, Compact and Airy, or use the arrow keys" aria-valuetext="">' +
+            '<span class="gogh-pad-t">Airy</span><span class="gogh-pad-b">Compact</span><span class="gogh-pad-l">Quiet</span><span class="gogh-pad-r">Bold</span><i class="gogh-pad-dot"></i></div></div>';
         top.appendChild(wrap);
         var wearingBox = wrap.querySelector('.gogh-remixwearing');
         var backBtn = wrap.querySelector('.gogh-remixback');
         var rollBtn = wrap.querySelector('.gogh-remixbtn');
         var line = wrap.querySelector('.gogh-remixline');
+        var padBox = wrap.querySelector('.gogh-pad-box'), padDot = wrap.querySelector('.gogh-pad-dot');
+        var padAt = function (pos) { padDot.style.left = (pos.x * 100) + '%'; padDot.style.top = (pos.y * 100) + '%'; };
+        var padWhere = function (ev) {
+          var r = padBox.getBoundingClientRect();
+          return { x: Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height)) };
+        };
+        var padRaf = 0, padNext = null;
+        var padGo = function (pos, done) {
+          padAt(pos);
+          padNext = { pos: pos, done: done };
+          if (done) { cancelAnimationFrame(padRaf); padRaf = 0; var c = padSteer(pos.x, pos.y, true); padBox.setAttribute('aria-valuetext', c.name); return; }
+          if (padRaf) return;
+          padRaf = requestAnimationFrame(function () { padRaf = 0; if (padNext && !padNext.done) padSteer(padNext.pos.x, padNext.pos.y, false); });
+        };
+        padBox.addEventListener('pointerdown', function (ev) { padBox.setPointerCapture(ev.pointerId); padBox.classList.add('is-steering'); padGo(padWhere(ev), false); });
+        padBox.addEventListener('pointermove', function (ev) { if (padBox.hasPointerCapture && padBox.hasPointerCapture(ev.pointerId)) padGo(padWhere(ev), false); });
+        var padEnd = function (ev) { if (!padBox.classList.contains('is-steering')) return; padBox.classList.remove('is-steering'); padGo(padWhere(ev), true); };
+        padBox.addEventListener('pointerup', padEnd);
+        padBox.addEventListener('pointercancel', padEnd);
+        padBox.addEventListener('keydown', function (ev) {
+          var w = remixWorn(), cur = (w && w.cand && w.cand.pad) || padPosOf(w && w.cand ? w.cand : currentLook()), st = 1 / 6;
+          var pos = { x: cur.x, y: cur.y };
+          if (ev.key === 'ArrowLeft') pos.x = Math.max(0, pos.x - st); else if (ev.key === 'ArrowRight') pos.x = Math.min(1, pos.x + st);
+          else if (ev.key === 'ArrowUp') pos.y = Math.max(0, pos.y - st); else if (ev.key === 'ArrowDown') pos.y = Math.min(1, pos.y + st); else return;
+          ev.preventDefault(); padGo(pos, true);
+        });
         remixWatch('panel', function () {
           if (!document.body.contains(wearingBox)) return; // the panel moved on
           var w = remixWorn();
+          // the dot shows where the look worn now sits (a die roll moves it)
+          if (!padBox.classList.contains('is-steering')) padAt((w && w.cand && w.cand.pad) || padPosOf(w && w.cand ? w.cand : currentLook()));
           paintSiteNow(panel);
           if (!w || w.origin) {
             wearingBox.hidden = true; line.hidden = false;
@@ -22970,7 +23076,7 @@
           var said = w && !w.origin && w.cand ? (w.cand.name === 'Your brand' ? 'your brand' + (w.cand.detail ? ', ' + w.cand.detail : '') : w.cand.name) : '';
           toast(said ? 'Kept. Your site now uses ' + said + '.' : 'Kept.', { ttl: 3500 });
         });
-        rollBtn.addEventListener('click', function () { remixRoll(); });
+        rollBtn.addEventListener('click', function () { padDrag = null; remixRoll(); });
         remixSayWearing();
       })();
       paintSiteNow(panel);
@@ -24344,6 +24450,7 @@
     hueToward: hueToward,
     openFrontDoor: openFrontDoor,
     remixRoll: remixRoll,
+    padSteer: padSteer, padLook: padLook, padPosOf: padPosOf,
     remixBack: remixBack,
     remixForward: remixForward,
     remixWorn: remixWorn,
