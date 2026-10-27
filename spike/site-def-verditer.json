@@ -218,7 +218,7 @@
        "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
       }
      ],
-     "minH": 216
+     "minH": 144
     },
     {
      "name": "The index",
@@ -251,15 +251,15 @@
       {
        "type": "box",
        "x": 80,
-       "y": 144,
+       "y": 168,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "para",
        "x": 120,
-       "y": 168,
+       "y": 192,
        "w": 300,
        "h": 24,
        "text": "Pigment",
@@ -268,12 +268,15 @@
         "fw": 400,
         "ls2": 0.2,
         "tt": "uppercase"
+       },
+       "m": {
+        "hidden": true
        }
       },
       {
        "type": "para",
        "x": 620,
-       "y": 168,
+       "y": 192,
        "w": 260,
        "h": 24,
        "text": "Where it comes from",
@@ -282,12 +285,15 @@
         "fw": 400,
         "ls2": 0.2,
         "tt": "uppercase"
+       },
+       "m": {
+        "hidden": true
        }
       },
       {
        "type": "para",
        "x": 900,
-       "y": 168,
+       "y": 192,
        "w": 100,
        "h": 24,
        "text": "Grind",
@@ -296,12 +302,15 @@
         "fw": 400,
         "ls2": 0.2,
         "tt": "uppercase"
+       },
+       "m": {
+        "hidden": true
        }
       },
       {
        "type": "para",
        "x": 1010,
-       "y": 168,
+       "y": 192,
        "w": 110,
        "h": 24,
        "text": "Per 100g",
@@ -311,38 +320,48 @@
         "fw": 400,
         "ls2": 0.2,
         "tt": "uppercase"
+       },
+       "m": {
+        "hidden": true
        }
       },
       {
        "type": "box",
        "x": 80,
-       "y": 192,
+       "y": 240,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "box",
        "x": 80,
-       "y": 216,
+       "y": 264,
        "w": 22,
        "h": 24,
        "boxBg": "#F2EDE2",
-       "radius": 11
+       "radius": 11,
+       "m": {
+        "hidden": true
+       }
       },
       {
        "type": "heading",
        "x": 120,
-       "y": 216,
+       "y": 264,
        "w": 300,
        "h": 24,
        "text": "Lead white",
-       "align": "left"
+       "align": "left",
+       "tf": {
+        "fs": 24,
+        "lh": 1
+       }
       },
       {
        "type": "para",
        "x": 620,
-       "y": 216,
+       "y": 264,
        "w": 260,
        "h": 24,
        "text": "St Austell, Cornwall",
@@ -353,7 +372,7 @@
       {
        "type": "para",
        "x": 900,
-       "y": 216,
+       "y": 264,
        "w": 100,
        "h": 24,
        "text": "Fine",
@@ -367,7 +386,7 @@
       {
        "type": "para",
        "x": 1010,
-       "y": 216,
+       "y": 264,
        "w": 110,
        "h": 24,
        "text": "£18",
@@ -380,33 +399,40 @@
       {
        "type": "box",
        "x": 80,
-       "y": 264,
+       "y": 312,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "box",
        "x": 80,
-       "y": 288,
+       "y": 336,
        "w": 22,
        "h": 24,
        "boxBg": "#F0CD7E",
-       "radius": 11
+       "radius": 11,
+       "m": {
+        "hidden": true
+       }
       },
       {
        "type": "heading",
        "x": 120,
-       "y": 264,
+       "y": 336,
        "w": 300,
        "h": 24,
        "text": "Naples yellow",
-       "align": "left"
+       "align": "left",
+       "tf": {
+        "fs": 24,
+        "lh": 1
+       }
       },
       {
        "type": "para",
        "x": 620,
-       "y": 288,
+       "y": 336,
        "w": 260,
        "h": 24,
        "text": "Vesuvius, Campania",
@@ -417,7 +443,7 @@
       {
        "type": "para",
        "x": 900,
-       "y": 288,
+       "y": 336,
        "w": 100,
        "h": 24,
        "text": "Coarse",
@@ -431,7 +457,7 @@
       {
        "type": "para",
        "x": 1010,
-       "y": 264,
+       "y": 336,
        "w": 110,
        "h": 24,
        "text": "£26",
@@ -444,33 +470,40 @@
       {
        "type": "box",
        "x": 80,
-       "y": 312,
+       "y": 384,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "box",
        "x": 80,
-       "y": 336,
+       "y": 408,
        "w": 22,
        "h": 24,
        "boxBg": "#E8A317",
-       "radius": 11
+       "radius": 11,
+       "m": {
+        "hidden": true
+       }
       },
       {
        "type": "heading",
        "x": 120,
-       "y": 336,
+       "y": 408,
        "w": 300,
        "h": 24,
        "text": "Orpiment",
-       "align": "left"
+       "align": "left",
+       "tf": {
+        "fs": 24,
+        "lh": 1
+       }
       },
       {
        "type": "para",
        "x": 620,
-       "y": 336,
+       "y": 408,
        "w": 260,
        "h": 24,
        "text": "Kütahya, Anatolia",
@@ -481,7 +514,7 @@
       {
        "type": "para",
        "x": 900,
-       "y": 336,
+       "y": 408,
        "w": 100,
        "h": 24,
        "text": "Fine",
@@ -495,7 +528,7 @@
       {
        "type": "para",
        "x": 1010,
-       "y": 336,
+       "y": 408,
        "w": 110,
        "h": 24,
        "text": "£41",
@@ -508,33 +541,40 @@
       {
        "type": "box",
        "x": 80,
-       "y": 384,
+       "y": 456,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "box",
        "x": 80,
-       "y": 408,
+       "y": 480,
        "w": 22,
        "h": 24,
        "boxBg": "#C8442A",
-       "radius": 11
+       "radius": 11,
+       "m": {
+        "hidden": true
+       }
       },
       {
        "type": "heading",
        "x": 120,
-       "y": 384,
+       "y": 480,
        "w": 300,
        "h": 24,
        "text": "Cinnabar",
-       "align": "left"
+       "align": "left",
+       "tf": {
+        "fs": 24,
+        "lh": 1
+       }
       },
       {
        "type": "para",
        "x": 620,
-       "y": 408,
+       "y": 480,
        "w": 260,
        "h": 24,
        "text": "Almadén, Castile",
@@ -545,7 +585,7 @@
       {
        "type": "para",
        "x": 900,
-       "y": 408,
+       "y": 480,
        "w": 100,
        "h": 24,
        "text": "Fine",
@@ -559,7 +599,7 @@
       {
        "type": "para",
        "x": 1010,
-       "y": 408,
+       "y": 480,
        "w": 110,
        "h": 24,
        "text": "£54",
@@ -572,33 +612,40 @@
       {
        "type": "box",
        "x": 80,
-       "y": 456,
+       "y": 528,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "box",
        "x": 80,
-       "y": 456,
+       "y": 552,
        "w": 22,
        "h": 24,
        "boxBg": "#9C3A4E",
-       "radius": 11
+       "radius": 11,
+       "m": {
+        "hidden": true
+       }
       },
       {
        "type": "heading",
        "x": 120,
-       "y": 456,
+       "y": 552,
        "w": 300,
        "h": 24,
        "text": "Madder lake",
-       "align": "left"
+       "align": "left",
+       "tf": {
+        "fs": 24,
+        "lh": 1
+       }
       },
       {
        "type": "para",
        "x": 620,
-       "y": 456,
+       "y": 552,
        "w": 260,
        "h": 24,
        "text": "Vaucluse, Provence",
@@ -609,7 +656,7 @@
       {
        "type": "para",
        "x": 900,
-       "y": 456,
+       "y": 552,
        "w": 100,
        "h": 24,
        "text": "Fine",
@@ -623,7 +670,7 @@
       {
        "type": "para",
        "x": 1010,
-       "y": 456,
+       "y": 552,
        "w": 110,
        "h": 24,
        "text": "£29",
@@ -636,33 +683,40 @@
       {
        "type": "box",
        "x": 80,
-       "y": 504,
+       "y": 600,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "box",
        "x": 80,
-       "y": 528,
+       "y": 624,
        "w": 22,
        "h": 24,
        "boxBg": "#4A9B8E",
-       "radius": 11
+       "radius": 11,
+       "m": {
+        "hidden": true
+       }
       },
       {
        "type": "heading",
        "x": 120,
-       "y": 528,
+       "y": 624,
        "w": 300,
        "h": 24,
        "text": "Verditer",
-       "align": "left"
+       "align": "left",
+       "tf": {
+        "fs": 24,
+        "lh": 1
+       }
       },
       {
        "type": "para",
        "x": 620,
-       "y": 528,
+       "y": 624,
        "w": 260,
        "h": 24,
        "text": "Matlock, Derbyshire",
@@ -673,7 +727,7 @@
       {
        "type": "para",
        "x": 900,
-       "y": 528,
+       "y": 624,
        "w": 100,
        "h": 24,
        "text": "Coarse",
@@ -687,7 +741,7 @@
       {
        "type": "para",
        "x": 1010,
-       "y": 528,
+       "y": 624,
        "w": 110,
        "h": 24,
        "text": "£22",
@@ -700,33 +754,40 @@
       {
        "type": "box",
        "x": 80,
-       "y": 576,
+       "y": 672,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "box",
        "x": 80,
-       "y": 600,
+       "y": 696,
        "w": 22,
        "h": 24,
        "boxBg": "#3B52B8",
-       "radius": 11
+       "radius": 11,
+       "m": {
+        "hidden": true
+       }
       },
       {
        "type": "heading",
        "x": 120,
-       "y": 576,
+       "y": 696,
        "w": 300,
        "h": 24,
        "text": "Ultramarine",
-       "align": "left"
+       "align": "left",
+       "tf": {
+        "fs": 24,
+        "lh": 1
+       }
       },
       {
        "type": "para",
        "x": 620,
-       "y": 600,
+       "y": 696,
        "w": 260,
        "h": 24,
        "text": "Sar-e-Sang, Badakhshan",
@@ -737,7 +798,7 @@
       {
        "type": "para",
        "x": 900,
-       "y": 600,
+       "y": 696,
        "w": 100,
        "h": 24,
        "text": "Fine",
@@ -751,7 +812,7 @@
       {
        "type": "para",
        "x": 1010,
-       "y": 576,
+       "y": 696,
        "w": 110,
        "h": 24,
        "text": "£96",
@@ -764,33 +825,40 @@
       {
        "type": "box",
        "x": 80,
-       "y": 624,
+       "y": 744,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "box",
        "x": 80,
-       "y": 648,
+       "y": 768,
        "w": 22,
        "h": 24,
        "boxBg": "#2F7D5F",
-       "radius": 11
+       "radius": 11,
+       "m": {
+        "hidden": true
+       }
       },
       {
        "type": "heading",
        "x": 120,
-       "y": 648,
+       "y": 768,
        "w": 300,
        "h": 24,
        "text": "Malachite",
-       "align": "left"
+       "align": "left",
+       "tf": {
+        "fs": 24,
+        "lh": 1
+       }
       },
       {
        "type": "para",
        "x": 620,
-       "y": 648,
+       "y": 768,
        "w": 260,
        "h": 24,
        "text": "Katanga, Haut-Katanga",
@@ -801,7 +869,7 @@
       {
        "type": "para",
        "x": 900,
-       "y": 648,
+       "y": 768,
        "w": 100,
        "h": 24,
        "text": "Coarse",
@@ -815,7 +883,7 @@
       {
        "type": "para",
        "x": 1010,
-       "y": 648,
+       "y": 768,
        "w": 110,
        "h": 24,
        "text": "£37",
@@ -828,33 +896,40 @@
       {
        "type": "box",
        "x": 80,
-       "y": 696,
+       "y": 816,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "box",
        "x": 80,
-       "y": 720,
+       "y": 840,
        "w": 22,
        "h": 24,
        "boxBg": "#26242C",
-       "radius": 11
+       "radius": 11,
+       "m": {
+        "hidden": true
+       }
       },
       {
        "type": "heading",
        "x": 120,
-       "y": 696,
+       "y": 840,
        "w": 300,
        "h": 24,
        "text": "Bone black",
-       "align": "left"
+       "align": "left",
+       "tf": {
+        "fs": 24,
+        "lh": 1
+       }
       },
       {
        "type": "para",
        "x": 620,
-       "y": 720,
+       "y": 840,
        "w": 260,
        "h": 24,
        "text": "Whitby, North Yorkshire",
@@ -865,7 +940,7 @@
       {
        "type": "para",
        "x": 900,
-       "y": 720,
+       "y": 840,
        "w": 100,
        "h": 24,
        "text": "Fine",
@@ -879,7 +954,7 @@
       {
        "type": "para",
        "x": 1010,
-       "y": 720,
+       "y": 840,
        "w": 110,
        "h": 24,
        "text": "£14",
@@ -892,13 +967,13 @@
       {
        "type": "box",
        "x": 80,
-       "y": 768,
+       "y": 888,
        "w": 1040,
        "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) top / 100% 1px no-repeat"
       }
      ],
-     "minH": 864
+     "minH": 984
     },
     {
      "name": "How it's made",
@@ -1023,7 +1098,7 @@
       {
        "type": "para",
        "x": 800,
-       "y": 144,
+       "y": 120,
        "w": 320,
        "h": 24,
        "text": "Second miller",
