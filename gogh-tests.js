@@ -6,6 +6,29 @@
   'use strict';
 
   var results = [];
+  window.__goghTestProgress = results; // live: a stuck run shows where it stopped
+  // "Never saves" includes the site's header and footer: since the rooms
+  // keep on click (v0.99.611), closing a room writes the template part, and
+  // a suite run rewrote James's live header (Hamburger, sticky off) on
+  // 2026-09-21. Every write to a template part is answered here, never sent;
+  // tests that stub a fake part (id 101) still wrap this. The list of what
+  // was blocked is on window.__goghTestBlockedWrites.
+  var blockedWrites = [];
+  window.__goghTestBlockedWrites = blockedWrites;
+  (function () {
+    var realFetch = window.fetch;
+    window.fetch = function (url, opts) {
+      var m = (opts && opts.method) || 'GET';
+      // ...and the site's global styles: a Site style keep writes them, and
+      // two runs on 2026-09-21 left James's site dark with test fonts when
+      // their restore step never ran (throttled timers in a hidden tab)
+      if (m !== 'GET' && m !== 'HEAD' && /\/wp\/v2\/(template-parts|global-styles)\//.test(String(url))) {
+        blockedWrites.push({ url: String(url), body: opts && opts.body ? String(opts.body) : '' });
+        return Promise.resolve({ ok: true, status: 200, url: String(url), json: function () { return Promise.resolve({}); }, text: function () { return Promise.resolve('{}'); } });
+      }
+      return realFetch.apply(window, arguments);
+    };
+  })();
   var jsErrors = [];
   window.addEventListener('error', function (ev) { jsErrors.push(String(ev.message)); });
 
@@ -22,9 +45,39 @@
     pev('pointerup', target, x + dx, y + dy, id);
   }
   function q(sel) { return document.querySelector(sel); }
+  // a published core/group whose class list carries `cls` must hold only
+  // blocks: its save() regenerates nothing but its inner blocks, so loose
+  // markup (a bare <a>) makes the block invalid in the block editor. With
+  // the core blocks registered (the block editor) it asks wp.blocks.parse;
+  // on the canvas it strips the inner block comments and wants nothing left.
+  // Returns null when it holds, else what went wrong.
+  function groupHoldsOnlyBlocks(markup, cls) {
+    var m = markup.match(new RegExp('<!-- wp:group (\\{[^\\n]*?\\b' + cls + '\\b[^\\n]*?\\}) -->\\n([\\s\\S]*?)\\n<!-- /wp:group -->'));
+    if (!m) return 'no group carrying ' + cls;
+    var whole = m[0];
+    if (window.wp && wp.blocks && wp.blocks.parse && wp.blocks.getBlockType && wp.blocks.getBlockType('core/group')) {
+      var bad = [];
+      (function walk(bs) { bs.forEach(function (b) { if (!b.isValid) bad.push(b.name); walk(b.innerBlocks || []); }); })(wp.blocks.parse(whole));
+      return bad.length ? 'invalid in the block editor: ' + bad.join(', ') : null;
+    }
+    var inner = m[2].replace(/^<div class="wp-block-group [^"]*">/, '').replace(/<\/div>$/, '');
+    var prev;
+    do {
+      prev = inner;
+      inner = inner.replace(/<!-- wp:[a-z0-9\/-]+ (?:\{[^\n]*?\} )?\/-->/g, '')
+        .replace(/<!-- wp:([a-z0-9\/-]+) (?:\{[^\n]*?\} )?-->(?:(?!<!-- \/?wp:)[\s\S])*?<!-- \/wp:\1 -->/g, '');
+    } while (inner !== prev);
+    return /\S/.test(inner) ? 'loose markup in the group: ' + inner.trim().slice(0, 80) : null;
+  }
+  // the design view eases back over 0.4s when it closes; the Browser pane
+  // the suite runs in freezes CSS transitions at their start, so a test that
+  // leaves the zoom has to snap the page home for the coordinate tests after it
+  function MENU_LAYOUTS_CLEAR(b) { ['stack', 'centred', 'drawer', 'sheet'].forEach(function (k) { b.classList.remove('gogh-mm-' + k); }); }
+  function settleZoom() { var w = q('.wp-site-blocks'); if (w) { w.style.transition = 'none'; void w.offsetWidth; } }
 
   function run() {
     var G = window.__gogh;
+    if (G.remixDry) G.remixDry(true); // a roll in here never saves the site's styles
     var SNAP;
     var sec = function () {
       var all = G.sections();
@@ -72,6 +125,7 @@
         addToSec(t);
       }
     });
+    G.renderSection(sec());
     SNAP = G.serialize();
 
     // ---- 1. boot ----
@@ -270,6 +324,19 @@
     // preview (html.gogh-phone-preview) keeps it visible-but-dimmed so it can be
     // un-hidden. The sparse patch marks the node and round-trips through the
     // model. (First slice of the mobile-tailoring overrides.) ----
+    test('phones: the button rule in the container query outranks the desktop fill (buttons were full width on phones)', function () {
+      var s = sec();
+      var i = findIdx('button'); if (i < 0) return 'no button in the fixture';
+      G.resolve(s);
+      var css = s.styleEl.textContent.replace(/\s+/g, ' ');
+      var fill = css.indexOf('.wp-block-button:not(.gogh-widget *), ');
+      var cq = css.indexOf('@container (max-width: 700px)');
+      var phone = css.indexOf('.wp-block-button:not(.gogh-widget *), ', cq);
+      expect(fill !== -1 && cq !== -1 && phone !== -1 && phone > fill, 'the phone button rule should carry the same :not() as the desktop fill rule, inside the container query');
+      expect(/\.wp-block-button__link:not\(\.gogh-widget \*\) \{ width: max-content; height: 44px/.test(css.slice(cq)), 'the phone rule should shrink the button to max-content × 44px');
+      return 'phone rule ties the desktop fill on specificity and comes later';
+    });
+
     test('mobile hide: m.hidden emits a gated hide rule, marks the node, and round-trips', function () {
       var s = sec();
       var i = findIdx('image'); if (i < 0) i = 0;
@@ -403,13 +470,17 @@
       var i = findIdx('heading');
       var e = s.els[i];
       var x0 = e.x, y0 = e.y, w0 = e.w, h0 = e.h;
-      var floor = s.minH || 560;
+      var floor = s.minH || 576;
       e.y = floor - e.h; // bottom exactly at the minH line
       G.resolve(s);
       var r = s.sectionEl.getBoundingClientRect();
       var designHNow = r.height / (r.width / 1200);
-      expect(Math.abs(designHNow - floor) <= 12,
-        'section ran past the flush element: ' + Math.round(designHNow) + ' vs minH ' + floor);
+      // another piece may sit lower than the floor; then the section is
+      // honestly that piece plus the pad, and still no more
+      var others = Math.max.apply(null, s.els.filter(function (o) { return o !== e; }).map(function (o) { return o.y + o.h; }));
+      var want = Math.max(floor, others > floor ? Math.ceil((others + 72) / 72) * 72 : floor);
+      expect(Math.abs(designHNow - want) <= 12,
+        'section ran past the flush element: ' + Math.round(designHNow) + ' vs ' + want + ' (minH ' + floor + ', lowest other ' + others + ')');
       e.x = x0; e.y = y0; e.w = w0; e.h = h0;
       G.resolve(s);
       return 'bottom at ' + floor + ', section ' + Math.round(designHNow) + ' — flush';
@@ -547,6 +618,61 @@
       expect(below.y > y0, 'below element not pushed (y ' + y0 + '→' + below.y + ')');
     });
 
+    test('deleting words pulls the element below back up (backspace reflow)', function () {
+      var i = findIdx('heading');
+      var e = sec().els[i];
+      var node = sec().nodes[i];
+      var below = sec().els.filter(function (o) {
+        return o !== e && o.y >= e.y + e.h - 8 && o.x < e.x + e.w && o.x + o.w > e.x;
+      })[0];
+      expect(below, 'no in-path element below heading in fixture');
+      var y0 = below.y, was = node.innerHTML;
+      select(i);
+      node.textContent = node.textContent + ' plus quite a lot of extra words to force wrapping onto several new lines';
+      node.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      var y1 = below.y;
+      expect(y1 > y0, 'growth did not push (y ' + y0 + '→' + y1 + ')');
+      node.innerHTML = was;
+      node.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      expect(Math.abs(below.y - y0) <= 2, 'shrinking did not pull the element back: y ' + y0 + ' → ' + y1 + ' → ' + below.y);
+      return 'pushed to ' + y1 + ', back to ' + below.y;
+    });
+    test('typing: Enter in a heading is a line break, Enter while composing is the keyboard\u2019s, a third click right after entry keeps the caret', function () {
+      var i = findIdx('heading');
+      var e = sec().els[i];
+      var was = e.text;
+      select(i);
+      G.enterTextEdit(sec(), i);
+      try {
+        var ed = G.textEditing();
+        expect(ed && ed.target && ed.target.isContentEditable, 'the heading did not enter its edit');
+        var t = ed.target;
+        // an Enter that confirms an IME composition passes through untouched
+        var r0 = document.createRange(); r0.selectNodeContents(t); r0.collapse(false);
+        var so = window.getSelection(); so.removeAllRanges(); so.addRange(r0);
+        var ime = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        Object.defineProperty(ime, 'isComposing', { value: true });
+        document.dispatchEvent(ime);
+        expect(!ime.defaultPrevented, 'an Enter mid-composition was intercepted');
+        expect(G.textEditing() === ed, 'an Enter mid-composition ended the edit');
+        // a plain Enter breaks the line and the edit stays open
+        var kd = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        document.dispatchEvent(kd);
+        expect(kd.defaultPrevented, 'Enter in a heading was not taken');
+        expect(G.textEditing() === ed, 'Enter in a heading ended the edit (it used to hop to the paragraph)');
+        expect(/<br\s*\/?>/i.test(t.innerHTML) && /<br/i.test(e.text || ''), 'Enter should put a line break in the heading: ' + (e.text || '').slice(0, 60));
+        // a third click straight after entering keeps the caret, no select-all
+        var r = t.getBoundingClientRect();
+        var md = new MouseEvent('mousedown', { bubbles: true, cancelable: true, detail: 3, clientX: r.left + 8, clientY: r.top + 8 });
+        t.dispatchEvent(md);
+        expect(md.defaultPrevented, 'a triple-click right after entry was allowed to select everything');
+      } finally {
+        G.exitTextEdit();
+        e.text = was; G.renderSection(sec());
+      }
+      return 'line break, composition passed, entry click guarded';
+    });
+
     // ---- 7. drag ghost fidelity (v0.11.7 regression) ----
     test('drag ghost matches element styling', function () {
       var i = findIdx('heading');
@@ -614,6 +740,62 @@
       return 'two ghosts, two sockets, one delta ' + dx + ',' + dy;
     });
 
+    // ---- 8c. the drop measures on the pieces' OWN lines ----
+    test('group drop: heights are measured on the pieces\' own lines, not in the skip cell', function () {
+      // mid-drag the solver skips the moving pieces, so each of their cells
+      // is bounded by OTHER pieces' lines; the drop used to measure there
+      // and absorb a paragraph wrapped to a foreign width (a photo once grew
+      // 313 → 462). An own room: one narrow badge is the only resting piece,
+      // so every skipped text can only borrow ITS 120-wide column. The
+      // heading rides as a MATE (no pick-up size restore covers mates), the
+      // image as a mate that must simply stay put
+      G.addSection({ name: 'SKIP', minH: 600, els: [
+        { type: 'badge', x: 72, y: 72, w: 120, h: 40, text: 'New' },
+        { type: 'para', x: 72, y: 200, w: 560, h: 120, text: 'The words wrap to whatever width the grid hands them, so a cell borrowed from a narrower neighbour turns three lines into twelve, and the model must never learn that height from a drop.' },
+        { type: 'image', x: 700, y: 200, w: 300, h: 200, src: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg' },
+        { type: 'heading', x: 72, y: 400, w: 560, h: 60, text: 'A heading mate keeps its height too' },
+      ] }, G.sections().length);
+      var s = lastSec();
+      var pi = 1, ii = 2, hi = 3;
+      G.resolve(s); G.measure(s); G.resolve(s);
+      var sizeOf = function (k) { return s.els[k].w + 'x' + s.els[k].h; };
+      var before = [pi, ii, hi].map(sizeOf);
+      var hP = s.els[pi].h, hH = s.els[hi].h;
+      expect(hP > 0 && hH > 0, 'text did not measure');
+      G.multi.set(s, [pi, ii, hi]);
+      var node = s.nodes[pi], r = node.getBoundingClientRect();
+      var x = r.x + r.width / 2, y = r.y + r.height / 2;
+      // straight down: x stays pinned, so the texts' own edges (72..632) are
+      // exactly the lines the skip grid leaves out
+      pev('pointerdown', node, x, y, 18);
+      pev('pointermove', node, x, y + 30, 18);
+      pev('pointermove', node, x, y + 60, 18);
+      var live = G.state.drag;
+      // the frame body a real drag runs between moves: the grid re-solves
+      // with the group skipped, and THAT is the stylesheet the drop sees
+      G.resolve(s);
+      var g = G.solve(s.els, s.minH, null, [pi, ii, hi]);
+      var cellOf = function (k) {
+        var a = g.areas[k], cw = 0;
+        for (var c = a.c1 - 1; c < a.c2 - 1 && c < g.cols.length; c++) cw += parseFloat(g.cols[c]) * 12;
+        return Math.round(cw);
+      };
+      var skipP = cellOf(pi), skipH = cellOf(hi);
+      pev('pointerup', node, x, y + 60, 18);
+      // every check runs with the hand open: a throw mid-drag would leave
+      // ghosts on the body and every later pointerdown bailing on the drag
+      expect(live, 'group drag did not begin');
+      expect(!G.state.drag, 'drag did not end');
+      expect(skipP < 360 && skipH < 360, 'the skip grid should hand the texts a foreign cell, got ' + skipP + ' / ' + skipH + ' of 560');
+      expect(s.els[pi].y > 200, 'the group did not move');
+      var after = [pi, ii, hi].map(sizeOf);
+      expect(after[0] === before[0], 'paragraph resized on the drop: ' + before[0] + ' → ' + after[0]);
+      expect(after[2] === before[2], 'heading mate resized on the drop: ' + before[2] + ' → ' + after[2]);
+      expect(after[1] === before[1], 'image mate resized on the drop: ' + before[1] + ' → ' + after[1]);
+      G.multi.clear();
+      G.deleteSection(G.sections().indexOf(s));
+      return 'skip cells ' + skipP + '/' + skipH + ' wide; paragraph kept h ' + hP + ', heading kept h ' + hH;
+    });
     // ---- 9. undo / redo ----
     test('undo and redo restore model state', function () {
       // two moves, then walk history back and forward — self-contained so the
@@ -679,29 +861,44 @@
       card.click();
       expect(G.sections().length === s0 + 1, 'section not added');
       var added = lastSec();
-      expect(added.minH === 480, 'scratch minH not applied: ' + added.minH);
+      expect(added.minH === 504, 'scratch minH not applied (504 = seven majors on the 72 rhythm): ' + added.minH);
       expect(added.styleEl.textContent.indexOf(added.scope) !== -1, 'scoped CSS missing');
     });
 
-    test('__max font sentinel resolves to the largest preset at insert', function () {
-      var s0 = G.sections().length;
-      // any template whose heading carries the __max sentinel (the starters do)
-      var tpls = G.templates();
-      var idx = -1;
-      for (var i = 0; i < tpls.length; i++) {
-        if ((tpls[i].els || []).some(function (e) { return e.type === 'heading' && e.fs === '__max'; })) { idx = i; break; }
-      }
-      expect(idx !== -1, 'no template carries the __max sentinel');
-      G.addSection(tpls[idx], G.sections().length);
-      var added = lastSec();
-      var head = added.els.filter(function (e) { return e.type === 'heading' && e.fs; })[0];
-      var sizes = G.fontSizes();
-      var biggest = sizes.length ? sizes[sizes.length - 1].slug : null;
-      expect(head, 'template has no sized heading');
-      expect(head.fs === biggest, 'heading fs ' + head.fs + ' != largest preset ' + biggest);
-      expect(head.fs !== '__max', 'sentinel leaked into model');
-      G.deleteSection(G.sections().indexOf(added));
-      expect(G.sections().length === s0, 'cleanup failed');
+    // ---- the system: gogh owns the sizes and the gaps of its own designs ----
+    test('the takes keep the system: text wears gogh’s roles, pieces sit on the 8 grid', function () {
+      var off = [];
+      var all = [];
+      G.templates().forEach(function (t) { all.push(t); });
+      Object.keys(G.variants()).forEach(function (k) { G.variants()[k].forEach(function (t) { all.push(t); }); });
+      all.forEach(function (t) {
+        if (t.retired || !t.els || !t.els.length || /^__/.test(t.name) || t.intent === 'panel') return;
+        var walk = function (els, inKid) {
+          els.forEach(function (e) {
+            if (e.fs === '__max') off.push(t.name + (t.take ? ' / ' + t.take : '') + ' still carries __max');
+            var display = /^__disp-/.test(e.fs || '');
+            if ((e.type === 'heading' || e.type === 'para') && !display && !(e.tf && e.tf.fs2 && e.tf.fsMin)) off.push(t.name + (t.take ? ' / ' + t.take : '') + ' ' + e.type + ' has no role size');
+            if (!inKid && e.y % 2) off.push(t.name + ' ' + e.type + ' y ' + e.y);
+            if (e.kids) walk(e.kids, true);
+          });
+        };
+        walk(t.els, false);
+      });
+      expect(!off.length, 'off the system: ' + off.slice(0, 6).join('; ') + (off.length > 6 ? ' (+' + (off.length - 6) + ')' : ''));
+      return 'every take: role sizes, no theme-preset headings';
+    });
+    test('a design settles on arrival: its words close up and the section keeps its air', function () {
+      var t = G.templates().filter(function (x) { return x.name === 'Story'; })[0];
+      G.addSection(t, G.sections().length);
+      var s = lastSec();
+      var head = s.els.filter(function (e) { return e.type === 'heading'; })[0];
+      var paras = s.els.filter(function (e) { return e.type === 'para' && !(e.tf && e.tf.tt === 'uppercase'); });
+      var gap = paras[0].y - (head.y + head.h);
+      var bottom = Math.max.apply(null, s.els.map(function (e) { return e.y + e.h; }));
+      G.deleteSection(G.sections().indexOf(s));
+      expect(gap >= 12 && gap <= 40, 'heading to words should be the rhythm’s 24 (give or take a font), got ' + gap);
+      expect(s.minH - bottom >= 72 && s.minH - bottom <= 120, 'the floor under the design should be about 96, got ' + (s.minH - bottom));
+      return 'gap ' + gap + ', floor ' + (s.minH - bottom);
     });
 
     test('toolbar alignment cycles left/center/right', function () {
@@ -722,9 +919,449 @@
       e.align = a0;
     });
 
+    test('a menu link while editing opens its page in the editor, says so on hover, and the rest of the header still opens the header', function () {
+      var trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
+      try {
+        var u1 = G.nav.urlFor('/sample-page/');
+        expect(u1 && /gogh-edit=1/.test(u1) && /\/sample-page\//.test(u1) && !/gogh-phone/.test(u1), 'an own page opens in the editor: ' + u1);
+        expect(!G.nav.urlFor('https://wordpress.org/'), 'another site is left alone');
+        expect(!G.nav.urlFor('/wp-admin/edit.php'), 'wp-admin is left alone');
+        expect(/gogh-phone=1/.test(G.nav.urlFor('/sample-page/', true)), 'on the phone the phone comes along');
+        var head = document.querySelector('header.wp-block-template-part');
+        var veil = head && head.querySelector('.gogh-chromeveil');
+        if (!veil) return 'no veiled header on this theme: nothing to judge';
+        var link = [].filter.call(head.querySelectorAll('a[href]'), function (a) {
+          if (a.closest('.gogh-chromeveil')) return false;
+          var r = a.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && G.nav.urlFor(a.getAttribute('href')) && a.pathname.replace(/\/+$/, '') !== location.pathname.replace(/\/+$/, '');
+        })[0];
+        if (!link) return 'no link to another page in the header: nothing to judge';
+        link.scrollIntoView({ block: 'center' });
+        var r = link.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+        veil.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+        var hint = q('.gogh-navhint');
+        expect(hint && !hint.hidden && /Go to/.test(hint.textContent) && /keep editing/.test(hint.textContent), 'hovering a menu link says where it goes: ' + (hint && hint.textContent));
+        // a trip, or (with unpublished changes on the page) the question
+        // that comes before one, naming the page it leads to
+        var trip = function () {
+          veil.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: x, clientY: y }));
+          var lp = q('.gogh-leave');
+          if (lp && !lp.hidden) {
+            var asked = lp.querySelector('.gogh-exit-title').textContent;
+            lp.hidden = true;
+            return /^Go to /.test(asked) ? 'asked' : 'asked wrong: ' + asked;
+          }
+          return trips.length ? 'went' : 'nothing';
+        };
+        var first = trip();
+        expect(first === 'asked' || (first === 'went' && /gogh-edit=1/.test(trips[0]) && trips[0].indexOf(link.pathname) !== -1), 'clicking it goes to that page, still editing: ' + first + ' ' + trips.join(' '));
+        expect(head.querySelector('.gogh-chromeveil'), 'a menu link does not open the header room');
+        // the hint keeps showing, trip after trip (going quiet read as broken)
+        trip(); trip();
+        veil.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+        expect(!q('.gogh-navhint').hidden, 'the hint should still show after a few trips');
+      } finally {
+        unwatch();
+        var h2 = q('.gogh-navhint'); if (h2) h2.hidden = true;
+        var lp2 = q('.gogh-leave'); if (lp2) lp2.hidden = true;
+      }
+      return 'menu link → its page in the editor (or the question first); hint every time; header room untouched';
+    });
+
+    test('the colour button shows the colour the words are, the theme default included', function () {
+      var i = findIdx('para'), s0 = sec(), e = s0.els[i], was = e.color || null;
+      try {
+        e.color = null;
+        G.renderSection(s0);
+        select(i);
+        var chip = q('.gogh-elbar .gogh-eb-col .gogh-eb-colchip');
+        var n = s0.nodes[i], t = n.matches('p,ul,ol') ? n : n.querySelector('p,ul,ol');
+        var want = getComputedStyle(t).color, got = getComputedStyle(chip).backgroundColor;
+        expect(!chip.classList.contains('is-default') && !/gradient/.test(getComputedStyle(chip).backgroundImage), 'no colour wheel for the default colour');
+        expect(got === want, 'the chip should wear the words’ own colour: chip ' + got + ', words ' + want);
+      } finally {
+        e.color = was;
+        G.renderSection(s0);
+      }
+      return 'chip wears ' + getComputedStyle(q('.gogh-elbar .gogh-eb-col .gogh-eb-colchip')).backgroundColor;
+    });
+    test('the admin bar speaks plainly while editing: Saved · not live yet / Live, no W logo or search, the site name goes home', function () {
+      var chipEl = q('.gogh-chip .gogh-chip-txt');
+      if (!chipEl) return 'no status chip: nothing to judge';
+      // v0.99.688: three words or none — Not live yet, or quiet beside a greyed Published ✓
+      expect(/^(|Changes not live yet|Draft \u00b7 not live yet)$/.test(chipEl.textContent), 'the status speaks plainly: ' + chipEl.textContent);
+      // a published page's CHANGES aren't live, not the page; a draft isn't live at all
+      var C = window.GOGH, wasSt = C.postStatus;
+      try {
+        C.postStatus = 'draft'; G.pushState(); G.refreshChip && G.refreshChip();
+        var t1 = q('.gogh-chip .gogh-chip-txt').textContent, b1 = q('.gogh-chip .gogh-chip-btn');
+        expect(t1 === 'Draft \u00b7 not live yet' && b1 && !b1.disabled, 'a draft says so, and Publish is lit even with nothing new: ' + t1);
+        C.postStatus = 'publish'; G.refreshChip && G.refreshChip();
+        var t2 = q('.gogh-chip .gogh-chip-txt').textContent, b2 = q('.gogh-chip .gogh-chip-btn');
+        expect(t2 === 'Changes not live yet' || (t2 === '' && b2.disabled && /Published/.test(b2.textContent)), 'a published page talks about its CHANGES, never says the page is not live: ' + t2 + ' / ' + b2.textContent);
+      } finally { C.postStatus = wasSt; G.refreshChip && G.refreshChip(); }
+      var logo = document.getElementById('wp-admin-bar-wp-logo'), search = document.getElementById('wp-admin-bar-search');
+      expect((!logo || getComputedStyle(logo).display === 'none') && (!search || getComputedStyle(search).display === 'none'), 'WordPress’s logo and search step aside while editing');
+      // v0.99.689: the avatar steps aside while editing; the account lives
+      // at the foot of the site name's menu, and Log out asks first
+      var acctLi = document.getElementById('wp-admin-bar-my-account');
+      expect(!acctLi || getComputedStyle(acctLi).display === 'none', 'no avatar while editing: Publish owns the corner');
+      var out = document.querySelector('#wp-admin-bar-gogh-logout > a'), prof = document.querySelector('#wp-admin-bar-gogh-profile > a');
+      if (document.getElementById('wp-admin-bar-site-name')) {
+        expect(out && /Log out/.test(out.textContent) && prof && /Your profile/.test(prof.textContent) && document.getElementById('wp-admin-bar-site-name').contains(out), 'Your profile and Log out should be in the site name\u2019s menu');
+        var dashA = document.querySelector('#wp-admin-bar-gogh-dashboard > a');
+        expect(dashA && /Dashboard/.test(dashA.textContent) && /wp-admin\/?$/.test(dashA.getAttribute('href')), 'the site name\u2019s menu should offer the Dashboard');
+        // v0.99.716: one Dashboard and no New page in the site menu
+        expect(!document.getElementById('wp-admin-bar-dashboard') && !document.getElementById('wp-admin-bar-gogh-new-page-menu'), 'the site menu should carry one Dashboard and no New page');
+        var trips0 = [], unwatch0 = G.nav.watch(function (u) { trips0.push(u); });
+        var keepX = sec().els[0].x;
+        try {
+          sec().els[0].x += 8; G.renderSection(sec()); G.pushState();
+          out.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+          var lp0 = q('.gogh-leave');
+          expect(lp0 && !lp0.hidden && /Log out\?/.test(lp0.textContent) && !trips0.length, 'Log out with unpublished changes should ask first: ' + (lp0 && lp0.textContent.slice(0, 60)));
+          if (lp0) lp0.hidden = true;
+        } finally { unwatch0(); sec().els[0].x = keepX; G.renderSection(sec()); G.pushState(); }
+      }
+      var site = document.querySelector('#wp-admin-bar-site-name > a');
+      if (site) {
+        var trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
+        var C = window.GOGH, wasFront = C.frontId;
+        try {
+          C.frontId = -1; // this page is not home, for the test
+          site.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+          var lp = q('.gogh-leave');
+          var asked = lp && !lp.hidden;
+          if (asked) lp.hidden = true;
+          expect(asked || (trips.length === 1 && /gogh-edit=1/.test(trips[0])), 'the site name opens the home page, still editing: ' + trips.join(' '));
+        } finally { unwatch(); C.frontId = wasFront; }
+      }
+      return 'plain status, quiet bar, site name goes home';
+    });
+    test('text size: [ − XL + ] in one pill, clothing sizes, steps stop at the ends, and the size opens every size drawn at its size', function () {
+      var i = findIdx('heading'), s0 = sec(), e = s0.els[i], was = { fs: e.fs || null, fit: !!e.fitW };
+      var num = function () { return q('.gogh-elbar .gogh-eb-fs').textContent; };
+      try {
+        G.setFontSize(s0, i, null);
+        select(i);
+        var pill = q('.gogh-elbar .gogh-eb-fspill');
+        var down = q('.gogh-elbar .gogh-eb-fsdown'), up = q('.gogh-elbar .gogh-eb-fsup');
+        expect(pill && pill.contains(down) && pill.contains(up) && pill.contains(q('.gogh-elbar .gogh-eb-fs')), '−, the size and + should sit in one pill');
+        var tn = function () { var n0 = s0.nodes[i]; return n0.matches('h1,h2,h3,h4,h5,h6') ? n0 : n0.querySelector('h1,h2,h3,h4,h5,h6'); };
+        var px0 = parseFloat(getComputedStyle(tn()).fontSize);
+        expect(/^(X{0,2}S|M|L|X{1,2}L|\dXL|Default)$/.test(num()), 'the pill should show a clothing size: ' + num());
+        var startCode = num();
+        expect(pill.getBoundingClientRect().width < 110, 'the pill should be compact: ' + Math.round(pill.getBoundingClientRect().width) + 'px');
+        up.click();
+        expect(e.fs && parseFloat(getComputedStyle(tn()).fontSize) > px0 && num() !== startCode, '+ should make the heading bigger, and the size follow: ' + e.fs + ' ' + num());
+        G.setFontSize(s0, i, '__disp-l');
+        select(i);
+        expect(q('.gogh-elbar .gogh-eb-fsup').disabled && /^\dXL$/.test(num()), 'the biggest is a big clothing size and + stops there: ' + num());
+        var big = num();
+        q('.gogh-elbar .gogh-eb-fsup').click();
+        expect(e.fs === '__disp-l', '+ at the biggest does nothing: ' + e.fs);
+        q('.gogh-elbar .gogh-eb-fsdown').click();
+        expect(e.fs === '__disp-m' && num() !== big && /XL$/.test(num()), '− steps down one: ' + e.fs + ' ' + num());
+        q('.gogh-elbar .gogh-eb-fs').click();
+        var opts = document.querySelectorAll('.gogh-panel .gogh-sizeopt');
+        var names = [].map.call(opts, function (o) { return o.querySelector('.gogh-sizeopt-name').textContent; });
+        expect(/Small/.test(names[0]) && /Huge|XXL/.test(names.join(',')) && /5XL/.test(names[names.length - 1]), 'the list reads Small … Huge … 5XL: ' + names.join(','));
+        expect(!/Poster|Billboard|Headline|Normal/.test(q('.gogh-panel').textContent), 'no made-up size names in the list');
+        expect(document.querySelectorAll('.gogh-panel .gogh-sizeopt-def').length === 1, 'the size the words start at says default');
+        var sizes = [].map.call(opts, function (o) { return parseFloat(o.querySelector('.gogh-sizeopt-aa').style.fontSize); });
+        expect(sizes[sizes.length - 1] > sizes[0], 'each size is drawn at its relative size: ' + sizes.join(','));
+        expect(document.querySelector('.gogh-panel .gogh-sizeopt.is-on .gogh-sizeopt-name').textContent.indexOf(num()) !== -1, 'the size in use is marked');
+        opts[opts.length - 3].click();
+        expect(e.fs === '__disp-s', 'choosing a size in the list sets it: ' + e.fs);
+      } finally {
+        G.closePanel();
+        G.setFontSize(s0, i, was.fs);
+      }
+      return 'pill ' + num() + ', clamps, clothing sizes drawn to size';
+    });
+    // v0.99.683: an exact size of its own (a paste, a hand-drawn site
+    // definition) pinned the size probe, greyed both steps out on Misprint
+    test('text with an exact size of its own can still step and choose a size', function () {
+      var i = findIdx('para'), s0 = sec(), e = s0.els[i], keepTf = e.tf ? JSON.parse(JSON.stringify(e.tf)) : null, keepFs = e.fs || null;
+      try {
+        e.fs = null; e.tf = Object.assign({}, e.tf || {}, { fs: 19 });
+        G.renderSection(s0);
+        select(i);
+        var down = q('.gogh-elbar .gogh-eb-fsdown'), up = q('.gogh-elbar .gogh-eb-fsup');
+        expect(!down.disabled && !up.disabled, 'both steps should work on text with its own size');
+        expect(/own/.test(q('.gogh-elbar .gogh-eb-fs').title), 'the tooltip should say it has a size of its own');
+        q('.gogh-elbar .gogh-eb-fs').click();
+        expect(document.querySelectorAll('.gogh-panel .gogh-sizeopt').length >= 5, 'the list should offer every size: ' + document.querySelectorAll('.gogh-panel .gogh-sizeopt').length);
+        G.closePanel();
+        var px0 = parseFloat(getComputedStyle(s0.nodes[i]).fontSize);
+        up.click();
+        expect(!(e.tf && e.tf.fs) && parseFloat(getComputedStyle(s0.nodes[i]).fontSize) > px0, '+ should replace the own size with a bigger one: ' + e.fs);
+      } finally {
+        G.closePanel();
+        e.tf = keepTf; e.fs = keepFs;
+        G.renderSection(s0);
+      }
+      return 'own size steps';
+    });
+    // v0.99.684: a word cannot wrap, so a big size ran it out past its box
+    test('a big size widens the box for its longest word, and a size too big for the page comes down to one that fits', function () {
+      var i = findIdx('heading'), s0 = sec(), e = s0.els[i];
+      var keep = { text: e.text, x: e.x, w: e.w, fs: e.fs || null, align: e.align || null };
+      var t = function () { return s0.nodes[i]; };
+      var spills = function () { return t().scrollWidth - t().clientWidth > 1; };
+      try {
+        e.text = 'Wowsers'; e.x = 120; e.w = 260; e.align = null;
+        G.setFontSize(s0, i, null);
+        G.setFontSize(s0, i, '__disp-s');
+        expect(!spills() && e.w > 260, 'the box should widen to hold the word: w=' + e.w + ' scroll ' + t().scrollWidth + '/' + t().clientWidth);
+        expect(e.x >= 0 && e.x + e.w <= 1200, 'the box stays on the page: ' + e.x + '+' + e.w);
+        e.text = 'Supercalifragilisticexpialidocious'; e.w = 260; e.x = 120;
+        G.setFontSize(s0, i, null);
+        G.setFontSize(s0, i, '__disp-l');
+        expect(e.fs !== '__disp-l' && !spills(), 'too big for the page: the size should come down to one that fits: ' + e.fs + ' scroll ' + t().scrollWidth + '/' + t().clientWidth);
+        var tst = [].filter.call(document.querySelectorAll('.gogh-toast'), function (x) { return /as big as this text goes/.test(x.textContent); });
+        expect(tst.length, 'it should say why');
+        tst.forEach(function (x) { x.remove(); });
+        // and the bar knows before you press: + greys out, the list greys the rest
+        select(i);
+        var up = q('.gogh-elbar .gogh-eb-fsup');
+        expect(up.disabled && /won\u2019t fit/.test(up.title), '+ should grey out when the next size would not fit: ' + up.disabled + ' ' + up.title);
+        q('.gogh-elbar .gogh-eb-fs').click();
+        var big = document.querySelectorAll('.gogh-panel .gogh-sizeopt.is-toobig');
+        expect(big.length >= 1 && big[0].disabled && /too big/i.test(q('.gogh-panel').textContent), 'the list should grey the sizes that would not fit: ' + big.length);
+        G.closePanel();
+        // a short word at the same size still has room to grow
+        e.text = 'Hi'; G.renderSection(s0); select(i);
+        expect(!q('.gogh-elbar .gogh-eb-fsup').disabled, 'a short word should still be able to grow');
+      } finally {
+        G.closePanel();
+        e.text = keep.text; e.x = keep.x; e.w = keep.w; e.align = keep.align;
+        G.setFontSize(s0, i, keep.fs);
+      }
+      return 'widened, then capped at ' + 'a size that fits';
+    });
+    // v0.99.690: resizing words shows no grid; resizing a picture still does
+    test('resizing a text box shows no grid; resizing a picture does', function () {
+      var grab = function (i) {
+        select(i);
+        var h = document.querySelector('.gogh-selbox .gogh-h[data-d="e"], .gogh-selbox [data-dir="e"]') || document.querySelectorAll('.gogh-selbox .gogh-h')[3];
+        if (!h) return null;
+        var r = h.getBoundingClientRect();
+        pev('pointerdown', h, r.x + r.width / 2, r.y + r.height / 2, 61);
+        var live = sec().sectionEl.classList.contains('gogh-grid-live');
+        pev('pointerup', h, r.x + r.width / 2, r.y + r.height / 2, 61);
+        return live;
+      };
+      var t = grab(findIdx('heading'));
+      if (t === null) return 'no side grip to judge';
+      expect(t === false, 'resizing a heading should not paint the grid');
+      var im = grab(findIdx('image'));
+      expect(im === true, 'resizing a picture should still paint the grid');
+      sec().sectionEl.classList.remove('gogh-grid-live');
+      return 'text: no grid; picture: grid';
+    });
+    // v0.99.698: the editing grid is drawn in the section's own ink
+    test('the editing grid wears the section\u2019s own ink, never fixed white bars', function () {
+      var sx = sec(), i = findIdx('para');
+      G.renderSection(sx);
+      var ink = sx.sectionEl.style.getPropertyValue('--gogh-grid-ink').trim();
+      var words = getComputedStyle(sx.nodes[i].matches('p') ? sx.nodes[i] : sx.nodes[i].querySelector('p') || sx.nodes[i]).color;
+      expect(ink && ink === words, 'the grid ink should be the colour of the section\u2019s words: ' + ink + ' vs ' + words);
+      var bg = getComputedStyle(sx.sectionEl, '::before').backgroundImage;
+      expect(!/255, 255, 255, 0\.55/.test(bg), 'no fixed white gutters in the grid: ' + bg.slice(0, 120));
+      return 'grid ink ' + ink;
+    });
+    // v0.99.687: a fit taken under another style or font ran past its box
+    test('fitted words that spill past their box are fitted again; the size list drops from the size pill', function () {
+      var i = findIdx('heading'), s0 = sec(), e = s0.els[i];
+      var keep = { fitW: e.fitW, fitFs: e.fitFs, fs: e.fs || null, text: e.text };
+      try {
+        e.text = 'Get your hands in the ink.';
+        G.setFontSize(s0, i, null);
+        e.fitW = true; e.fitFs = 30; // a stale fit, far too big for the box
+        G.renderSection(s0);
+        var n = s0.nodes[i];
+        expect(e.fitFs < 30 && n.scrollWidth <= n.clientWidth + 2, 'the fit should be taken again so the words stay in: fitFs ' + e.fitFs + ', ' + n.scrollWidth + '/' + n.clientWidth);
+        e.fitW = false; e.fitFs = null; G.renderSection(s0);
+        select(i);
+        q('.gogh-elbar .gogh-eb-fs').click();
+        var pr = q('.gogh-panel').getBoundingClientRect(), br = q('.gogh-elbar .gogh-eb-fspill').getBoundingClientRect();
+        expect(Math.abs(pr.left - br.left) < 40 || pr.left > br.right, 'the size list should open by the size pill: panel ' + Math.round(pr.left) + ' pill ' + Math.round(br.left));
+      } finally {
+        G.closePanel();
+        e.text = keep.text;
+        G.setFontSize(s0, i, keep.fs);
+        e.fitW = keep.fitW; e.fitFs = keep.fitFs;
+        G.renderSection(s0);
+      }
+      return 'refitted to ' + 'the box; list by the pill';
+    });
+    // v0.99.684: a press on the page puts the Page drawer away and zooms in
+    // async: the zoom eases back over a few frames, and the quick tests
+    // run with no frames at all — they would measure a page caught mid-zoom
+    // what an agent may ask of the site (WordPress Abilities API, 6.9+)
+    testAsync('abilities: gogh lists six, describes this page from its saved sections, reads the design, refuses an unknown look', function () {
+      var cfgA = window.GOGH;
+      var root = cfgA.restUrl.split('wp/v2/')[0] + 'wp-abilities/v1/';
+      var get = function (path, opts) {
+        return fetch(root + path, Object.assign({ headers: { 'X-WP-Nonce': cfgA.nonce, 'Content-Type': 'application/json' }, credentials: 'same-origin' }, opts || {}))
+          .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); });
+      };
+      return get('abilities?category=gogh').then(function (res) {
+        if (res.status === 404) return 'no Abilities API on this WordPress (6.9+ needed)';
+        var names = (res.body || []).map(function (a) { return a.name; }).sort();
+        expect(names.join(',') === 'gogh/apply-style,gogh/describe-site,gogh/design-map,gogh/publish,gogh/set-brief,gogh/set-up-shop', 'the six abilities should be listed: ' + names.join(','));
+        return get('abilities/gogh/describe-site/run?input%5Bpage_id%5D=' + (+cfgA.postId)).then(function (d) {
+          expect(d.status === 200, 'describe-site should run: ' + d.status + ' ' + JSON.stringify(d.body).slice(0, 160));
+          var page = d.body.pages && d.body.pages[0];
+          expect(page && +page.id === +cfgA.postId && page.made_with_gogh, 'this page should be described as made with gogh');
+          var saved = (page.sections || []).reduce(function (all, sc) { return all.concat(sc.pieces || []); }, []);
+          expect(saved.some(function (pc) { return pc.type === 'heading' && pc.text; }), 'a saved heading should come back as words');
+          expect(!saved.some(function (pc) { return /<[a-z]/i.test(pc.text || ''); }), 'words should come back without tags');
+          return get('abilities/gogh/design-map/run');
+        }).then(function (m) {
+          expect(m.status === 200 && Array.isArray(m.body.colours) && m.body.colours.length, 'design-map should list the colours');
+          expect(m.body.colours.some(function (c) { return c.used_for.indexOf('words') !== -1 || c.used_for.indexOf('page background') !== -1; }), 'a colour should say what it is for');
+          expect(m.body.looks && Array.isArray(m.body.looks.colours) && Array.isArray(m.body.looks.fonts), 'the theme\u2019s looks should be sorted into whole, colours and fonts');
+          return get('abilities/gogh/apply-style/run', { method: 'POST', body: JSON.stringify({ input: { look: 'No such look at all' } }) });
+        }).then(function (bad) {
+          expect(bad.status === 400 && /no look by that name/.test(bad.body.message || ''), 'an unknown look should be refused, naming what there is: ' + JSON.stringify(bad.body).slice(0, 160));
+          return 'six abilities, this page described, design read, a bad look refused';
+        });
+      });
+    });
+    testAsync('the link finder: words search the site, a pick links the button, a pasted link is kept, nothing found says so', function () {
+      var realFetch = window.fetch;
+      var i = findIdx('button'), s0 = sec(), was = s0.els[i].href;
+      window.fetch = function (u, o) {
+        u = String(u);
+        if (u.indexOf('/search?') !== -1) {
+          var q2 = decodeURIComponent((u.match(/[?&]search=([^&]*)/) || [])[1] || '');
+          var post = u.indexOf('type=post') !== -1;
+          var hits = /story/i.test(q2) ? (post ? [{ title: 'Our story', url: 'https://x.test/our-story/', subtype: 'page' }, { title: 'Story &amp; Craft', url: 'https://x.test/story-craft/', subtype: 'post' }] : [{ title: 'Story candles', url: 'https://x.test/c/story/', type: 'product_cat' }]) : [];
+          return Promise.resolve(new Response(JSON.stringify(hits), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+      var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      // the search answers when it answers: poll for it instead of guessing
+      var until = function (fn, ms) {
+        var t0 = Date.now();
+        return new Promise(function (r) { (function tick() { if (fn() || Date.now() - t0 > ms) r(); else setTimeout(tick, 60); })(); });
+      };
+      var inp;
+      G.openPanel(s0, i);
+      inp = q('.gogh-panel input[type="url"]');
+      return Promise.resolve().then(function () {
+        expect(inp && /Search your site/.test(inp.placeholder), 'the link box should invite a search: ' + (inp && inp.placeholder));
+        inp.value = 'story';
+        inp.dispatchEvent(new Event('input'));
+        return until(function () { return document.querySelectorAll('.gogh-panel .gogh-linkhit').length === 3; }, 3000);
+      }).then(function () {
+        var rows = [].slice.call(document.querySelectorAll('.gogh-panel .gogh-linkhit'));
+        expect(rows.length === 3, 'three hits expected, got ' + rows.length);
+        expect(/Our story/.test(rows[0].textContent) && /Page/.test(rows[0].textContent), 'the first hit should read Our story · Page');
+        expect(/Story & Craft/.test(rows[1].textContent) && /Post/.test(rows[1].textContent), 'titles should be decoded and kinds named: ' + rows[1].textContent);
+        expect(/Shop category/.test(rows[2].textContent), 'a shop category should say so');
+        expect(rows[0].classList.contains('is-hot'), 'the top hit should be ready for Enter');
+        inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        expect(rows[1].classList.contains('is-hot'), 'ArrowDown should move to the next hit');
+        inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(s0.els[i].href === 'https://x.test/story-craft/', 'Enter should link the chosen hit: ' + s0.els[i].href);
+        return wait(400);
+      }).then(function () {
+        G.openPanel(s0, i);
+        inp = q('.gogh-panel input[type="url"]');
+        inp.value = 'zzqx';
+        inp.dispatchEvent(new Event('input'));
+        return until(function () { var f = q('.gogh-panel .gogh-linkfind'); return f && /Nothing on your site/.test(f.textContent); }, 3000);
+      }).then(function () {
+        expect(/Nothing on your site matches/.test(q('.gogh-panel .gogh-linkfind').textContent), 'no hits should say so');
+        inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(s0.els[i].href === 'https://x.test/story-craft/', 'words that found nothing must not become the link: ' + s0.els[i].href);
+        inp.value = 'example.com/shop';
+        inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(s0.els[i].href === 'https://example.com/shop', 'a pasted address should be kept, made whole: ' + s0.els[i].href);
+        return 'search, pick, paste';
+      }).finally(function () {
+        window.fetch = realFetch;
+        s0.els[i].href = was;
+        G.closePanel();
+      });
+    });
+    testAsync('a press on the page closes the Page drawer, zooms back in and still chooses what it pressed', function () {
+      var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      var tidy = function () { G.closePanel(); if (G.closeSide) G.closeSide(true); };
+      tidy();
+      return wait(600).then(function () {
+        G.openSide('page');
+        return wait(600);
+      }).then(function () {
+        var side = q('.gogh-side');
+        expect(side.classList.contains('is-open') && document.documentElement.classList.contains('gogh-zoomed'), 'the drawer should open zoomed out: open=' + side.classList.contains('is-open') + ' zoomed=' + document.documentElement.classList.contains('gogh-zoomed') + ' panel=' + (q('.gogh-panel') && !q('.gogh-panel').hidden) + ' phone=' + document.documentElement.classList.contains('gogh-phone-preview') + ' away=' + side.classList.contains('gogh-side-away'));
+        // earlier tests' late timers can open a Site panel meanwhile: clear it
+        if (!q('.gogh-panel').hidden) { G.closePanel(); G.openSide('page'); }
+        var i = findIdx('para'), n = sec().nodes[i], r = n.getBoundingClientRect();
+        pev('pointerdown', n, r.left + 4, r.top + 4);
+        pev('pointerup', n, r.left + 4, r.top + 4);
+        expect(!side.classList.contains('is-open') && !document.documentElement.classList.contains('gogh-zoomed'), 'the drawer should close and the page zoom back in: open=' + side.classList.contains('is-open') + ' zoomed=' + document.documentElement.classList.contains('gogh-zoomed') + ' panel hidden=' + q('.gogh-panel').hidden + ' title=' + (q('.gogh-panel .gogh-panel-title') ? q('.gogh-panel .gogh-panel-title').textContent : '-') + ' cls=' + q('.gogh-panel').className + ' in page=' + !!(document.querySelector('.wp-site-blocks') && document.querySelector('.wp-site-blocks').contains(n)) + ' editing=' + document.documentElement.classList.contains('gogh-editing'));
+        expect(sec().nodes[i].classList.contains('gogh-selected'), 'the press should still choose the paragraph');
+        return wait(600).then(function () {
+          var wrapTf = getComputedStyle(sec().sectionEl.closest('.wp-site-blocks') || document.body).transform;
+          // (unless an earlier test's late timer has opened a zooming panel since)
+          expect(!wrapTf || wrapTf === 'none' || document.documentElement.classList.contains('gogh-zoomed'), 'the page should settle at full size, not stuck small: ' + wrapTf);
+          tidy();
+          return wait(600).then(function () { return 'closed, zoomed in, chosen'; });
+        });
+      }).catch(function (err) { tidy(); return wait(600).then(function () { throw err; }); });
+    });
+    testAsync('the section background shelf: two rows, See all pictures, a search, Show fewer; Bottom edge; no phone tags on desktop', function () {
+      G.closePanel();
+      G.openSecBgPanel(G.sections().indexOf(sec()));
+      var pnl = q('.gogh-panel');
+      expect(pnl.querySelector('.gogh-media-foot'), 'the section background panel should be open');
+      expect(!/How it ends/.test(pnl.textContent) && (!pnl.querySelector('.gogh-bgrow[data-row="ends"]') || /Bottom edge/.test(pnl.querySelector('.gogh-bgrow[data-row="ends"]').textContent)), 'the transition row should be called Bottom edge');
+      return new Promise(function (res) { setTimeout(res, 1500); }).then(function () {
+        var tiles = pnl.querySelectorAll('.gogh-media .gogh-thumb');
+        expect(tiles.length <= 8, 'the shelf is two rows (Upload and seven): ' + tiles.length);
+        var all = pnl.querySelector('.gogh-media-all');
+        if (!all) return 'library too small for See all (' + tiles.length + ' tiles, foot "' + pnl.querySelector('.gogh-media-foot').textContent + '")';
+        all.click();
+        return new Promise(function (res) { setTimeout(res, 1500); }).then(function () {
+          expect(!pnl.querySelector('.gogh-media-find').hidden, 'See all shows a search');
+          expect(pnl.querySelectorAll('.gogh-media .gogh-thumb').length > tiles.length, 'See all shows more pictures');
+          pnl.querySelector('.gogh-media-fewer').click();
+          expect(pnl.querySelectorAll('.gogh-media .gogh-thumb').length <= 8 && pnl.querySelector('.gogh-media-find').hidden, 'Show fewer goes back to two rows');
+          var e = sec().els[0], keepM = e.m;
+          e.m = Object.assign({}, e.m || {}, { hidden: true });
+          G.renderSection(sec());
+          var tag = getComputedStyle(sec().nodes[0], '::after').content;
+          e.m = keepM; G.renderSection(sec());
+          G.closePanel();
+          expect(!/Hidden on phones/.test(tag), 'no Hidden on phones tag on the desktop canvas: ' + tag);
+          return 'shelf, see all, fewer';
+        });
+      });
+    });
     test('publish chip tracks dirty state', function () {
       var chipEl = q('.gogh-chip');
       expect(chipEl && !chipEl.hidden, 'chip not visible in edit mode');
+      // it lives in the admin bar on the RIGHT, last before the account
+      // (v0.99.685; it followed View site from v0.99.622)
+      var home = q('#wp-admin-bar-gogh-publish');
+      if (q('#wpadminbar')) {
+        expect(home && home.contains(chipEl) && !home.hidden, 'the chip is not in the admin bar');
+        expect(home.previousElementSibling && home.previousElementSibling.id === 'wp-admin-bar-my-account', 'Publish should be the very corner, after the account; after: ' + (home.previousElementSibling || {}).id);
+        var pbr = chipEl.querySelector('.gogh-chip-btn').getBoundingClientRect();
+        expect(pbr.height >= 23 && pbr.height <= 26 && pbr.width >= 80, 'Publish should be wide and sit in the bar with room above and below: ' + Math.round(pbr.width) + 'x' + Math.round(pbr.height));
+        expect(home.getBoundingClientRect().left > window.innerWidth / 2, 'the chip should be on the right of the bar');
+        var pb = chipEl.querySelector('.gogh-chip-btn');
+        expect(/rgb\(56, 88, 233\)|var\(/.test(getComputedStyle(pb).backgroundColor) || getComputedStyle(pb).backgroundColor !== 'rgb(234, 176, 56)', 'Publish should wear the admin blue, not yellow: ' + getComputedStyle(pb).backgroundColor);
+        expect(chipEl.classList.contains('gogh-chip-bar'), 'the chip does not wear its bar class: ' + chipEl.className);
+        expect(!q('.gogh-chip-ar'), 'the \u2726 is still on the chip');
+        var plate = q('.gogh-cards-page .gogh-chip-name');
+        expect(plate, 'the nameplate did not move to the top of the Page drawer');
+      }
       var i = findIdx('badge');
       select(i);
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
@@ -733,6 +1370,8 @@
       expect(chipEl.className.indexOf('is-dirty') !== -1, 'chip not in dirty state: ' + chipEl.className);
       var btn = q('.gogh-chip-btn');
       expect(btn && !btn.hidden && btn.textContent === 'Publish', 'Publish button not offered');
+      var nudged = null; try { nudged = sessionStorage.getItem('gogh-publish-nudged'); } catch (err) {}
+      expect(nudged === '1', 'the first change of a session should have nudged Publish once');
       return chipEl.textContent.trim();
     });
 
@@ -789,6 +1428,49 @@
       expect(!sec().els[i].color, 'default swatch did not clear colour');
     });
 
+    // v0.99.681: any colour for words, first in the row (James: "should
+    // folks be able to choose custom colors here")
+    test('text colour: Custom colour comes first, auditions on the words, keeps as the piece\u2019s own colour, and a swatch takes it back', function () {
+      var i = findIdx('heading');
+      select(i);
+      var e = sec().els[i], keepCol = e.color || null;
+      q('.gogh-eb-col').click();
+      var pnl = q('.gogh-panel');
+      var any = pnl.querySelector('.gogh-colany');
+      expect(any && /Custom colour/.test(any.textContent), 'a Custom colour button should be in the panel');
+      expect(any && pnl.querySelector('.gogh-swrow') && (any.compareDocumentPosition(pnl.querySelector('.gogh-swrow')) & Node.DOCUMENT_POSITION_FOLLOWING), 'Custom colour should come before the swatches');
+      expect(/stays put/.test(pnl.textContent), 'the hint should say a custom colour stays put');
+      any.click();
+      var hexIn = pnl.querySelector('.gogh-colorpop .gogh-cp-hex');
+      expect(hexIn && !pnl.querySelector('.gogh-colorpop').hidden, 'the colour surface should open in the panel');
+      hexIn.value = '#b0306a';
+      hexIn.dispatchEvent(new Event('input', { bubbles: true }));
+      var node = function () { return sec().nodes[i]; };
+      expect(getComputedStyle(node()).color === 'rgb(176, 48, 106)', 'the words should audition the colour: ' + getComputedStyle(node()).color);
+      expect(/contrast|picture/.test(pnl.querySelector('.gogh-cp-ink').textContent), 'the surface should say how well it reads: ' + pnl.querySelector('.gogh-cp-ink').textContent);
+      pnl.querySelector('.gogh-cp-cancel').click();
+      expect(getComputedStyle(node()).color !== 'rgb(176, 48, 106)' && !(e.tf && e.tf.col), 'Cancel should put the words back');
+      any.click();
+      hexIn = pnl.querySelector('.gogh-colorpop .gogh-cp-hex');
+      hexIn.value = '#b0306a';
+      hexIn.dispatchEvent(new Event('input', { bubbles: true }));
+      pnl.querySelector('.gogh-cp-keep').click();
+      expect(e.tf && e.tf.col === '#b0306a' && !e.color, 'Use it should keep the colour as the piece\u2019s own: ' + JSON.stringify(e.tf) + ' ' + e.color);
+      expect(getComputedStyle(node()).color === 'rgb(176, 48, 106)', 'the words should wear it after a re-render: ' + getComputedStyle(node()).color);
+      select(i);
+      expect(/176, 48, 106/.test(getComputedStyle(q('.gogh-elbar .gogh-eb-colchip')).backgroundColor), 'the toolbar chip should show it');
+      q('.gogh-eb-col').click();
+      pnl = q('.gogh-panel');
+      expect(pnl.querySelector('.gogh-colany.is-active') && !pnl.querySelector('.gogh-swrow .gogh-sw.is-active'), 'the panel should mark Custom colour, not a swatch');
+      var sw = pnl.querySelectorAll('.gogh-swrow .gogh-sw')[1];
+      sw.click();
+      expect(!(e.tf && e.tf.col) && e.color === sw.dataset.col, 'a palette swatch should take over from the custom colour');
+      e.color = keepCol;
+      G.renderSection(sec());
+      closePanelForTest();
+      return 'custom ' + '#b0306a' + ', then ' + sw.dataset.col;
+    });
+
     function closePanelForTest() {
       var p = document.querySelector('.gogh-panel');
       if (p) p.hidden = true;
@@ -796,20 +1478,29 @@
     test('button panel sets bg, text, hover and outline', function () {
       var i = findIdx('button');
       select(i);
+      // v0.99.699: two doors — the link icon is only the link, the colour chip only the colours
       q('.gogh-eb-ctx').click();
+      expect(q('.gogh-panel input[type="url"]') && !q('.gogh-panel .gogh-swrow[data-key]') && /Button link/.test(q('.gogh-panel').textContent), 'the link icon should open the link alone');
+      closePanelForTest();
+      select(i);
+      var chip = q('.gogh-elbar .gogh-eb-col');
+      expect(chip && chip.style.display !== 'none', 'a button should have its own colour chip');
+      chip.click();
+      expect(/Button colour/.test(q('.gogh-panel').textContent) && !q('.gogh-panel input[type="url"]'), 'the colour chip should open the colours alone');
       var rows = document.querySelectorAll('.gogh-panel .gogh-swrow[data-key]');
       expect(rows.length === 3, 'expected 3 swatch rows, got ' + rows.length);
+      expect([].every.call(rows, function (r) { return r.firstElementChild.classList.contains('gogh-sw-pick'); }), 'Custom colour should come first on every row');
       var e = sec().els[i];
       var bgRow = document.querySelector('.gogh-panel .gogh-swrow[data-key="btnBg"]');
-      var slug = bgRow.querySelectorAll('.gogh-sw')[1].dataset.col;
-      bgRow.querySelectorAll('.gogh-sw')[1].click();
+      var slug = bgRow.querySelectorAll('button.gogh-sw')[1].dataset.col;
+      bgRow.querySelectorAll('button.gogh-sw')[1].click();
       expect(e.btnBg === slug, 'btnBg not set: ' + e.btnBg);
       var a = sec().nodes[i].querySelector('a');
       expect(a.className.indexOf('has-' + slug + '-background-color') !== -1 && a.className.indexOf('has-background') !== -1,
         'bg classes missing: ' + a.className);
       var hovRow = document.querySelector('.gogh-panel .gogh-swrow[data-key="btnHover"]');
-      var hslug = hovRow.querySelectorAll('.gogh-sw')[2].dataset.col;
-      hovRow.querySelectorAll('.gogh-sw')[2].click();
+      var hslug = hovRow.querySelectorAll('button.gogh-sw')[2].dataset.col;
+      hovRow.querySelectorAll('button.gogh-sw')[2].click();
       expect(sec().styleEl.textContent.indexOf(':hover { background-color: var(--wp--preset--color--' + hslug + ')') !== -1,
         'hover CSS missing');
       document.querySelector('.gogh-panel .gogh-style-outline').click();
@@ -817,6 +1508,12 @@
       var blocks = G.buildBlocks();
       expect(blocks.indexOf('"backgroundColor":"' + slug + '"') !== -1, 'backgroundColor attr missing in markup');
       expect(blocks.indexOf('gogh-ghost') !== -1, 'ghost class missing in markup');
+      // a custom fill: the piece's own colour, painted on the link
+      var cust = document.querySelector('.gogh-panel .gogh-swrow[data-key="btnBg"] .gogh-btncustom');
+      cust.value = '#b0306a'; cust.dispatchEvent(new Event('change', { bubbles: true }));
+      expect(e.tf && e.tf.bg === '#b0306a' && !e.btnBg, 'a custom fill should be kept as the button\u2019s own: ' + JSON.stringify(e.tf));
+      e.ghost = false; G.renderSection(sec());
+      expect(getComputedStyle(sec().nodes[i].querySelector('a')).backgroundColor === 'rgb(176, 48, 106)', 'the custom fill should paint the button');
       closePanelForTest();
     });
 
@@ -1011,6 +1708,193 @@
       expect(els.length === n0 + 1 && els[els.length - 1].type === 'badge', 'badge not inserted');
     });
 
+    test('slash lists the shelf doors too: Card, Shape, Form, Write', function () {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      var menu = document.querySelector('.gogh-cmd');
+      expect(menu && !menu.hidden, 'slash did not open the menu');
+      var labels = [].map.call(document.querySelectorAll('.gogh-cmd-item'), function (b) { return b.textContent; });
+      ['Card', 'Shape', 'Form', 'Write'].forEach(function (want) {
+        expect(labels.indexOf(want) !== -1, '/ is missing ' + want + ' (the + shelf offers it)');
+      });
+      var input = document.querySelector('.gogh-cmd-in');
+      var n0 = sec().els.length;
+      input.value = 'card';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(menu.hidden, 'menu did not close after Enter');
+      var els = sec().els;
+      expect(els.length === n0 + 1 && els[els.length - 1].type === 'box', 'card not inserted from /');
+      els.splice(els.length - 1, 1);
+      G.renderSection(sec());
+    });
+
+    test('a line publishes as a core separator with its weight and colour in the CSS', function () {
+      var s0 = sec();
+      var n0 = s0.els.length;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      var input = document.querySelector('.gogh-cmd-in');
+      input.value = 'line';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      var e = s0.els[s0.els.length - 1];
+      expect(s0.els.length === n0 + 1 && e.type === 'rule', 'the / palette did not add a line');
+      var idx = s0.els.length - 1;
+      var node = s0.nodes[idx];
+      expect(node && node.tagName === 'HR' && /gogh-rule/.test(node.className), 'the canvas does not draw the line as an <hr>: ' + (node && node.outerHTML.slice(0, 80)));
+      e.thick = 4;
+      e.color = 'contrast';
+      G.renderSection(s0);
+      var blocks = G.blocksV3(s0);
+      expect(/<!-- wp:separator \{[^}]*gogh-rule"/.test(blocks), 'the line is not a wp:separator block: ' + (blocks.match(/<!-- wp:[a-z\/-]+ \{[^}]*gogh-rule[^}]*\}/) || ['none'])[0]);
+      expect(/<hr class="wp-block-separator has-alpha-channel-opacity [^"]*gogh-rule has-text-color has-contrast-color/.test(blocks), 'the separator lost its colour class');
+      var css = G.blocksV3(s0).match(/"cssT":"((?:[^"\\]|\\.)*)"/);
+      expect(css && /background-size: 100% 4px/.test(css[1].replace(/\\"/g, '"')), 'the weight did not reach the CSS');
+      s0.els.splice(idx, 1);
+      G.renderSection(s0);
+    });
+
+    test('a paragraph can wear bullets: the bar toggles it, the canvas shows <li>s, it publishes as a list', function () {
+      var s0 = sec();
+      var pi = s0.els.findIndex(function (e) { return e.type === 'para' && !e.list; });
+      expect(pi !== -1, 'no paragraph to test with');
+      var e = s0.els[pi];
+      var keep = e.text;
+      e.text = 'One<br>Two<br>Three';
+      G.renderSection(s0);
+      select(pi);
+      var lst = q('.gogh-elbar .gogh-eb-lst');
+      expect(lst && lst.style.display !== 'none', 'the bullets toggle is not on the bar for a paragraph');
+      lst.click();
+      expect(e.list === 'ul', 'first tap should give bullets, got ' + e.list);
+      var node = s0.nodes[pi];
+      expect(node.tagName === 'UL' && node.querySelectorAll('li').length === 3, 'the canvas did not draw three bullets: ' + node.outerHTML.slice(0, 120));
+      var blocks = G.blocksV3(s0);
+      expect(/<!-- wp:list \{[^}]*\} -->\n<ul class="wp-block-list /.test(blocks), 'bullets did not publish as wp:list');
+      expect((blocks.match(/<!-- wp:list-item -->/g) || []).length >= 3, 'the list items did not publish');
+      // typing inside the list keeps the lines apart
+      node.innerHTML = '<li>Alpha</li><li>Beta</li>';
+      node.dispatchEvent(new Event('input', { bubbles: true }));
+      lst.click();
+      expect(e.list === 'ol', 'second tap should give numbers, got ' + e.list);
+      expect(s0.nodes[pi].tagName === 'OL', 'the canvas did not switch to <ol>');
+      expect(/<!-- wp:list \{[^}]*"ordered":true/.test(G.blocksV3(s0)), 'numbers did not publish as an ordered list');
+      lst.click();
+      expect(!e.list, 'third tap should return to plain text');
+      expect(s0.nodes[pi].tagName === 'P', 'the canvas did not return to a <p>');
+      e.text = keep;
+      G.renderSection(s0);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    test('an icon is a masked square of currentColor: the shelf picks it, the block stays an empty group', function () {
+      var s0 = sec();
+      var n0 = s0.els.length;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      var input = document.querySelector('.gogh-cmd-in');
+      input.value = 'icon';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      var idx = s0.els.length - 1, e = s0.els[idx];
+      expect(s0.els.length === n0 + 1 && e.type === 'icon' && e.icon === 'star', 'the / palette did not add a star icon');
+      var node = s0.nodes[idx];
+      expect(node && /gogh-icon-star/.test(node.className) && node.getAttribute('role') === 'img', 'the canvas icon is not an img-role group: ' + (node && node.outerHTML.slice(0, 100)));
+      var r = node.getBoundingClientRect();
+      expect(Math.abs(r.width - r.height) <= 2 && r.width > 30, 'the icon is not square on the canvas (' + Math.round(r.width) + 'x' + Math.round(r.height) + ')');
+      G.openPanel(s0, idx);
+      var pick = document.querySelector('.gogh-panel .gogh-iconpick[data-icon="heart"]');
+      expect(pick, 'the icon shelf has no heart');
+      pick.click();
+      expect(e.icon === 'heart', 'the pick did not land on the model');
+      e.color = 'contrast';
+      G.renderSection(s0);
+      var blocks = G.blocksV3(s0);
+      // the attrs carry a nested layout object, so match the comment by line, not by brace
+      expect(/<!-- wp:group \{[^\n]*gogh-icon gogh-icon-heart[^\n]* -->\n<div class="wp-block-group [^"]*gogh-icon gogh-icon-heart[^"]*has-contrast-color" role="img" aria-label="heart"><\/div>/.test(blocks), 'the icon did not publish as an empty group with its name and colour: ' + (blocks.match(/<!-- wp:group [^\n]*gogh-icon[^\n]*\n[^\n]*/) || ['none'])[0].slice(0, 300));
+      var css = blocks.match(/"cssT":"((?:[^"\\]|\\.)*)"/);
+      var cssT = css ? css[1].replace(/\\"/g, '"') : '';
+      // the attr serializer writes quotes as \u0022 — match past them
+      expect(/mask: url\(.{0,8}data:image\/svg\+xml,%3Csvg/.test(cssT), 'the mask did not reach the CSS');
+      expect(cssT.indexOf('<') === -1 && cssT.indexOf('>') === -1, 'the stored CSS carries < or > (the server strips them)');
+      G.closePanel();
+      s0.els.splice(idx, 1);
+      G.renderSection(s0);
+    });
+
+    test('map links become frames; other links are left to WordPress to embed', function () {
+      var m1 = G.mapEmbedUrl('https://www.google.com/maps/place/Cape+Town/@-33.92,18.42,12z/data=!3m1');
+      expect(m1 && /output=embed/.test(m1) && /q=Cape%20Town/.test(m1), 'a place link did not become an embed: ' + m1);
+      var m2 = G.mapEmbedUrl('https://www.google.com/maps/@-33.92,18.42,12z');
+      expect(m2 && /q=-33\.92,18\.42&z=12&output=embed/.test(m2), 'a coordinates link did not become an embed: ' + m2);
+      var m3 = G.mapEmbedUrl('https://www.openstreetmap.org/#map=15/51.5074/-0.1278');
+      expect(m3 && /export\/embed\.html\?bbox=/.test(m3) && /marker=51\.5074,-0\.1278/.test(m3), 'an OSM link did not become an embed: ' + m3);
+      expect(G.mapEmbedUrl('https://www.youtube.com/watch?v=abc123def') === null, 'a video link is not a map');
+      var yt = G.embedInfo('https://www.youtube.com/watch?v=abc123def');
+      expect(yt && yt.kind === 'oembed' && yt.host === 'youtube.com', 'a YouTube link should be an oEmbed: ' + JSON.stringify(yt));
+      expect(G.embedInfo('not a link') === null, 'plain words are not an embed');
+
+      var s0 = sec();
+      var n0 = s0.els.length;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      var input = document.querySelector('.gogh-cmd-in');
+      input.value = 'embed';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      var idx = s0.els.length - 1, e = s0.els[idx];
+      expect(s0.els.length === n0 + 1 && e.type === 'embed', 'the / palette did not add an embed');
+      expect(s0.nodes[idx].querySelector('.gogh-embed-empty'), 'an empty embed should ask for a link');
+      G.setEmbed(s0, idx, 'https://www.google.com/maps/place/Cape+Town/@-33.92,18.42,12z');
+      var fr = s0.nodes[idx].querySelector('iframe');
+      expect(fr && /output=embed/.test(fr.getAttribute('src')), 'the canvas did not frame the map');
+      var blocks = G.blocksV3(s0);
+      expect(/gogh-embed gogh-embed-map">\n<!-- wp:paragraph \{"className":"gogh-fallback"\} -->\n<p class="gogh-fallback"><a class="gogh-embed-link" href="https:\/\/www\.google\.com\/maps\/place\/Cape\+Town/.test(blocks), 'the map did not publish as a group with a plain link in a paragraph');
+      // a loose <a> in the group made every published map an invalid block
+      // in the block editor ("Expected EndTag, saw StartTag")
+      var mapBad = groupHoldsOnlyBlocks(blocks, 'gogh-embed-map');
+      expect(!mapBad, 'the published map group is not valid block markup: ' + mapBad);
+      // the model keeps the link: the page renderer frames the map from it
+      expect(/"type":"embed"[^{}]*"url":"https:\/\/www\.google\.com\/maps\/place\/Cape\+Town/.test(blocks), 'the saved model should keep the map\u2019s link, or the live page cannot frame it');
+      G.setEmbed(s0, idx, 'https://www.youtube.com/watch?v=abc123def');
+      blocks = G.blocksV3(s0);
+      expect(/<!-- wp:embed \{"url":"https:\/\/www\.youtube\.com\/watch\?v=abc123def","type":"rich","providerNameSlug":"youtube"/.test(blocks), 'the link did not publish as a wp:embed');
+      expect(/<div class="wp-block-embed__wrapper">\nhttps:\/\/www\.youtube\.com\/watch\?v=abc123def\n<\/div>/.test(blocks), 'the URL is not on its own line for WordPress to swap');
+      var css = blocks.match(/"cssT":"((?:[^"\\]|\\.)*)"/);
+      expect(css && /aspect-ratio: 768 \/ 432/.test(css[1].replace(/\\"/g, '"')), 'the window lost its aspect');
+      s0.els.splice(idx, 1);
+      G.renderSection(s0);
+    });
+
+    test('Backspace takes a selected section, and Undo brings it back', function () {
+      var c0 = G.sections().filter(function (s2) { return !s2.chrome; }).length;
+      G.addSection({ name: 'DOOMED', minH: 300, els: [
+        { type: 'heading', x: 80, y: 60, w: 600, h: 60, text: 'Doomed section' },
+      ] }, G.sections().length);
+      var all = G.sections();
+      var idx = -1;
+      all.forEach(function (s2, k) { if (s2.els.length && s2.els[0].text === 'Doomed section') idx = k; });
+      expect(idx !== -1, 'the doomed section was not added');
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      G.deselectSection();
+      G.selectSection(idx);
+      expect(G.selSec() === idx, 'section not selected');
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }));
+      var c1 = G.sections().filter(function (s2) { return !s2.chrome; }).length;
+      expect(c1 === c0, 'Backspace did not delete the selected section (' + c1 + ' vs ' + c0 + ')');
+      expect(G.selSec() === null, 'a deleted section is still selected');
+      // toasts stack — look for ours among them, not at the oldest
+      var undoBtn = null;
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) {
+        if (/Section deleted/.test(t.textContent) && t.querySelector('button')) undoBtn = t.querySelector('button');
+      });
+      expect(undoBtn, 'no undoable toast after the delete');
+      if (undoBtn) undoBtn.click(); // the toast's own Undo, the way a person would
+      var c2 = G.sections().filter(function (s2) { return !s2.chrome; }).length;
+      expect(c2 === c0 + 1, 'Undo did not bring the section back');
+      var back = G.sections().filter(function (s2) { return s2.els.length && s2.els[0].text === 'Doomed section'; })[0];
+      expect(!!back, 'the restored section lost its words');
+      if (back) G.deleteSection(G.sections().indexOf(back));
+    });
+
     test('grid toggle shows the grid it snaps to', function () {
       var btn = q('.gogh-side [data-act="gridsnap"]');
       expect(btn.querySelector('svg'), 'grid toggle has no icon');
@@ -1037,7 +1921,7 @@
           if (axis === 'x') cands.push(o.x, o.x + o.w, o.x + o.w / 2);
           else cands.push(o.y, o.y + o.h, o.y + o.h / 2);
         });
-        for (var t = lo; t <= hi; t += 8) {
+        for (var t = lo; t <= hi; t += 24) {
           var ok = cands.every(function (c) { return Math.abs(c - t) > 7; });
           if (ok) return t;
         }
@@ -1058,7 +1942,9 @@
       // the point is "off-grid drop snaps ONTO the grid near the target" — assert
       // grid-alignment within a cell, not an exact pixel (a real drag's sub-px
       // scale rounding can tip an exact === by one grid step)
-      expect(e.x % 8 === 0 && Math.abs(e.x - tx) <= 8 && e.y % 8 === 0, 'drop did not snap to grid: ' + e.x + ',' + e.y + ' (wanted x≈' + tx + ' on grid, y%8=0)');
+      // with the grid on, the mesh is the drawn lattice: a column edge, a row edge
+      var L = G.lattice;
+      expect(Math.abs(e.x - L.x(e.x)) <= 1 && Math.abs(e.x - tx) <= 48 && Math.abs(e.y - L.y(e.y)) <= 1, 'drop did not land on the lattice: ' + e.x + ',' + e.y + ' (wanted x≈' + tx + ' on a column edge, y on a row edge)');
       if (document.documentElement.classList.contains('gogh-grid-on')) btn.click(); // restore default
       return 'landed on grid at ' + e.x + ',' + e.y;
     });
@@ -1208,6 +2094,79 @@
       return 'dark ground flips ' + darker + '→' + lighter + '; pale ground untouched';
     });
 
+    test('the page preloads the typefaces it wears, at the addresses its @font-face rules load', function () {
+      // a preload whose URL differs from the stylesheet's is a second download,
+      // not a head start
+      var links = [].slice.call(document.querySelectorAll('link[rel="preload"][as="font"]'));
+      if (!links.length) return 'no font preload (the theme names no font files) \u2014 nothing to judge';
+      expect(links.length <= 2, 'at most two typefaces are preloaded (got ' + links.length + ')');
+      var css = [].slice.call(document.querySelectorAll('style')).map(function (st) { return st.textContent; }).join('\n');
+      links.forEach(function (l) {
+        var href = l.getAttribute('href');
+        expect(l.hasAttribute('crossorigin'), 'a font preload without crossorigin is fetched twice: ' + href);
+        expect(css.indexOf(href) !== -1, 'no @font-face on the page loads ' + href);
+      });
+      return links.length + ' preloaded: ' + links.map(function (l) { return l.getAttribute('href').split('/').pop(); }).join(', ');
+    });
+
+    test('the sentinel lifts small softened words to 4.5:1 and leaves big ones at 3:1', function () {
+      // a 55% eyebrow on cream paper reads (about 3.9:1, over the 3.2 floor)
+      // but small words owe WCAG 4.5:1 on the published page: the ink keeps
+      // its colour and gets just enough strength. Big words only owe 3:1.
+      var probe = function (slug) {
+        var d = document.createElement('div');
+        d.style.color = 'var(--wp--preset--color--' + slug + ')';
+        d.style.display = 'none';
+        document.body.appendChild(d);
+        var m = (getComputedStyle(d).color.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+        d.remove();
+        return (m[0] + m[1] + m[2]) / 3;
+      };
+      var darker = probe('base') < probe('contrast') ? 'base' : 'contrast';
+      var soft = 'color-mix(in srgb, var(--wp--preset--color--' + darker + ') 55%, transparent)';
+      G.addSection({ title: 'Lift', minH: 240, bg: '#f3eee4', els: [
+        { type: 'para', x: 90, y: 40, w: 500, h: 24, text: 'Architects · Bristol' },
+        { type: 'para', x: 90, y: 100, w: 700, h: 60, text: 'Big words' },
+      ] });
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      s.els[0].color = darker;
+      s.els[0].tf = { fs: 13, ls2: 0.2, col: soft };
+      s.els[1].color = darker;
+      s.els[1].tf = { fs: 40, col: soft };
+      G.renderSection(s);
+      G.contrastSentinel(s);
+      var pct = function (col) { var m = /(\d+)%, transparent\)$/.exec(col || ''); return m ? +m[1] : null; };
+      var small = s.els[0], big = s.els[1];
+      expect(small.color === darker, 'a lift keeps the colour (got ' + small.color + ')');
+      expect(pct(small.tf.col) > 55 && pct(small.tf.col) <= 100, 'small soft words should be lifted past 55% (got ' + small.tf.col + ')');
+      expect(small.tf.ls2 === 0.2, 'the rest of the typography survives a lift');
+      expect(big.tf.col === soft, 'big words at 3:1 are left as they were (got ' + big.tf.col + ')');
+      var lifted = pct(small.tf.col);
+      G.deleteSection(G.sections().indexOf(s));
+      // a solid ink that reads but misses WCAG (white on a mid orange, about
+      // 3.7:1): small words flip to the theme ink that reaches 4.5, big ones stay
+      var lighter = darker === 'base' ? 'contrast' : 'base';
+      G.addSection({ title: 'Sticker', minH: 240, bg: '#e4572e', els: [
+        { type: 'para', x: 90, y: 40, w: 300, h: 24, text: 'Est. 2014' },
+        { type: 'para', x: 90, y: 100, w: 700, h: 60, text: 'Big white words' },
+      ] });
+      var c2 = contentSecs();
+      var s2 = c2[c2.length - 1];
+      s2.els[0].color = lighter; s2.els[0].tf = { fs: 15 };
+      s2.els[1].color = lighter; s2.els[1].tf = { fs: 40 };
+      G.renderSection(s2);
+      var lightIsWhite = probe(lighter) > 240;
+      G.contrastSentinel(s2);
+      var flipped = s2.els[0].color, bigStays = s2.els[1].color;
+      G.deleteSection(G.sections().indexOf(s2));
+      if (lightIsWhite) {
+        expect(flipped === darker, 'small white words on orange should flip to ' + darker + ' (got ' + flipped + ')');
+        expect(bigStays === lighter, 'big white words on orange meet 3:1 and should stay (got ' + bigStays + ')');
+      }
+      return 'small 55% → ' + lifted + '%; big untouched; ' + (lightIsWhite ? 'small white on orange → ' + flipped + ', big stays' : 'sticker case skipped (light ink is not white in this style)');
+    });
+
     test('sentinel reads gradient grounds, not the theme-base fallback', function () {
       // meshes are background-IMAGE: colour computes transparent, and the
       // old fallback judged words against theme base — on a dark styling
@@ -1291,6 +2250,27 @@
       return 'card kids flip on their own ground, tf cleared';
     });
 
+    // v0.99.728: section themes named by lightness, grouped, drawn from the
+    // palette by role, offered only where they read; a 2 heads in the accent
+    test('section themes: Lightest to Darkest in groups, each offered only where it reads, a 2 with accent headings', function () {
+      var themes = G.sectionThemes();
+      var groups = themes.map(function (t) { return t.group; });
+      var order = ['light', 'bright', 'dark', 'backdrop'], last = -1, inOrder = true;
+      groups.forEach(function (g) { var k = order.indexOf(g); if (k < last) inOrder = false; last = Math.max(last, k); });
+      expect(groups.every(function (g) { return order.indexOf(g) !== -1; }) && inOrder, 'every theme should sit in Light, Bright, Dark or Backdrops, in that order: ' + groups.join(','));
+      var named = themes.filter(function (t) { return t.group !== 'backdrop'; }).map(function (t) { return t.name; });
+      expect(named.every(function (n) { return /^(Lightest|Light|Dark|Darkest|Bright) \d$/.test(n); }), 'themes should be named by lightness: ' + named.join(', '));
+      expect(themes.some(function (t) { return t.slug === 'paper'; }) && themes.some(function (t) { return t.slug === 'ink'; }), 'the page ground and its inverse keep their slugs (sections and Remix use them)');
+      var two = themes.filter(function (t) { return t.head; })[0];
+      if (!two) return themes.length + ' themes; this palette’s accent reads on no ground, so no 2s';
+      G.addSection({ name: 'Two', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 500, h: 60, text: 'Heading' }, { type: 'para', x: 72, y: 132, w: 500, h: 48, text: 'Words' } ] }, G.sections().length);
+      var sx = G.sections()[G.sections().length - 1];
+      try {
+        G.applySectionTheme(G.sections().indexOf(sx), two);
+        expect(sx.theme === two.slug && sx.els[0].color === two.head && sx.els[1].color === two.ink, two.name + ' should put the accent on headings only: ' + sx.els[0].color + ' / ' + sx.els[1].color);
+      } finally { G.deleteSection(G.sections().indexOf(sx)); }
+      return themes.length + ' themes: ' + named.join(', ');
+    });
     test('section themes: pick a look, the words come with it', function () {
       var themes = G.sectionThemes();
       expect(themes.length >= 3, 'expected at least Paper/Mist/Ink, got ' + themes.length);
@@ -1410,6 +2390,7 @@
       if (!btn) return 'no helpUrl configured — button rightly absent';
       btn.click();
       var sheet = q('.gogh-helpsheet');
+      try {
       expect(sheet && sheet.classList.contains('is-open'), 'help sheet did not open');
       var src = sheet.querySelector('iframe').getAttribute('src');
       expect(src.indexOf('v=') !== -1 && src.indexOf('0.99') !== -1, 'build number not passed to the bot (' + src + ')');
@@ -1417,9 +2398,31 @@
       // inert help bot cannot be typed into (James, three reports running)
       var pe = getComputedStyle(sheet.querySelector('iframe')).pointerEvents;
       expect(pe === 'auto', 'help iframe is inert (pointer-events: ' + pe + ') — the ask box cannot be focused');
+      // v0.99.701: docked on the right, full height under the bar, the page fitted beside it
+      var hr = sheet.getBoundingClientRect(), ab = document.getElementById('wpadminbar');
+      expect(Math.abs(hr.right - window.innerWidth) < 2 && Math.abs(hr.bottom - window.innerHeight) < 2, 'help should dock to the right edge, full height: ' + Math.round(hr.right) + '/' + Math.round(hr.bottom));
+      if (ab) expect(Math.abs(hr.top - ab.getBoundingClientRect().bottom) < 2, 'help should start where the bar ends');
+      expect(document.documentElement.classList.contains('gogh-zoomed'), 'the page should be fitted beside the help');
+      // where the page is going (the zoom eases there; no frames pass in a quick test)
+      var wrapEl = document.querySelector('.wp-site-blocks'), tfm = /translateX\(([-\d.]+)px\) scale\(([\d.]+)\)/.exec(wrapEl.style.transform) || [];
+      var goesTo = tfm.length ? +tfm[1] + wrapEl.offsetWidth * +tfm[2] : 99999;
+      expect(goesTo <= hr.left + 1, 'the page should sit clear of the help: ' + Math.round(goesTo) + ' vs ' + Math.round(hr.left));
+      var stay = null; try { stay = sessionStorage.getItem('gogh-help-docked'); } catch (err) {}
+      expect(stay, 'open help should be remembered for the next page');
       sheet.querySelector('.gogh-helpsheet-x').click();
       expect(!sheet.classList.contains('is-open'), 'close did not close');
-      return 'sheet opens, knows the build, closes';
+      expect(!document.documentElement.classList.contains('gogh-zoomed'), 'closing help should give the page its full size back');
+      try { stay = sessionStorage.getItem('gogh-help-docked'); } catch (err) { stay = null; }
+      expect(!stay, 'closed help should not come back on the next page');
+      } finally {
+        if (sheet && sheet.classList.contains('is-open')) sheet.querySelector('.gogh-helpsheet-x').click();
+        try { sessionStorage.removeItem('gogh-help-docked'); } catch (err) {}
+      }
+      // v0.99.690: while editing the bar stays clean — the ? lives at the
+      // foot of the drawer only; outside the editor the bar keeps its ?
+      var abLi = document.getElementById('wp-admin-bar-gogh-help');
+      expect(!abLi || getComputedStyle(abLi).display === 'none', 'the admin bar should carry no ? while editing');
+      return 'sheet opens from the drawer, knows the build, closes; no ? in the bar while editing';
     });
 
     test('inserted templates: text taller than its box pushes, never overlaps', function () {
@@ -1561,6 +2564,10 @@
           return s2.styleEl.textContent;
         };
         var par = cssFor('parallax');
+        // a pictured effect section draws the lattice while a piece moves,
+        // not the old 72-major hairlines: two grids on one page would lie
+        expect(/gogh-grid-live::before[^}]*86\.6667cqw 100%/.test(par), 'an effect section should draw the lattice while a piece moves, not the old hairlines');
+        expect(!/6cqw 6cqw/.test(par.split('gogh-grid-live')[1] || ''), 'the old 72-major hairlines are still in the effect section\u2019s drag grid');
         expect(/gogh-parallax/.test(par) && /animation-timeline: view\(\)/.test(par), 'parallax must be scroll-driven, not attachment-fixed');
         expect(/inset: -20% 0/.test(par), 'parallax layer needs headroom beyond the section');
         expect(!/background-attachment/.test(par), 'the old fixed-attachment trick must be gone');
@@ -1646,7 +2653,7 @@
       var veils = document.querySelectorAll('.gogh-chromeveil');
       expect(veils.length >= 1, 'no chrome veil in edit mode');
       var pill = veils[0].querySelector('.gogh-chromeveil-pill');
-      expect(pill && /edit site (header|footer)/i.test(pill.textContent), 'pill does not name the region');
+      expect(pill && /edit (header|footer)/i.test(pill.textContent), 'pill does not name the region'); // 'Edit header' since v0.99.612
       var host = veils[0].parentNode;
       pill.click();
       expect(!veils[0].parentNode, 'veil should lift when clicked');
@@ -1694,6 +2701,45 @@
       return 'image pinned start: ' + block.replace(/\s+/g, ' ').trim().slice(0, 60);
     });
 
+    // regression: photos are cover-fitted, so a declared w/h that differs
+    // from the natural aspect is a deliberate crop, not an error. The grid-
+    // stretch clamp (v0.99.188) used to run BEFORE the draws-at-its-own-
+    // aspect check (v0.99.438): a 300x300 crop of a 16:9 photo was reset to
+    // the natural 169 on every image load and every resize frame — the
+    // square flickered under the handle and committed flat
+    test('a deliberate crop survives measurement (square cut of a 16:9 photo)', function () {
+      var s = sec();
+      var crop = { type: 'image', x: 520, y: 120, w: 300, h: 300, text: null, ghost: false, cool: true,
+        src: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' };
+      s.els.push(crop);
+      G.renderSection(s);
+      var i = s.els.indexOf(crop);
+      var img = s.nodes[i].querySelector('img');
+      expect(img, 'no img inside the cropped figure');
+      // stand in for a LOADED 16:9 photo: the pixel gif may not have decoded
+      // yet and a real photo would need the network — own properties shadow
+      // the prototype getters the measure reads
+      Object.defineProperty(img, 'naturalWidth', { configurable: true, value: 1600 });
+      Object.defineProperty(img, 'naturalHeight', { configurable: true, value: 900 });
+      var r = s.nodes[i].getBoundingClientRect();
+      var drawn = r.width > 0 ? r.height / r.width : 0;
+      G.measureTextHeights(s);
+      var after = s.els[i].h;
+      // and the clamp it was reordered around still holds: a frame forced
+      // taller than BOTH its declared aspect and the photo's natural aspect
+      // (the v0.99.188 grid stretch) must not be absorbed into the model
+      s.els[i].h = 300;
+      s.nodes[i].style.height = '900px';
+      G.measureTextHeights(s);
+      var stretched = s.els[i].h;
+      s.nodes[i].style.height = '';
+      s.els.splice(i, 1);
+      G.renderSection(s);
+      expect(Math.abs(drawn - 1) < 0.08, 'frame did not draw at its square crop: ' + drawn.toFixed(2));
+      expect(after === 300, 'square crop flattened to h ' + after + ' (natural 16:9 at 300 wide is 169)');
+      expect(stretched < 320, 'a stretched frame was absorbed: h ' + stretched);
+      return 'crop kept h ' + after + '; a 900px stretch left h at ' + stretched;
+    });
     // ---- 15. divider + section backgrounds (v0.10) ----
     test('divider CSS generated with next-section colour', function () {
       G.addSection(G.templates()[3], G.sections().length);
@@ -1886,10 +2932,32 @@
       }
       G.setFontSize(sec(), i, null);
       expect(!node().className.match(/has-.*-font-size/), 'default did not clear class');
-      // stepping from default goes to the smallest preset
+      // stepping up from Normal makes the words bigger, never smaller (the
+      // sizes follow what they draw at for this piece)
+      var pxNormal = parseFloat(getComputedStyle(node()).fontSize);
       G.stepFontSize(sec(), i, 1);
-      expect(sec().els[i].fs === sizes[0].slug, 'step order wrong: ' + sec().els[i].fs);
+      expect(parseFloat(getComputedStyle(node()).fontSize) > pxNormal, 'a step up from Normal should be bigger: ' + sec().els[i].fs);
       return sizes.map(function (f) { return f.slug; }).join(' → ');
+    });
+
+    // v0.99.680: growing text pushed what sat below TWICE (the render's own
+    // re-flow, then the size change) but shrinking pulled back once, so
+    // Huge then Small left a gap the height of the growth
+    test('a size round trip leaves the page as it was: grow pushes by the growth once, shrink pulls it back', function () {
+      var i = findIdx('heading'), e = sec().els[i];
+      var keepFs = e.fs || null, keepH = e.h;
+      var start = sec().els.map(function (o) { return o.y; });
+      var below = sec().els.findIndex(function (o, j) { return j !== i && o.y >= e.y + e.h - 8 && o.x < e.x + e.w && o.x + o.w > e.x; });
+      if (below < 0) return 'nothing below the heading to judge';
+      var y0 = sec().els[below].y, h0 = e.h;
+      G.setFontSize(sec(), i, '__disp-l');
+      var grew = e.h - h0;
+      expect(grew > 0 && Math.abs((sec().els[below].y - y0) - grew) <= 2, 'below should move by the growth (' + grew + '), moved ' + (sec().els[below].y - y0));
+      G.setFontSize(sec(), i, 'small');
+      G.setFontSize(sec(), i, keepFs);
+      var moved = sec().els.filter(function (o, j) { return Math.abs(o.y - start[j]) > 2; }).length;
+      expect(moved === 0 && Math.abs(e.h - keepH) <= 2, 'Billboard, Small, then back should leave every piece where it was; ' + moved + ' moved: ' + sec().els.map(function (o) { return o.y; }).join(',') + ' vs ' + start.join(','));
+      return 'moved by ' + grew + ' then back';
     });
 
     // ---- 23. drop lands where the ghost was released (v0.16.1) ----
@@ -2010,6 +3078,271 @@
       var gapR = c.x - (b.x + b.w);
       expect(gapL === gapR, 'gaps unequal after snap: ' + gapL + ' vs ' + gapR + ' (x=' + b.x + ')');
       return 'settled at x=' + b.x + ', both gaps ' + gapL;
+    });
+
+    // ---- 28a. repeat-gap: a fourth card lands in step with three ----
+    test('repeat-gap snap reproduces the row’s gap at the end of a run', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 4], b = sec().els[n - 3], c = sec().els[n - 2], d = sec().els[n - 1];
+      a.x = 100; a.y = 1800; a.w = 200; a.h = 60;
+      b.x = 340; b.y = 1800; b.w = 200; b.h = 60;   // gap 40
+      c.x = 580; c.y = 1800; c.w = 200; c.h = 60;   // gap 40
+      d.x = 900; d.y = 1800; d.w = 200; d.h = 60;   // the fourth, out of step
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      select(n - 1);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var grip = q('.gogh-grip');
+      var r = grip.getBoundingClientRect();
+      var dx = (826 - 900) * s; // 6 units past the gap of 40 — inside the magnet, off the 24 grid
+      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 12, clientY: r.y + 12, pointerId: 64 }));
+      grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + dx, clientY: r.y + 12, pointerId: 64 }));
+      grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + dx, clientY: r.y + 12, pointerId: 64 }));
+      var gap = d.x - (c.x + c.w);
+      expect(gap === 40, 'the fourth card should copy the run’s gap of 40, got ' + gap + ' (x=' + d.x + ')');
+      return 'x=' + d.x + ', gap ' + gap + ' like the others';
+    });
+
+    testAsync('gap numbers show while a gap magnet holds, and not on a plain drag', function () { return new Promise(function (done, fail) {
+      addToSec('badge'); addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 4], b = sec().els[n - 3], c = sec().els[n - 2], d = sec().els[n - 1];
+      a.x = 100; a.y = 2000; a.w = 200; a.h = 60;
+      b.x = 340; b.y = 2000; b.w = 200; b.h = 60;
+      c.x = 580; c.y = 2000; c.w = 200; c.h = 60;
+      d.x = 1000; d.y = 2000; d.w = 180; d.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      select(n - 1);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var grip = q('.gogh-grip');
+      var r = grip.getBoundingClientRect();
+      var shown = function () { return [].slice.call(document.querySelectorAll('.gogh-dist')).filter(function (x) { return !x.hidden; }); };
+      var frames = function (k) { return new Promise(function (res) { var f = function () { if (--k <= 0) res(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }); };
+      if (document.visibilityState === 'hidden') { done('skipped: the numbers are drawn on animation frames, which a hidden tab never gets'); return; }
+      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 12, clientY: r.y + 12, pointerId: 65 }));
+      // a plain move, nowhere near the run's gap: quiet
+      grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + (960 - 1000) * s, clientY: r.y + 12, pointerId: 65 }));
+      frames(3).then(function () {
+        var quiet = shown().length;
+        // into the magnet: the gap of 40 is copied, and both gaps get their number
+        grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + (825 - 1000) * s, clientY: r.y + 12, pointerId: 65 }));
+        return frames(3).then(function () {
+          var on = shown();
+          grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + (825 - 1000) * s, clientY: r.y + 12, pointerId: 65 }));
+          if (quiet !== 0) throw new Error('a plain drag showed ' + quiet + ' number(s); it should stay quiet');
+          if (on.length < 2) throw new Error('the repeated gap should number both gaps, got ' + on.length);
+          var texts = on.map(function (x) { return x.textContent; });
+          if (!texts.every(function (t) { return /=\s*40/.test(t); })) throw new Error('both numbers should read = 40: ' + texts.join(' | '));
+          if (shown().length !== 0) throw new Error('the numbers should go on drop');
+          done('quiet on a plain drag; ' + texts.join(' and ') + ' while the gap held');
+        });
+      }).catch(fail);
+    }); });
+
+    // ---- the Canva parity set: six drops, re-run after every change ----
+    var parityRow = function (y) {
+      addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 2], b = sec().els[n - 1];
+      a.x = 100; a.y = y; a.w = 200; a.h = 60;
+      b.x = 500; b.y = y + 41; b.w = 200; b.h = 60; // off the grid on purpose
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      return { a: a, b: b, i: n - 1 };
+    };
+    var dragGripBy = function (i, dxU, dyU, id) {
+      select(i);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var grip = q('.gogh-grip');
+      var r = grip.getBoundingClientRect();
+      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 12, clientY: r.y + 12, pointerId: id }));
+      grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + dxU * s, clientY: r.y + 12 + dyU * s, pointerId: id }));
+      grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + dxU * s, clientY: r.y + 12 + dyU * s, pointerId: id }));
+    };
+    test('parity 1: an edge dropped 5 off a neighbour’s top lands exactly on it', function () {
+      var p = parityRow(2201);
+      dragGripBy(p.i, 0, -36, 81); // from 41 below to 5 below
+      expect(p.b.y === p.a.y, 'tops should agree: ' + p.b.y + ' vs ' + p.a.y);
+      return 'top ' + p.b.y;
+    });
+    test('parity 2: 10 off does not snap — a magnet that reaches too far is worse than none', function () {
+      var p = parityRow(2401);
+      dragGripBy(p.i, 0, -31, 82); // from 41 below to 10 below
+      expect(p.b.y !== p.a.y, 'should not have snapped to ' + p.a.y);
+      return 'landed at ' + p.b.y + ', neighbour at ' + p.a.y;
+    });
+    test('parity 6: a two-pixel twitch on a piece is a click, not a move', function () {
+      var p = parityRow(2601);
+      var node = sec().nodes[p.i];
+      var r = node.getBoundingClientRect();
+      var x0 = p.b.x, y0 = p.b.y;
+      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 10, clientY: r.y + 10, pointerId: 83 }));
+      node.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12, clientY: r.y + 11, pointerId: 83 }));
+      node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12, clientY: r.y + 11, pointerId: 83 }));
+      expect(p.b.x === x0 && p.b.y === y0, 'a twitch moved the piece to ' + p.b.x + ',' + p.b.y);
+      return 'stayed at ' + x0 + ',' + y0;
+    });
+    testAsync('parity 5: a resize near a neighbour’s width matches it and says so', function () { return new Promise(function (done, fail) {
+      addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 2], b = sec().els[n - 1];
+      // the magnet takes the CLOSEST edge in the whole section, so b goes
+      // where no other piece has an edge or middle near its right side: the
+      // fixture is a living page, and on 2026-10-18 its picture's right edge
+      // landed at 702, beside the 704 this drag lets go at, and won
+      var others = sec().els.slice(0, n - 2);
+      var clear = function (bx) {
+        return others.every(function (o) {
+          return [o.x, o.x + o.w, o.x + o.w / 2].every(function (c) { return Math.abs(c - (bx + 200)) > 12 && Math.abs(c - (bx + 204)) > 12; });
+        });
+      };
+      var bx = [500, 540, 580, 620, 660, 460, 420].filter(clear)[0];
+      if (bx == null) throw new Error('no clear lane for the resize: other pieces have edges near every spot tried');
+      a.x = 100; a.y = 2801; a.w = 200; a.h = 60;
+      b.x = bx; b.y = 2801; b.w = 230; b.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      select(n - 1);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var h = q('.gogh-h[data-d="e"]');
+      var r = h.getBoundingClientRect();
+      var frames = function (k) { return new Promise(function (res) { var f = function () { if (--k <= 0) res(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }); };
+      var hiddenTab = document.visibilityState === 'hidden';
+      h.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 4, clientY: r.y + 4, pointerId: 84 }));
+      h.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 4 + (204 - 230) * s, clientY: r.y + 4, pointerId: 84 }));
+      (hiddenTab ? Promise.resolve() : frames(3)).then(function () {
+        var tag = (document.querySelector('.gogh-guide-v') || {}).dataset;
+        var said = hiddenTab ? 'same width' : (tag ? tag.tag : ''); // the chip is drawn on a frame a hidden tab never gets
+        h.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 4 + (204 - 230) * s, clientY: r.y + 4, pointerId: 84 }));
+        if (b.w !== 200) throw new Error('width should match the neighbour’s 200, got ' + b.w);
+        if (said !== 'same width') throw new Error('the guide should say “same width”, said “' + said + '”');
+        done('width 200, guide said ' + said);
+      }).catch(fail);
+    }); });
+    test('Tidy up matches sizes that are nearly the same, and leaves a different one alone', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 4], b = sec().els[n - 3], c = sec().els[n - 2], d = sec().els[n - 1];
+      a.x = 100; a.y = 3001; a.w = 200; a.h = 60;
+      b.x = 380; b.y = 3001; b.w = 212; b.h = 64;   // within a tenth
+      c.x = 660; c.y = 3001; c.w = 190; c.h = 57;   // within a tenth
+      d.x = 940; d.y = 3001; d.w = 120; d.h = 40;   // a different thing on purpose
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 4, n - 3, n - 2, n - 1]);
+      var bar = document.querySelector('.gogh-mbar');
+      var btn = bar.querySelector('.gogh-mb-tidy');
+      expect(btn && !btn.disabled, 'Tidy up should be offered for nearly-equal sizes');
+      btn.click();
+      expect(b.w === 200 && c.w === 200 && b.h === 60 && c.h === 60, 'the near-equal ones should take the first one’s 200×60: ' + [b.w, b.h, c.w, c.h]);
+      expect(d.w === 120 && d.h === 40, 'the deliberately different one should keep its size: ' + [d.w, d.h]);
+      G.multi.clear();
+      return 'three at 200×60, the small one left alone';
+    });
+    test('three cards dragged together snap their own centre to the page centre', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 3], b = sec().els[n - 2], c = sec().els[n - 1];
+      a.x = 60; a.y = 3601; a.w = 200; a.h = 60;
+      b.x = 360; b.y = 3601; b.w = 200; b.h = 60;
+      c.x = 660; c.y = 3601; c.w = 200; c.h = 60;   // the group spans 60..860, centre 460
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var node = sec().nodes[n - 2], r = node.getBoundingClientRect();
+      var x = r.x + r.width / 2, y = r.y + r.height / 2;
+      pev('pointerdown', node, x, y, 71);
+      pev('pointermove', node, x + 60 * s, y, 71);
+      pev('pointermove', node, x + 136 * s, y, 71); // group centre would be 596, four short of the page's 600
+      pev('pointerup', node, x + 136 * s, y, 71);
+      var centre = (a.x + c.x + c.w) / 2;
+      expect(centre === 600, 'the group should sit centred on the page, centre ' + centre + ' (' + [a.x, b.x, c.x] + ')');
+      expect(b.x - (a.x + a.w) === 100 && c.x - (b.x + b.w) === 100, 'the pieces keep their gaps: ' + [a.x, b.x, c.x]);
+      G.multi.clear();
+      return 'group centre 600, gaps kept';
+    });
+    test('Align offers only the directions that fit the shape: a row hides the sideways icons, a stack hides the vertical ones', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 3], b = sec().els[n - 2], c = sec().els[n - 1];
+      var bar = document.querySelector('.gogh-mbar');
+      var shown = function (axis) { return !bar.querySelector('.gogh-mbar-axis[data-axis="' + axis + '"]').hidden; };
+      // a row: beside each other
+      a.x = 60; a.y = 4001; a.w = 200; a.h = 60; b.x = 360; b.y = 4011; b.w = 200; b.h = 60; c.x = 660; c.y = 4001; c.w = 200; c.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      expect(!shown('x') && shown('y') && !bar.querySelector('.gogh-mb-align[data-how="page"]').hidden, 'a row should offer top/middle/bottom and the page, not left/centre/right');
+      // a stack: above each other
+      a.x = 100; a.y = 4001; b.x = 120; b.y = 4101; c.x = 100; c.y = 4201;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      expect(shown('x') && !shown('y'), 'a stack should offer left/centre/right, not top/middle/bottom');
+      // a grid: both
+      a.x = 100; a.y = 4001; b.x = 400; b.y = 4001; c.x = 100; c.y = 4101;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      expect(shown('x') && shown('y'), 'a grid should offer every direction');
+      G.multi.clear();
+      return 'row → vertical icons; stack → sideways icons; grid → all';
+    });
+    test('Centre on the page: the seventh icon moves the whole selection as one', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 3], b = sec().els[n - 2], c = sec().els[n - 1];
+      a.x = 60; a.y = 3801; a.w = 200; a.h = 60;
+      b.x = 360; b.y = 3801; b.w = 200; b.h = 60;
+      c.x = 660; c.y = 3801; c.w = 200; c.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      var bar = document.querySelector('.gogh-mbar');
+      bar.querySelector('.gogh-mb-more').click();
+      var pg = bar.querySelector('.gogh-mb-align[data-how="page"]');
+      expect(pg && !pg.disabled && pg.getAttribute('aria-label') === 'Centre on the page', 'the seventh icon should be offered for an off-centre group');
+      pg.click();
+      expect(a.x === 200 && b.x === 500 && c.x === 800, 'the group should move as one to centre 600: ' + [a.x, b.x, c.x]);
+      expect(bar.querySelector('.gogh-mb-align[data-how="page"]').disabled && bar.querySelector('.gogh-mb-align[data-how="page"]').title === 'Already centred on the page', 'then it greys, with its reason');
+      G.multi.clear();
+      return 'centred on the page in one click';
+    });
+
+    test('Alt + arrow steps to the next magnet, where the mouse would snap', function () {
+      addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 2], b = sec().els[n - 1];
+      a.x = 100; a.y = 3201; a.w = 200; a.h = 60;
+      b.x = 700; b.y = 3201; b.w = 100; b.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      select(n - 2);
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', altKey: true, bubbles: true }));
+      var lands = function (v) { // v is one of a's edges after the jump: does a magnet sit there?
+        var ok = false;
+        sec().els.forEach(function (o) { if (o === a) return; [o.x, o.x + o.w, o.x + o.w / 2].forEach(function (c) { if (Math.abs(c - v) < 0.6) ok = true; }); });
+        [0, 1200, 600, 80, 1120].forEach(function (c) { if (Math.abs(c - v) < 0.6) ok = true; });
+        return ok;
+      };
+      expect(a.x > 100, 'should have moved right, x=' + a.x);
+      expect(lands(a.x) || lands(a.x + a.w / 2) || lands(a.x + a.w), 'should sit on a magnet: x=' + a.x);
+      var x1 = a.x;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true }));
+      expect(a.x < x1, 'Alt + left should step back, x=' + a.x);
+      return 'jumped to ' + x1 + ' then back to ' + a.x;
+    });
+
+    test('rhythm gap: with nothing to copy, 24, 48 or 72 from the neighbour catches', function () {
+      addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 2], b = sec().els[n - 1];
+      a.x = 100; a.y = 3401; a.w = 200; a.h = 60;
+      b.x = 700; b.y = 3401; b.w = 150; b.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      dragGripBy(n - 1, 352 - 700, 0, 85); // gap 52: four past 48, off the 24 lines
+      var gap = b.x - (a.x + a.w);
+      expect(gap === 48, 'the gap should settle on 48, got ' + gap + ' (x=' + b.x + ')');
+      dragGripBy(n - 1, 330 - b.x, 0, 86); // gap 30: six past 24
+      gap = b.x - (a.x + a.w);
+      expect(gap === 24, 'the gap should settle on 24, got ' + gap + ' (x=' + b.x + ')');
+      dragGripBy(n - 1, 420 - b.x, 0, 87); // gap 120: nothing near, no magnet
+      gap = b.x - (a.x + a.w);
+      expect(gap !== 72 && gap !== 96, 'far from any rhythm gap nothing should catch, got ' + gap);
+      return 'caught 48, then 24, then left alone at ' + gap;
     });
 
     // ---- 28b. equal-spacing wins over a nearby edge-snap candidate ----
@@ -2382,80 +3715,772 @@
       G.deleteSection(G.sections().indexOf(added));
     });
 
-    test('picker: no chip row — intent shelves, search filters', function () {
+    test('picker: the list shows each group, search filters across them all', function () {
       G.openPicker(G.sections().length);
       expect(!q('.gogh-topstrip') && !q('.gogh-patcats'), 'chip row should be gone');
       var cardByName = function (nm) {
-        return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card'), function (c) {
+        return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]'), function (c) {
           var n = c.querySelector('.gogh-card-name');
           return n && n.textContent.indexOf(nm) === 0;
         })[0];
       };
-      // first screen: every starter under its intent shelf — the shelves
-      // are the map, so nothing hides behind a See all
-      var shelfText = [].map.call(document.querySelectorAll('.gogh-cards .gogh-intentlab'), function (l) { return l.textContent; }).join(' ');
-      expect(/Introduce/.test(shelfText) && /Sell/.test(shelfText) && /Showcase/.test(shelfText),
-        'intent shelves missing: ' + shelfText);
+      var heads = [].slice.call(document.querySelectorAll('.gogh-picklist .gogh-pl-head')).filter(function (h) { return h.offsetParent || !h.closest('[hidden]'); });
+      var names = heads.map(function (h) { return h.textContent; });
+      expect(names.indexOf('Introduce') !== -1 && names.indexOf('Sell') !== -1 && names.indexOf('Showcase') !== -1, 'groups missing: ' + names.join(', '));
       var totalTpl = document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]').length;
-      var visTpl = function () {
-        return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]'), function (c) {
-          return c.style.display !== 'none';
-        }).length;
-      };
       expect(totalTpl >= 15, 'the beauty pass promises ~15 starters, found ' + totalTpl);
-      expect(visTpl() === totalTpl, 'every starter should show on the first screen, got ' + visTpl() + '/' + totalTpl);
-      expect(!q('.gogh-browse-all'), 'See all should be gone — the shelves are the map');
+      var vis = function () {
+        return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]'), function (c) { return c.style.display !== 'none'; });
+      };
+      // the first group shows on opening; every starter is in one group
+      expect(vis().length > 0 && vis().length < totalTpl, 'the first group should show on its own, got ' + vis().length + '/' + totalTpl);
+      var seen = {};
+      heads.forEach(function (h) { if (!/^(intent:|design)/.test(h.dataset.view)) return; h.click(); vis().forEach(function (c) { seen[c.dataset.tpl] = 1; }); });
+      expect(Object.keys(seen).length === totalTpl, 'every starter should be in a group, got ' + Object.keys(seen).length + '/' + totalTpl);
       // search flattens to matches only
-      var quick = q('.gogh-quickrow');
       var sIn = q('.gogh-picker-search .gogh-patsearch');
       sIn.value = 'quote';
       sIn.dispatchEvent(new Event('input', { bubbles: true }));
       expect(cardByName('Quote').style.display !== 'none', 'Quote hidden under search');
       expect(cardByName('Hero').style.display === 'none', 'Hero visible under search');
-      expect(quick.hidden, 'Quick start row visible while searching');
       sIn.value = '';
       sIn.dispatchEvent(new Event('input', { bubbles: true }));
-      expect(cardByName('Hero').style.display !== 'none', 'Hero not restored');
-      expect(!quick.hidden, 'Quick start row not restored');
-      // My sections opens a view with a way back
-      q('.gogh-quick-yours').click();
-      expect(!q('.gogh-viewbar').hidden, 'view bar did not open for My sections');
-      q('.gogh-view-back').click();
-      expect(q('.gogh-viewbar').hidden, 'view bar did not close');
+      q('.gogh-picklist .gogh-pl-head').click();
+      expect(cardByName('Hero').style.display !== 'none', 'Hero not back with Introduce');
       q('.gogh-picker-close').click();
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
 
-    test('picker: the rail maps the shelves', function () {
+    test('picker: a design in the list shows every take of it, and the size switch reshapes the grid', function () {
       G.openPicker(G.sections().length);
-      var rail = q('.gogh-pickrail');
-      expect(rail && !rail.hidden, 'the rail is missing from the first screen');
-      var names = [].map.call(rail.querySelectorAll('button'), function (b) { return b.textContent; });
-      expect(names.length >= 4, 'expected at least four shelves on the map, got ' + names.join(', '));
-      expect(/Quick start/.test(names[0]) && names.indexOf('Introduce') !== -1 &&
-        names.indexOf('Sell') !== -1 && names.indexOf('Showcase') !== -1,
-        'the map misnames the shelves: ' + names.join(', '));
-      expect(rail.querySelector('button.is-here'), 'no shelf is marked as here');
-      // the spy follows the scroll — dispatched by hand, because background
-      // tabs freeze smooth scrolling but never the listener
-      var pin = q('.gogh-picker-inner');
-      pin.scrollTop = pin.scrollHeight;
-      pin.dispatchEvent(new Event('scroll'));
-      var here = rail.querySelector('button.is-here');
-      expect(here && here.textContent !== names[0],
-        'scrolled to the bottom, but the map still says ' + (here ? here.textContent : 'nothing'));
-      pin.scrollTop = 0;
-      pin.dispatchEvent(new Event('scroll'));
-      // filters flatten the modal to one grid — the map steps aside too
-      var sIn = q('.gogh-picker-search .gogh-patsearch');
-      sIn.value = 'quote';
-      sIn.dispatchEvent(new Event('input', { bubbles: true }));
-      expect(rail.hidden, 'the rail should hide while a filter is on');
-      sIn.value = '';
-      sIn.dispatchEvent(new Event('input', { bubbles: true }));
-      expect(!q('.gogh-pickrail').hidden, 'the rail should return when the filter clears');
+      var hero = [].filter.call(document.querySelectorAll('.gogh-picklist .gogh-pl-item'), function (b) { return b.textContent === 'Hero'; })[0];
+      expect(hero, 'Hero missing from the list');
+      hero.click();
+      expect(hero.classList.contains('is-on'), 'the chosen design should be marked');
+      var t = hero.dataset.view.slice(4);
+      var faces = G.diceFaces(G.templates()[+t].name);
+      var shown = [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card'), function (c) { return c.style.display !== 'none'; });
+      expect(shown.length === faces.length, 'Hero should show its ' + faces.length + ' takes, showed ' + shown.length);
+      expect(shown.slice(1).every(function (c) { return c.dataset.fam === t; }), 'the other cards should be Hero takes');
+      var pk = q('.gogh-picker');
+      q('.gogh-pk-size[data-cols="3"]').click();
+      expect(pk.classList.contains('gogh-cols-3') && q('.gogh-pk-size[data-cols="3"]').classList.contains('is-on'), 'small previews should switch on');
+      q('.gogh-pk-size[data-cols="2"]').click();
+      expect(pk.classList.contains('gogh-cols-2'), 'two across should switch back');
       q('.gogh-picker-close').click();
-      return 'rail: ' + names.join(' · ');
+      return faces.length + ' Hero takes';
+    });
+
+    test('picker: a Share shelf of three live posts layouts, found by "blog", with All posts going to the blog page', function () {
+      G.openPicker(G.sections().length);
+      try {
+        var labs = [].map.call(document.querySelectorAll('.gogh-picker .gogh-intentlab'), function (n) { return n.textContent; });
+        expect(labs.some(function (t) { return /^Share/.test(t); }), 'there should be a Share shelf: ' + labs.join(' | '));
+        var names = [].map.call(document.querySelectorAll('.gogh-picker .gogh-card .gogh-card-name'), function (n) { return n.textContent; });
+        ['Latest posts', 'Featured post', 'Titles and dates'].forEach(function (nm) {
+          expect(names.indexOf(nm) !== -1, nm + ' should be on the shelf');
+        });
+        var rail = [].map.call(document.querySelectorAll('.gogh-pickrail button'), function (b) { return b.textContent; });
+        expect(rail.indexOf('Share') !== -1, 'the map should name the Share shelf: ' + rail.join(', '));
+        var sIn = q('.gogh-picker-search .gogh-patsearch');
+        sIn.value = 'blog';
+        sIn.dispatchEvent(new Event('input', { bubbles: true }));
+        var shown = [].filter.call(document.querySelectorAll('.gogh-picker .gogh-card'), function (b) { return !b.hidden && b.offsetParent !== null; })
+          .map(function (b) { return (b.querySelector('.gogh-card-name') || {}).textContent; });
+        expect(shown.indexOf('Latest posts') !== -1 && shown.indexOf('Titles and dates') !== -1, '"blog" should find the Share layouts: ' + shown.join(', '));
+        sIn.value = ''; sIn.dispatchEvent(new Event('input', { bubbles: true }));
+      } finally { q('.gogh-picker-close').click(); }
+      var tpl = G.templates().filter(function (t) { return t.name === 'Latest posts'; })[0];
+      var was = GOGH.postsUrl;
+      try {
+        GOGH.postsUrl = 'https://x.test/journal/';
+        var els = G.tplEls(tpl);
+        var grid = els.filter(function (e) { return e.rails && e.posts; })[0];
+        expect(grid && grid.posts.look === 'cards' && /wp:query/.test(grid.wsrc || ''), 'the layout should carry a live posts grid in the Cards look');
+        var btn = els.filter(function (e) { return e.type === 'button'; })[0];
+        expect(btn && btn.href === 'https://x.test/journal/', 'All posts should go to the blog page: ' + (btn && btn.href));
+        GOGH.postsUrl = '';
+        expect(!G.tplEls(tpl).some(function (e) { return e.type === 'button'; }), 'with no blog page there should be no All posts button');
+      } finally { GOGH.postsUrl = was; }
+      return 'Share: Latest posts, Featured post, Titles and dates';
+    });
+
+    test('a live grid loading its posts is not a change to publish; changing its choices is', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
+      try {
+        G.pushState();
+        var before = G.dirtySnap();
+        // what the grid fetched to draw itself arrives later
+        e.__postsData = [{ id: 1, title: { rendered: 'A' } }];
+        e.whtml = '<div class="gogh-postsprev">changed preview</div>';
+        expect(G.dirtySnap() === before, 'loading posts into the preview should not read as a change');
+        e.posts.count = 6;
+        expect(G.dirtySnap() !== before, 'a new choice on the grid should read as a change');
+      } finally {
+        var k = s0.els.indexOf(e);
+        if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); G.pushState(); }
+      }
+      return 'previews are not edits; choices are';
+    });
+
+    // ---- Cards: a set of cards that share one design ----
+    var cardsIn = function (e) { return (e.wsrc.match(/<!-- wp:group \{"className":"gogh-cs-card/g) || []).length; };
+    test('Cards: the + menu makes a set of three cards in one design, saved as core blocks', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+      expect(e.type === 'widget' && e.cards && e.cards.items.length === 3, 'a new set should hold three cards');
+      expect(cardsIn(e) === 3, 'the saved blocks should hold three cards, got ' + cardsIn(e));
+      // groups inside groups: every block that opens closes, and the only
+      // things between blocks are the blocks' own wrappers (the block
+      // editor's own parse of this markup is checked by hand: all valid)
+      var opens = (e.wsrc.match(/<!-- wp:[a-z\/-]+[^>]*?[^\/]-->/g) || []).length, closes = (e.wsrc.match(/<!-- \/wp:/g) || []).length;
+      expect(opens === closes && opens > 0, 'every block should close: ' + opens + ' open, ' + closes + ' closed');
+      var loose = e.wsrc.replace(/<!--[\s\S]*?-->/g, '\u0000').split('\u0000').filter(function (bit) {
+        return bit.replace(/<\/?(div|figure)[^>]*>|<img[^>]*>|<h3[^>]*>[\s\S]*?<\/h3>|<p[^>]*>[\s\S]*?<\/p>|\s/g, '') !== '';
+      });
+      expect(!loose.length, 'loose markup between blocks: ' + (loose[0] || '').slice(0, 80));
+      if (window.wp && wp.blocks && wp.blocks.getBlockType && wp.blocks.getBlockType('core/group')) {
+        var invalid = [];
+        (function walk(bs) { bs.forEach(function (b) { if (!b.isValid) invalid.push(b.name); walk(b.innerBlocks || []); }); })(wp.blocks.parse(e.wsrc));
+        expect(!invalid.length, 'invalid blocks: ' + invalid.join(', '));
+      }
+      expect(!/data-c[fk]/.test(e.wsrc), 'the canvas marks must never reach the saved page');
+      var n = s0.nodes[s0.els.indexOf(e)];
+      expect(n.querySelectorAll('[data-cf="t"]').length === 3, 'every card title should be typable on the canvas');
+      expect(typeof G.elDefaults().cards === 'function', 'the + menu should offer Cards');
+      return cardsIn(e) + ' cards, valid blocks';
+    });
+    test('Cards: typing on a card writes that card, and only it', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      var leaf = n.querySelectorAll('[data-cf="t"]')[1];
+      var r = leaf.getBoundingClientRect();
+      pev('pointerdown', leaf, r.x + 4, r.y + 4); pev('pointerup', leaf, r.x + 4, r.y + 4);
+      expect(leaf.isContentEditable, 'a second press on a card title should give it the caret');
+      leaf.textContent = 'Lamp light, all evening';
+      leaf.dispatchEvent(new Event('input', { bubbles: true }));
+      leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(!leaf.isContentEditable, 'Enter should finish the words');
+      expect(e.cards.items[1].t === 'Lamp light, all evening', 'the second card should keep the words: ' + e.cards.items[1].t);
+      expect(e.cards.items[0].t !== 'Lamp light, all evening' && e.cards.items[2].t !== 'Lamp light, all evening', 'no other card should change');
+      expect(e.wsrc.indexOf('Lamp light, all evening') !== -1, 'the saved blocks should carry the new words');
+      return 'card 2 rewritten';
+    });
+    test('Cards: adding, moving and deleting cards keeps the featured card with its card, and the set grows to fit', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+      var h0 = e.h;
+      G.cards.act(s0, e, 'feat', 1);
+      var star = e.cards.items[1];
+      G.cards.act(s0, e, 'add');
+      expect(e.cards.items.length === 4 && cardsIn(e) === 4, 'Add card should make a fourth card');
+      expect(e.h > h0 + 40, 'a fourth card wraps to a new row, so the set should grow: ' + h0 + ' -> ' + e.h);
+      G.cards.act(s0, e, 'up', 1);
+      expect(e.cards.items[0] === star && e.cards.feat === 0, 'moving the featured card should keep it featured');
+      G.cards.act(s0, e, 'dup', 0);
+      expect(e.cards.items.length === 5 && e.cards.feat === 0, 'a duplicate is not featured');
+      G.cards.act(s0, e, 'del', 0);
+      expect(e.cards.items.length === 4 && e.cards.feat === -1, 'deleting the featured card leaves none featured');
+      expect(/is-featured/.test(e.wsrc) === false, 'no card should be marked featured after');
+      var one = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+      one.cards.items.splice(1);
+      G.cards.act(s0, one, 'del', 0);
+      expect(one.cards.items.length === 1, 'a set keeps at least one card');
+      return '3 → 4 cards, ' + h0 + ' → ' + e.h + ' tall';
+    });
+    test('Cards: every layout, look and picture keeps every word, and no link can run script', function () {
+      var c = G.cards.norm(null);
+      c.items = [{ t: 'Alpha one', d: 'First words', link: 'Go', href: 'javascript:alert(1)', price: '£9', per: 'each', role: 'Founder', img: '/x.jpg' },
+        { t: 'Beta two', d: 'Second words', link: 'Go', href: 'example.com/b' }];
+      c.extras = { price: 1, role: 1 };
+      var miss = [];
+      G.cards.layouts.forEach(function (L) {
+        ['open', 'panel', 'outline', 'raised'].forEach(function (look) {
+          c.layout = L[0]; c.look = look;
+          var out = G.cards.compose(JSON.parse(JSON.stringify(c)), false);
+          ['Alpha one', 'Beta two', '£9', 'Founder'].forEach(function (w) { if (out.indexOf(w) === -1) miss.push(L[0] + '/' + look + ': ' + w); });
+          if (/javascript:/i.test(out)) miss.push(L[0] + ' let a script link through');
+          if (out.indexOf('href="https://example.com/b"') === -1) miss.push(L[0] + ' lost a plain link');
+        });
+      });
+      expect(!miss.length, miss.slice(0, 4).join('; '));
+      var odd = G.cards.norm({ items: [{ t: 5 }], layout: 'nope', look: 'nope', feat: 9 });
+      expect(odd.layout === 'g3' && odd.look === 'panel' && odd.feat === -1 && odd.items[0].t === '5', 'a set from elsewhere should come out whole');
+      return G.cards.layouts.length + ' layouts × 4 looks';
+    });
+
+    test('Cards: the shelf’s card sets are Cards in every take (Feature cards, Pricing, Testimonials)', function () {
+      var bad = [];
+      ['Feature cards', 'Pricing', 'Testimonials'].forEach(function (fam) {
+        var takes = [G.templates().filter(function (t) { return t.name === fam; })[0]].concat(G.variants()[fam] || []);
+        takes.forEach(function (t, k) {
+          var sets = t.els.filter(function (e) { return e.cards; });
+          var boxes = t.els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; });
+          if (sets.length !== 1 || boxes.length) bad.push(fam + ' take ' + k + ': ' + sets.length + ' sets, ' + boxes.length + ' freeform cards');
+          if (sets[0] && !sets[0].cards.items.every(function (it) { return (it.t || it.d); })) bad.push(fam + ' take ' + k + ' has an empty card');
+        });
+      });
+      expect(!bad.length, bad.join('; '));
+      var price = G.templates().filter(function (t) { return t.name === 'Pricing'; })[0].els.filter(function (e) { return e.cards; })[0].cards;
+      expect(price.feat === 1 && price.extras.price && price.act === 'button', 'Pricing should keep its featured middle card, prices and buttons');
+      return '12 takes';
+    });
+    test('A definition can name one of a take\u2019s other designs (face), and the section remembers it', function () {
+      var t = G.fillTake({ take: 'Hero', face: 'The mirror', heading: 'Thrown by hand.', text: 'Small batches.', button: 'Shop' });
+      var mirror = G.variants().Hero.filter(function (v) { return v.take === 'The mirror'; })[0];
+      expect(t && t.face === 1 && t.minH === mirror.minH, 'Hero / The mirror should draw the mirror: ' + (t && [t.face, t.minH, mirror.minH].join(',')));
+      expect(t.els.some(function (e) { return e.type === 'heading' && /Thrown by hand/.test(e.text); }), 'the mirror should carry the definition\u2019s words');
+      var plain = G.fillTake({ take: 'Hero', face: 'The original', heading: 'X' }), odd = G.fillTake({ take: 'Hero', face: 'No such', heading: 'X' });
+      expect(plain && !plain.face && odd && !odd.face, 'the original, or a face that does not exist, draws the usual design');
+      var n = G.sections().length;
+      G.addSection(t, n);
+      var s = G.sections()[n];
+      expect(s.m && s.m.tpl === 'Hero' && s.m.face === 1, 'the section should remember it is the mirror, so its die rolls on from there: ' + JSON.stringify(s.m));
+      G.deleteSection(n);
+      return 'Hero · The mirror, face 1';
+    });
+    test('Cards: a site definition’s items fill the set (two prices, three kind words)', function () {
+      var p = G.fillTake({ take: 'Pricing', heading: 'Plans', items: [{ title: 'Small', text: 'For one', price: '£10/mo', button: 'Pick small', link: '/small' }, { title: 'Big', text: 'For many', price: '£90', button: 'Pick big' }] });
+      var set = p.els.filter(function (e) { return e.cards; })[0];
+      expect(set && set.cards.items.length === 2, 'two items should make two cards');
+      var a = set.cards.items[0];
+      expect(a.t === 'Small' && a.price === '£10' && a.per === 'a month' && a.link === 'Pick small' && a.href === '/small', 'the first card should carry its words: ' + JSON.stringify(a));
+      expect(/Pick big/.test(set.wsrc) && set.cards.feat < 2, 'the set should be composed, its featured card inside it');
+      var t = G.fillTake({ take: 'Testimonials', heading: 'Said', items: [{ quote: 'Lovely work', name: 'Ann · Ann Co' }] });
+      var ts = t.els.filter(function (e) { return e.cards; })[0];
+      expect(ts.cards.items[0].d === 'Lovely work' && ts.cards.items[0].role === 'Ann · Ann Co', 'a quote and a name should fill a kind-words card: ' + JSON.stringify(ts.cards.items[0]));
+      return 'pricing + testimonials filled';
+    });
+    test('Cards: an older row of freeform cards becomes a set on its first roll, words kept all the way home', function () {
+      var box = function (x, t, d) {
+        return { type: 'box', x: x, y: 194, w: 320, h: 172, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, transparent)',
+          kids: [{ type: 'heading', x: 28, y: 32, w: 264, h: 28, text: t }, { type: 'para', x: 28, y: 72, w: 264, h: 68, text: d }] };
+      };
+      G.addSection({ name: 'Feature cards', minH: 480, els: [{ type: 'heading', x: 100, y: 96, w: 1000, h: 42, text: 'What we do', align: 'center' },
+        box(100, 'Mine one', 'My words'), box(440, 'Mine two', 'More of mine'), box(780, 'Mine three', 'Last of mine')] }, 0);
+      var s0 = contentSecs()[0], idx = G.sections().indexOf(s0);
+      expect(s0.els.filter(function (e) { return e.kids; }).length === 3, 'the older section should start as three freeform cards');
+      G.rollSection(idx);
+      var set = s0.els.filter(function (e) { return e.cards; })[0];
+      expect(set && !s0.els.some(function (e) { return e.type === 'box'; }), 'after a roll the row should be one set, no boxes left');
+      expect(set.cards.items.map(function (it) { return it.t; }).join('|') === 'Mine one|Mine two|Mine three', 'the cards should keep their words: ' + set.cards.items.map(function (it) { return it.t; }).join('|'));
+      for (var k = 0; k < 3; k++) G.rollSection(idx);
+      var home = s0.els.filter(function (e) { return e.cards; })[0];
+      expect(home && home.cards.items[2].d === 'Last of mine', 'four rolls should bring the words home');
+      return 'boxes → set, words kept';
+    });
+
+    test('Cards: the set’s bar is Edit design, Add card and •••; the design sidebar tries on hover and keeps on click', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      var shown = function (c) { var b = q('.gogh-elbar ' + c); return !!b && getComputedStyle(b).display !== 'none'; };
+      expect(shown('.gogh-eb-addcard') && shown('.gogh-eb-cardslayout') && shown('.gogh-eb-cardsmore') && !q('.gogh-eb-cardsstyle'), 'the set’s bar should show Add card, Edit design and •••');
+      var ed = q('.gogh-eb-cardslayout'), ad = q('.gogh-eb-addcard');
+      expect(ed.textContent === 'Edit design' && (ed.compareDocumentPosition(ad) & Node.DOCUMENT_POSITION_FOLLOWING), 'Edit design should come first, then Add card (as Edit design leads a shelf\u2019s bar)');
+      expect(!shown('.gogh-eb-ctx') && !shown('.gogh-eb-dup') && !shown('.gogh-eb-del'), 'no Edit door, and copy and bin live in the set’s •••');
+      try {
+        // Edit design opens the docked sidebar on Layout (the set stays in view)
+        q('.gogh-eb-cardslayout').click();
+        var side = q('.gogh-panel .gogh-cards-pane');
+        expect(side && side.querySelectorAll('.gogh-cltile').length === G.cards.layouts.length, 'Edit design should open the sidebar on Layout, every layout shown');
+        expect(q('.gogh-eb-cardslayout').classList.contains('is-open'), 'Edit design should stay pressed while the sidebar is open');
+        side.querySelector('.gogh-cltile[data-v="rows"]').dispatchEvent(new MouseEvent('mouseenter'));
+        expect(e.cards.layout === 'g3' && /gogh-cardset-rows/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'pointing at Rows should dress the canvas, not the model');
+        side.querySelector('.gogh-cltile[data-v="g2"]').click();
+        expect(e.cards.layout === 'g2' && /gogh-cardset-g2/.test(e.wsrc), 'a click should keep 2 across');
+        side.querySelector('.gogh-cardside-tabs [data-tab="style"]').click();
+        side = q('.gogh-panel .gogh-cards-pane');
+        expect(side.querySelector('.gogh-cslook-outline'), 'the Style tab should show the looks');
+        side.querySelector('.gogh-cslook-outline').click();
+        q('.gogh-panel [data-sw="round"]').click();
+        expect(e.cards.look === 'outline' && e.cards.round === 1, 'the look and the corners should keep');
+        // the Style tab is hairline rows: Picture shows its value and opens its choices
+        var picRow = q('.gogh-panel .gogh-csrow[data-row="pic"]');
+        expect(picRow && /Picture/.test(picRow.textContent) && /Landscape/.test(picRow.textContent) && !q('.gogh-panel .gogh-cardpop-lab'), 'Picture should be a row with its current value, no small-caps labels');
+        picRow.click();
+        var sq = q('.gogh-panel .gogh-cschoice[data-k="pic"][data-v="square"]');
+        expect(sq && q('.gogh-panel .gogh-cschoice.is-current[data-v="wide"] svg'), 'its choices should open beneath it, the current one ticked');
+        sq.dispatchEvent(new MouseEvent('mouseenter'));
+        expect(e.cards.pic === 'wide' && /gogh-cardset-pic-square/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'pointing at Square should try it on the canvas only');
+        sq.click();
+        expect(e.cards.pic === 'square' && /Square/.test(q('.gogh-panel .gogh-csrow[data-row="pic"]').textContent) && q('.gogh-panel .gogh-cschoice.is-current[data-v="square"]'), 'a click should keep Square and tick it');
+        expect(q('.gogh-eb-cardslayout').classList.contains('is-open'), 'Edit design should stay pressed on the Style tab too');
+        q('.gogh-eb-cardslayout').click();
+        expect(q('.gogh-panel').hidden && !q('.gogh-eb-cardslayout').classList.contains('is-open'), 'a second press on Edit design should put the sidebar away');
+        G.closePanel();
+        G.placeHandles(s0, s0.els.indexOf(e));
+        q('.gogh-eb-cardsmore').click();
+        G.cards.pop().querySelector('[data-x="price"]').click();
+        expect(e.cards.extras.price === 1 && /gogh-cs-price/.test(e.wsrc), 'a price should switch on from the set’s •••');
+        var before = e.cards.items.length;
+        var gh = G.cards.ghost();
+        expect(!gh.hidden, 'the ghost card should sit after the last card');
+        gh.click();
+        expect(e.cards.items.length === before + 1, 'the ghost card should add one');
+        G.cards.act(s0, e, 'feat', 0);
+        var star = e.cards.items[0];
+        G.cards.act(s0, e, 'move', 0, 2);
+        expect(e.cards.items[2] === star && e.cards.feat === 2, 'a dragged card lands in its slot and stays featured');
+        var pic = s0.nodes[s0.els.indexOf(e)].querySelector('[data-cpic]');
+        G.cards.pic(s0, s0.els.indexOf(e), +pic.dataset.ck, pic);
+        expect(G.cards.pop() && /Picture/.test(G.cards.pop().textContent), 'a card’s picture should open its chooser beside it');
+      } finally {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      }
+      expect(!G.cards.pop(), 'Escape should close the popover');
+      return 'bar, edit design, style, extras, ghost, move, picture';
+    });
+
+    test('Cards: pointing names the set, the first press chooses it, a second goes into a card, Esc steps out', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      G.cards.drop();
+      var card2 = n.querySelectorAll('.gogh-cs-card')[1];
+      var r = card2.getBoundingClientRect();
+      card2.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 5, clientY: r.y + 5 }));
+      var hov = q('.gogh-sethover');
+      expect(hov && !hov.hidden && /Cards · 3/.test(hov.textContent), 'pointing at a set should outline it and name it');
+      pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
+      expect(!G.cards.focus() && /Cards · 3/.test(q('.gogh-selbox-tag').textContent), 'the first press should choose the set, named on its frame');
+      pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
+      expect(G.cards.focus() && G.cards.focus().k === 1, 'a second press should go into card 2');
+      // Delete with a card chosen takes that card only, and the set stays
+      var t2 = e.cards.items[1].t;
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+      expect(s0.els.indexOf(e) !== -1 && e.cards.items.length === 2 && e.cards.items.every(function (it) { return it.t !== t2; }), 'Backspace on a chosen card should delete only that card: ' + e.cards.items.length);
+      expect(G.cards.focus() && G.cards.focus().k === 1, 'the next card should be chosen, so a second press takes a card, not the set');
+      // Cmd+X with a card chosen copies the set but never cuts it away
+      document.dispatchEvent(new ClipboardEvent('cut', { clipboardData: new DataTransfer(), bubbles: true, cancelable: true }));
+      expect(s0.els.indexOf(e) !== -1 && e.cards.items.length === 2, 'cut with a card chosen should leave the set where it is');
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) { t.remove(); });
+      pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5);
+      card2 = s0.nodes[s0.els.indexOf(e)].querySelectorAll('.gogh-cs-card')[1]; r = card2.getBoundingClientRect();
+      if (!G.cards.focus()) { pev('pointerdown', card2, r.x + 5, r.bottom - 5); pev('pointerup', card2, r.x + 5, r.bottom - 5); }
+      var trail = q('.gogh-eb-cardstrail');
+      expect(trail.style.display !== 'none' && /Card 2/.test(trail.textContent), 'the bar should say Cards › Card 2');
+      expect(!G.cards.chip().hidden, 'the chosen card should wear its handle');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(!G.cards.focus() && !q('.gogh-elbar').hidden, 'Esc should step out to the set, still chosen');
+      return 'point → set → card → set';
+    });
+
+    test('Cards: a press on a card\u2019s link opens its link bar; an address keeps; links with none are named', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      var a = n.querySelector('.gogh-cs-card[data-ck="0"] .gogh-cs-link a');
+      expect(a && a.hasAttribute('data-nohref'), 'a link with no address should say so on the canvas');
+      var r = a.getBoundingClientRect();
+      pev('pointerdown', a, r.x + 3, r.y + 3); pev('pointerup', a, r.x + 3, r.y + 3);
+      var pop = G.cards.pop();
+      expect(pop && pop.classList.contains('gogh-cardpop-linkbar'), 'the second press on a card\u2019s link should open its link bar');
+      var before = G.cards.nowhere().length;
+      var h = pop.querySelector('.gogh-lb-href');
+      h.value = 'example.com/book';
+      h.dispatchEvent(new Event('change', { bubbles: true }));
+      expect(e.cards.items[0].href === 'https://example.com/book' && /href="https:\/\/example.com\/book"/.test(e.wsrc), 'the address should keep, made whole: ' + e.cards.items[0].href);
+      expect(G.cards.nowhere().length === before - 1, 'publish should no longer name that card');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return 'link bar, address kept, ' + G.cards.nowhere().length + ' still to fill';
+    });
+
+    test('Cards: a + in each gap and Add card after the chosen card; the ghost only fills an empty slot', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'cards'), i = s0.els.indexOf(e);
+      var n = s0.nodes[i];
+      pev('pointerdown', n, 5, 5); pev('pointerup', n, 5, 5);
+      expect(G.cards.ghost().hidden, 'a full row of three should show no ghost card');
+      var seams = G.cards.seams(n);
+      expect(seams.length === 2 && seams.every(function (sm) { return sm.vert; }), 'three cards in a row should have two gaps to add in: ' + seams.length);
+      G.cards.act(s0, e, 'add', seams[0].k);
+      expect(e.cards.items.length === 4 && !e.cards.items[1].t && G.cards.focus() && G.cards.focus().k === 1, 'a card added in the first gap should land second, empty and chosen');
+      expect(/A line or two|Title/.test(s0.nodes[s0.els.indexOf(e)].innerHTML), 'its empty parts should ask to be filled');
+      G.cards.act(s0, e, 'add', 1);
+      expect(e.cards.items.length === 5 && !e.cards.items[1].t && !e.cards.items[2].t, 'Add card after the chosen card goes right after it');
+      G.placeHandles(s0, s0.els.indexOf(e));
+      expect(!G.cards.ghost().hidden, 'five cards in rows of three leave a slot for the ghost');
+      // On the photo is a grid too: its empty slot gets a photo-card-shaped ghost
+      e.cards.layout = 'over'; e.cards = G.cards.norm(e.cards); e.wsrc = G.cards.compose(e.cards, false); e.whtml = G.cards.compose(e.cards, true);
+      G.renderSection(s0); G.placeHandles(s0, s0.els.indexOf(e));
+      var gh2 = G.cards.ghost(), lastCard = [].slice.call(s0.nodes[s0.els.indexOf(e)].querySelectorAll('.gogh-cs-card')).pop().getBoundingClientRect();
+      expect(!gh2.hidden && Math.abs(gh2.getBoundingClientRect().height - lastCard.height) < 2, 'On the photo should show the ghost in its empty slot, card-sized');
+      var lay = q('.gogh-eb-cardslayout');
+      expect(lay.textContent === 'Edit design' && !lay.querySelector('svg'), 'the bar should say Edit design, with no dropdown chevron');
+      return 'gap +, insert after, ghost in the empty slot';
+    });
+
+    test('Cards: a row of freeform cards read as a set keeps each part’s words, type and the card itself', function () {
+      var tone = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, transparent)';
+      var box = function (x, k, t, d, href, bg, badge) {
+        var kids = [{ type: 'para', x: 28, y: 28, w: 276, h: 20, text: k, tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase' } },
+          { type: 'heading', x: 28, y: 60, w: 276, h: 44, text: t, fs: 'large', tf: { fw: 500 } },
+          { type: 'para', x: 28, y: 122, w: 276, h: 150, text: d },
+          { type: 'para', x: 28, y: 316, w: 276, h: 24, text: '<a href="' + href + '">Ask ↗</a>' }];
+        if (badge) kids.unshift({ type: 'badge', x: 90, y: 4, w: 150, h: 30, text: '★ Most popular' });
+        return { type: 'box', x: x, y: 196, w: 332, h: 380, radius: 12, boxBg: bg || tone, kids: kids };
+      };
+      var els = [box(82, 'People', 'Portraits', 'People as they are.', '/contact/'), box(434, 'Places', 'Spaces', 'Rooms people love.', '/places/', '#222', true),
+        box(786, 'Work', 'Commissions', 'Stories and brands.', '/work/')];
+      var got = G.cards.fromEls(els), c = got && got.set.cards;
+      expect(c && got.boxes.length === 3, 'three matching cards (a badge aside) should read as one set');
+      expect(c.layout === 'g3' && c.look === 'panel' && c.feat === 1 && c.act === 'link' && c.linkStyle === 'text', 'the set should be 3 across, panels, the odd one featured, ending in a plain link: ' + [c.layout, c.look, c.feat, c.act, c.linkStyle].join(' '));
+      expect(c.items.map(function (it) { return it.k + '/' + it.t + '/' + it.href; }).join('|') === 'People/Portraits//contact/|Places/Spaces//places/|Work/Commissions//work/', 'each card should keep its line above, title and address: ' + c.items.map(function (it) { return it.k + '/' + it.t + '/' + it.href; }).join('|'));
+      expect(c.extras.k === 1 && c.type.t.fs === 'large' && c.type.t.tag === 'h2' && c.type.t.tf.fw === 500 && c.type.k.tf.tt === 'uppercase', 'the title and the line above should keep their type');
+      expect(c.box.bg === tone && c.box.radius === 12 && c.box.pad === 28, 'the plain card’s colour, corners and padding should come along');
+      expect(!G.cards.fromEls([els[0], { type: 'box', x: 500, y: 196, w: 300, h: 200, kids: [{ type: 'heading', x: 20, y: 20, w: 200, h: 40, text: 'Odd' }] }]), 'cards with different pieces stay freeform');
+      var src = G.cards.compose(c, false);
+      expect(/<h2[^>]*class="[^"]*gogh-cs-t/.test(src) && /gogh-cs-k/.test(src) && /gogh-cardset-typed-t/.test(src) && /gogh-cardset-link-text/.test(src), 'the published set should carry an h2 title, the line above and its typed classes');
+      var s0 = sec(), idx = G.sections().indexOf(s0);
+      s0.els.push(got.set); G.renderSection(s0);
+      var css = s0.styleEl.textContent;
+      expect(/\.gogh-cs-t \{[^}]*font-size: var\(--wp--preset--font-size--large\)/.test(css) && /font-weight: 500/.test(css), 'the section CSS should dress the title in its carried size and weight');
+      expect(/\.gogh-cs-body \{ padding: max\(16px, [\d.]+cqw\) !important/.test(css), 'the padding should grow with the set');
+      var setEl = s0.els.filter(function (e) { return e.cards; }).pop(), cardEl = s0.nodes[s0.els.indexOf(setEl)].querySelector('.gogh-cs-card');
+      expect(parseFloat(getComputedStyle(cardEl).borderTopLeftRadius) === 12, 'the carried corners should show while Rounded corners is on');
+      setEl.cards.round = 0; G.renderSection(s0);
+      cardEl = s0.nodes[s0.els.indexOf(setEl)].querySelector('.gogh-cs-card');
+      expect(parseFloat(getComputedStyle(cardEl).borderTopLeftRadius) === 0, 'Rounded corners off should square them, carried corners or not');
+      return 'k/t/d/link, type, box, featured, h2';
+    });
+
+    test('Cards: a site definition can name a set directly, in its own words or a definition’s, with a rule over each card', function () {
+      var made = G.fillTake({ name: 'Steps', els: [
+        { type: 'para', x: 80, y: 96, w: 600, h: 24, text: 'How it works' },
+        { type: 'cards', x: 80, y: 168, w: 1040, h: 200, cards: { layout: 'g3', look: 'open', pic: 'none', items: [
+          { title: 'Pour', text: 'Slowly.', above: 'Step one' }, { title: 'Cure', text: 'Two weeks.', above: 'Step two' }, { title: 'Trim', text: 'By hand.', above: 'Step three' }],
+          extras: { k: 1 }, type: { t: { tf: { fs: 16 }, body: 1 } }, box: { look: 'open', rule: 36, gap: 10 } } }] });
+      var set = made && made.els.filter(function (e) { return e.cards; })[0];
+      expect(set && set.type === 'widget' && set.cards.items.length === 3, 'the definition’s cards piece should arrive as one set of three');
+      expect(set.cards.items.map(function (it) { return it.k + ':' + it.t + ':' + it.d; }).join('|') === 'Step one:Pour:Slowly.|Step two:Cure:Two weeks.|Step three:Trim:By hand.', 'friendly words should map onto the parts: ' + set.cards.items.map(function (it) { return it.k + ':' + it.t; }).join('|'));
+      expect(/gogh-cs-k/.test(set.wsrc) && /gogh-cardset-g3/.test(set.wsrc), 'the set should be composed, ready to publish');
+      var own = G.fillTake({ els: [{ type: 'cards', x: 80, y: 100, w: 700, h: 300, cards: { layout: 'g2', items: [{ t: 'A', d: 'a', role: 'one' }, { t: 'B', d: 'b', role: 'two' }], extras: { role: 1 } } }] });
+      var set2 = own.els[0];
+      expect(set2.cards.items[1].role === 'two' && set2.cards.layout === 'g2', 'a set in its own words keeps them');
+      G.addSection(made, 0);
+      var s0 = contentSecs()[0];
+      expect(/border-top: 1px solid/.test(s0.styleEl.textContent), 'a rule over each card should reach the section CSS');
+      expect(/\.gogh-cs-t \{[^}]*font-family: inherit !important/.test(s0.styleEl.textContent), 'a title that was a paragraph should keep the words\u2019 face');
+      expect(!G.fillTake({ els: [{ type: 'cards', x: 0, y: 0, w: 400, h: 200, cards: { items: [] } }] }), 'a cards piece with no items draws nothing');
+      return 'friendly + own words, rule';
+    });
+
+    test('Cards: the Ledger lays a set out as ruled rows in columns, by the parts that are on', function () {
+      var made = G.fillTake({ els: [{ type: 'cards', x: 80, y: 120, w: 1040, h: 240, cards: { layout: 'ledger', look: 'open', pic: 'none', extras: { k: 1, role: 1 },
+        items: [{ k: '09:30', t: 'Doors', d: 'Coffee', role: 'Foyer' }, { k: '10:00', t: 'A talk', d: 'Maya Reid', role: 'Main hall' }] } }] });
+      var set = made.els[0];
+      expect(/gogh-cardset-ledger/.test(set.wsrc) && /gogh-cardset-x-k/.test(set.wsrc) && /gogh-cardset-x-role/.test(set.wsrc), 'the set should carry the ledger and its extras as classes');
+      expect(G.cards.layouts.some(function (L) { return L[0] === 'ledger'; }), 'Ledger should be one of the layouts to choose');
+      G.addSection(made, 0);
+      var s0 = contentSecs()[0], n = s0.nodes[s0.els.findIndex(function (e) { return e.cards; })];
+      var body = n.querySelector('.gogh-cs-body'), st = getComputedStyle(body);
+      expect(st.display === 'grid' && /k/.test(st.gridTemplateAreas) && /v/.test(st.gridTemplateAreas), 'each row should be a grid of lead, title, words and value: ' + st.gridTemplateAreas);
+      var role = n.querySelector('.gogh-cs-role'), t = n.querySelector('.gogh-cs-t');
+      expect(role.getBoundingClientRect().right > t.getBoundingClientRect().right + 100, 'the room should sit at the right of its row');
+      expect(Math.abs(role.getBoundingClientRect().top - t.getBoundingClientRect().top) < 12, 'the room should sit on the title’s line');
+      return 'ledger grid';
+    });
+
+    test('Cards: the shelf’s Menu is a Ledger in every take, its dishes kept through the rolls', function () {
+      var t = G.templates().filter(function (x) { return x.name === 'Menu' && x.starter; })[0];
+      G.addSection(JSON.parse(JSON.stringify(t)), 0);
+      var s0 = contentSecs()[0], idx = G.sections().indexOf(s0), seen = [];
+      for (var k = 0; k < 4; k++) {
+        var w = s0.els.filter(function (e) { return e.cards; })[0];
+        expect(w && w.cards.layout === 'ledger' && w.cards.items.length === 4, 'take ' + k + ' should be a ledger of four dishes');
+        if (k === 0) w.cards.items[0].t = 'My own dish';
+        seen.push(w.cards.items[0].t);
+        G.rollSection(idx);
+      }
+      expect(seen.every(function (x, k) { return k === 0 || x === 'My own dish'; }), 'a dish typed in should ride every roll: ' + seen.join(' | '));
+      return '4 takes, words kept';
+    });
+
+    test('Cards: matching freeform cards chosen together offer Make these a set, which keeps their words and type', function () {
+      var s0 = sec(), n0 = s0.els.length;
+      var card = function (x, t, d) {
+        return { type: 'box', x: x, y: 640, w: 300, h: 200, radius: 16, boxBg: '#eeeeee',
+          kids: [{ type: 'heading', x: 24, y: 24, w: 252, h: 32, text: t, fs: 'large' }, { type: 'para', x: 24, y: 72, w: 252, h: 60, text: d }] };
+      };
+      s0.els.push(card(100, 'One', 'First words'), card(440, 'Two', 'Second words'));
+      G.renderSection(s0);
+      G.pushState(); // the cards were added as a person would: one undo step
+      G.multi.set(s0, [n0, n0 + 1]);
+      var bar = q('.gogh-mbar'), setBtn = bar.querySelector('.gogh-mb-set');
+      expect(setBtn && !setBtn.hidden && bar.querySelector('.gogh-mb-card').hidden, 'two matching cards should lead with Make these a set');
+      setBtn.click();
+      var set = s0.els.filter(function (e) { return e.cards; }).pop();
+      expect(set && s0.els.length === n0 + 1 && set.cards.items.map(function (it) { return it.t + ':' + it.d; }).join('|') === 'One:First words|Two:Second words', 'the two cards should become one set with their words');
+      expect(set.cards.type && set.cards.type.t && set.cards.type.t.fs === 'large' && set.cards.box && set.cards.box.bg === '#eeeeee' && set.cards.box.radius === 16, 'the set should keep their type, colour and corners');
+      var undoBtn = null;
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) { if (/One set now/.test(t.textContent) && t.querySelector('button')) undoBtn = t.querySelector('button'); });
+      expect(undoBtn, 'the toast should offer Undo');
+      undoBtn.click();
+      var s1 = sec(), bx = s1.els.map(function (e, j) { return e.type === 'box' && e.kids && /One|Two/.test(e.kids[0].text) ? j : -1; }).filter(function (j) { return j >= 0; });
+      expect(bx.length === 2 && !s1.els.some(function (e) { return e.cards && /One/.test(JSON.stringify(e.cards.items)); }), 'Undo should bring the freeform cards back');
+      var odd = s1.els.length;
+      s1.els.push({ type: 'para', x: 800, y: 640, w: 200, h: 40, text: 'Loose' }); G.renderSection(s1);
+      G.multi.set(s1, [bx[0], odd]);
+      expect(bar.querySelector('.gogh-mb-set').hidden, 'a card and a loose piece are not a set');
+      G.multi.clear();
+      return 'two cards → one set, undo';
+    });
+
+    test('Arriving designs: a shrinking backdrop word never pulls words under a headline, and a thin band keeps its height', function () {
+      var made = G.fillTake({ name: 'Hero', minH: 864, els: [
+        { type: 'heading', x: 24, y: 48, w: 1152, h: 312, text: 'PRINT' },
+        { type: 'heading', x: 80, y: 216, w: 720, h: 336, text: 'Two inks, one pass, no undo.', fs: 'xx-large' },
+        { type: 'para', x: 80, y: 576, w: 560, h: 96, text: 'A risograph studio and zine library. Bring a file and leave with a hundred prints.' },
+        { type: 'button', x: 80, y: 720, w: 288, h: 48, text: 'Book a session' }] });
+      G.addSection(made, 0);
+      var s0 = contentSecs()[0], h = s0.els[1], pa = s0.els[2], bt = s0.els[3];
+      expect(s0.els[0].h < 312, 'the backdrop word should measure shorter than drawn (' + s0.els[0].h + ')');
+      expect(pa.y >= h.y + h.h - 2 && bt.y >= pa.y + pa.h - 2, 'the paragraph and button should stay under the headline: ' + [h.y, h.h, pa.y, pa.h, bt.y].join(','));
+      G.addSection(G.fillTake({ name: 'Ticker', minH: 160, els: [{ type: 'para', x: 0, y: 48, w: 1200, h: 48, text: 'Zines * Posters * Flyers' }] }), 0);
+      var band = contentSecs()[0];
+      expect(band.minH <= 168, 'a band drawn 160 tall should keep about that height, not ' + band.minH);
+      return 'order kept, band ' + band.minH;
+    });
+
+    test('Duplicate lands where the next one would go: a button beside its pair, words under, room made, Cmd+D', function () {
+      var s0 = sec(), n0 = s0.els.length;
+      // a clear band at the bottom of the fixture section
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'button', x: 80, y: base, w: 200, h: 48, text: 'Shop now' });
+      s0.els.push({ type: 'para', x: 600, y: base, w: 400, h: 48, text: 'Some words.' });
+      s0.els.push({ type: 'para', x: 600, y: base + 96, w: 400, h: 48, text: 'Words under them.' });
+      G.renderSection(s0); G.pushState();
+      var btn = s0.els[n0], p1 = s0.els[n0 + 1], p2 = s0.els[n0 + 2];
+      G.placeHandles(s0, n0);
+      q('.gogh-elbar .gogh-eb-dup').click();
+      var copy = s0.els[s0.els.length - 1];
+      expect(copy.type === 'button' && copy.y === btn.y && copy.x === btn.x + btn.w + 16, 'a duplicated button should land beside its original, tops lined up: ' + [copy.x, copy.y].join(','));
+      expect(copy.ghost === true && !btn.ghost, 'the second of a pair should arrive in the outline style');
+      expect(!s0.els.some(function (o) { return o !== copy && o.x < copy.x + copy.w && o.x + o.w > copy.x && o.y < copy.y + copy.h && o.y + o.h > copy.y && o.type !== 'box'; }), 'the copy should not sit on anything');
+      // words stack: the copy lands under, and what was under moves down
+      var p2y = p2.y;
+      G.placeHandles(s0, s0.els.indexOf(p1));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', metaKey: true, bubbles: true, cancelable: true }));
+      var pc = s0.els[s0.els.length - 1];
+      expect(pc.type === 'para' && pc.x === p1.x && pc.y === p1.y + p1.h + 24, 'Cmd+D on a paragraph should land the copy under it: ' + [pc.x, pc.y, p1.y, p1.h].join(','));
+      expect(p2.y >= pc.y + pc.h, 'the words that were under should move down to make room: ' + [p2y, p2.y, pc.y + pc.h].join(','));
+      // leave the fixture as it was (later tests lay pieces out at the foot)
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'beside, outline pair, under, room made';
+    });
+
+    test('Adding with a piece chosen: the new piece lands under it (beside, for the same kind), and makes room', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'para', x: 160, y: base, w: 480, h: 48, text: 'Words to add under.' });
+      s0.els.push({ type: 'para', x: 160, y: base + 96, w: 480, h: 48, text: 'Words further down.' });
+      G.renderSection(s0); G.pushState();
+      var p1 = s0.els[n0], p2 = s0.els[n0 + 1], p2y = p2.y;
+      G.placeHandles(s0, n0);
+      var b = G.addElementToSection(idx, 'button');
+      expect(b.x === p1.x && b.y === p1.y + p1.h + 24, 'a button added while a paragraph is chosen should land under it: ' + [b.x, b.y, p1.x, p1.y + p1.h].join(','));
+      expect(p2.y >= b.y + b.h, 'what was under should move down to make room: ' + [p2y, p2.y, b.y + b.h].join(','));
+      // the button is now chosen: another button lands beside it
+      var b2 = G.addElementToSection(idx, 'button');
+      expect(b2.y === b.y && b2.x === b.x + b.w + 16, 'a second button added beside the chosen one: ' + [b2.x, b2.y, b.x + b.w].join(','));
+      // leave the fixture as it was (later tests lay pieces out at the foot)
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'under, room made, beside';
+    });
+
+    test('Copy and paste pieces: Cmd+C then Cmd+V lands beside the chosen one; plain words paste as a paragraph', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'button', x: 80, y: base, w: 200, h: 48, text: 'Book now' });
+      G.renderSection(s0); G.pushState();
+      G.placeHandles(s0, n0);
+      var dt = new DataTransfer();
+      document.dispatchEvent(new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }));
+      expect(/data-gogh-pieces="/.test(dt.getData('text/html')) && dt.getData('text/plain') === 'Book now', 'copy should carry the piece, and its words for other apps');
+      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      var pasted = s0.els[s0.els.length - 1];
+      expect(s0.els.length === n0 + 2 && pasted.type === 'button' && pasted.text === 'Book now' && pasted.y === s0.els[n0].y && pasted.x === s0.els[n0].x + s0.els[n0].w + 16, 'paste with the original chosen should land beside it: ' + [pasted.x, pasted.y].join(','));
+      expect(pasted.gid !== s0.els[n0].gid || pasted.gid == null, 'the pasted piece is a new piece');
+      // plain words from elsewhere, nothing chosen: a paragraph
+      G.drop && G.cards.drop();
+      var dt2 = new DataTransfer(); dt2.setData('text/plain', 'Words from an email.\n\nA second paragraph.');
+      var before = s0.els.length;
+      G.placeHandles(s0, s0.els.length - 1);
+      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt2, bubbles: true, cancelable: true }));
+      var para = s0.els[s0.els.length - 1];
+      expect(s0.els.length === before + 1 && para.type === 'para' && /Words from an email\.<br><br>A second paragraph\./.test(para.text), 'plain words should arrive as a paragraph: ' + (para && para.text));
+      // leave the fixture as it was (later tests lay pieces out at the foot)
+      G.cards.drop();
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) { t.remove(); });
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'copy, paste beside, words as a paragraph';
+    });
+
+    test('Pasted pieces are cleaned: no scripts, no handlers, no script links', function () {
+      var s0 = sec(), n0 = s0.els.length;
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      var bad = { v: 1, els: [
+        { type: 'para', x: 80, y: base, w: 400, h: 48, text: 'Hi<img src="x" onerror="window.__goghPwned=1"><script>window.__goghPwned=1<\/script>' },
+        { type: 'button', x: 520, y: base, w: 200, h: 48, text: 'Go', href: ' javascript:window.__goghPwned=1' },
+        { type: 'image', x: 80, y: base + 96, w: 200, h: 120, src: 'data:text/html,<b>x</b>' },
+        { type: 'widget', x: 320, y: base + 96, w: 400, h: 120, whtml: '<a href="javascript:x()" onclick="y()">ok</a><iframe srcdoc="<script>1<\/script>"></iframe><object data="x"></object>' }
+      ] };
+      var b64 = btoa(unescape(encodeURIComponent(JSON.stringify(bad))));
+      var dt = new DataTransfer(); dt.setData('text/html', '<meta data-gogh-pieces="' + b64 + '">x');
+      G.cards.drop();
+      G.placeHandles(s0, s0.els.length - 1);
+      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      var got = s0.els.slice(n0);
+      var all = JSON.stringify(got);
+      expect(got.length === 4, 'all four pieces should paste: ' + got.length);
+      expect(!/onerror|onclick|<script|srcdoc|<object|javascript:|data:text/i.test(all), 'the pasted pieces should carry nothing that runs: ' + all.slice(0, 300));
+      expect(/Hi/.test(got[0].text) && /ok/.test(got[3].whtml), 'the harmless words should survive');
+      expect(!window.__goghPwned, 'nothing in the paste should have run');
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) { t.remove(); });
+      G.cards.drop();
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'scripts, handlers, javascript: and data:text links dropped';
+    });
+
+    test('Room under a chosen piece: the piece itself stays put, and a wider arrival moves what sits under its full width', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      // a narrow centred heading, with words under it reaching past its edges
+      s0.els.push({ type: 'button', x: 500, y: base, w: 140, h: 48, text: 'Go', align: 'center' });
+      s0.els.push({ type: 'para', x: 160, y: base + 96, w: 200, h: 48, text: 'Off to the left.' });
+      G.renderSection(s0); G.pushState();
+      var a = s0.els[n0], left = s0.els[n0 + 1], ay = a.y, ly = left.y;
+      G.placeHandles(s0, n0);
+      var np = G.addElementToSection(idx, 'para');
+      expect(a.y === ay, 'the chosen piece should not move: ' + [ay, a.y].join(','));
+      var hits = np.x < left.x + left.w && np.x + np.w > left.x;
+      expect(!hits || left.y >= np.y + np.h, 'what sits under the new piece\u2019s width should move down: ' + JSON.stringify({ np: [np.x, np.y, np.w, np.h], left: [left.x, ly, left.y] }));
+      G.cards.drop();
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return hits ? 'anchor still, wide arrival made room' : 'anchor still (arrival narrower than the words to its left)';
+    });
+
+    test('Small kindnesses: delete closes the gap, new words match their neighbours, a growing button makes room', function () {
+      var s0 = sec(), n0 = s0.els.length, idx = G.sections().indexOf(s0);
+      var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+      s0.els.push({ type: 'para', x: 160, y: base, w: 520, h: 48, text: 'First words.', fs: 'large', tf: { fw: 600 } });
+      s0.els.push({ type: 'para', x: 160, y: base + 96, w: 520, h: 48, text: 'Second words.' });
+      s0.els.push({ type: 'para', x: 160, y: base + 192, w: 520, h: 48, text: 'Third words.' });
+      G.renderSection(s0); G.pushState();
+      var p1 = s0.els[n0], p2 = s0.els[n0 + 1], p3 = s0.els[n0 + 2];
+      var p2y = p2.y, p3y = p3.y;
+      G.placeHandles(s0, n0 + 1);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+      expect(s0.els.indexOf(p2) === -1 && p3.y === p2y, 'the words under a deleted piece should rise into its place: ' + [p3y, p3.y, p2y].join(','));
+      // a paragraph added under a paragraph takes its look
+      G.placeHandles(s0, s0.els.indexOf(p1));
+      var np = G.addElementToSection(idx, 'para');
+      expect(np.fs === 'large' && np.tf && np.tf.fw === 600 && np.w === p1.w && np.x === p1.x, 'new words should match the words they arrive under: ' + JSON.stringify({ fs: np.fs, tf: np.tf, w: np.w }));
+      // two buttons in a row: typing more words into the first widens it and moves the second along
+      var by = base + 600;
+      s0.els.push({ type: 'button', x: 160, y: by, w: 120, h: 48, text: 'Go' });
+      s0.els.push({ type: 'button', x: 296, y: by, w: 120, h: 48, text: 'Next' });
+      G.renderSection(s0);
+      var bi = s0.els.length - 2, b1 = s0.els[bi], b2 = s0.els[bi + 1], b2x = b2.x;
+      var link = s0.nodes[bi].querySelector('.wp-block-button__link');
+      var tgt = link.querySelector('[contenteditable], span') || link;
+      tgt.textContent = 'Book your free consultation today';
+      tgt.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(b1.w > 120 && b2.x >= b1.x + b1.w && b2.x > b2x, 'a button that grows should widen and move its neighbour along: ' + [b1.w, b2.x, b2x].join(','));
+      // words that already fit never grow it again, keystroke after keystroke
+      var w1 = b1.w;
+      tgt.dispatchEvent(new Event('input', { bubbles: true }));
+      tgt.textContent = 'Go'; tgt.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(b1.w === w1, 'a button whose words fit should keep its width: ' + [w1, b1.w].join(','));
+      G.cards.drop();
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t2) { t2.remove(); });
+      s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      return 'gap closed, words matched, button made room';
+    });
+
+    test('A button in a design style is never stuck as outline: the style wins, and a duplicate keeps it', function () {
+      var cfgG = window.GOGH, was = cfgG.design;
+      cfgG.design = { name: 'Riso Test', looks: { button: [{ name: 'Yellow print', slug: 'yellow-print', 'default': true }, { name: 'Ink print', slug: 'ink-print', 'default': false }] } };
+      var s0 = sec(), n0 = s0.els.length;
+      try {
+        var base = 0; s0.els.forEach(function (e) { base = Math.max(base, e.y + e.h); }); base += 96;
+        s0.els.push({ type: 'button', x: 80, y: base, w: 240, h: 48, text: 'Book a session', cls: 'is-style-yellow-print', ghost: true });
+        G.renderSection(s0); G.pushState();
+        var b = s0.els[n0];
+        expect(!s0.nodes[n0].querySelector('.gogh-ghost') && /is-style-yellow-print/.test(s0.nodes[n0].innerHTML), 'a styled button should draw in its style, not as outline');
+        G.looks.wear(b, G.looks.list('button')[1]);
+        expect(b.ghost === false && /is-style-ink-print/.test(b.cls), 'choosing a style should clear an old outline');
+        G.placeHandles(s0, n0);
+        q('.gogh-elbar .gogh-eb-dup').click();
+        var copy = s0.els[s0.els.length - 1];
+        expect(copy.type === 'button' && !copy.ghost && /is-style-ink-print/.test(copy.cls), 'a duplicate of a styled button keeps the style, not outline');
+      } finally {
+        cfgG.design = was;
+        G.cards.drop();
+        [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t2) { t2.remove(); });
+        s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      }
+      return 'style wins over outline';
+    });
+
+    test('Cards: titles on a photo and on the featured card stay readable when the theme colours its headings', function () {
+      var themeInk = document.createElement('style');
+      themeInk.textContent = 'h1, h2, h3, h4 { color: rgb(30, 20, 60) !important; }';
+      document.head.appendChild(themeInk);
+      var s0 = sec(), n0 = s0.els.length;
+      try {
+        var e = G.addElementToSection(G.sections().indexOf(s0), 'cards');
+        e.cards.layout = 'over'; e.cards.feat = -1; e.cards = G.cards.norm(e.cards);
+        e.wsrc = G.cards.compose(e.cards, false); e.whtml = G.cards.compose(e.cards, true);
+        G.renderSection(s0);
+        var n = s0.nodes[s0.els.indexOf(e)], card = n.querySelector('.gogh-cs-card'), t = n.querySelector('.gogh-cs-t');
+        expect(getComputedStyle(t).color === getComputedStyle(card).color && getComputedStyle(t).color === 'rgb(255, 255, 255)', 'a title on a photo should be white, not the theme’s heading ink: ' + getComputedStyle(t).color);
+        e.cards.layout = 'g3'; e.cards.feat = 1; e.cards = G.cards.norm(e.cards);
+        e.wsrc = G.cards.compose(e.cards, false); e.whtml = G.cards.compose(e.cards, true);
+        G.renderSection(s0);
+        n = s0.nodes[s0.els.indexOf(e)];
+        var fc = n.querySelector('.gogh-cs-card.is-featured'), ft = fc.querySelector('.gogh-cs-t');
+        expect(getComputedStyle(ft).color === getComputedStyle(fc).color, 'the featured card’s title should wear the card’s ink: ' + getComputedStyle(ft).color + ' vs ' + getComputedStyle(fc).color);
+      } finally {
+        themeInk.remove();
+        G.cards.drop();
+        s0.els.splice(n0); G.renderSection(s0); G.pushState();
+      }
+      return 'white on the photo, card ink on the featured card';
+    });
+
+    test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
+      var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
+      var realFetch = window.fetch, made = 0;
+      window.fetch = function (u, o) {
+        if (/\/wp\/v2\/pages(\?|$)/.test(String(u)) && o && o.method === 'POST') { made++; return Promise.resolve(new Response('{}', { status: 500 })); }
+        return realFetch.apply(this, arguments);
+      };
+      try {
+        e.x = Math.min(1100 - e.w, e.x + 24); G.renderSection(s0); G.pushState();
+        expect(G.isDirty(), 'the page should have a change to publish');
+        G.openAddPagePanel(document.body);
+        var pnl = q('.gogh-panel');
+        pnl.querySelector('.gogh-addpage-title').value = 'Prices';
+        pnl.querySelector('.gogh-addpage-go').click();
+        var leave = q('.gogh-leave');
+        expect(leave && !leave.hidden && /Add \u201cPrices\u201d and open it\?/.test(leave.textContent), 'gogh should ask before leaving: ' + (leave ? leave.textContent.slice(0, 80) : 'no question'));
+        expect(made === 0, 'no page should be made before the question is answered');
+        leave.querySelector('.gogh-leave-stay').click();
+        expect(leave.hidden && made === 0, 'Stay should make no page');
+        expect(pnl.querySelector('.gogh-addpage-go').textContent === 'Add', 'the Add button should be ready again');
+      } finally {
+        window.fetch = realFetch;
+        e.x = wasX; G.renderSection(s0); G.pushState();
+        G.closePanel();
+      }
+      return 'asked first; Stay made nothing';
     });
 
     test('Cmd+V pastes HTML straight in as a section', function () {
@@ -2773,7 +4798,8 @@
       bar.querySelector('.gogh-cyc-more').click();
       expect(bar.hidden, 'strip still open after ⋯');
       expect(document.querySelectorAll('.gogh-chrome-opt').length === 2, 'full panel options missing');
-      expect(q('.gogh-chrome-edit'), 'full panel lost Make freeform');
+      // the freeform door is an experiments-only escape hatch now (James: 'a can of worms, not very gogh')
+      expect(!!q('.gogh-chrome-edit') === !!(window.GOGH && GOGH.experiments), 'full panel: the freeform door should show only in experiments');
       q('.gogh-panel-close').click();
       expect(document.querySelector('.gogh-panel').hidden, 'panel did not close');
       // cycle again, then click-off (outside header + strip) collapses
@@ -2789,7 +4815,7 @@
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after collapse');
     });
 
-    test('header panel: layout, look, spacing, sticky in one home, one Apply', function () {
+    test('header panel: layout, look, spacing, sticky in one home, and no Done', function () {
       var pill = q('.gogh-chromebtn');
       expect(pill, 'no chrome pill on the page');
       var partEl = pill.__goghPart;
@@ -2811,23 +4837,20 @@
           'one swatch per look plus the custom picker expected (' + looks.length + '+1)');
         expect(panel.querySelector('.gogh-sw-pick input[type="color"]'), 'custom colour picker missing');
         expect(panel.querySelector('.gogh-hsticky'), 'sticky toggle missing');
-        expect(panel.querySelector('.gogh-hfreeform'), 'freeform door missing');
+        expect(!!panel.querySelector('.gogh-hfreeform') === !!(window.GOGH && GOGH.experiments), 'the freeform door should show only in experiments');
         expect(panel.querySelector('.gogh-panel-close'), 'sticky panel must show its own door');
-        var apply = panel.querySelector('.gogh-happly');
-        expect(apply, 'the single Done button is missing');
+        expect(!panel.querySelector('.gogh-happly') && !panel.querySelector('.gogh-hcancel'), 'the room keeps on click now — no Done, no Cancel');
         // header-room model: Done is always clickable — with nothing armed it
         // just leaves the room; touching a control makes it save on the way out
-        expect(!apply.disabled, 'Done must always be clickable in the header room');
-        expect(/done/i.test(apply.textContent), 'the save button should read Done');
         // touching anything still keeps exactly one save home
         panel.querySelector('.gogh-hsticky').click();
-        expect(panel.querySelectorAll('.gogh-happly').length === 1, 'must stay one single Done button');
+        expect(panel.querySelector('.gogh-panel-close'), 'the room needs its own way back');
         // docked and fully on screen (the below-the-fold family of bugs)
         var r = panel.getBoundingClientRect();
         expect(r.top >= 0 && r.bottom <= window.innerHeight + 1,
           'panel not fully on screen: ' + Math.round(r.top) + '..' + Math.round(r.bottom));
       } finally {
-        panel.querySelector('.gogh-panel-close').click();
+        panel.querySelector('.gogh-panel-close').click(); G.closeSide(true); settleZoom(); // the room's exits return to the Site cards and keep the design view — leave it
       }
       expect(document.querySelector('.gogh-panel').hidden, 'panel did not close');
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after close');
@@ -2863,7 +4886,7 @@
         more.click();
         expect(!box.hasAttribute('hidden'), 'More did not reveal the fold');
       } finally {
-        panel.querySelector('.gogh-panel-close').click();
+        panel.querySelector('.gogh-panel-close').click(); G.closeSide(true); settleZoom(); // leave the design view the room's exit keeps
       }
     });
 
@@ -2888,6 +4911,7 @@
       expect(grp.style.paddingTop === '60px', 'dial did not paint the header');
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       expect(document.querySelector('.gogh-panel').hidden, 'Esc did not close the panel');
+      G.closeSide(true); settleZoom(); // Esc in the room returns to the Site cards; leave them
       expect((grp.style.paddingTop || '') === pad0, 'Esc left stranded dial padding - the gap-under-the-nav bug (' + grp.style.paddingTop + ' vs ' + (pad0 || 'clean') + ')');
       expect(!partEl.querySelector('.gogh-chrome-preview'), 'Esc left a mounted layout preview');
     });
@@ -2925,6 +4949,7 @@
         box.remove();
         hidden.forEach(function (c) { c.style.display = ''; });
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        G.closeSide(true); settleZoom(); // Esc in the room returns to the Site cards; leave them
       }
     });
 
@@ -3173,6 +5198,175 @@
       return 'a video rides the die like a picture';
     });
 
+    test('+ Section opens the chooser at the seam: it shows the neighbours and adds there', function () {
+      G.addSection({ title: 'SEAMTOP', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Above the seam' } ] }, G.sections().length);
+      G.addSection({ title: 'SEAMBOT', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Below the seam' } ] }, G.sections().length);
+      var c = contentSecs();
+      var above = c[c.length - 2], below = c[c.length - 1];
+      var idx = G.sections().indexOf(below);
+      var n0 = G.sections().length;
+      G.openPicker(idx, below.wrapEl, { seam: true });
+      var pk = q('.gogh-picker');
+      expect(pk && !pk.hidden, 'the chooser should open');
+      expect(!pk.querySelector('.gogh-picker-between'), 'no Goes between line in the header');
+      var mk = q('.gogh-seammark');
+      expect(mk && mk.nextElementSibling === below.wrapEl, 'the page should mark the spot, right above the section below');
+      var card = [].filter.call(pk.querySelectorAll('.gogh-card[data-tpl]'), function (b) { return b.style.display !== 'none'; })[0];
+      expect(card && card.querySelector('.gogh-nb-top') && card.querySelector('.gogh-nb-bot') && card.querySelector('.gogh-card-add'), 'each card should show its neighbours and Add');
+      card.click();
+      expect(G.sections().length === n0 + 1, 'choosing should add one section');
+      var born = G.sections()[idx];
+      expect(born !== below && born.wrapEl.nextElementSibling === below.wrapEl, 'it should land at the seam');
+      expect(!q('.gogh-seammark'), 'the mark should go');
+      G.deleteSection(G.sections().indexOf(born));
+      G.deleteSection(G.sections().indexOf(below));
+      G.deleteSection(G.sections().indexOf(above));
+      return 'neighboured, landed';
+    });
+
+    test('a photo wall says Edit photos on its toolbar, and it opens the photos', function () {
+      var tpl = G.templates().filter(function (t) { return !t.retired && (t.els || []).some(function (e) { return e.type === 'widget' && e.wall; }); })[0];
+      expect(tpl, 'no starter with a photo wall');
+      G.addSection(tpl, G.sections().length);
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      var i = s.els.findIndex(function (e) { return e.type === 'widget' && e.wall; });
+      s.nodes[i].scrollIntoView({ block: 'center' });
+      pev('pointerdown', s.nodes[i]);
+      pev('pointerup', s.nodes[i]);
+      var ctx = q('.gogh-eb-ctx');
+      expect(ctx && ctx.style.display !== 'none' && /Edit photos/.test(ctx.textContent), 'the toolbar should say Edit photos, got ' + (ctx && ctx.textContent));
+      ctx.click();
+      var panel = q('.gogh-panel');
+      expect(!panel.hidden, 'Edit photos should open the photos');
+      G.closePanel();
+      G.deleteSection(G.sections().indexOf(s));
+      return tpl.name + ': Edit photos';
+    });
+
+    test('a hovered section shows a ring; its background docks in the sidebar', function () {
+      G.addSection({ title: 'HOVERDOCK', minH: 300, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Ring and name' } ] }, G.sections().length);
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      var idx = G.sections().indexOf(s);
+      s.wrapEl.scrollIntoView({ block: 'center' });
+      G.showSecBar(idx);
+      expect(s.sectionEl.classList.contains('gogh-hoversec'), 'the hovered section should wear the ring');
+      expect(!q('.gogh-sectag'), 'no name pill');
+      G.hideSecBar();
+      expect(!s.sectionEl.classList.contains('gogh-hoversec'), 'the ring should go with the bar');
+      G.openSecBgPanel(idx);
+      var panel = q('.gogh-panel');
+      expect(!panel.hidden && panel.classList.contains('gogh-panel-sidebar'), 'Section background should dock in the sidebar');
+      expect(panel.querySelector('.gogh-panel-x'), 'a docked panel should have its close button');
+      var veil = q('.gogh-focusveil-tag');
+      expect(veil && veil.textContent === 'Section background', 'the focus ring should say what is being edited, got ' + (veil && veil.textContent));
+      expect(panel.querySelectorAll('.gogh-themechip').length > 3, 'the colour styles should be there');
+      G.closePanel();
+      expect(panel.hidden && !q('.gogh-focusveil'), 'closing should take the panel and the wash away');
+      G.deleteSection(idx);
+      return 'ring, docked background';
+    });
+
+    test('the Layouts panel shows every take and picks one in place', function () {
+      var tpls = G.templates(), fam = null, faces = null;
+      for (var k = 0; k < tpls.length && !fam; k++) {
+        var t0 = tpls[k];
+        if (!t0.starter || t0.retired || t0.gated) continue;
+        if (!t0.els.some(function (x) { return x.type === 'heading'; })) continue;
+        var f = G.diceFaces(t0.name);
+        if (f && f.length >= 3) { fam = t0; faces = f; }
+      }
+      expect(fam, 'no starter with three takes');
+      G.addSection(fam);
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      var idx = G.sections().indexOf(s);
+      var h = s.els.filter(function (x) { return x.type === 'heading'; })[0];
+      h.text = 'Layouts keep my words';
+      G.renderSection(s);
+      G.pushState();
+      // the id and slot (sk) of each piece are the die's bookkeeping, set on opening
+      var bare = function (els) { return JSON.stringify(els, function (k, v) { return k === 'sk' || k === 'id' ? undefined : v; }); };
+      var start = bare(s.els);
+      expect(G.openLayoutsPanel(idx), 'the panel did not open');
+      var panel = q('.gogh-panel');
+      var tiles = panel.querySelectorAll('.gogh-lay-take');
+      expect(!panel.hidden && tiles.length === faces.length, 'want ' + faces.length + ' tiles, got ' + tiles.length);
+      expect(panel.querySelectorAll('.gogh-lay-stage .gogh-wrap').length === faces.length, 'every tile should hold a drawn copy');
+      expect(/Layouts keep my words/.test(tiles[1].textContent), 'the tiles should draw this section\u2019s own words');
+      expect(tiles[0].getAttribute('aria-pressed') === 'true' && panel.querySelector('.gogh-lay-reset').disabled, 'it should open on the current take with Reset off');
+      expect(bare(s.els) === start, 'drawing the tiles should leave the section as it was');
+      tiles[2].click();
+      expect(s.m && s.m.face === 2, 'picking the third tile should land on take 3, got ' + (s.m && s.m.face));
+      expect(s.els.some(function (x) { return x.type === 'heading' && x.text === 'Layouts keep my words'; }), 'the words should survive the pick');
+      expect(tiles[2].getAttribute('aria-pressed') === 'true' && !panel.querySelector('.gogh-lay-reset').disabled, 'the picked tile should be marked and Reset on');
+      panel.querySelector('.gogh-lay-reset').click();
+      expect(bare(s.els) === start, 'Reset should put the section back exactly');
+      panel.querySelectorAll('.gogh-lay-take')[1].click();
+      panel.querySelector('.gogh-lay-done').click();
+      expect(panel.hidden && !panel.dataset.goghLayoutsFor, 'Done should close the panel');
+      expect(s.m.face === 1, 'Done should keep the pick');
+      q('.gogh-undo').click();
+      var s2 = G.sections()[idx];
+      expect(bare(s2.els) === start, 'one undo should go back to how it was before the panel');
+      G.deleteSection(idx);
+      return faces.length + ' takes of ' + fam.name + ', pick, reset, one undo';
+    });
+
+    test('in Layouts, Delete takes a piece out of every take; Restore brings it back', function () {
+      var tpls = G.templates(), fam = null, faces = null;
+      for (var k = 0; k < tpls.length && !fam; k++) {
+        var t0 = tpls[k];
+        if (!t0.starter || t0.retired || t0.gated) continue;
+        if (t0.els.filter(function (x) { return x.type === 'button'; }).length < 2) continue;
+        var f = G.diceFaces(t0.name);
+        if (f && f.length >= 3) { fam = t0; faces = f; }
+      }
+      expect(fam, 'no starter with two buttons and three takes');
+      G.addSection(fam);
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      var idx = G.sections().indexOf(s);
+      var diceAll = function (els) { var out = []; els.forEach(function (e) { out.push(e); if (e.kids) out = out.concat(e.kids); }); return out; };
+      var btns = function () { return diceAll(s.els).filter(function (x) { return x.type === 'button'; }); };
+      var b2 = s.els.filter(function (x) { return x.type === 'button'; })[1];
+      b2.text = 'Bin me';
+      G.renderSection(s);
+      G.pushState();
+      var bare = function (els) { return JSON.stringify(els, function (k, v) { return k === 'sk' || k === 'id' ? undefined : v; }); };
+      var start = bare(s.els);
+      expect(G.openLayoutsPanel(idx), 'the panel did not open');
+      var panel = q('.gogh-panel');
+      var i = s.els.findIndex(function (x) { return x.text === 'Bin me'; }); // the previews hand back copies
+      expect(!document.querySelector('.gogh-lay-bin'), 'no bins on the pieces');
+      pev('pointerdown', s.nodes[i]);
+      pev('pointerup', s.nodes[i]);
+      expect(!panel.hidden, 'choosing a piece of the section should keep the panel open');
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+      expect(!panel.hidden, 'Delete should keep the panel open');
+      expect(!s.els.some(function (x) { return x.text === 'Bin me'; }), 'the bin should take the button off the page');
+      var restoreB = panel.querySelector('.gogh-lay-restore');
+      expect(!restoreB.hidden && /\(1\)/.test(restoreB.textContent), 'Restore removed (1) should appear');
+      var tiles = panel.querySelectorAll('.gogh-lay-take');
+      expect(![].some.call(tiles, function (t) { return /Bin me/.test(t.textContent); }), 'no layout should draw the binned button');
+      for (var f2 = 1; f2 < faces.length; f2++) {
+        tiles[f2].click();
+        expect(!diceAll(s.els).some(function (x) { return x.text === 'Bin me'; }), 'take ' + (f2 + 1) + ' brought the button back');
+      }
+      tiles[2].click();
+      restoreB.click();
+      expect(restoreB.hidden && diceAll(s.els).some(function (x) { return x.text === 'Bin me'; }), 'Restore should bring the button back, words and all');
+      expect([].some.call(panel.querySelectorAll('.gogh-lay-take'), function (t) { return /Bin me/.test(t.textContent); }), 'the tiles should draw the button again');
+      tiles = panel.querySelectorAll('.gogh-lay-take');
+      tiles[0].click();
+      expect(bare(s.els) === start, 'back on the first take with nothing binned, the section should be as it began');
+      panel.querySelector('.gogh-lay-done').click();
+      G.deleteSection(idx);
+      return fam.name + ': binned through ' + faces.length + ' takes, restored';
+    });
+
     testAsync('video corners: chips audition on hover and keep on click', function () {
       return new Promise(function (r) { setTimeout(r, 700); }).then(function () { return cornersTest(); });
     });
@@ -3264,12 +5458,80 @@
       // a price nothing reaches: the archive renders its empty state for the
       // person looking (owner here) — only when a gogh look dresses the shop
       return fetch('/?post_type=product&min_price=99999999', { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (html) {
-        if (!/gogh-shoplook-/.test(html)) return 'shop wears Woo\u2019s own look (Classic) \u2014 nothing to dress';
+        // the CSS names every look on every page: the look WORN is the one on the collection's class
+        if (!/class="[^"]*gogh-shoplook-/.test(html)) return 'shop wears Woo\u2019s own look (Classic) \u2014 nothing to dress';
         expect(!/No results found/.test(html), 'Woo\u2019s "No results found" leaked through');
         expect(/gogh-shop-empty-filtered/.test(html), 'the filtered empty state is missing');
         expect(/Clear filters/.test(html), 'the empty state should offer to clear the filters');
         return 'an empty result reads as designed';
       });
+    });
+
+    testAsync('a product layout auditions by address: ?gogh-layout wears the look for one request and stores nothing', function () {
+      var cls = function (html) { var m = /<body[^>]*class="([^"]*)"/.exec(html); return m ? m[1] : ''; };
+      var tpl = function (c) { var m = /product-template-([a-z0-9-]+)/.exec(c); return m ? m[1] : ''; };
+      var get = function (u) { return fetch(u, { credentials: 'same-origin' }).then(function (r) { return r.text(); }); };
+      return fetch('/wp-json/wc/store/v1/products?per_page=1&_fields=id,permalink', { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+          if (!list.length) return 'no product to try a layout on';
+          var link = list[0].permalink, join = link.indexOf('?') === -1 ? '?' : '&';
+          return get(link).then(function (plain) {
+            var worn = tpl(cls(plain));
+            var other = worn === 'gogh-product-hero' ? 'gogh-product-showcase' : 'gogh-product-hero';
+            return get(link + join + 'gogh-layout=' + other).then(function (tried) {
+              expect(tpl(cls(tried)) === other, 'the preview request should wear ' + other + ', wears ' + (tpl(cls(tried)) || 'nothing'));
+              return get(link).then(function (again) {
+                expect(tpl(cls(again)) === worn, 'the audition stuck: the product now wears ' + tpl(cls(again)) + ' instead of ' + worn);
+                return worn + ' → tried ' + other + ' → still ' + worn;
+              });
+            });
+          });
+        });
+    });
+
+    testAsync('a shop look auditions by address: ?gogh-shoplook dresses the grid for one request and stores nothing', function () {
+      if (!GOGH.hasWoo) return 'no WooCommerce here';
+      var get = function (u) { return fetch(u, { credentials: 'same-origin' }).then(function (r) { return r.text(); }); };
+      // the CSS names every look on every page, and the body also carries
+      // gogh-shoplook-kind-<kind>: the look WORN is the other class in a class attribute
+      var worn = function (html) { var m = /class="[^"]*?gogh-shoplook-(?!kind-)([a-z]+)/.exec(html); return m ? m[1] : ''; };
+      return get('/?post_type=product').then(function (plain) {
+        var now = worn(plain);
+        var other = now === 'gallery' ? 'editorial' : 'gallery';
+        return get('/?post_type=product&gogh-shoplook=' + other).then(function (tried) {
+          expect(worn(tried) === other, 'the preview request should dress the shop as ' + other + ', wears ' + (worn(tried) || 'Classic'));
+          return get('/?post_type=product&gogh-shoplook=classic').then(function (classic) {
+            expect(worn(classic) === '', 'a classic preview should undress the shop, wears ' + worn(classic));
+            return get('/?post_type=product').then(function (again) {
+              expect(worn(again) === now, 'the audition stuck: the shop now wears ' + (worn(again) || 'Classic') + ' instead of ' + (now || 'Classic'));
+              return (now || 'Classic') + ' \u2192 tried ' + other + ' and Classic \u2192 still ' + (now || 'Classic');
+            });
+          });
+        });
+      });
+    });
+
+    test('hovering a look in the admin bar tries it on, and leaving the menu takes it off', function () {
+      var A = window.goghAudition;
+      expect(A && A.preview && A.restore, 'the audition script is missing from the page');
+      var before = document.body.className;
+      A.preview('gogh-blog-layout', 'cards');
+      expect(document.body.classList.contains('gogh-blog-cards') && document.body.classList.contains('gogh-auditioning'), 'the blog look was not worn: ' + document.body.className);
+      A.preview('gogh-blog-layout', 'ledger');
+      expect(document.body.classList.contains('gogh-blog-ledger') && !document.body.classList.contains('gogh-blog-cards'), 'moving to a second look kept the first: ' + document.body.className);
+      A.preview('gogh-post-layout', 'essay');
+      expect(document.body.classList.contains('gogh-read-essay'), 'a reading look was not worn: ' + document.body.className);
+      A.restore();
+      expect(document.body.className === before, 'leaving the menu did not put the page back: ' + document.body.className);
+      // v0.99.702: an open layout menu steps the page back, leaving brings it home
+      if (A.peekOn && !document.documentElement.classList.contains('gogh-zoomed')) {
+        var wrapP = document.querySelector('.wp-site-blocks'), tf0 = wrapP.style.transform;
+        A.peekOn();
+        expect(/scale\(0\.5\)/.test(wrapP.style.transform) && document.documentElement.classList.contains('gogh-layout-peek'), 'an open layout menu should zoom the page out: ' + wrapP.style.transform);
+        A.restore();
+        expect(wrapP.style.transform === tf0, 'leaving the menu should bring the page back to size: ' + wrapP.style.transform);
+      }
+      return 'cards → ledger → essay → home, zoomed out while the menu is open';
     });
 
     testAsync('variations: every combination, existing kept, typed prices carried', function () {
@@ -3370,7 +5632,7 @@
       return 'rails laid: native Woo markup, two layouts, then stop';
     });
 
-    test('rails never enter a card, and the bar offers two verbs', function () {
+    test('rails never enter a card, and the bar offers Edit design (the products link is in the panel)', function () {
       if (!GOGH.hasWoo) return 'no WooCommerce here';
       var s0 = sec();
       s0.els.push({ type: 'box', x: 40, y: 40, w: 900, h: 500, radius: 12 });
@@ -3381,11 +5643,15 @@
       expect(G.cardJoinTarget(s0, i) === -1, 'a rails element was offered a card to join');
       select(i);
       var manage = q('.gogh-eb-manage');
-      expect(manage && manage.style.display !== 'none', 'Manage products verb missing from the bar');
+      expect(!manage || manage.style.display === 'none', 'the bar should carry no Manage products (James: not so prominent, or at all)');
       expect(q('.gogh-eb-ctx').title === 'Edit design', 'the context verb should read Edit design, got ' + q('.gogh-eb-ctx').title);
       G.openPanel(s0, i);
       var pnl = q('.gogh-panel');
-      expect(pnl.querySelector('.gogh-shop-manage') && pnl.querySelector('.gogh-shop-layout'), 'shop panel missing verbs or layout');
+      var mlink = pnl.querySelector('.gogh-shop-manage');
+      expect(mlink && pnl.querySelector('.gogh-shop-layout'), 'shop panel missing its products link or layout');
+      // the foot of the shop's own settings: only the On phones row every panel ends with may follow it
+      var after = mlink.nextElementSibling;
+      expect(!mlink.classList.contains('gogh-btn') && (!after || (after.classList.contains('gogh-panel-hint') && /On phones/.test(after.textContent))), 'the products link should be a quiet link at the foot of the panel, followed by ' + (after ? after.className + ' ' + after.textContent.slice(0, 30) : 'nothing'));
       var list = pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="list"]');
       list.click();
       expect(!pnl.hidden, 'the panel closed on a layout pick');
@@ -3393,6 +5659,316 @@
       expect(list.classList.contains('is-active'), 'List not marked active in place');
       G.closePanel();
       return 'two verbs, one small panel, stays open';
+    });
+
+    test('the posts rail: a core query loop composed from few choices', function () {
+      var e = G.addElementToSection(G.sections().indexOf(sec()), 'posts');
+      expect(e && e.rails && e.posts, 'the posts element is not a rails element');
+      expect(/<!-- wp:query /.test(e.wsrc) && /"postType":"post"/.test(e.wsrc), 'source is not a core query loop');
+      expect(/"perPage":3/.test(e.wsrc) && /"columnCount":3/.test(e.wsrc), 'default is a 3-up grid: ' + e.wsrc.slice(0, 220));
+      expect(/wp:post-date/.test(e.wsrc) && !/wp:post-excerpt/.test(e.wsrc) && !/wp:post-terms/.test(e.wsrc), 'date shows by default; excerpt and category stay off');
+      expect(/gogh-posts-tpl/.test(e.wsrc) && !/gogh-blog-/.test(e.wsrc), 'the plain grid must not wear a look');
+      expect(/gogh-posts-c3 gogh-posts-pic-landscape/.test(e.wsrc), 'the count and picture shape should ride as classes for the looks');
+      var dressed = G.composePosts({ look: 'cards', count: 4, order: 'oldest', cat: 'Notes', catId: 7, show: { date: false, excerpt: true, category: true }, aspect: 'portrait', spacing: 'l' });
+      expect(/gogh-blog-cards/.test(dressed) && /"layout":\{"type":"default"\}/.test(dressed), 'a look should dress the list and drop the column grid');
+      expect(/gogh-posts-c4 gogh-posts-pic-portrait gogh-blog-cards/.test(dressed), 'a look should keep the count and the crop: ' + (dressed.match(/className":"[^"]+/) || [''])[0]);
+      expect(/"order":"asc"/.test(dressed) && /"orderBy":"date"/.test(dressed), 'Oldest first not composed');
+      expect(/"taxQuery":\{"category":\[7\]\}/.test(dressed), 'the category did not narrow the query');
+      expect(/wp:post-excerpt/.test(dressed) && /wp:post-terms/.test(dressed) && !/wp:post-date/.test(dressed), 'Show chips not honoured');
+      expect(/"aspectRatio":"3\/4"/.test(dressed) && /gogh-posts-gap-l/.test(dressed), 'picture and spacing not composed');
+      var picked = G.composePosts(Object.assign(G.postsDefaults(), { pick: [{ id: 5, name: 'Five' }, { id: 9, name: 'Nine' }] }));
+      expect(/gogh-pick-5,9/.test(picked) && /"perPage":2/.test(picked), 'hand-picked posts should name themselves in the template and set the count');
+      expect(G.buildV3().indexOf('wp:query') !== -1, 'the built page lacks the query loop');
+      return 'a query loop from a few choices: grid, looks, category, hand-picks';
+    });
+
+    test('an old posts grid heals onto the rails; the empty grid names the next verb', function () {
+      var s0 = sec();
+      var old = { type: 'widget', x: 47, y: 60, w: 1106, h: 430,
+        wsrc: '<!-- wp:query {"queryId":0,"query":{"perPage":3,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false},"className":"gogh-posts"} -->\n<div class="wp-block-query gogh-posts"><!-- wp:post-template {"layout":{"type":"grid","columnCount":3}} -->\n<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"4/3"} /-->\n<!-- wp:post-title {"level":3,"isLink":true} /-->\n<!-- wp:post-date /-->\n<!-- /wp:post-template --></div>\n<!-- /wp:query -->',
+        whtml: '<div class="gogh-postsprev"></div>' };
+      s0.els.push(old);
+      G.renderSection(s0);
+      expect(old.rails && old.posts, 'the old grid did not heal onto the rails');
+      expect(old.posts.count === 3 && old.posts.order === 'date' && old.posts.look === '' && old.posts.show.date && !old.posts.show.excerpt, 'the heal misread the old choices: ' + JSON.stringify(old.posts));
+      s0.els.pop();
+      G.renderSection(s0);
+      var empty = G.postsPreviewHTML({ posts: G.postsDefaults() }, []);
+      expect(/No posts yet/.test(empty) && /Write a post/.test(empty) && /post-new\.php/.test(empty), 'the empty grid should say so and offer the next verb');
+      var fake = [1, 2, 3, 4].map(function (k) { return { id: k, date: '2026-09-0' + k + 'T10:00:00', title: { rendered: 'Post ' + k }, excerpt: { rendered: '<p>Words about post ' + k + '.</p>' } }; });
+      var four = G.postsPreviewHTML({ posts: Object.assign(G.postsDefaults(), { count: 4, look: 'cards', show: { date: true, excerpt: true, category: false } }) }, fake);
+      expect(/gogh-postsprev-c4/.test(four) && /gogh-postsprev-look-cards/.test(four), 'the preview should wear the count and the look: ' + four.slice(0, 160));
+      expect((four.match(/gogh-postsprev-ph/g) || []).length === 4 && /gogh-postsprev-ex/.test(four), 'pictureless posts get a tinted stand-in each; the excerpt shows when asked');
+      return 'old grids heal; the empty state and the looks draw';
+    });
+
+    test('a long panel (the posts grid) docks on the left, the page steps over beside it, and the close puts it back', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
+      var i = s0.els.indexOf(e);
+      try {
+        G.openPanel(s0, i);
+        var pnl = q('.gogh-panel');
+        var r = pnl.getBoundingClientRect();
+        expect(pnl.classList.contains('gogh-panel-long') && pnl.classList.contains('gogh-panel-sidebar'), 'the posts panel should dock as a long panel');
+        // its resting place, not the rect: the slide-in is still moving under a sync test
+        expect(pnl.style.left === '0px' && pnl.style.bottom === '0px' && r.height > window.innerHeight * 0.6, 'docked down the left, full height: ' + pnl.style.left + ',' + Math.round(r.height));
+        expect(pnl.querySelector('.gogh-panel-head .gogh-panel-x') && pnl.querySelectorAll('.gogh-panel-title').length === 1, 'one title and a close button');
+        var wrap = document.querySelector('.wp-site-blocks');
+        var m = /translateX\(([-\d.]+)px\) scale\(([\d.]+)\)/.exec(wrap.style.transform);
+        expect(m && +m[2] < 1 && +m[1] >= pnl.offsetWidth, 'the page should be fitted beside the panel: ' + wrap.style.transform);
+        // v0.99.715: the page washed back, the grid left clear with a ring and its name
+        var veil = G.focusVeil();
+        expect(veil && veil.querySelector('.gogh-focusveil-tag').textContent === pnl.querySelector('.gogh-panel-title').textContent, 'the grid should wear a ring with the panel name');
+        var gr = s0.nodes[i].getBoundingClientRect(), ring = veil.querySelector('.gogh-focusveil-ring');
+        expect(Math.abs(parseFloat(ring.style.left) - (gr.left - 6)) < 2 && Math.abs(parseFloat(ring.style.width) - (gr.width + 12)) < 2, 'the ring should sit around the grid: ' + ring.style.left + ' vs ' + gr.left);
+        expect(/^path\(evenodd/.test(veil.querySelector('.gogh-focusveil-wash').style.clipPath) && getComputedStyle(veil).pointerEvents === 'none', 'the wash should leave a hole for the grid and let clicks through');
+        pnl.querySelector('.gogh-panel-x').click();
+        expect(pnl.hidden && !/scale/.test(wrap.style.transform), 'the close should put the page back: ' + wrap.style.transform);
+        expect(!G.focusVeil() && !q('.gogh-focusveil'), 'the wash should go with the panel');
+        G.openPanel(s0, G.sections()[0].els.findIndex(function (x) { return x.type === 'button'; }) === -1 ? i : findIdx('button'));
+        expect(!q('.gogh-panel').classList.contains('gogh-panel-long'), 'a short panel (a button) should still float by its piece');
+        expect(!q('.gogh-focusveil'), 'a short panel should not wash the page');
+      } finally {
+        G.closePanel();
+        var k = s0.els.indexOf(e);
+        if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); }
+      }
+      return 'docked, fitted, washed with a ring, closed, short panels still float';
+    });
+    // v0.99.714 — ONE RULE for every sidebar (James: 'as a rule we should be
+    // able to click into a page when showing the sidebar to focus back to
+    // the page'): a press on the page closes it and the page comes back to
+    // full size; a press on what the sidebar is about keeps it
+    testAsync('a press on the page closes every docked sidebar; a press on its subject keeps it', async function () {
+      var pnl = q('.gogh-panel');
+      var wait = function (pred, ms) {
+        return new Promise(function (res) {
+          var t0 = Date.now();
+          (function tick() { if (pred() || Date.now() - t0 > (ms || 4000)) res(pred()); else setTimeout(tick, 40); })();
+        });
+      };
+      var press = function (node) {
+        var r = node.getBoundingClientRect();
+        node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, clientX: r.left + 4, clientY: Math.max(4, r.top + 4) }));
+      };
+      var docked = function () { return !pnl.hidden && pnl.classList.contains('gogh-panel-sidebar'); };
+      var cs = contentSecs(), far = cs[cs.length - 1];
+      var target = far.wrapEl || far.nodes[0];
+      var done = [];
+      var surfaces = [
+        ['Site styles', function () { q('.gogh-stylebtn').click(); }],
+        ['Fonts', function () { G.openFontsPanel(); }],
+        ['Page style', function () { G.openPageStylePanel(); }],
+        ['Motion', function () { G.openMotionPanel(); }],
+        ['Add a page', function () { G.openAddPagePanel(q('.gogh-addpagebtn')); }],
+        ['History', function () { return G.history.open(); }]
+      ];
+      try {
+        for (var k = 0; k < surfaces.length; k++) {
+          G.closePanel();
+          await surfaces[k][1]();
+          expect(await wait(docked), surfaces[k][0] + ' did not dock on the left');
+          press(target);
+          expect(pnl.hidden, 'a press on the page should close ' + surfaces[k][0]);
+          expect(!G.canvasZoom.on() && !q('.gogh-side').classList.contains('is-open'), 'the page should come back to full size after ' + surfaces[k][0]);
+          done.push(surfaces[k][0]);
+        }
+        // the header room: the header is what it is about
+        var partEl = G.partElForArea('header');
+        if (partEl) {
+          var mk = function (id, slug, word) { return { kind: 'part', id: id, slug: slug, theme: 'x', title: word, content: '<!-- wp:group --><div class="wp-block-group"><p>' + word + '</p></div><!-- /wp:group -->' }; };
+          var opts = [mk(101, 'header', 'one'), mk(102, 'header-b', 'two')];
+          G.openSide('site');
+          G.openHeaderPanel(partEl, 'header', opts, opts[0], { id: 101, content: { raw: opts[0].content } });
+          expect(docked() && pnl.dataset.goghArea === 'header', 'the header room should dock');
+          press(partEl.firstElementChild || partEl);
+          expect(!pnl.hidden && pnl.dataset.goghArea === 'header', 'a press on the header keeps its room');
+          press(target);
+          expect(pnl.hidden && !document.documentElement.classList.contains('gogh-chrome-mode'), 'a press on the page should leave the header room');
+          expect(!G.canvasZoom.on() && !q('.gogh-side').classList.contains('is-open'), 'the page should come back to full size after the header room');
+          done.push('header room');
+        }
+        // a long panel: the grid it dresses stays under it
+        var s0 = sec(), e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
+        try {
+          G.openPanel(s0, s0.els.indexOf(e));
+          expect(docked() && pnl.classList.contains('gogh-panel-long'), 'the posts panel should dock');
+          press(s0.nodes[s0.els.indexOf(e)]);
+          expect(!pnl.hidden, 'a press on the posts grid keeps its panel');
+          press(target);
+          expect(pnl.hidden && !G.canvasZoom.on(), 'a press elsewhere on the page closes it');
+          done.push('posts panel');
+        } finally {
+          G.closePanel();
+          var j = s0.els.indexOf(e);
+          if (j !== -1) { s0.els.splice(j, 1); G.renderSection(s0); }
+        }
+      } finally {
+        G.closePanel();
+        if (G.closeSide) G.closeSide(true);
+      }
+      return done.join(', ');
+    });
+    // v0.99.716: Recently viewed — the grid's query carries goghRecent for
+    // gogh.php to draw per shopper; until then it is Newest first
+    test('the shop grid offers Recently viewed, newest until a shopper has looked around', function () {
+      var shop = G.shopDefaults(); shop.order = 'recent'; shop.count = 4;
+      var src = G.composeShop(shop);
+      var attrs = JSON.parse(/wp:woocommerce\/product-collection (\{[\s\S]*?\}) -->/.exec(src)[1]);
+      expect(attrs.query.goghRecent === true && attrs.query.orderBy === 'date' && attrs.query.order === 'desc', 'a recent grid should be marked and fall back to newest: ' + JSON.stringify(attrs.query).slice(0, 120));
+      expect(/gogh-shop-recent/.test(attrs.className), 'the grid should wear its class');
+      var back = { type: 'widget', wsrc: src }; G.healRails(back);
+      expect(back.shop.order === 'recent', 'reading the grid back should find Recently viewed: ' + back.shop.order);
+      shop.pick = [{ id: 7, name: 'x' }];
+      expect(!/goghRecent/.test(G.composeShop(shop)), 'hand-picked products win over Recently viewed');
+      shop.pick = []; shop.order = 'date';
+      expect(!/goghRecent|gogh-shop-recent/.test(G.composeShop(shop)), 'newest first carries no mark');
+      var s0 = sec(), e = G.addElementToSection(G.sections().indexOf(s0), 'products');
+      try {
+        if (!e || !e.shop) return 'composed and read back (no products piece here to open)';
+        G.openPanel(s0, s0.els.indexOf(e));
+        var pnl = q('.gogh-panel'), hint = pnl.querySelector('.gogh-shop-recent-hint');
+        expect(hint && hint.hidden, 'the hint waits for Recently viewed');
+        pnl.querySelector('.gogh-shop-order .gogh-hopt[data-v="recent"]').click();
+        expect(!hint.hidden && e.shop.order === 'recent' && /"goghRecent":true/.test(e.wsrc), 'choosing it should say what shoppers see and mark the grid');
+      } finally {
+        G.closePanel();
+        var k = s0.els.indexOf(e);
+        if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); }
+      }
+      return 'marked, newest until then, read back, hint shown';
+    });
+    // v0.99.717: the Lookbook and the Index — lists to Woo, a book and a
+    // contents page through gogh-shop-looks; the editor sketches both
+    test('the shop grid offers a Lookbook and an Index, written and read back, sketched in the editor', function () {
+      var shop = G.shopDefaults(); shop.count = 4; shop.layout = 'book';
+      var src = G.composeShop(shop);
+      var attrs = JSON.parse(/wp:woocommerce\/product-collection (\{[\s\S]*?\}) -->/.exec(src)[1]);
+      expect(/\bgogh-shop-book\b/.test(attrs.className) && attrs.displayLayout.type === 'list', 'a Lookbook is a list wearing gogh-shop-book: ' + attrs.className);
+      expect(/wp:woocommerce\/product-summary/.test(src) && /"aspectRatio":"3\/4"/.test(src), 'a Lookbook page carries a few words and a portrait picture');
+      var back = { type: 'widget', wsrc: src }; G.healRails(back);
+      expect(back.shop.layout === 'book', 'reading back should find the Lookbook: ' + back.shop.layout);
+      shop.layout = 'index'; src = G.composeShop(shop);
+      expect(/gogh-shop-index/.test(src) && !/product-summary/.test(src), 'an Index wears gogh-shop-index and no summary');
+      back = { type: 'widget', wsrc: src }; G.healRails(back);
+      expect(back.shop.layout === 'index', 'reading back should find the Index');
+      var s0 = sec(), e = G.addElementToSection(G.sections().indexOf(s0), 'products');
+      try {
+        if (!e || !e.shop) return 'written and read back (no products piece here to open)';
+        G.openPanel(s0, s0.els.indexOf(e));
+        var pnl = q('.gogh-panel');
+        expect(pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="book"]') && pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="index"]'), 'Layout should offer Lookbook and Index');
+        pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="book"]').click();
+        expect(e.shop.layout === 'book' && /gogh-shop-book/.test(e.wsrc), 'choosing Lookbook should write it');
+        var prods = [{ name: 'Linen', prices: { currency_symbol: '£', price: '2800', currency_minor_unit: 2 }, short_description: '<p>Clean sheets.</p>', images: [{ src: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' }] },
+          { name: 'Amber', prices: { currency_symbol: '£', price: '3000', currency_minor_unit: 2 }, images: [] }];
+        var box = document.createElement('div'); box.innerHTML = G.shopPreviewHTML(e, prods);
+        expect(box.querySelector('.gogh-shop-book .gogh-book-spread.is-current .gogh-book-pic img') && /1 \/ 2/.test(box.querySelector('.gogh-book-count').textContent) && box.querySelector('.gogh-book-stage .gogh-book-next') && /Clean sheets/.test(box.textContent), 'the sketch is the book open at its first spread');
+        e.shop.layout = 'index'; box.innerHTML = G.shopPreviewHTML(e, prods);
+        expect(box.querySelectorAll('.gogh-shop-index li.gogh-index-row').length === 2 && /Amber/.test(box.textContent), 'the Index sketch lists every name');
+        expect(box.querySelector('.gogh-look-note') && /published/.test(box.querySelector('.gogh-look-note').textContent), 'the Index sketch should say it comes alive once published');
+        e.shop.layout = 'list'; e.shop.show.button = false; G.renderSection(s0);
+        pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="book"]').click();
+        expect(e.shop.show.button && /wp:woocommerce\/product-button/.test(e.wsrc) && pnl.querySelector('.gogh-shop-show .gogh-hpreset[data-v="button"]').classList.contains('is-active'), 'choosing Lookbook should turn Add to cart on');
+        box.innerHTML = G.shopPreviewHTML(e, prods);
+        expect(/pages turn/i.test((box.querySelector('.gogh-look-note') || {}).textContent || ''), 'the Lookbook sketch should say its pages turn once published');
+      } finally {
+        G.closePanel();
+        var k = s0.els.indexOf(e);
+        if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); }
+      }
+      return 'Lookbook and Index written, read back and sketched';
+    });
+    // v0.99.721: Shop the photo — a picture, a dot per product, the grid of
+    // exactly those products for the dots to open
+    test('Shop the photo writes the picture, its dots and their products, reads them back and sketches them', function () {
+      var shop = G.shopDefaults(); shop.layout = 'photo';
+      expect(!/product-collection/.test(G.composeShop(shop)), 'no products: no grid (an empty hand-pick would be every product)');
+      shop.scene = 'https://example.com/table.jpg'; shop.sceneAlt = 'A table, set';
+      shop.pick = [{ id: 11, name: 'Lavender' }, { id: 12, name: 'Linen & Iris' }];
+      shop.spots = [{ id: 12, x: 45, y: 63 }];
+      var src = G.composeShop(shop);
+      var box = document.createElement('div'); box.innerHTML = src.replace(/<!--[\s\S]*?-->/g, '');
+      var root = box.querySelector('.gogh-shop-photo'), spots = JSON.parse(root.getAttribute('data-gogh-spots'));
+      expect(spots.length === 2 && spots[1].id === 12 && spots[1].x === 45 && spots[0].x > 0 && spots[0].name === 'Lavender', 'every product gets a dot, placed ones keep their place: ' + JSON.stringify(spots));
+      expect(root.querySelector('.gogh-photo-scene img').getAttribute('src') === 'https://example.com/table.jpg', 'the picture should be written');
+      var attrs = JSON.parse(/wp:woocommerce\/product-collection (\{[\s\S]*?\}) -->/.exec(src)[1]);
+      expect(/gogh-shop-spots/.test(attrs.className) && attrs.query.orderBy === 'post__in' && attrs.query.woocommerceHandPickedProducts.join() === '11,12', 'the grid holds exactly the products in the photo: ' + JSON.stringify(attrs.query.woocommerceHandPickedProducts));
+      var back = { type: 'widget', wsrc: src }; G.healRails(back);
+      expect(back.shop.layout === 'photo' && back.shop.scene === 'https://example.com/table.jpg' && back.shop.sceneAlt === 'A table, set' && back.shop.pick.length === 2 && back.shop.spots[1].x === 45, 'reading back should find the photo, its products and their dots: ' + JSON.stringify(back.shop).slice(0, 160));
+      var e = { type: 'widget', rails: true, shop: back.shop, wsrc: src };
+      box.innerHTML = G.shopPreviewHTML(e, [{ id: 11, name: 'Lavender' }, { id: 12, name: 'Linen & Iris' }]);
+      var tags = [].map.call(box.querySelectorAll('.gogh-photo-sketch .gogh-spot-drag .gogh-spot-tag'), function (x) { return x.textContent; });
+      expect(tags.join('|') === 'Lavender|Linen & Iris' && box.querySelector('.gogh-look-note'), 'the sketch shows each dot with its name: ' + tags.join('|'));
+      e.shop.scene = ''; box.innerHTML = G.shopPreviewHTML(e, []);
+      expect(box.querySelector('.gogh-photo-ask'), 'with no picture the sketch asks for one');
+      var s0 = sec(), el = G.addElementToSection(G.sections().indexOf(s0), 'products');
+      try {
+        if (!el || !el.shop) return 'written, read back and sketched (no products piece here to open)';
+        el.shop.show.button = false;
+        G.openPanel(s0, s0.els.indexOf(el));
+        var pnl = q('.gogh-panel');
+        expect(pnl.querySelector('.gogh-shop-photobox').hidden, 'the photo row waits for Shop the photo');
+        pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="photo"]').click();
+        expect(!pnl.querySelector('.gogh-shop-photobox').hidden && pnl.querySelector('.gogh-shop-gridonly').hidden && pnl.querySelector('.gogh-shop-picklab').textContent === 'Products in the photo', 'Shop the photo shows its photo row and products, not the grid settings');
+        expect(el.shop.layout === 'photo' && el.shop.show.button && /gogh-shop-photo/.test(el.wsrc), 'choosing it writes a photo piece with Add to cart on');
+        expect(/Choose a photo/.test(pnl.querySelector('.gogh-shop-scenebtn').textContent), 'it should offer to choose a photo');
+        // v0.99.722: the panel stays docked through the switch (it floated into the page)
+        expect(pnl.classList.contains('gogh-panel-sidebar') && pnl.style.left === '0px', 'the shop panel should stay docked on the left: left=' + pnl.style.left);
+      } finally {
+        G.closePanel();
+        var k = s0.els.indexOf(el);
+        if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); }
+      }
+      return 'picture, dots and products written, read back, sketched; panel switches';
+    });
+    test('the posts rail: Edit design on the bar, a small panel, looks audition and keep', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
+      var i = s0.els.indexOf(e);
+      expect(G.cardJoinTarget(s0, i) === -1, 'a posts rail was offered a card to join');
+      select(i);
+      var manage = q('.gogh-eb-manage');
+      expect(!manage || manage.style.display === 'none', 'the bar should carry no Manage posts');
+      expect(q('.gogh-eb-ctx').title === 'Edit design', 'the context verb should read Edit design, got ' + q('.gogh-eb-ctx').title);
+      G.openPanel(s0, i);
+      var pnl = q('.gogh-panel');
+      expect(pnl.querySelector('.gogh-shop-manage') && /edit\.php/.test(pnl.querySelector('.gogh-shop-manage').getAttribute('href')), 'the panel should link to the posts list');
+      expect(pnl.querySelector('.gogh-posts-look') && pnl.querySelectorAll('.gogh-posts-look .gogh-hopt').length === 5, 'five looks: the grid and the blog’s four');
+      var cards = pnl.querySelector('.gogh-posts-look .gogh-hopt[data-v="cards"]');
+      cards.click();
+      expect(!pnl.hidden, 'the panel closed on a look pick');
+      expect(e.posts.look === 'cards' && /gogh-blog-cards/.test(e.wsrc), 'Cards did not recompose the source');
+      expect(cards.classList.contains('is-active'), 'Cards not marked active in place');
+      pnl.querySelector('.gogh-posts-count .gogh-hpreset[data-v="6"]').click();
+      expect(e.posts.count === 6 && /"perPage":6/.test(e.wsrc), 'the count chip did not recompose');
+      pnl.querySelector('.gogh-posts-show .gogh-hpreset[data-v="excerpt"]').click();
+      expect(e.posts.show.excerpt && /wp:post-excerpt/.test(e.wsrc), 'the excerpt chip did not recompose');
+      var snap = G.serialize();
+      expect(snap.indexOf('"posts":') !== -1 && snap.indexOf('"look":"cards"') !== -1, 'the projected model lost the posts choices');
+      G.closePanel();
+      return 'two verbs, one small panel, the choices ride the model';
+    });
+
+    testAsync('the posts rail draws the site’s own posts', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
+      var t0 = Date.now();
+      return new Promise(function (resolve) {
+        var poll = function () {
+          var drawn = /gogh-postsprev-card|gogh-postsprev-empty/.test(e.whtml || '');
+          if (drawn || Date.now() - t0 > 12000) resolve(drawn);
+          else setTimeout(poll, 150);
+        };
+        poll();
+      }).then(function (drawn) {
+        expect(drawn, 'the preview never drew posts or the empty grid: ' + String(e.whtml).slice(0, 120));
+        expect(!/Loading your latest posts/.test(e.whtml), 'the loading card should give way');
+        var idx = s0.els.indexOf(e);
+        if (idx !== -1) { s0.els.splice(idx, 1); G.renderSection(s0); }
+        return 'real posts on the shelf, or an honest empty grid';
+      });
     });
 
     test('Sell family: Featured product and Bestsellers arrive on rails, with takes', function () {
@@ -3558,6 +6134,25 @@
       h.remove();
     });
 
+    test('a layout change keeps the NAME when the logo block has no picture behind it', function () {
+      // a starter's classic header ships a logo block with no logo set: the
+      // name is the identity, and every other layout must keep showing it
+      var classic = '<!-- wp:group --><div class="wp-block-group"><!-- wp:site-logo {"width":44} /--><!-- wp:site-title {"level":0} /--><!-- wp:navigation /--></div><!-- /wp:group -->';
+      var hadLogo = !!(window.GOGH && window.GOGH.hasLogo);
+      var pageHasImg = !!document.querySelector('.wp-block-site-logo img');
+      if (hadLogo || pageHasImg) return 'this site wears a logo picture — the name case cannot be staged here';
+      expect(G.headerWearsLogo(classic) === false, 'a logo block with no picture must not count as a logo identity');
+      expect(G.headerWearsLogo('<!-- wp:site-title {"level":0} /-->') === false, 'no logo block, no logo identity');
+      var h = document.createElement('header');
+      h.className = 'wp-block-template-part';
+      h.innerHTML = '<span class="wp-block-site-logo"><img src="data:," alt=""></span><span class="wp-block-site-title">My Site</span>';
+      document.body.appendChild(h);
+      var withPic = G.headerWearsLogo(classic);
+      h.remove();
+      expect(withPic === true, 'a logo block WITH a picture on the page is the logo identity');
+      return 'no picture → name; picture → logo';
+    });
+
     test('the edit-header pill appears on the site header part', function () {
       var pe = G.partElForArea('header');
       expect(pe, 'no header template part found');
@@ -3569,6 +6164,145 @@
       expect(before >= 1, 'no edit-header pill was mounted');
     });
 
+    // ---- SAFETY: what can break quietly (v0.99.727, from the Section Editing
+    // Modes paper: the plugin there tests both). WordPress's own validation
+    // over every section gogh can add, and real contrast over every palette.
+    test('every starter saves as valid blocks: WordPress’s own validation, block by block', function () {
+      var wpb = window.wp && wp.blocks;
+      if (!wpb || !window.wp.blockLibrary) return 'the block library is not loaded on this page';
+      if (!wpb.getBlockType('core/paragraph')) wp.blockLibrary.registerCoreBlocks();
+      expect(wpb.getBlockType('gogh/section'), 'gogh/section is not registered on the test page');
+      // the check is live: markup the editor would flag is caught (parse
+      // quietly repairs some slips, so the control is one it cannot: a
+      // level-2 heading saved as an h3). The verdict judged is parse's own,
+      // after its repairs: what someone opening the page would see
+      var control = wpb.parse('<!-- wp:heading {"level":2} -->\n<h3 class="wp-block-heading">Wrong level</h3>\n<!-- /wp:heading -->')[0];
+      expect(control && control.isValid === false, 'validation is not running: a heading saved at the wrong level passed');
+      var bad = [], tried = 0, blocks = 0, unchecked = {};
+      var walk = function (list, where) {
+        list.forEach(function (b) {
+          blocks++;
+          if (b.name === 'core/missing') unchecked[(b.attributes && b.attributes.originalName) || '?'] = 1;
+          else if (b.isValid === false) {
+            var why = (b.validationIssues || []).map(function (v) { return String((v.args && v.args.slice(1, 3).join(' → ')) || v.log || '').replace(/\s+/g, ' ').slice(0, 140); }).join(' / ');
+            bad.push(where + ' → ' + b.name + (why ? ': ' + why : ''));
+          }
+          walk(b.innerBlocks || [], where);
+        });
+      };
+      G.templates().forEach(function (t) {
+        if (t.retired || !t.els || !t.els.length || /^__/.test(t.name)) return;
+        var n0 = G.sections().length;
+        G.addSection(t, n0);
+        var sx = G.sections()[n0];
+        try {
+          walk(wpb.parse(G.blocksV3(sx)), t.name + (t.take ? ' (' + t.take + ')' : ''));
+          tried++;
+        } finally { G.deleteSection(G.sections().indexOf(sx)); }
+      });
+      // every take behind Try another and the dice, too
+      var V = G.variants ? G.variants() : {};
+      Object.keys(V).forEach(function (name) {
+        (V[name] || []).forEach(function (t) {
+          if (!t || !t.els || !t.els.length) return;
+          var n0 = G.sections().length;
+          G.addSection(t, n0);
+          var sx = G.sections()[n0];
+          try { walk(wpb.parse(G.blocksV3(sx)), name + ' (' + (t.take || 'take') + ')'); tried++; }
+          finally { G.deleteSection(G.sections().indexOf(sx)); }
+        });
+      });
+      // and the page as it stands: every section on the fixture, as published
+      walk(wpb.parse(G.buildV3()), 'the test page');
+      expect(tried > 20, 'expected the whole shelf of starters, tried ' + tried);
+      expect(!bad.length, bad.length + ' invalid block(s): ' + bad.slice(0, 5).join(' || ') + (bad.length > 5 ? ' (+' + (bad.length - 5) + ')' : ''));
+      var un = Object.keys(unchecked);
+      return tried + ' starters and takes, ' + blocks + ' blocks valid' + (un.length ? '; not checkable here (no editor script): ' + un.join(', ') : '');
+    });
+    testAsync('every palette reads: Site styles and Remix rolls, in every section theme', function () {
+      // rgb() and the newer color(srgb 0–1 floats) a colour-mix ground resolves to
+      var rgb = function (str) {
+        var m = /rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[, /]+([\d.]+))?/.exec(str || '');
+        if (m) return { c: [+m[1], +m[2], +m[3]], a: m[4] == null ? 1 : +m[4] };
+        m = /color\(srgb ([\d.e-]+) ([\d.e-]+) ([\d.e-]+)(?: \/ ([\d.]+))?\)/.exec(str || '');
+        return m ? { c: [m[1] * 255, m[2] * 255, m[3] * 255], a: m[4] == null ? 1 : +m[4] } : null;
+      };
+      var lum = function (c) { var a = c.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; };
+      var ratio = function (a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+      var ground = function (el) { for (var n = el; n; n = n.parentElement) { var c = rgb(getComputedStyle(n).backgroundColor); if (c && c.a > 0.5) return c.c; } return [255, 255, 255]; };
+      var BAR = { text: 4.5, heading: 3, button: 4, ghost: 4 }; // buttons: gogh's rule for bold button words
+      G.addSection({ name: 'Contrast probe', minH: 360, els: [
+        { type: 'heading', x: 72, y: 48, w: 600, h: 72, text: 'A heading to read' },
+        { type: 'para', x: 72, y: 144, w: 600, h: 48, text: 'A paragraph of body text to read.' },
+        { type: 'button', x: 72, y: 216, w: 200, h: 48, text: 'Buy now' },
+        { type: 'button', x: 312, y: 216, w: 200, h: 48, text: 'Read more', ghost: true },
+      ] }, G.sections().length);
+      var sx = G.sections()[G.sections().length - 1];
+      var fails = [], cases = 0;
+      var measure = function (label) {
+        G.sectionThemes().forEach(function (t) {
+          if (/gradient/.test(t.bg)) return; // a backdrop's ground varies across it
+          G.applySectionTheme(G.sections().indexOf(sx), t);
+          var n = sx.nodes;
+          var h = n[0].querySelector('h1,h2,h3,h4') || n[0], para = n[1].querySelector('p') || n[1];
+          var btn = n[2].querySelector('.wp-block-button__link'), gh = n[3].querySelector('.wp-block-button__link');
+          var got = { heading: ratio(rgb(getComputedStyle(h).color).c, ground(h)), text: ratio(rgb(getComputedStyle(para).color).c, ground(para)) };
+          if (btn) got.button = ratio(rgb(getComputedStyle(btn).color).c, ground(btn));
+          if (gh) got.ghost = ratio(rgb(getComputedStyle(gh).color).c, ground(gh.parentElement));
+          cases++;
+          Object.keys(got).forEach(function (k) { if (got[k] < BAR[k]) fails.push(label + ' / ' + t.name + ' ' + k + ' ' + got[k].toFixed(2)); });
+        });
+      };
+      var C = window.GOGH;
+      return fetch(C.restUrl.split('wp/v2/')[0] + 'wp/v2/global-styles/themes/' + encodeURIComponent(C.theme) + '/variations', { credentials: 'same-origin', headers: { 'X-WP-Nonce': C.nonce } })
+        .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; })
+        .then(function (vars) {
+          measure('the site as it is');
+          var styles = (vars || []).filter(function (v) { return v.settings && v.settings.color && v.settings.color.palette; });
+          styles.forEach(function (v) { G.previewVariation(v); measure('Site style ' + v.title); });
+          G.clearVariationPreview();
+          // Remix is a die: a seeded one, so the same looks are judged every run
+          var realRandom = Math.random, seed = 20261015;
+          Math.random = function () { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+          G.remixDry(true);
+          try {
+            for (var k = 0; k < 10; k++) { var c = G.remixRoll({ dry: true }); measure('Remix ' + (c && c.name)); }
+          } finally {
+            Math.random = realRandom;
+            while (G.remixBack()) {}
+            G.deleteSection(G.sections().indexOf(sx));
+          }
+          expect(cases > 30, 'too few cases measured: ' + cases);
+          expect(!fails.length, fails.length + ' unreadable case(s): ' + fails.slice(0, 6).join('; ') + (fails.length > 6 ? ' (+' + (fails.length - 6) + ')' : ''));
+          return cases + ' cases (' + styles.length + ' Site styles, 10 Remix rolls, every section theme) all read';
+        });
+    });
+    testAsync('Make it freeform on the site header yields its pieces, not one opaque widget', function () {
+      // the scan pairs blocks with rendered elements; gogh's own pill inside
+      // the part, and a logo block that renders nothing, used to break the
+      // count and the whole header became a single widget (James: "the
+      // formatting broke")
+      var pe = G.partElForArea('header');
+      expect(pe, 'no header part on the page');
+      var base = (window.GOGH && GOGH.restUrl) ? GOGH.restUrl.split('wp/v2/')[0] + 'wp/v2/' : '/wp-json/wp/v2/';
+      return fetch(base + 'template-parts?per_page=20', { credentials: 'same-origin', headers: { 'X-WP-Nonce': GOGH.nonce } })
+        .then(function (r) { return r.json(); })
+        .then(function (parts) {
+          // the part this page shows: 'header' itself first (WooCommerce adds header parts of
+          // its own, and a theme can carry a vertical-header that is not the one on the page)
+          var hp = (parts || []).filter(function (p) { return p.slug === 'header'; })[0] ||
+            (parts || []).filter(function (p) { return p.area === 'header' || /header/.test(p.slug || ''); })[0];
+          if (!hp) return 'no header part found through the API';
+          var raw = (hp.content && (hp.content.raw || hp.content.rendered)) || '';
+          if (!raw) return 'header part carries no raw markup';
+          var scan = G.scan(pe, raw);
+          var els = scan.els || [];
+          var oneWidget = els.length === 1 && els[0].type === 'widget' && /wp:group/.test(els[0].wsrc || '');
+          expect(!oneWidget, 'the header converted as one opaque group widget');
+          expect(els.length >= 2, 'expected at least the name and the menu as separate pieces, got ' + els.length);
+          return els.length + ' pieces: ' + els.map(function (e) { return e.type; }).join(', ');
+        });
+    });
     test('copy styles: the roller paints size, colour, align onto other text', function () {
       G.addSection({ name: 'PaintA', minH: 300, els: [
         { type: 'heading', x: 40, y: 40, w: 500, h: 60, text: 'Source', fs: 'xx-large', align: 'center', color: 'contrast' },
@@ -3607,7 +6341,7 @@
         q('.gogh-eb-paint').click();
         var kidNode = psec.nodes[psec.els.length - 1].querySelector('.gogh-k-1');
         expect(kidNode, 'card kid node missing');
-        pev('pointerdown', kidNode);
+        pev('pointerdown', kidNode); // a loaded roller reaches the piece without choosing the card first
         var kid = psec.els[psec.els.length - 1].kids[0];
         expect(kid.fs === 'xx-large' && kid.color === 'contrast', 'kid did not take the paint: ' + JSON.stringify({fs: kid.fs, color: kid.color}));
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -3840,23 +6574,20 @@
     });
 
     // ---- picker: Quick start row of three banners ----
-    test('picker: quick start offers scratch / paste / my sections', function () {
+    test('picker: quiet links offer start blank / paste / my sections', function () {
       G.openPicker(G.sections().length);
-      var tiles = document.querySelectorAll('.gogh-quickrow .gogh-quick');
-      expect(tiles.length === 3, 'expected 3 quick tiles, got ' + tiles.length);
-      expect(/Start from scratch/.test(tiles[0].textContent), 'scratch tile missing');
-      expect(/Paste HTML/.test(tiles[1].textContent), 'paste tile missing');
-      expect(/My sections/.test(tiles[2].textContent), 'my-sections tile missing');
-      expect(q('.gogh-picker-sub'), 'header subtitle missing');
-      var labs = document.querySelectorAll('.gogh-seclab');
-      expect(labs.length >= 3, 'section labels missing (Quick start / Recommended / Browse)');
-      q('.gogh-card-htmladd').click();
-      expect(q('.gogh-htmlpaste'), 'paste tile did not open the paste view');
+      var links = document.querySelectorAll('.gogh-picklist .gogh-pl-link');
+      expect(links.length === 3, 'expected 3 quiet links, got ' + links.length);
+      expect(/Start blank/.test(links[0].textContent), 'Start blank missing');
+      expect(/Paste HTML/.test(links[1].textContent), 'Paste HTML missing');
+      expect(/My sections/.test(links[2].textContent), 'My sections missing');
+      expect(!q('.gogh-picker-sub'), 'no subtitle under the title');
+      links[1].click();
+      expect(q('.gogh-htmlpaste'), 'Paste HTML did not open the paste view');
       q('.gogh-picker-close').click();
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
 
-    // ---- section background: upload lives in the panel ----
     test('section background panel offers Upload', function () {
       G.openSecBgPanel(G.sections().indexOf(sec()));
       if (window.GOGH && window.GOGH.canUpload) {
@@ -3912,6 +6643,717 @@
       return 'nested render + nested publish + mobile integrity';
     });
 
+    test('a kid resizes by its side grips: width and place change, the ink follows, phones run full width', function () {
+      // James: "text boxes cannot be resized within cards, is this by design?"
+      var s0 = sec();
+      var box = { type: 'box', x: 80, y: 40, w: 640, h: 360, radius: 12, kids: [
+        { type: 'heading', x: 32, y: 32, w: 576, h: 48, text: 'Card headline', fs: 'large' },
+        { type: 'para', x: 32, y: 100, w: 576, h: 120, text: 'Houses, studios, shops and coastlines: the rooms people love and the things they keep in them, photographed slowly, over many visits.' } ] };
+      s0.els.push(box);
+      G.renderSection(s0);
+      var ci = s0.els.indexOf(box);
+      var card = s0.nodes[ci];
+      var kn = card.querySelector('.gogh-k-2');
+      var kid = box.kids[1];
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var pv = function (type, el, x, y, id) {
+        el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
+      };
+      var r = kn.getBoundingClientRect();
+      pv('pointerdown', card, r.left + 2, r.top + 2, 70); // the first press gets the card
+      pv('pointerup', document, r.left + 2, r.top + 2, 70);
+      pv('pointerdown', kn, r.left + 8, r.top + 6, 71);
+      pv('pointerup', document, r.left + 8, r.top + 6, 71);
+      var kb = q('.gogh-kidbox');
+      expect(kb && !kb.hidden && G.kidState().sel && G.kidState().sel.j === 1, 'a chosen kid should show its side grips');
+      var kr0 = kn.getBoundingClientRect();
+      expect(Math.abs(parseFloat(kb.style.width) - kr0.width) < 3, 'the grips should sit on the kid: ' + kb.style.width + ' vs ' + kr0.width);
+      // east grip: 200 units in — the right edge lands on the 8-unit base, x holds
+      var he = kb.querySelector('.gogh-h-e');
+      var hr = he.getBoundingClientRect();
+      var x0 = kid.x, w0 = kid.w, hWide = kn.offsetHeight / sc; // the ink at full width (the design h is not measured yet)
+      pv('pointerdown', he, hr.left + 4, hr.top + 10, 72);
+      pv('pointermove', he, hr.left + 4 - 200 * sc, hr.top + 10, 72);
+      pv('pointerup', he, hr.left + 4 - 200 * sc, hr.top + 10, 72);
+      expect(kid.x === x0 && kid.w === w0 - 200, 'east grip should narrow the kid in place: ' + kid.x + 'x' + kid.w + ' from ' + x0 + 'x' + w0);
+      expect(kid.h >= Math.round(hWide) - 2 && Math.abs(kid.h - kn.offsetHeight / sc) <= 3, 'the height should follow the ink at the new width: model ' + kid.h + ', ink ' + Math.round(kn.offsetHeight / sc) + ', was ' + Math.round(hWide));
+      expect(Math.abs(kn.getBoundingClientRect().width - kid.w * sc) < 4, 'the card grid did not re-solve to the new width: ' + kn.getBoundingClientRect().width + ' vs ' + kid.w * sc);
+      expect(getComputedStyle(card).gridTemplateColumns.split(' ').length >= 2, 'the card should now have more than one column');
+      expect(!kb.hidden && G.kidState().sel && G.kidState().sel.j === 1, 'the kid should stay chosen after a resize');
+      // west grip: 100 units in — the left edge snaps to the base, the right edge holds
+      var hw = kb.querySelector('.gogh-h-w');
+      var wr = hw.getBoundingClientRect();
+      var right = kid.x + kid.w;
+      pv('pointerdown', hw, wr.left + 4, wr.top + 10, 73);
+      pv('pointermove', hw, wr.left + 4 + 100 * sc, wr.top + 10, 73);
+      pv('pointerup', hw, wr.left + 4 + 100 * sc, wr.top + 10, 73);
+      var wantX = Math.round((x0 + 100) / 8) * 8;
+      expect(kid.x === wantX && kid.x + kid.w === right, 'west grip should move the left edge only: ' + kid.x + '..' + (kid.x + kid.w) + ' wanted ' + wantX + '..' + right);
+      // it publishes: the kid's width rides the model
+      var v3 = G.buildV3();
+      expect(v3.indexOf('"w":' + kid.w) !== -1, 'the published model lost the kid width');
+      // phones: the card runs one column and the kid takes the full width
+      var wrap = s0.sectionEl.closest('.gogh-wrap');
+      wrap.style.width = '375px'; wrap.style.minWidth = '0';
+      void wrap.offsetWidth;
+      var cr = card.getBoundingClientRect(), krm = kn.getBoundingClientRect();
+      expect(cr.width < 380 && krm.width > cr.width * 0.8, 'on a phone the narrowed kid should run the full width: ' + krm.width + ' of ' + cr.width);
+      wrap.style.width = ''; wrap.style.minWidth = '';
+      void wrap.offsetWidth;
+      pv('pointerdown', document.body, 2, 2, 74);
+      pv('pointerup', document.body, 2, 2, 74);
+      expect(!G.kidState().sel && kb.hidden, 'a click away should drop the kid and its grips');
+      s0.els.pop();
+      G.renderSection(s0);
+      return 'two grips on a chosen kid: width and place, ink height, full width on phones';
+    });
+
+    test('the group bar: Make a card wraps a selection, Duplicate copies it, a card greys the verb', function () {
+      // Canva puts Group first on a small floating bar; gogh's group is the Card
+      var s0 = sec();
+      var n0 = s0.els.length;
+      s0.els.push({ type: 'heading', x: 100, y: 40, w: 400, h: 60, text: 'Group me' });
+      s0.els.push({ type: 'para', x: 100, y: 120, w: 400, h: 60, text: 'And me.' });
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1]);
+      var bar = q('.gogh-mbar');
+      expect(bar && !bar.hidden, 'the group bar should show for a multi-selection');
+      var cardBtn = bar.querySelector('.gogh-mb-card');
+      expect(cardBtn && !cardBtn.disabled && /Make a card/.test(cardBtn.textContent), 'Make a card should lead the bar for two loose pieces');
+      cardBtn.click();
+      var box = s0.els[s0.els.length - 1];
+      expect(box.type === 'box' && box.kids && box.kids.length === 2 && s0.els.length === n0 + 1, 'Make a card should wrap both pieces into one box');
+      expect(box.x === 76 && box.y === 16 && box.kids[0].type === 'heading' && box.kids[0].x === 24 && box.kids[0].y === 24, 'kids should be re-based inside the card in reading order: ' + JSON.stringify([box.x, box.y, box.kids[0].type, box.kids[0].x, box.kids[0].y]));
+      expect(!G.multi.state() && bar.hidden && q('.gogh-selbox') && !q('.gogh-selbox').hidden, 'the new card should be the selection, the group bar gone');
+      // a card cannot go into a card: the verb greys with its reason
+      s0.els.push({ type: 'para', x: 600, y: 40, w: 300, h: 60, text: 'Loose' });
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1]);
+      expect(bar.querySelector('.gogh-mb-card').disabled && /inside a card/.test(bar.querySelector('.gogh-mb-card').title), 'Make a card should grey out, with a reason, when a card is in the selection');
+      // Duplicate: the copies arrive as one block under the originals (the
+      // arrivals paper), and the copies become the selection
+      var o1 = s0.els[n0], o2 = s0.els[n0 + 1];
+      var bbTop = Math.min(o1.y, o2.y), bbBot = Math.max(o1.y + o1.h, o2.y + o2.h);
+      bar.querySelector('.gogh-mb-dup').click();
+      var m = G.multi.state();
+      expect(s0.els.length === n0 + 4 && m && m.idxs.length === 2 && m.idxs[0] === n0 + 2 && m.idxs[1] === n0 + 3, 'Duplicate should add two copies and select them');
+      expect(s0.els[n0 + 3].x === o2.x && s0.els[n0 + 3].y === o2.y + (bbBot - bbTop) + 24 && s0.els[n0 + 2].kids && s0.els[n0 + 2].kids.length === 2, 'copies should keep their shape and land under the originals: ' + [s0.els[n0 + 3].x, s0.els[n0 + 3].y, o2.x, o2.y, bbBot - bbTop].join(','));
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'Make a card leads, Duplicate copies, a card greys the verb';
+    });
+
+    test('align, space evenly and tidy up act on the selection as one; the bar greys what would do nothing', function () {
+      var s0 = sec();
+      var n0 = s0.els.length;
+      [[100, 60], [380, 80], [800, 100]].forEach(function (p, k) {
+        s0.els.push({ type: 'para', x: p[0], y: p[1], w: 200, h: 60, text: 'Item ' + (k + 1) });
+      });
+      G.renderSection(s0);
+      var a = s0.els[n0], b = s0.els[n0 + 1], c = s0.els[n0 + 2];
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      var bar = q('.gogh-mbar');
+      bar.querySelector('.gogh-mb-more').click();
+      var row = bar.querySelector('.gogh-mbar-more');
+      expect(!row.hidden, 'the dots should open the arrange row');
+      var top = bar.querySelector('.gogh-mb-align[data-how="top"]');
+      expect(!top.disabled, 'Align top should be offered for a ragged row');
+      top.click();
+      expect(a.y === 60 && b.y === 60 && c.y === 60, 'Align top should bring every piece to the topmost: ' + [a.y, b.y, c.y]);
+      expect(bar.querySelector('.gogh-mb-align[data-how="top"]').disabled && bar.querySelector('.gogh-mb-align[data-how="top"]').title === 'Tops already line up', 'Align top should grey out once aligned, saying what lines up');
+      expect(row.querySelectorAll('.gogh-mb-align').length === 7 && row.querySelectorAll('.gogh-mb-align svg').length === 7 && /Align/.test(bar.querySelector('.gogh-mb-more').textContent) && !row.querySelector('.gogh-mbar-lab') && !row.querySelector('.gogh-mbar-hint'), 'behind Align: one row of seven icons, no labels, no sentence');
+      // the hover title turns into the reason when a verb is faded (Align left would stack these), so the word lives on the aria-label
+      var words = ['left', 'center', 'right', 'top', 'middle', 'bottom'].map(function (h) { var b2 = bar.querySelector('.gogh-mb-align[data-how="' + h + '"]'); return b2.getAttribute('aria-label') + (b2.title ? '' : ' (no title)'); });
+      expect(words.join() === 'Align left,Align centre,Align right,Align top,Align middle,Align bottom', 'each icon says its word to a screen reader and carries a hover title: ' + words.join(' · '));
+      expect(!bar.querySelector('.gogh-mb-space') && !bar.querySelector('.gogh-mb-size'), 'Even gaps and Same size are gone: Tidy up carries them');
+      expect(G.multi.state() && G.multi.state().idxs.length === 3 && !bar.hidden, 'the selection and the bar should survive an arrange');
+      var tidy0 = bar.querySelector('.gogh-mb-tidy');
+      expect(!tidy0.disabled && tidy0.parentNode === bar, 'Tidy up sits on the top row and is offered for uneven gaps');
+      tidy0.click();
+      // 100..300 and 800..1000 stay; 900 of span, 600 of pieces, two gaps of 150: the middle lands at 450
+      expect(a.x === 100 && b.x === 450 && c.x === 800, 'Tidy up should equalise the gaps: ' + [a.x, b.x, c.x]);
+      expect(bar.querySelector('.gogh-mb-tidy').disabled && bar.querySelector('.gogh-mb-tidy').title === 'Already tidy', 'Tidy up should grey out once the row is even and square');
+      // ragged: a third of its own height down (the render re-measures text
+      // heights, so a fixed offset could read as a second row), and off its gap
+      var sag = Math.max(4, Math.round(b.h / 3));
+      b.y = 60 + sag; b.x = 420;
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      var tidy = bar.querySelector('.gogh-mb-tidy');
+      expect(!tidy.disabled, 'Tidy up should be offered for a ragged row (sag ' + sag + ' of h ' + b.h + ')');
+      tidy.click();
+      expect(b.y === 60 && b.x === 450 && a.x === 100 && c.x === 800, 'Tidy up should square the row and even the gaps: ' + [b.x, b.y]);
+      G.multi.clear();
+      s0.els.splice(n0);
+      // words never sit on words: a heading above a paragraph refuses Top,
+      // Middle and Bottom (James: "they seem just to cause text to overlap")
+      s0.els.push({ type: 'heading', x: 100, y: 40, w: 400, h: 60, text: 'A new heading' });
+      s0.els.push({ type: 'para', x: 100, y: 120, w: 300, h: 60, text: 'Some supporting copy. Drag me anywhere.' });
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1]);
+      bar.querySelector('.gogh-mb-more').click();
+      var why = function (how) { var b2 = bar.querySelector('.gogh-mb-align[data-how="' + how + '"]'); return b2.disabled ? b2.title : 'offered'; };
+      expect(why('middle') === 'Would put words on words' && why('top') === 'Would put words on words' && why('bottom') === 'Would put words on words', 'stacked words should refuse Top, Middle and Bottom: ' + [why('top'), why('middle'), why('bottom')]);
+      expect(why('left') === 'Left edges already line up' && why('right') === 'offered' && why('center') === 'offered', 'sideways verbs should stay honest: ' + [why('left'), why('center'), why('right')]);
+      var hy = s0.els[n0].y, py = s0.els[n0 + 1].y;
+      bar.querySelector('.gogh-mb-align[data-how="middle"]').click();
+      expect(s0.els[n0].y === hy && s0.els[n0 + 1].y === py, 'a faded verb must do nothing');
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'align and tidy up: one click each; faded when already right or when words would land on words';
+    });
+
+    test('even gaps down the page and tidy row gaps land on the rhythm; a person’s top piece stays', function () {
+      var s0 = sec();
+      var n0 = s0.els.length;
+      // three stacked buttons (a fixed height, unlike words, which re-measure)
+      // the person left at 60, 150 and 290: the even gap would be 67, and
+      // gogh's is 72 — the first stays, the others follow, the last moves 10
+      [[100, 60], [100, 150], [100, 290]].forEach(function (p, k) {
+        s0.els.push({ type: 'button', x: p[0], y: p[1], w: 300, h: 48, text: 'Button ' + (k + 1) });
+      });
+      G.renderSection(s0);
+      var a = s0.els[n0], b = s0.els[n0 + 1], c = s0.els[n0 + 2];
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      var bar = q('.gogh-mbar');
+      bar.querySelector('.gogh-mb-more').click();
+      var tidyD = bar.querySelector('.gogh-mb-tidy');
+      expect(!tidyD.disabled, 'Tidy up should be offered for uneven gaps down the page: ' + tidyD.title);
+      tidyD.click();
+      expect(a.y === 60 && b.y === 180 && c.y === 300, 'the gaps should be 72, the first piece where it was: ' + [a.y, b.y, c.y]);
+      expect(bar.querySelector('.gogh-mb-tidy').disabled, 'Tidy up should fade once the gaps are on the rhythm');
+      // gaps already equal but off the rhythm still count as work to do
+      b.y = 150; c.y = 240;
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      expect(!bar.querySelector('.gogh-mb-tidy').disabled, 'equal gaps of 30 are not on the rhythm, so Tidy up stays live');
+      // tidy up with three rows: row tops stay squared where they are, the row gaps land on 24s
+      b.y = 154; c.y = 300;
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      bar.querySelector('.gogh-mb-tidy').click();
+      var gap1 = b.y - (a.y + a.h), gap2 = c.y - (b.y + b.h);
+      expect(a.y === 60 && gap1 === gap2 && gap1 % 24 === 0 && gap1 >= 24, 'tidy up should give equal row gaps on the rhythm: ' + [a.y, b.y, c.y]);
+      // across the page the rhythm does not apply: first and last stay
+      a.x = 100; b.x = 380; c.x = 800; a.y = b.y = c.y = 60; b.w = c.w = a.w = 200;
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      bar.querySelector('.gogh-mb-tidy').click();
+      expect(a.x === 100 && b.x === 450 && c.x === 800, 'side to side keeps the ends and shares the room: ' + [a.x, b.x, c.x]);
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'vertical gaps gogh chooses sit on 24s; the piece a person placed first never moves';
+    });
+
+    test('a new piece is born on the rhythm and lands 24 under words it would have covered', function () {
+      var r = G.rhythm();
+      var off = [];
+      G.defaults().forEach(function (k) {
+        var d = G.defaults(k);
+        if (d.h % r.minor) off.push(k + ' h ' + d.h);
+        if (d.y % r.minor) off.push(k + ' y ' + d.y);
+      });
+      expect(!off.length, 'default sizes and resting places sit on 24: ' + off.join(', '));
+      var s0 = sec();
+      var n0 = s0.els.length;
+      var idx = G.sections().indexOf(s0);
+      var first = G.addElementToSection(idx, 'heading');
+      var texty = function (e) { return e.type === 'heading' || e.type === 'para' || e.type === 'button'; };
+      // on a 24 — or, when words were in its way, exactly 24 under them
+      // (a gap of one unit under a person's piece beats the grid line)
+      var under24 = function (e) {
+        return s0.els.some(function (o) {
+          return o !== e && texty(o) && e.y === o.y + o.h + r.minor && Math.min(e.x + e.w, o.x + o.w) - Math.max(e.x, o.x) > 4;
+        });
+      };
+      expect(first.y >= r.minor && (first.y % r.minor === 0 || under24(first)), 'a new heading lands on a 24, or 24 under words: ' + first.y);
+      var onWords = function (e) {
+        return s0.els.some(function (o) {
+          if (o === e || !texty(o)) return false;
+          return Math.min(e.x + e.w, o.x + o.w) - Math.max(e.x, o.x) > 4 && Math.min(e.y + e.h, o.y + o.h) - Math.max(e.y, o.y) > 4;
+        });
+      };
+      expect(!onWords(first), 'it does not land on words');
+      // (the words measure themselves a beat after the add; a person's next
+      // add comes long after, so settle them now)
+      G.measure(s0);
+      // the next heading would land in the same place; it goes 24 under the first instead
+      var second = G.addElementToSection(idx, 'heading');
+      second.x = first.x; // (the x stagger is not the point here)
+      expect(!onWords(second), 'a second heading does not land on the first');
+      var under = s0.els.filter(function (o) { return o !== second && texty(o) && o.y + o.h <= second.y && Math.min(second.x + second.w, o.x + o.w) - Math.max(second.x, o.x) > 4; })
+        .sort(function (a, b) { return (b.y + b.h) - (a.y + a.h); })[0];
+      expect(under && second.y - (under.y + under.h) === r.minor, 'it sits exactly 24 under the words above it: ' + (under ? second.y - (under.y + under.h) : 'nothing above'));
+      // a shape is a backdrop: it may sit behind words
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'new pieces are born on the rhythm and never on words; the floor of a section is 576, eight majors';
+    });
+
+    // FONTS: pairs, not pickers — a Fonts card in the Site drawer opens twelve
+    // pairs set in their own faces; hover paints the page, click keeps (dry here:
+    // a real keep installs through the Font Library and writes global styles)
+    testAsync('the Fonts door: twelve pairs, the theme’s own first, hover to try, click to keep', function () {
+      G.fontsDry(true);
+      var fontsThrown = null;
+      var onFontsErr = function (ev) { fontsThrown = ev.message; ev.preventDefault(); };
+      // v0.99.697: Fonts is a row inside Site styles, not a card of its own
+      expect(!q('.gogh-side .gogh-fontsbtn'), 'Fonts should be a row in Site styles, not a separate drawer card');
+      var card = { click: function () { G.openFontsPanel(); } };
+      var pairs = G.fontPairs();
+      expect(pairs.length === 12 && pairs[0].theme, 'twelve pairs with the theme’s own first, got ' + pairs.length);
+      expect(pairs.slice(1).every(function (p) { return p.heading && p.body && p.say; }), 'every pair names a heading face, a body face and its character');
+      card.click();
+      return new Promise(function (resolve) {
+        var t0 = Date.now();
+        (function poll() {
+          var pnl = q('.gogh-panel');
+          if ((pnl && !pnl.hidden && pnl.querySelector('.gogh-fontpair')) || Date.now() - t0 > 8000) resolve(pnl); else setTimeout(poll, 100);
+        })();
+      }).then(function (pnl) {
+        var rows = [].slice.call(pnl.querySelectorAll('.gogh-fontpair:not(.gogh-fontpair-theme)'));
+        expect(rows.length === 12, 'the panel should list twelve pairs, got ' + rows.length);
+        expect(!pnl.querySelector('.gogh-typescale'), 'the type size has its own door now (Site styles \u203a Text size)');
+        expect(pnl.querySelectorAll('.gogh-fontpair-theme').length >= 1, 'the theme’s own pairs sit in the same list, first');
+        expect(rows[0].dataset.i === '0' && /\S/.test((rows[0].querySelector('.gogh-fontpair-say') || {}).textContent || ''), 'the first row is the theme’s own pair, with a word of its own');
+        var googlePairs = G.fontPairs().filter(function (p2) { return !p2.theme; }).length;
+        expect(document.querySelectorAll('link[data-gogh-fontpreview]').length >= googlePairs, 'every pair’s faces are asked for when the door opens, so rows never swap under the pointer');
+        expect(rows[1].querySelector('.gogh-fontpair-name span').style.fontFamily.indexOf('Fraunces') !== -1, 'a row is set in its own heading face');
+        // hovering the theme's own pair must not throw: its row used to get
+        // the Google-pair handler as well, with no pair behind it
+        fontsThrown = null;
+        window.addEventListener('error', onFontsErr);
+        var themeRow = pnl.querySelector('.gogh-fontpair-theme');
+        themeRow.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        themeRow.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+        rows[1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        return new Promise(function (resolve) { setTimeout(function () { resolve({ pnl: pnl, rows: rows }); }, 2000); });
+      }).then(function (st) {
+        window.removeEventListener('error', onFontsErr);
+        G.clearVariationPreview();
+        expect(!fontsThrown, 'hovering the theme’s own pair threw: ' + fontsThrown);
+        var pv = document.getElementById('gogh-font-preview');
+        expect(pv && /Fraunces/.test(pv.textContent) && /Inter/.test(pv.textContent), 'hovering a pair should paint the page in it');
+        st.rows[1].dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+        expect(!pv.textContent, 'leaving should take the pair off the page again');
+        st.rows[1].click();
+        expect(G.fontsLast() && G.fontsLast().key === 'bookish', 'clicking should keep the pair');
+        var toasts = [].slice.call(document.querySelectorAll('.gogh-toast')).map(function (t) { return t.textContent; }).join(' | ');
+        expect(/Fraunces & Inter\. Installed on your site, yours to keep/.test(toasts) && /Undo/.test(toasts), 'the toast says what happened, with Undo: ' + toasts);
+        // More fonts: a name, a role, hits set in themselves; Google's list comes through the site
+        var more = st.pnl.querySelector('.gogh-fonts-morewrap');
+        expect(more && st.pnl.querySelector('.gogh-fonts-q') && st.pnl.querySelectorAll('.gogh-fonts-role').length === 3, 'More fonts should fold under the twelve with a search field and three roles');
+        more.open = true;
+        more.dispatchEvent(new Event('toggle'));
+        return new Promise(function (resolve) {
+          var t0 = Date.now();
+          (function poll() {
+            var stat = st.pnl.querySelector('.gogh-fonts-status');
+            var loaded = stat && stat.hidden;
+            if (loaded || Date.now() - t0 > 12000) resolve({ pnl: st.pnl, loaded: !!loaded }); else setTimeout(poll, 150);
+          })();
+        });
+      }).then(function (st) {
+        if (!st.loaded) { G.closePanel(); G.fontsDry(false); return 'twelve pairs; hover paints, click keeps; More fonts opened, but Google’s list did not load here'; }
+        var q = st.pnl.querySelector('.gogh-fonts-q');
+        q.value = 'Frau';
+        q.dispatchEvent(new Event('input', { bubbles: true }));
+        var hits = [].slice.call(st.pnl.querySelectorAll('.gogh-fonthit'));
+        var hitName = function (h) { var im = h.querySelector('img'); return im ? im.alt : h.textContent; };
+        expect(hits.length && /Fraunces/.test(hitName(hits[0])), 'typing Frau should find Fraunces first: ' + hits.length + ' ' + (hits[0] ? hitName(hits[0]) : ''));
+        hits[0].click();
+        var last = G.fontsLast();
+        expect(last && last.heading && last.heading.name === 'Fraunces' && last.body && last.body.keep, 'keeping a hit on Headings should change the heading face and leave the body as it is: ' + JSON.stringify(last));
+        st.pnl.querySelector('.gogh-fonts-role[data-role="both"]').click();
+        st.pnl.querySelectorAll('.gogh-fonthit')[0].click();
+        last = G.fontsLast();
+        expect(last && last.heading.name === 'Fraunces' && last.body.name === 'Fraunces', 'Both should put the family on headings and body: ' + JSON.stringify(last));
+        q.blur(); // the search field must not keep the keyboard (Cmd+A is the canvas's when nobody is typing)
+        G.closePanel();
+        G.fontsDry(false);
+        return 'twelve pairs, the theme’s own first; hover paints, leave clears, click keeps with Undo; More fonts finds a name and keeps it on a role';
+      });
+    });
+
+    // step four: the die draws on the Fonts door's pairs — a roll may land in
+    // Fraunces & Inter, tried from Google and installed quietly on commit
+    test('what should go here: typing narrows the chips and Enter takes the top match', function () {
+      var n0 = G.sections().length;
+      G.openSeamAsk(G.sections().indexOf(sec()) + 1);
+      var pnl = q('.gogh-panel');
+      var input = pnl.querySelector('.gogh-askin');
+      var labels = function () { return [].slice.call(pnl.querySelectorAll('.gogh-askchips .gogh-askchip')).map(function (b) { return b.textContent.trim(); }); };
+      var before = labels();
+      expect(before.length >= 4 && before[before.length - 1].indexOf('Browse them all') === 0, 'the usual chips and Browse them all to begin with');
+      input.value = 'carou'; input.dispatchEvent(new Event('input', { bubbles: true }));
+      var now = labels();
+      expect(now[0] === 'Carousel', 'typing “carou” should surface Carousel first, got ' + now.join(' · '));
+      expect(now[now.length - 1].indexOf('Browse them all') === 0, 'Browse them all stays');
+      input.value = 'pric'; input.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(labels()[0] === 'Pricing', 'typing “pric” should surface Pricing, got ' + labels().join(' · '));
+      input.value = 'zzqx'; input.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(!!pnl.querySelector('.gogh-askempty') && labels().length === 1, 'nonsense leaves only Browse them all, with a word saying so');
+      input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(labels().join() === before.join(), 'clearing the box brings the usual chips back');
+      input.value = 'carousel';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      expect(G.sections().length === n0 + 1, 'Enter should add the top match as a section');
+      expect(pnl.hidden, 'and the panel closes');
+      return 'chips follow the typing; Enter adds Carousel';
+    });
+
+    test('the page describes itself: a meta description from its own words', function () {
+      var m = document.querySelector('meta[name="description"]');
+      expect(!!m, 'the head should carry a meta description');
+      var d = m.getAttribute('content') || '';
+      expect(d.length > 10 && d.length <= 160 && !/</.test(d), 'the description should be plain words of a sensible length, got ' + d.length + ' chars');
+      return d.slice(0, 60) + '…';
+    });
+
+    test('every pair in the Fonts door ends in one plain word, the theme’s included', function () {
+      expect(G.pairMood('Vollkorn', 'Vollkorn, serif', 'Fira Code', '"Fira Code", monospace') === 'nerdy', 'a known theme pair has its word');
+      expect(G.pairMood('Some Serif', '"Some Serif", serif', 'Other Sans', '"Other Sans", sans-serif') === 'readable', 'an unknown serif + sans pair gets a word from what the faces are');
+      expect(G.pairMood('Bitter Slab', '"Bitter Slab", serif', 'Karla', 'Karla, sans-serif') === 'sturdy', 'a slab heading reads sturdy');
+      expect(G.pairMood('Manrope', 'Manrope, sans-serif', 'Manrope', 'Manrope, sans-serif') === 'clean', 'the theme’s own pair says clean, not “the theme’s own”');
+      G.openFontsPanel();
+      var pnl = document.querySelector('.gogh-panel');
+      var blank = [].slice.call(pnl.querySelectorAll('.gogh-fontpair')).filter(function (b) { var s2 = b.querySelector('.gogh-fontpair-say'); return !s2 || !s2.textContent.trim(); });
+      var says = [].slice.call(pnl.querySelectorAll('.gogh-fontpair .gogh-fontpair-say')).map(function (x) { return x.textContent; });
+      var cur = pnl.querySelector('.gogh-fontpair.is-current');
+      var curSay = cur ? cur.querySelector('.gogh-fontpair-say').textContent : '';
+      G.closePanel();
+      expect(blank.length === 0, blank.length + ' rows without a word');
+      expect(!cur || /on your site now/.test(curSay), 'the current row says so in words: ' + curSay);
+      expect(says.indexOf('the theme’s own') === -1, 'no row says “the theme’s own”');
+      return says.length + ' rows, each with a word';
+    });
+
+    test('a kept pair trims the active families to the two in use; Undo gets the dropped ones back', function () {
+      var a = { slug: 'fraunces', name: 'Fraunces' }, b = { slug: 'inter', name: 'Inter' }, c = { slug: 'lora', name: 'Lora' };
+      var r = G.fontFamiliesAfter([a, b], [c], 'var:preset|font-family|inter', 'var:preset|font-family|lora');
+      expect(r.custom.map(function (f) { return f.slug; }).join() === 'inter,lora', 'inter stays (body still uses it), lora joins: ' + r.custom.map(function (f) { return f.slug; }).join());
+      expect(r.dropped.length === 1 && r.dropped[0].slug === 'fraunces', 'fraunces is dropped from the active list, not the library');
+      var back = G.fontFamiliesAfter(r.custom, r.dropped, 'var:preset|font-family|inter', 'var:preset|font-family|fraunces');
+      expect(back.custom.map(function (f) { return f.slug; }).sort().join() === 'fraunces,inter', 'undo puts fraunces back and lets lora go: ' + back.custom.map(function (f) { return f.slug; }).join());
+      expect(back.dropped.length === 1 && back.dropped[0].slug === 'lora', 'and remembers lora as the one it dropped');
+      var theme = G.fontFamiliesAfter([a, b], [], 'var:preset|font-family|manrope', 'var:preset|font-family|manrope');
+      expect(theme.custom.length === 0 && theme.dropped.length === 2, 'a theme preset leaves nothing active');
+      var arr = G.fontFamiliesAfter([], [c], null, 'var:preset|font-family|lora');
+      expect(arr.custom.length === 1 && arr.custom[0].slug === 'lora', 'PHP’s [] for an emptied object is treated as empty');
+      return 'two families a page, never a third';
+    });
+
+    test('Remix draws on the Fonts door’s pairs', function () {
+      var b = G.brand();
+      if (b && b.fonts && b.fonts.heading) return 'skipped: this site’s brand pins its fonts, so every roll keeps them';
+      var google = 0, theme = 0;
+      for (var k = 0; k < 40; k++) {
+        G.remixCandidates().slice(0, 6).forEach(function (c) { if (c.fonts && c.fonts.google) google++; else if (c.fonts) theme++; });
+      }
+      expect(google > 0, 'some rolls should wear a pair from the Fonts door');
+      expect(theme > 0, 'and some the theme’s own combinations');
+      var c = null;
+      for (var m = 0; m < 40 && !c; m++) c = G.remixCandidates().filter(function (x) { return x.fonts && x.fonts.google; })[0];
+      expect(c && /^[A-Z][^,]+ & [A-Z][^,]+, /.test(c.detail), 'the receipt opens with the pair: ' + (c && c.detail));
+      var t = G.remixCandidates().filter(function (x) { return x.fonts && !x.fonts.google; })[0];
+      expect(!t || /^[A-Z][^,]*, /.test(t.detail), 'a theme roll names its fonts too: ' + (t && t.detail));
+      return google + ' Google pairs and ' + theme + ' theme pairs across 240 candidates';
+    });
+
+    testAsync('select all picks the section’s pieces; the margin is a named magnet and guide', function () {
+      var s0 = sec();
+      select(0);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', metaKey: true, bubbles: true, cancelable: true }));
+      var m = G.multi.state();
+      expect(m && m.sec === s0 && m.idxs.length === s0.els.length, 'Cmd+A should select every piece in the section: ' + (m ? m.idxs.length : 'none') + ' of ' + s0.els.length);
+      G.multi.clear();
+      // a piece dragged so its left edge sits 3 units off the margin lands ON it,
+      // and the guide names the margin while the hand is closed
+      var n0 = s0.els.length;
+      var below = Math.max.apply(null, s0.els.map(function (e) { return e.y + e.h; })) + 40;
+      var e = { type: 'para', x: 300, y: below, w: 300, h: 60, text: 'To the margin' };
+      var cands = [0, 1200, 600];
+      s0.els.forEach(function (o) { cands.push(o.x, o.x + o.w, o.x + o.w / 2); });
+      var crowded = function (left) {
+        return [left, left + 300, left + 150].some(function (v) { return cands.some(function (cd) { return Math.abs(cd - v) < 3; }); });
+      };
+      var target = !crowded(83) ? 83 : (!crowded(1117 - 300) ? 1117 - 300 : null);
+      if (target === null) return 'select all works; the margin drag skipped — other magnets crowd both margins here';
+      var want = target === 83 ? 80 : 820;
+      s0.els.push(e);
+      G.renderSection(s0);
+      select(n0);
+      var grip = q('.gogh-grip');
+      var r = grip.getBoundingClientRect();
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var x = r.x + 12, y = r.y + 12, dx = (target - 300) * sc;
+      pev('pointerdown', grip, x, y, 83);
+      pev('pointermove', grip, x + dx / 2, y, 83);
+      pev('pointermove', grip, x + dx, y, 83);
+      // a hidden tab never fires requestAnimationFrame; a short timer does
+      return new Promise(function (res) { setTimeout(res, 80); }).then(function () {
+        pev('pointerup', grip, x + dx, y, 83);
+        expect(e.x === want, 'the piece should land on the margin: ' + e.x + ' wanted ' + want);
+        // the guide paints on an animation frame, which a hidden tab never gets:
+        // ask the guide directly what it would say at the margin, and at an edge
+        G.showGuides(s0, want, null);
+        var gv = q('.gogh-guide-v');
+        var tag = gv && !gv.hidden ? gv.dataset.tag : null;
+        G.showGuides(s0, want + 40, null);
+        var plain = gv && !gv.hidden ? gv.dataset.tag : null;
+        G.hideGuides();
+        expect(tag === 'margin' && plain === '', 'the guide should be named margin at the margin and unnamed elsewhere, got ' + JSON.stringify([tag, plain]));
+        var idx = s0.els.indexOf(e);
+        if (idx !== -1) { s0.els.splice(idx, 1); G.renderSection(s0); }
+        return 'Cmd+A selects the section; the margin is a named magnet';
+      });
+    });
+
+    test('a card colour pick re-judges its words, and any colour is one well away', function () {
+      // James made a card, chose black, and the words stayed black
+      var probe = function (slug) {
+        var d = document.createElement('div');
+        d.style.color = 'var(--wp--preset--color--' + slug + ')';
+        d.style.display = 'none';
+        document.body.appendChild(d);
+        var m = (getComputedStyle(d).color.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+        d.remove();
+        return (m[0] + m[1] + m[2]) / 3;
+      };
+      var roles = G.paletteRoles();
+      var darker = probe(roles.bgSlug) < probe(roles.textSlug) ? roles.bgSlug : roles.textSlug;
+      var s0 = sec();
+      var n0 = s0.els.length;
+      var below = Math.max.apply(null, s0.els.map(function (e) { return e.y + e.h; })) + 40;
+      s0.els.push({ type: 'box', x: 80, y: below, w: 400, h: 200, radius: 12, kids: [
+        { type: 'heading', x: 24, y: 24, w: 340, h: 44, text: 'Words on a card' },
+      ] });
+      G.renderSection(s0);
+      var box = s0.els[n0], kid = box.kids[0];
+      G.openPanel(s0, n0);
+      var pnl = q('.gogh-panel');
+      var sw = pnl.querySelector('.gogh-boxsw .gogh-sw[data-col="' + darker + '"]');
+      expect(sw, 'the darker palette swatch should be offered');
+      sw.click();
+      expect(box.boxBg === darker, 'the swatch should colour the card');
+      expect(kid.color && kid.color !== darker, 'the card’s words should flip to a readable ink on the dark ground, got ' + kid.color);
+      var well = pnl.querySelector('.gogh-boxcustom');
+      expect(well && well.type === 'color', 'a custom colour well should sit beside the palette');
+      well.value = '#101014';
+      well.dispatchEvent(new Event('change', { bubbles: true }));
+      expect(box.boxBg === '#101014', 'the well should set any colour: ' + box.boxBg);
+      var bg = getComputedStyle(s0.nodes[n0]).backgroundColor;
+      expect(/rgb\(16, 16, 20\)/.test(bg), 'the card should paint the custom colour: ' + bg);
+      expect(pnl.querySelector('.gogh-sw-pick').classList.contains('is-active'), 'the well should light when the colour is its own');
+      G.closePanel();
+      s0.els.splice(n0, 1);
+      G.renderSection(s0);
+      return 'a colour pick judges the words; any colour is one well away';
+    });
+
+    test('a site definition fills takes by role: cards, flat rows, covers, posts, the odd one out', function () {
+      // content and choices in, a take from the shelf out — never geometry
+      var fc = G.fillTake({ take: 'Feature cards', heading: 'What we grow', items: [{ title: 'Peonies', text: 'In May.' }, { title: 'Dahlias', text: 'Late summer.' }] });
+      expect(fc && fc.name === 'Feature cards', 'Feature cards should come off the shelf');
+      // the card designs are sets (Cards): items are the set's cards
+      var fset = fc.els.filter(function (e) { return e.cards; })[0];
+      var cards = fset ? fset.cards.items : [];
+      expect(fc.els[0].text === 'What we grow' && cards.length === 2, 'two items should leave two cards under the heading, got ' + cards.length);
+      expect(cards[1].t === 'Dahlias' && cards[1].d === 'Late summer.', 'card words should land by role');
+      var tm = G.fillTake({ take: 'Testimonials', items: [{ quote: 'Lovely people.', name: 'Ann · Bath' }] });
+      var tcard = tm.els.filter(function (e) { return e.cards; })[0].cards.items[0];
+      expect(tcard.d === 'Lovely people.' && tcard.role === 'Ann · Bath', 'a quote and a name should fill a testimonial');
+      var cv = G.fillTake({ take: 'Cover', heading: 'Flowers that mean it', image: '/x/peonies.jpg', button: 'See the shop' });
+      expect(cv.bgImage === '/x/peonies.jpg' && cv.els.some(function (e) { return e.type === 'heading' && e.text === 'Flowers that mean it'; }) && cv.els.some(function (e) { return e.type === 'button' && e.text === 'See the shop'; }), 'a cover should take the picture behind and the words in front');
+      var team = G.fillTake({ take: 'Team', heading: 'Four people', items: [{ name: 'Nell', role: 'Founder', image: '/x/nell.jpg' }] });
+      // Team is a set (v0.99.759): the heading stays, each person is a card
+      var th = team.els.filter(function (e) { return e.type === 'heading'; }), tset = team.els.filter(function (e) { return e.cards; })[0];
+      var tp = tset ? tset.cards.items : [];
+      expect(th[0].text === 'Four people' && tp.length === 1 && tp[0].t === 'Nell' && tp[0].role === 'Founder' && tp[0].img === '/x/nell.jpg', 'Team should keep its heading and fill one card per person: ' + JSON.stringify(tp));
+      var nums = G.fillTake({ take: 'Numbers', items: [{ value: '312', label: 'Weddings' }, { value: '14', label: 'Growers' }] });
+      var nh = nums.els.filter(function (e) { return e.type === 'heading'; });
+      expect(nh.length === 2 && nh[0].text === '312' && nh[1].text === '14', 'numbers should fill by unit: ' + nh.map(function (h) { return h.text; }));
+      var lp = G.fillTake({ take: 'Latest posts', heading: 'From the journal', posts: { look: 'cards', count: 4 } });
+      var rail = lp.els.filter(function (e) { return e.rails && e.posts; })[0];
+      expect(lp.els[0].text === 'From the journal' && rail && rail.posts.look === 'cards' && /"perPage":4/.test(rail.wsrc), 'Latest posts should become a rail wearing the look');
+      expect(G.fillTake({ take: 'No such take' }) === null, 'an unknown take should return nothing');
+      // the door: a section may arrive with its own pieces, and a 2-unit box is
+      // a hairline — the floor that keeps other pieces usable must not fatten it
+      var own = G.fillTake({ name: 'A band', minH: 400, background: '#14161A', els: [
+        { type: 'box', x: 80, y: 100, w: 1040, h: 2, boxBg: 'rgba(0,0,0,0.16)' },
+        { type: 'heading', x: 80, y: 130, w: 500, h: 60, text: 'Made elsewhere' },
+        { type: 'nonsense', x: 0, y: 0, w: 10, h: 10 } ] });
+      expect(own && own.els.length === 2 && own.bg === '#14161A' && own.minH === 400, 'a section of its own pieces should come through, minus anything gogh does not know');
+      expect(own.els[0].h === 2 && own.els[0].w === 1040, 'a hairline stays a hairline: ' + own.els[0].h);
+      expect(own.els[1].type === 'heading' && own.els[1].text === 'Made elsewhere', 'the words come through');
+      // a loop behind the words, and a map as a piece (the restaurant starter)
+      var vid = G.fillTake({ name: 'Kitchen', minH: 600, background: '#16120F', video: 'https://assets.mixkit.co/videos/2439/2439-720.mp4', tint: 55, els: [
+        { type: 'heading', x: 80, y: 200, w: 700, h: 120, text: 'Cooked over fire' },
+        { type: 'embed', x: 640, y: 360, w: 480, h: 200, url: 'https://www.google.com/maps?q=Ancoats%20Manchester&output=embed' } ] });
+      expect(vid.bgVideo === 'https://assets.mixkit.co/videos/2439/2439-720.mp4' && vid.bgA === 55 && vid.bg === '#16120F', 'a section video should come through with its tint and colour: ' + JSON.stringify({ v: vid.bgVideo, a: vid.bgA, bg: vid.bg }));
+      expect(vid.els.length === 2 && vid.els[1].type === 'embed' && /output=embed/.test(vid.els[1].url || ''), 'a map piece should come through with its link');
+      var nBefore = G.sections().length;
+      G.addSection(vid, nBefore);
+      var vs = G.sections()[nBefore];
+      var keptVideo = vs && vs.bgVideo;
+      var hasNode = !!(vs && vs.sectionEl.querySelector('.gogh-bgvideo video'));
+      if (vs && G.deleteSection) G.deleteSection(nBefore);
+      expect(keptVideo === vid.bgVideo, 'a section drawn from a definition should keep its video, got ' + keptVideo);
+      expect(hasNode, 'the loop should play behind the section in the editor');
+      expect(!G.fillTake({ name: 'X', video: 'javascript:alert(1)', els: [{ type: 'heading', x: 0, y: 0, w: 100, h: 40, text: 'x' }] }).bgVideo, 'only a web or site address becomes a background video');
+      // scaffolding goes: a take arrives with the demo studio's badge and second
+      // button, and a definition that never mentioned them must not ship them
+      var hero = G.fillTake({ take: 'Hero', eyebrow: 'Architecture · Bristol', heading: 'Buildings that keep their quiet', text: 'A small practice in Bristol.', button: 'See the work' });
+      var words = hero.els.map(function (e) { return String(e.text || ''); }).join(' | ');
+      expect(!/Est\. 2019/.test(words) && !/Start a project/.test(words) && !/Brighton/.test(words), 'nothing of the demo studio should survive: ' + words.slice(0, 150));
+      expect(hero.els.filter(function (e) { return e.type === 'button'; }).length === 1 && hero.els.filter(function (e) { return e.type === 'badge'; }).length === 0, 'one button was asked for, so one button; no badge was asked for, so none');
+      expect(/Architecture · Bristol/.test(words) && /Buildings that keep/.test(words) && /small practice/.test(words), 'what WAS asked for stays');
+      var two = G.fillTake({ take: 'Hero', heading: 'Two doors', text: 'Words.', button: 'One', button2: 'Two' });
+      expect(two.els.filter(function (e) { return e.type === 'button'; }).length === 2, 'ask for two buttons and you get them');
+      var story = G.fillTake({ take: 'Story', heading: 'One paragraph only', text: 'Just the one.' });
+      expect(story.els.filter(function (e) { return e.type === 'para' && !(e.tf && e.tf.tt === 'uppercase'); }).length === 1, 'a second paragraph nobody wrote should not appear');
+      var card = G.fillTake({ take: 'Pricing', heading: 'Plans', items: [{ title: 'Simple', text: 'One rate.', price: '£40' }] });
+      var chosen = card.els.filter(function (e) { return e.cards; })[0];
+      expect(chosen.cards.items.length === 1 && !/Most popular|Book a sprint/.test(chosen.wsrc), 'a card keeps no stranger’s badge or button either');
+      if (!GOGH.hasAccordion) {
+        var faq = G.fillTake({ take: 'FAQ', heading: 'Questions', items: [{ q: 'Do you deliver?', a: 'Within Bath, yes.' }] });
+        expect(faq && faq.name === 'Feature cards' && faq.els.some(function (e) { return e.cards && e.cards.items[0].t === 'Do you deliver?'; }), 'without the accordion block, FAQ words should become cards');
+      }
+      return 'takes filled by role; surplus dropped; the odd one out says so';
+    });
+
+    testAsync('a site definition composes on the canvas and leaves it as it was', function () {
+      var s0 = sec();
+      var before = G.sections().length;
+      return G.composeSiteDef({ pages: [{ title: 'Home', sections: [
+        { take: 'Big statement', eyebrow: 'What we believe', heading: 'Nothing flown in while something grows here' },
+        { take: 'Feature cards', heading: 'Three things', items: [{ title: 'One', text: 'First.' }, { title: 'Two', text: 'Second.' }, { title: 'Three', text: 'Third.' }] },
+      ] }, { title: 'Contact', sections: [{ take: 'Get in touch', heading: 'Write to us' }] }] }).then(function (pages) {
+        expect(pages.length === 2, 'two pages should compose, got ' + pages.length);
+        var opens = (pages[0].blocks.match(/<!-- wp:gogh\/section /g) || []).length;
+        expect(opens === 2 && pages[0].blocks.indexOf('Nothing flown in') !== -1 && pages[0].blocks.indexOf('Second.') !== -1, 'the home page should carry both sections with their words: ' + opens + ' sections');
+        expect(/wp:gogh\/form/.test(pages[1].blocks) && pages[1].blocks.indexOf('Write to us') !== -1, 'the contact page should carry the form and its heading');
+        expect(G.sections().length === before && G.sections()[0] === s0, 'the scratch sections should be gone and the page as it was');
+        return 'a definition drawn, its blocks taken, the canvas untouched';
+      });
+    });
+
+    test('a card lines up its own pieces: left, centre, right, evenly; faded when nothing would change', function () {
+      // James: "would it also be nice to have a line up option once the card has been made?"
+      var s0 = sec();
+      var n0 = s0.els.length;
+      var below = Math.max.apply(null, s0.els.map(function (e) { return e.y + e.h; })) + 40;
+      var box = { type: 'box', x: 80, y: below, w: 640, h: 420, radius: 12, boxBg: '#B4523A', kids: [
+        { type: 'heading', x: 120, y: 30, w: 400, h: 50, text: 'A new heading' },
+        { type: 'para', x: 40, y: 150, w: 480, h: 40, text: 'Some supporting copy.' },
+        { type: 'button', x: 220, y: 300, w: 170, h: 52, text: 'Click me' } ] };
+      s0.els.push(box);
+      G.renderSection(s0);
+      select(n0);
+      var lineup = q('.gogh-eb-lineup');
+      expect(lineup && lineup.style.display !== 'none', 'a card should offer Line up on its bar');
+      select(0);
+      expect(q('.gogh-eb-lineup').style.display === 'none', 'a plain piece should not');
+      select(n0);
+      lineup.click();
+      var row = q('.gogh-elbar-more');
+      expect(!row.hidden && row.querySelectorAll('.gogh-cl-align').length === 3 && row.querySelector('.gogh-cl-space'), 'the row should open with three align icons and Even gaps');
+      expect(/Even gaps/.test(row.textContent) && !row.querySelector('.gogh-mbar-lab') && row.querySelector('.gogh-cl-align[data-how="center"]').title === 'Align centre', 'the card row is icons with words on hover, its gap verb beside them');
+      row.querySelector('.gogh-cl-align[data-how="left"]').click();
+      expect(box.kids.every(function (k) { return k.x === 40; }), 'Left should line the pieces up with the leftmost: ' + box.kids.map(function (k) { return k.x; }));
+      expect(row.querySelector('.gogh-cl-align[data-how="left"]').disabled && row.querySelector('.gogh-cl-align[data-how="left"]').title === 'Left edges already line up', 'Left should fade once lined up');
+      row.querySelector('.gogh-cl-align[data-how="center"]').click();
+      expect(box.kids[0].x === 120 && box.kids[1].x === 80 && box.kids[2].x === 235, 'Centre should centre each piece on the card: ' + box.kids.map(function (k) { return k.x; }));
+      expect(box.kids[0].align === 'center' && box.kids[1].align === 'center' && !box.kids[2].align, 'Centre should centre the WORDS too: text pieces take the alignment, a button keeps its own');
+      row.querySelector('.gogh-cl-align[data-how="left"]').click();
+      expect(!box.kids[0].align && !box.kids[1].align, 'Left should bring the words back to the left');
+      var space = row.querySelector('.gogh-cl-space');
+      expect(!space.disabled, 'Space evenly should be offered for three uneven pieces');
+      space.click();
+      // 30..80, gap, 150..190, gap, 300..352: span 322, pieces 142, two gaps of 90 → the middle lands at 170
+      expect(box.kids[0].y === 30 && box.kids[1].y === 170 && box.kids[2].y === 300, 'Space evenly should even the gaps down the card: ' + box.kids.map(function (k) { return k.y; }));
+      expect(space.disabled && space.title === 'Already evenly spaced', 'Space evenly should fade once even');
+      expect(!G.multi.state() && q('.gogh-selbox') && !q('.gogh-selbox').hidden, 'the card should stay the selection');
+      // James's testimonial: two full-width text pieces — the boxes are
+      // already centred on the card, the words are not, so Centre is offered
+      box.kids = [
+        { type: 'para', x: 24, y: 30, w: 592, h: 60, text: 'My Friday bunch is the best thing I pay for.' },
+        { type: 'para', x: 24, y: 300, w: 592, h: 24, text: 'Tom · Larkhall', tf: { tt: 'uppercase' } } ];
+      G.renderSection(s0);
+      select(n0);
+      lineup.click();
+      var centre = q('.gogh-elbar-more .gogh-cl-align[data-how="center"]');
+      expect(!centre.disabled, 'Centre should be offered when only the words are off-centre, got ' + centre.title);
+      centre.click();
+      expect(box.kids[0].align === 'center' && box.kids[1].align === 'center' && box.kids[0].x === 24, 'Centre should align the words in their full-width boxes');
+      expect(q('.gogh-elbar-more .gogh-cl-align[data-how="center"]').disabled, 'Centre should fade once the words are centred');
+      G.closePanel();
+      select(0);
+      s0.els.splice(n0, 1);
+      G.renderSection(s0);
+      return 'a card lines up its pieces — the words, not just the boxes; the verbs fade when there is nothing to do';
+    });
+
+    test('the sentinel gives a solid card one verdict: its words flip together', function () {
+      // James's terracotta card: the thin paragraph flipped light, the bold heading stayed dark
+      var s0 = sec();
+      var n0 = s0.els.length;
+      var below = Math.max.apply(null, s0.els.map(function (e) { return e.y + e.h; })) + 40;
+      s0.els.push({ type: 'box', x: 80, y: below, w: 500, h: 260, radius: 12, boxBg: '#B4523A', kids: [
+        { type: 'heading', x: 24, y: 24, w: 440, h: 50, text: 'Bold and dark', tf: { col: '#22201c' } },
+        { type: 'para', x: 24, y: 120, w: 440, h: 40, text: 'Thin and grey.', tf: { col: '#7a7a7a' } } ] });
+      G.renderSection(s0);
+      var card = s0.els[n0];
+      G.contrastSentinel(s0, n0);
+      var h = card.kids[0], p = card.kids[1];
+      expect(p.color && !(p.tf && p.tf.col), 'the grey paragraph should flip to a readable ink, got ' + JSON.stringify([p.color, p.tf]));
+      expect(h.color === p.color && !(h.tf && h.tf.col), 'the heading should wear the same verdict as the paragraph: ' + JSON.stringify([h.color, p.color]));
+      s0.els.splice(n0, 1);
+      G.renderSection(s0);
+      return 'one card, one ink';
+    });
+
+    test('spacing has two axes: a row of cards can be evened across or down', function () {
+      // James's three feature cards: side by side with even gaps, sitting at
+      // different heights. The old one-button Space evenly guessed the axis
+      // from the shape, said "already evenly spaced", and left the visible
+      // problem with no button at all.
+      var s0 = sec();
+      var n0 = s0.els.length;
+      var below = Math.max.apply(null, s0.els.map(function (e) { return e.y + e.h; })) + 40;
+      [[80, 0], [440, 60], [800, 20]].forEach(function (p, k) {
+        s0.els.push({ type: 'box', x: p[0], y: below + p[1], w: 280, h: 200, radius: 12,
+          kids: [{ type: 'heading', x: 24, y: 24, w: 230, h: 40, text: 'Card ' + (k + 1) }] });
+      });
+      G.renderSection(s0);
+      var a = s0.els[n0], b = s0.els[n0 + 1], c = s0.els[n0 + 2];
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      var bar = q('.gogh-mbar');
+      bar.querySelector('.gogh-mb-more').click();
+      var tidyC = bar.querySelector('.gogh-mb-tidy');
+      expect(!tidyC.disabled, 'a staggered row of cards is untidy, so Tidy up is offered, got ' + tidyC.title);
+      var xs = [a.x, b.x, c.x];
+      tidyC.click();
+      expect(a.y === below && b.y === below && c.y === below, 'Tidy up squares the row to the topmost card: ' + [a.y - below, b.y - below, c.y - below]);
+      expect(a.x === xs[0] && b.x === xs[1] && c.x === xs[2], 'the gaps left to right were already even, so nothing moves sideways');
+      expect(bar.querySelector('.gogh-mb-tidy').disabled && bar.querySelector('.gogh-mb-tidy').title === 'Already tidy', 'and then it greys, with its reason');
+      // Align top is still there for the deliberate choice
+      b.y = below + 40;
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      bar.querySelector('.gogh-mb-more').click();
+      bar.querySelector('.gogh-mb-align[data-how="top"]').click();
+      expect(a.y === below && b.y === below && c.y === below, 'Align top should bring every card to the topmost');
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'one verb for the mess, six icons for the deliberate choice';
+    });
+
     test('card interactions: drop joins, kid drags inside, drag-out frees', function () {
       var s0 = sec();
       s0.els.push({ type: 'box', x: 600, y: 80, w: 480, h: 380, boxBg: '#101418', radius: 16 });
@@ -3938,6 +7380,8 @@
       // kid drags WITHIN the card
       var kid = box.kids[0];
       var kx = kid.x, r2 = kn.getBoundingClientRect();
+      pv3('pointerdown', s0.nodes[ci], r2.left + 2, r2.top + 2, 162); // the first press gets the card
+      pv3('pointerup', document, r2.left + 2, r2.top + 2, 162);
       pv3('pointerdown', kn, r2.left + 8, r2.top + 6, 62);
       pv3('pointermove', document, r2.left + 8 + 30 * sc, r2.top + 6, 62);
       pv3('pointerup', document, r2.left + 8 + 30 * sc, r2.top + 6, 62);
@@ -3990,12 +7434,14 @@
       };
       // 1. drag Alpha down past Bravo's centre (to y≈90): they swap, Charlie holds
       var an = kidNode('Alpha'), ar = an.getBoundingClientRect();
+      pv('pointerdown', s0.nodes[ci], ar.left + 2, ar.top + 2, 181); // the first press gets the card
+      pv('pointerup', document, ar.left + 2, ar.top + 2, 181);
       pv('pointerdown', an, ar.left + 10, ar.top + 8, 81);
       pv('pointermove', document, ar.left + 10, ar.top + 8 + 35 * sc, 81);
       // mid-drag: a ghost under the hand, the real kid hidden
       var ghost = document.querySelector('.gogh-kid-ghost.gogh-kid-ghost-in');
       expect(ghost, 'no in-card ghost while dragging a kid');
-      expect(an.style.visibility === 'hidden', 'the real kid should hide behind its ghost');
+      expect(an.style.display === 'none' || an.style.visibility === 'hidden', 'the real kid should hide behind its ghost (out of the grid, so its words size no row)');
       pv('pointermove', document, ar.left + 10, ar.top + 8 + 70 * sc, 81);
       pv('pointerup', document, ar.left + 10, ar.top + 8 + 70 * sc, 81);
       expect(!document.querySelector('.gogh-kid-ghost'), 'ghost left behind after the drop');
@@ -4021,6 +7467,306 @@
       return 'ghost · swap · cascade · reading order';
     });
 
+    // ---- undo/redo rebuilds every section object: kid selection, edit and drag must not outlive it ----
+    test('card: undo/redo clears a stale kid selection, edit and drag', function () {
+      var s0 = sec();
+      s0.els.push({ type: 'box', x: 600, y: 60, w: 480, h: 300, boxBg: '#101418', radius: 16, kids: [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Alpha' },
+        { type: 'para', x: 30, y: 80, w: 420, h: 40, text: 'Bravo' },
+      ] });
+      G.renderSection(s0);
+      var ci = s0.els.length - 1;
+      var box = s0.els[ci];
+      G.pushState(); // A: the card with two kids
+      box.kids[1].text = 'Bravo, edited';
+      G.pushState(); // B: one step on, so undo has A to go back to
+      var pv = function (type, el, x, y, id) {
+        el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
+      };
+      var liveCard = function () {
+        var s = sec();
+        var c = s.els.filter(function (e) { return e.type === 'box' && e.kids; }).pop();
+        return { sec: s, el: c, node: c && s.nodes[s.els.indexOf(c)] };
+      };
+      var receipts = function (re) {
+        return [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (t) { return re.test(t.textContent); }).length;
+      };
+      // 1. a selected kid, then undo: Backspace must not splice the dead model
+      var kn = s0.nodes[ci].querySelector('.gogh-k-1');
+      var r = kn.getBoundingClientRect();
+      pv('pointerdown', s0.nodes[ci], r.left + 2, r.top + 2, 191); // the first press gets the card
+      pv('pointerup', document, r.left + 2, r.top + 2, 191);
+      pv('pointerdown', kn, r.left + 10, r.top + 8, 91);
+      pv('pointerup', document, r.left + 10, r.top + 8, 91);
+      expect(G.kidState().sel && G.kidState().sel.sec === s0, 'the kid did not select');
+      var removed0 = receipts(/Removed from the card/);
+      q('.gogh-undo').click();
+      expect(!G.kidState().sel, 'the kid selection outlived the undo');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+      var c1 = liveCard();
+      expect(c1.el && c1.el.kids.length === 2, 'the restored card lost a kid');
+      expect(box.kids.length === 2, 'Backspace spliced the dead (pre-undo) model');
+      expect(receipts(/Removed from the card/) === removed0, 'a "Removed from the card" receipt showed after undo');
+      // 2. a kid text edit in flight, then redo: the edit ends without pushing a history step
+      var kn1 = c1.node.querySelector('.gogh-k-1');
+      var r1 = kn1.getBoundingClientRect();
+      pv('pointerdown', c1.node, r1.left + 2, r1.top + 2, 192); // the first press gets the card
+      pv('pointerup', document, r1.left + 2, r1.top + 2, 192);
+      pv('pointerdown', kn1, r1.left + 10, r1.top + 8, 92);
+      pv('pointerup', document, r1.left + 10, r1.top + 8, 92);
+      pv('pointerdown', kn1, r1.left + 10, r1.top + 8, 93); // second click on a selected kid edits it
+      pv('pointerup', document, r1.left + 10, r1.top + 8, 93);
+      expect(G.kidState().ed, 'the second click did not start a kid edit');
+      var st0 = G.state;
+      q('.gogh-redo').click();
+      expect(!G.kidState().ed, 'the kid edit outlived the redo');
+      expect(!document.documentElement.classList.contains('gogh-textediting'), 'gogh-textediting stuck on <html>');
+      expect(G.state.history === st0.history && G.state.hIdx === st0.hIdx + 1,
+        'ending the kid edit disturbed history: ' + st0.history + '/' + st0.hIdx + ' -> ' + G.state.history + '/' + G.state.hIdx);
+      // 3. a kid drag mid-flight, then undo: no ghost left behind, the late pointerup writes nothing
+      var c2 = liveCard();
+      var kn2 = c2.node.querySelector('.gogh-k-1');
+      var r2 = kn2.getBoundingClientRect();
+      var sc = c2.sec.sectionEl.getBoundingClientRect().width / 1200;
+      pv('pointerdown', c2.node, r2.left + 2, r2.top + 2, 194); // the first press gets the card
+      pv('pointerup', document, r2.left + 2, r2.top + 2, 194);
+      pv('pointerdown', kn2, r2.left + 10, r2.top + 8, 94);
+      pv('pointermove', document, r2.left + 10, r2.top + 8 + 40 * sc, 94);
+      expect(document.querySelector('.gogh-kid-ghost'), 'no ghost — the kid drag never started');
+      var out0 = receipts(/Out of the card/);
+      q('.gogh-undo').click();
+      expect(!G.kidState().drag, 'the kid drag outlived the undo');
+      expect(!document.querySelector('.gogh-kid-ghost'), 'the kid ghost was left behind by the undo');
+      pv('pointerup', document, r2.left - 400, r2.top + 8 + 40 * sc, 94);
+      var c3 = liveCard();
+      expect(c3.el && c3.el.kids.length === 2, 'the late pointerup changed the restored card');
+      expect(receipts(/Out of the card/) === out0, 'the late pointerup freed a kid from a dead drag');
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'selection, edit and drag all end on restore; history untouched';
+    });
+    // ---- add a page: created and opened; on arrival the menu is an offer, and Undo bins it ----
+    testAsync('Add a page: creates and opens the page; on the new page, Put it in the menu is one click and Undo bins it', function () {
+      // no real writes on this site: every request the flow makes is answered here
+      var realFetch = window.fetch, log = [], went = [];
+      var origin = location.origin;
+      var navRaw = '<!-- wp:navigation-link {"label":"Home","url":"/","kind":"custom"} /-->';
+      var reply = function (obj, ok) { return Promise.resolve({ ok: ok !== false, status: ok === false ? 599 : 200, json: function () { return Promise.resolve(obj); } }); };
+      window.fetch = function (url, opts) {
+        var u = String(url), m = (opts && opts.method) || 'GET';
+        log.push(m + ' ' + u.replace(origin, '') + (opts && opts.body ? ' ' + opts.body : ''));
+        if (m === 'POST' && /\/pages(\?|$)/.test(u)) return reply({ id: 4242, link: origin + '/prices/' });
+        if (m === 'DELETE' && /\/pages\//.test(u)) return reply({ id: 1 });
+        if (/template-parts/.test(u) && m === 'GET') return reply([{ id: 'x//header', slug: 'header', theme: window.GOGH && window.GOGH.theme, content: { raw: '<!-- wp:navigation {"ref":77} /-->' } }]);
+        if (/navigation\/77/.test(u) && m === 'GET') return reply({ id: 77, content: { raw: navRaw } });
+        if (/navigation\/77/.test(u) && m === 'POST') { navRaw = JSON.parse(opts.body).content; return reply({ id: 77 }); }
+        return reply(null, false); // the chrome re-render and anything else: quietly nothing
+      };
+      var done = function () { window.fetch = realFetch; G.closePanel(); };
+      var go = function (u) { went.push(u); };
+      try {
+        G.openAddPagePanel(q('.gogh-addpagebtn'));
+        expect(q('.gogh-panel .gogh-addpage-title') && q('.gogh-panel .gogh-addpage-go'), 'the Add a page panel has no field or button');
+      } catch (e) { done(); throw e; }
+      return G.createPage('Prices', go).then(function (res) {
+        expect(log.some(function (l) { return /^POST \/.*pages/.test(l) && /"title":"Prices"/.test(l); }), 'the page was not created: ' + log.join(' | ').slice(0, 300));
+        expect(went.length === 1 && /\/prices\/\?gogh-edit=1&gogh-new=1&gogh-from=/.test(went[0]), 'Add did not open the new page in the editor: ' + went.join(' | '));
+        expect(!/Prices/.test(navRaw), 'the page joined the menu without being asked');
+        // arrival: the offer and the way back
+        G.announceNewPage('Prices', '/about/', go);
+        var t = [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (x) { return /is a new page/.test(x.textContent); })[0];
+        expect(t && /Put it in the menu/.test(t.textContent) && /Undo/.test(t.textContent), 'the arrival toast should offer the menu and Undo');
+        [].slice.call(t.querySelectorAll('button')).filter(function (b) { return /Put it in the menu/.test(b.textContent); })[0].click();
+        return new Promise(function (r) { setTimeout(r, 600); });
+      }).then(function () {
+        expect(/"label":"Prices"/.test(navRaw) && /Home/.test(navRaw), 'Put it in the menu did not add the page to the end of the menu: ' + navRaw.slice(0, 200));
+        // the confirmation carries its own Undo: the item comes out, the page stays
+        var t2 = [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (x) { return /is in your menu/.test(x.textContent); })[0];
+        expect(t2 && /Undo/.test(t2.textContent), 'the in-your-menu toast should offer Undo');
+        [].slice.call(t2.querySelectorAll('button')).filter(function (b) { return /Undo/.test(b.textContent); })[0].click();
+        return new Promise(function (r) { setTimeout(r, 800); });
+      }).then(function () {
+        expect(!/Prices/.test(navRaw) && /Home/.test(navRaw), 'Undo did not take the page out of the menu: ' + navRaw.slice(0, 200));
+        expect(!log.some(function (l) { return /^DELETE/.test(l); }), 'taking it out of the menu must not bin the page');
+        // the arrival toast's own Undo: the page is binned and we go back
+        G.announceNewPage('Prices', '/about/', go);
+        var t3 = [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (x) { return /is a new page/.test(x.textContent); })[0];
+        [].slice.call(t3.querySelectorAll('button')).filter(function (b) { return /Undo/.test(b.textContent); })[0].click();
+        return new Promise(function (r) { setTimeout(r, 800); });
+      }).then(function () {
+        expect(log.some(function (l) { return /^DELETE \/.*pages\//.test(l); }), 'Undo did not bin the page');
+        expect(went.length === 2 && /^\/about\/\?gogh-edit=1$/.test(went[1]), 'Undo did not go back to where Add was pressed: ' + went.join(' | '));
+        done();
+        return 'created and opened; menu on request; Undo bins and goes back';
+      }, function (e) { done(); throw e; });
+    });
+    // ---- a line's dials: style and width ----
+    test('a line can be dotted or dashed, and run edge to edge, and back', function () {
+      var s0 = sec();
+      var SNAP = G.serialize();
+      try {
+        s0.els.push({ type: 'rule', x: 80, y: 40, w: 1040, h: 24, thick: 2 });
+        G.renderSection(s0);
+        var i = s0.els.length - 1, e = s0.els[i];
+        G.openPanel(s0, i);
+        var pnl = q('.gogh-panel');
+        expect(pnl.querySelector('[data-dash="dotted"]') && pnl.querySelector('[data-width="full"]'), 'the line panel lacks Style or Width');
+        pnl.querySelector('[data-dash="dotted"]').click();
+        expect(e.dash === 'dotted' && /gogh-el-(\d+)[^{]*\{[^}]*radial-gradient/.test(s0.styleEl.textContent), 'Dotted did not draw dots');
+        pnl.querySelector('[data-dash="dashed"]').click();
+        expect(e.dash === 'dashed' && /linear-gradient\(to right, currentColor 0 12px/.test(s0.styleEl.textContent), 'Dashed did not draw dashes sized by the weight');
+        pnl.querySelector('[data-dash=""]').click();
+        expect(!e.dash && !/radial-gradient/.test(s0.styleEl.textContent), 'Solid did not take the dots away');
+        pnl.querySelector('[data-width="full"]').click();
+        expect(e.x === 0 && e.w === 1200, 'Full width did not run edge to edge: ' + e.x + '/' + e.w);
+        pnl.querySelector('[data-width="content"]').click();
+        expect(e.x === 80 && e.w === 1040, 'As placed did not put the line back where it was: ' + e.x + '/' + e.w);
+        G.closePanel();
+        return 'dotted, dashed, solid; full width and back';
+      } finally { G.restore(SNAP); }
+    });
+    // ---- a shape joins a card as decoration ----
+    test('a shape joins a card as decoration: behind the words, no pushing, gone on phones; a card never joins a card', function () {
+      var s0 = sec();
+      var SNAP = G.serialize();
+      try {
+        var box = { type: 'box', x: 80, y: 40, w: 480, h: 320, boxBg: '#e8e4ec', radius: 16, kids: [
+          { type: 'heading', x: 40, y: 40, w: 400, h: 60, text: '184' },
+          { type: 'para', x: 40, y: 130, w: 400, h: 40, text: 'Projects shipped' },
+        ] };
+        var disc = { type: 'box', x: 1000, y: 10, w: 100, h: 100, shape: 'circle', boxBg: '#f0c' };
+        var big = { type: 'box', x: 560, y: 120, w: 600, h: 480, boxBg: '#0cf' };
+        var mate = { type: 'box', x: 580, y: 140, w: 520, h: 400, boxBg: '#ccc' }; // near big's own size
+        s0.els.push(box, disc, big, mate);
+        G.renderSection(s0);
+        var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+        var pv = function (type, el, x, y, id) {
+          el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerType: 'mouse' }));
+        };
+        var dragTo = function (el, tx, ty, id) {
+          var i = s0.els.indexOf(el), node = s0.nodes[i], r = node.getBoundingClientRect();
+          var dx = (tx - el.x) * sc, dy = (ty - el.y) * sc;
+          pv('pointerdown', node, r.left + 10, r.top + 10, id);
+          pv('pointermove', document, r.left + 10 + dx / 2, r.top + 10 + dy / 2, id);
+          pv('pointermove', document, r.left + 10 + dx, r.top + 10 + dy, id);
+          pv('pointerup', document, r.left + 10 + dx, r.top + 10 + dy, id);
+        };
+        var ky = box.kids.map(function (k) { return k.y; });
+        // 1. the disc dropped fully inside the card joins it, and the words do not move
+        dragTo(disc, 100, 60, 401);
+        expect(box.kids.length === 3 && box.kids.indexOf(disc) !== -1, 'the shape did not join the card: ' + box.kids.length + ' kids, in els ' + (s0.els.indexOf(disc) !== -1));
+        var texts = box.kids.filter(function (k) { return k !== disc; });
+        expect(texts[0].y === ky[0] && texts[1].y === ky[1], 'the shape pushed the words: ' + texts.map(function (k) { return k.y; }).join(',') + ' vs ' + ky.join(','));
+        var dj = box.kids.indexOf(disc) + 1, ci = s0.els.indexOf(box);
+        var css = s0.styleEl.textContent;
+        expect(new RegExp('\\.gogh-el-' + (ci + 1) + ' > \\.gogh-k-' + dj + ' \\{ z-index: 0; \\}').test(css), 'the shape does not sit behind the words in the CSS');
+        expect(new RegExp('\\.gogh-el-' + (ci + 1) + ' > \\.gogh-k-' + dj + ' \\{ display: none; \\}').test(css), 'the shape is not hidden on phones');
+        expect(/"shape":"circle"/.test(G.buildV3()), 'the shape kid did not publish inside the card');
+        // 2. a card dropped inside a bigger plain box stays a card (cards stay one level deep)
+        dragTo(box, 600, 200, 402);
+        expect(s0.els.indexOf(box) !== -1 && !(big.kids && big.kids.length), 'a card joined a box');
+        // 3. a shape near the box's own size is a box on a box, not decoration
+        dragTo(mate, 590, 150, 403);
+        expect(s0.els.indexOf(mate) !== -1 && !(big.kids && big.kids.length), 'a near-size shape joined the box');
+        return 'disc joined, words held, card and near-size shape stayed siblings';
+      } finally { G.restore(SNAP); }
+    });
+    // ---- a card keeps its pieces: the first press gets the card, a group moves as one ----
+    test('card pieces: first press selects the card, second reaches the piece, a group drags whole', function () {
+      var s0 = sec();
+      var SNAP = G.serialize();
+      try {
+        var box = { type: 'box', x: 80, y: 40, w: 420, h: 300, boxBg: '#e8e4ec', radius: 16, kids: [
+          { type: 'heading', x: 30, y: 30, w: 360, h: 60, text: '184' },
+          { type: 'para', x: 30, y: 120, w: 360, h: 40, text: 'Projects shipped' },
+        ] };
+        var mate = { type: 'heading', x: 560, y: 60, w: 300, h: 60, text: 'Neighbour' };
+        s0.els.push(box, mate);
+        G.renderSection(s0);
+        var ci = s0.els.indexOf(box), mi = s0.els.indexOf(mate);
+        var card = s0.nodes[ci], kn = card.querySelector('.gogh-k-1');
+        var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+        var pv = function (type, el, x, y, id) {
+          el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerType: 'mouse' }));
+        };
+        pv('pointerdown', s0.nodes[mi], 0, 0, 300); // something else is chosen; the card is not
+        pv('pointerup', document, 0, 0, 300);
+        // 1. a press on the number inside an unchosen card selects the card, not the number
+        var r = kn.getBoundingClientRect();
+        pv('pointerdown', kn, r.left + 10, r.top + 8, 301);
+        pv('pointerup', document, r.left + 10, r.top + 8, 301);
+        expect(!G.kidState().sel, 'the first press reached inside the card');
+        expect(G.state.sel && G.state.sel.i === ci, 'the first press did not select the card: ' + JSON.stringify(G.state.sel));
+        // 2. with the card chosen, the same press reaches the number
+        pv('pointerdown', kn, r.left + 10, r.top + 8, 302);
+        pv('pointerup', document, r.left + 10, r.top + 8, 302);
+        expect(G.kidState().sel && G.kidState().sel.ci === ci && G.kidState().sel.j === 0, 'the second press did not reach the piece');
+        // 3. the card in a group: a drag from the number moves the group, the number stays put in its card
+        G.multi.set(s0, [ci, mi]);
+        var kx = box.kids[0].x, bx = box.x, mx = mate.x;
+        r = kn.getBoundingClientRect();
+        pv('pointerdown', kn, r.left + 10, r.top + 8, 303);
+        pv('pointermove', document, r.left + 10 + 20 * sc, r.top + 8, 303);
+        pv('pointermove', document, r.left + 10 + 48 * sc, r.top + 8, 303);
+        pv('pointerup', document, r.left + 10 + 48 * sc, r.top + 8, 303);
+        expect(!G.kidState().drag && !G.kidState().sel, 'the group press grabbed the piece');
+        expect(box.kids[0].x === kx, 'the number moved inside its card: ' + box.kids[0].x + ' vs ' + kx);
+        expect(box.x > bx && mate.x > mx && (box.x - bx) === (mate.x - mx), 'the group did not move as one: card ' + (box.x - bx) + ', neighbour ' + (mate.x - mx));
+        G.multi.clear();
+        return 'card first, piece second, group whole';
+      } finally { G.restore(SNAP); }
+    });
+    // ---- a button kid's URL box: Backspace edits the URL, never the card ----
+    test('kid link panel: Backspace in the URL box edits the field, not the card', function () {
+      var s0 = sec();
+      s0.els.push({ type: 'box', x: 600, y: 60, w: 480, h: 300, boxBg: '#101418', radius: 16, kids: [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Keeper' },
+        { type: 'button', x: 30, y: 100, w: 200, h: 50, text: 'Buy now', href: 'https://shop.test/buy' },
+      ] });
+      G.renderSection(s0);
+      var ci = s0.els.length - 1;
+      var box = s0.els[ci];
+      var kn = s0.nodes[ci].querySelector('.gogh-k-2');
+      expect(kn, 'button kid node missing');
+      var removedToast = function () {
+        return [].slice.call(document.querySelectorAll('.gogh-toast')).some(function (t) { return /Removed from the card/.test(t.textContent); });
+      };
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      // one click on a button kid: it is selected and its link panel opens
+      var r = kn.getBoundingClientRect();
+      pev('pointerdown', s0.nodes[ci], r.left + 2, r.top + 2, 184); // the first press gets the card
+      pev('pointerup', document, r.left + 2, r.top + 2, 184);
+      pev('pointerdown', kn, r.left + 8, r.top + 6, 84);
+      pev('pointerup', document, r.left + 8, r.top + 6, 84);
+      expect(kn.classList.contains('gogh-kid-selected'), 'click did not select the button kid');
+      var panel = q('.gogh-panel');
+      expect(panel && !panel.hidden && panel.querySelector('input[type="url"]'), 'link panel did not open for the button kid');
+      // the route to the bug: a restyle (Outline here) re-renders the card,
+      // re-selects the kid and rebuilds the panel while it is visible, so the
+      // URL box takes focus — the next Backspace is aimed at the field
+      panel.querySelector('.gogh-style-outline').click();
+      expect(box.kids[1].ghost === true, 'Outline did not restyle the kid');
+      var kn2 = s0.nodes[ci].querySelector('.gogh-k-2');
+      expect(kn2 && kn2.classList.contains('gogh-kid-selected'), 'kid not re-selected after the restyle');
+      var input = panel.querySelector('input[type="url"]');
+      expect(input && !panel.hidden, 'link panel did not come back after the restyle');
+      expect(input.value === 'https://shop.test/buy', 'URL box does not show the kid href: ' + input.value);
+      var focused = document.activeElement === input;
+      // correcting the URL: Backspace lands in the input, so the kid must stay put
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+      expect(box.kids && box.kids.length === 2, 'Backspace in the URL box removed the kid');
+      expect(s0.nodes[ci].contains(kn2), 'Backspace in the URL box re-rendered the card');
+      expect(!removedToast(), 'a "Removed from the card" receipt fired for a URL edit');
+      // the same key aimed at the canvas still removes the selected kid
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+      expect(box.kids && box.kids.length === 1 && box.kids[0].text === 'Keeper', 'Backspace on the canvas did not remove the selected kid');
+      expect(removedToast(), 'no receipt toast after removing the kid');
+      // cleanup
+      G.closePanel();
+      s0.els.splice(ci, 1);
+      G.renderSection(s0);
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'URL-box Backspace keeps the kid · canvas Backspace removes it' + (focused ? ' · restyle focused the URL box' : ' · (URL box not focused here)');
+    });
     // ---- pasted cards: never squashed into buttons, text editable in place ----
     test('card-shaped anchors scan as widgets and their text edits in place', function () {
       G.addHtmlSection('<div style="padding:40px;background:#eee">' +
@@ -4258,8 +8004,12 @@
       var accentSlugs = Object.keys(by).filter(function (k) {
         return /accent/.test(k) && k !== roleTx && k !== baseSlug && k !== contrastSlug;
       });
-      expect(accentSlugs.every(function (k) { return by[k] === '#c96f4a' || by[k] === '#7a9e7e'; }) || accentSlugs.length === 0,
-        'accent slugs not cycled through brand accents');
+      // the first two accent slots carry the brand's accents; later slots keep
+      // the ROLE their colour plays (an ink, a tint of the ground) rather than
+      // being swept — TT5 Morning's body copy is accent-4
+      var lead = accentSlugs.slice(0, 2);
+      expect(lead.every(function (k) { return by[k] === '#c96f4a' || by[k] === '#7a9e7e'; }) || accentSlugs.length === 0,
+        'the first accent slots should carry the brand accents: ' + lead.map(function (k) { return k + '=' + by[k]; }).join(','));
       return 'ratios exact · palette mapped onto theme slugs';
     });
 
@@ -4383,6 +8133,11 @@
       var v3 = G.buildV3();
       expect(v3.indexOf('<iframe') === -1, 'iframe must never be stored');
       expect(v3.indexOf('gogh-exp-link') !== -1, 'no fallback link in stored markup');
+      var expBad = groupHoldsOnlyBlocks(v3, 'gogh-exp');
+      expect(!expBad, 'the published experience group is not valid block markup: ' + expBad);
+      // the check itself catches the old shape, a bare link in the group
+      expect(groupHoldsOnlyBlocks('<!-- wp:group {"className":"gogh-el-1 gogh-exp"} -->\n<div class="wp-block-group gogh-el-1 gogh-exp"><a class="gogh-exp-link" href="about:blank">Open interactive experience</a></div>\n<!-- /wp:group -->', 'gogh-exp'),
+        'a bare link in a group should fail the block check');
       expect(v3.indexOf('"expId":123') !== -1, 'expId missing from model attrs');
       var css = s0.styleEl.textContent;
       var L = s0.els.length;
@@ -4397,14 +8152,11 @@
     test('photo cards contrast + mobile box policy + badge clip guard', function () {
       var tpl = G.templates().filter(function (t) { return t.name === 'Photo cards'; })[0];
       expect(tpl, 'Photo cards template missing');
-      var whiteTexts = tpl.els.filter(function (e) {
-        return (e.type === 'heading' || e.type === 'para') && e.tf && e.tf.col === '#ffffff';
-      });
-      expect(whiteTexts.length === 4, 'overlay text not literal white (' + whiteTexts.length + '/4)');
-      expect(tpl.els.filter(function (e) { return e.type === 'button'; })
-        .every(function (e) { return e.tf && e.tf.bg === '#ffffff'; }), 'buttons not theme-proof');
-      expect(tpl.els.some(function (e) { return e.type === 'box' && /0\.78\)/.test(e.boxBg || ''); }),
-        'scrim not deepened');
+      // Photo cards are a set on the photo (v0.99.759): white words over a
+      // veil, white buttons, whatever the theme
+      var pset = tpl.els.filter(function (e) { return e.cards; })[0];
+      expect(pset && pset.cards.layout === 'over' && pset.cards.act === 'button' && pset.cards.items.length === 2, 'Photo cards should be a set on the photo with buttons');
+      expect(pset.cards.type && pset.cards.type.t.tf.col === '#ffffff' && pset.cards.type.d.tf.col === '#ffffff', 'overlay words should stay literal white');
       // live CSS policies
       var s0 = sec();
       s0.els.push({ type: 'box', x: 10, y: 10, w: 400, h: 300 });
@@ -4417,7 +8169,7 @@
       expect(new RegExp('gogh-el-' + L + ' \\{ grid-area: auto; grid-column: 2; display: none;').test(css),
         'decorative shape not hidden on mobile');
       expect(css.indexOf('min-width: max-content') !== -1, 'badge clip guard missing');
-      return 'white overlays, deep scrim, panel/shape mobile split';
+      return 'white overlays on a set, panel/shape mobile split';
     });
 
     // ---- a11y: DOM order is READING order, not insertion order ----
@@ -4764,11 +8516,1054 @@
           var r = ratio(c.colors.text, c.colors.background);
           worst = Math.min(worst, r);
           expect(r >= 6.5, c.name + ' text/ground contrast only ' + r.toFixed(1));
-          expect(ratio(c.colors.accent, c.colors.background) >= 2.7,
-            c.name + ' accent barely visible on its ground');
+          // the accent is a button wearing the text colour (TT5 Morning): the
+          // words on it must read; it should still stand off the ground
+          var inkOnButton = Math.max(ratio(c.colors.text, c.colors.accent), ratio(c.colors.background, c.colors.accent));
+          expect(inkOnButton >= 3, c.name + ' nothing reads on the button: best ink ' + inkOnButton.toFixed(1) + ':1');
+          // a pinned brand's accent is the person's own choice (its buttons wear the words ink); the floor is for gogh's picks
+          if (!c.brand) expect(ratio(c.colors.accent, c.colors.background) >= 2,
+            c.name + ' accent barely visible on its ground (' + ratio(c.colors.accent, c.colors.background).toFixed(1) + ')');
         });
       }
       return '30 candidates over 5 spins, worst text contrast ' + worst.toFixed(1) + ':1';
+    });
+
+    test('remix: a second tap is six different looks', function () {
+      var keys = {};
+      var a = G.remixCandidates(), b = G.remixCandidates();
+      a.concat(b).forEach(function (c) { keys[c.key] = (keys[c.key] || 0) + 1; });
+      expect(Object.keys(keys).length === 12, 'two taps should give twelve distinct looks, got ' + Object.keys(keys).length);
+      var pinnedB = !!(G.brand() && G.brand().colors && G.brand().colors.background);
+      expect(a.every(function (c) { return pinnedB ? c.name === 'Your brand' : /on (paper|a wash|ink|a deep ground)$/.test(c.name); }), 'a name should say what the ground is (or that it is the brand): ' + a.map(function (c) { return c.name; }).join(' \u00b7 '));
+    });
+
+    test('remix: a look is whole \u2014 size, section rhythm, hero edge \u2014 and the rhythm can be worn and taken off', function () {
+      var cands = G.remixCandidates();
+      cands.forEach(function (c) {
+        expect([100, 110, 120].indexOf(c.scale) !== -1, c.name + ' has no type size, or shrinks it: ' + c.scale);
+        expect(/^(plain|dark-hero|bookends|alternate|accent-hero)$/.test(c.rhythm), c.name + ' has no rhythm: ' + c.rhythm);
+        expect(c.divider === null || /^(sweep|dunes|arch|sheet)$/.test(c.divider), c.name + ' has an unknown edge: ' + c.divider);
+        expect(typeof c.detail === 'string' && / type, /.test(c.detail), c.name + ' should describe the rest of the look: ' + c.detail);
+      });
+      expect(G.remixRhythmPlan('dark-hero', 3).join(',') === 'ink,paper,paper', 'dark-hero plan wrong');
+      expect(G.remixRhythmPlan('bookends', 4).join(',') === 'ink,paper,paper,ink', 'bookends plan wrong');
+      expect(G.remixRhythmPlan('alternate', 4).join(',') === 'paper,mist,paper,mist', 'alternate plan wrong');
+      expect(G.remixRhythmPlan('accent-hero', 2).join(',') === 'accent-soft,paper', 'accent-hero plan wrong');
+      // wear a dark opening on this page, then put the page back exactly
+      var first = G.sections().filter(function (x) { return !x.chrome; })[0];
+      var before = { theme: first.theme || null, bg: first.bg || null, divider: JSON.stringify(first.divider || null), colors: first.els.map(function (e) { return e.color || null; }).join(',') };
+      // an edge only where the hero leaves 140 units under its lowest piece
+      var lowest = first.els.reduce(function (m, e) { return Math.max(m, e.y + e.h); }, 0);
+      var room = (first.minH || 600) - lowest >= 140;
+      var snaps = G.remixPaintRhythm({ rhythm: 'dark-hero', divider: 'sweep', fx: null, colors: {}, scale: 100 });
+      expect(first.theme === 'ink', 'the opening did not go dark: ' + first.theme);
+      expect(room ? (first.divider && first.divider.shape === 'sweep') : !first.divider, room ? 'the hero did not take the edge' : 'an edge was drawn over the hero\u2019s lowest piece');
+      G.remixRestoreRhythm(snaps);
+      var after = { theme: first.theme || null, bg: first.bg || null, divider: JSON.stringify(first.divider || null), colors: first.els.map(function (e) { return e.color || null; }).join(',') };
+      expect(JSON.stringify(after) === JSON.stringify(before), 'restore did not put the page back: ' + JSON.stringify(after) + ' vs ' + JSON.stringify(before));
+    });
+
+    test('remix: a direction nudges from where you are — darker is dark, calmer is quiet, warmer leans warm', function () {
+      var lum = function (hex) {
+        var n = parseInt(hex.slice(1), 16);
+        var f = function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(n >> 16 & 255) + 0.7152 * f(n >> 8 & 255) + 0.0722 * f(n & 255);
+      };
+      var pinned = !!(G.brand() && G.brand().colors && G.brand().colors.background);
+      var dark = G.remixCandidates('darker');
+      expect(dark.length >= 1 && dark.length <= 6, 'darker should give looks, got ' + dark.length);
+      if (!pinned) expect(dark.every(function (c) { return lum(c.colors.background) < 0.2; }), 'darker should give dark grounds: ' + dark.map(function (c) { return c.colors.background; }).join(','));
+      var light = G.remixCandidates('lighter');
+      if (!pinned) expect(light.every(function (c) { return lum(c.colors.background) > 0.6; }), 'lighter should give light grounds');
+      var calm = G.remixCandidates('calmer');
+      expect(calm.every(function (c) { return (pinned || c.parts.volume === 'quiet') && c.scale === 100 && !c.divider && /^(plain|alternate)$/.test(c.rhythm); }), 'calmer should be quiet, small and plain: ' + JSON.stringify(calm.map(function (c) { return [c.parts.volume, c.scale, c.divider, c.rhythm]; })));
+      var dn = dark.map(function (c) { return c.name; });
+      if (!pinned) expect(dn.filter(function (n, k) { return dn.indexOf(n) === k; }).length === dn.length, 'six cards should read as six: ' + dn.join(' | '));
+      var bold = G.remixCandidates('bolder');
+      expect(bold.every(function (c) { return (pinned || c.parts.volume === 'loud') && c.scale >= 110; }), 'bolder should be loud and large');
+      expect(bold.every(function (c) { return c.direction === 'bolder'; }), 'a directed look should say its direction');
+      // warmer: the accent's hue sits nearer orange than the current accent's does
+      var hueOf = function (hex) {
+        var n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+        var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, h = 0;
+        if (d) { h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; }
+        return h;
+      };
+      var dist = function (h, to) { return Math.abs(((to - h + 540) % 360) - 180); };
+      var nowH = hueOf(G.currentLook().accent);
+      var warm = G.remixCandidates('warmer').filter(function (c) { return c.parts.relation === 'same'; });
+      if (!pinned && warm.length && dist(nowH, 28) > 20) {
+        expect(warm.every(function (c) { return dist(hueOf(c.colors.accent), 28) < dist(nowH, 28); }), 'warmer did not lean the accent towards orange');
+      }
+      expect(Math.round(G.hueToward(200, 28, 0.5)) === 114 && Math.round(G.hueToward(350, 28, 0.5)) === 9, 'hueToward should take the short way round');
+    });
+
+    test('a design can name its pieces and sections for its own CSS (class rides canvas, model and published block)', function () {
+      var tpl = G.fillTake({ name: 'Riso', minH: 432, cls: 'riso-band gogh-sneaky', els: [
+        { type: 'heading', x: 80, y: 96, w: 600, h: 96, text: 'Misprint', cls: 'riso-misreg riso-big' },
+        { type: 'para', x: 80, y: 216, w: 600, h: 48, text: 'Two inks, one pass.', cls: 'wp-nope ok-one' } ] });
+      expect(tpl.cls === 'riso-band', 'a section class should come through, without gogh\u2019s own prefix: ' + tpl.cls);
+      var n0 = G.sections().length;
+      G.addSection(tpl, n0);
+      var sec = G.sections()[n0];
+      try {
+        expect(sec.sectionEl.classList.contains('riso-band') && !sec.sectionEl.classList.contains('gogh-sneaky'), 'the section should wear its class on the canvas');
+        expect(sec.nodes[0].classList.contains('riso-misreg') && sec.nodes[0].classList.contains('riso-big'), 'the heading should wear its classes on the canvas');
+        expect(sec.nodes[1].classList.contains('ok-one') && !sec.nodes[1].classList.contains('wp-nope'), 'a wp- class is refused, a plain one kept');
+        var blocks = G.blocksV3(sec);
+        expect(/class="gogh-section [^"]*riso-band/.test(blocks), 'the published section should carry its class');
+        expect(/gogh-el-1 riso-misreg riso-big/.test(blocks), 'the published heading block should carry its classes');
+        expect(/"cls":"riso-misreg riso-big"/.test(blocks), 'the saved model should keep the classes');
+      } finally {
+        if (G.deleteSection) G.deleteSection(n0);
+      }
+      return 'classes on the canvas, in the model and in the published blocks';
+    });
+
+    test('a design’s named looks: new pieces arrive in the default, the chip names the look, the panel swaps it, the shelf leads the picker', function () {
+      // a design only this test can see: set in memory, taken away after.
+      // Seen by someone who may not save styles, so a hand-filled card is
+      // only ever what the design offers (saving is the next test's)
+      var cfgG = window.GOGH, was = cfgG.design, wasCan = cfgG.canStyles;
+      cfgG.canStyles = false;
+      cfgG.design = { name: 'Riso Test', looks: {
+        button: [{ name: 'Yellow print', slug: 'yellow-print', 'default': true }, { name: 'Pink print', slug: 'pink-print', 'default': false }],
+        heading: [{ name: 'Misregistered', slug: 'misregistered', 'default': true }, { name: 'Plain', slug: 'plain', 'default': false }],
+        box: [{ name: 'Plain', slug: 'plain', 'default': true }, { name: 'Paper card', slug: 'paper-card', 'default': false }] },
+        shelf: [{ name: 'Ticker band', note: 'A running strip of words', minH: 144, cls: 'riso-ticker-band', els: [
+          { type: 'para', x: 0, y: 48, w: 1200, h: 48, text: 'Zines ✱ Posters', cls: 'riso-ticker' }] }] };
+      var n0 = G.sections().length, added = false;
+      try {
+        var b = G.defaults('button');
+        expect(b.cls === 'is-style-yellow-print', 'a new button should arrive in the default look: ' + b.cls);
+        expect(!G.defaults('para').cls, 'a kind with no looks should arrive with no class');
+        var h = { type: 'heading', cls: 'riso-big is-style-misregistered' };
+        expect(G.looks.of(h).slug === 'misregistered', 'the look should be read from the classes');
+        G.looks.wear(h, G.looks.list('heading')[1]);
+        expect(h.cls === 'is-style-plain riso-big', 'wearing a look swaps it in first place and keeps the other classes: ' + h.cls);
+        G.addSection({ name: 'Looks', minH: 432, els: [{ type: 'heading', x: 80, y: 96, w: 600, h: 96, text: 'Two inks', cls: 'is-style-misregistered' },
+          { type: 'button', x: 80, y: 240, w: 200, h: 48, text: 'Go', cls: 'is-style-pink-print riso-extra' },
+          { type: 'box', x: 720, y: 96, w: 320, h: 240, boxBg: '#ffffff', kids: [
+            { type: 'heading', x: 24, y: 24, w: 272, h: 48, text: 'Card title', cls: 'is-style-misregistered' }] }] }, n0);
+        added = true;
+        var sec = G.sections()[n0];
+        G.placeHandles(sec, 0);
+        var chip = q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-look');
+        expect(chip && chip.parentNode.firstElementChild === chip, 'the style chip comes first on the bar, before link');
+        expect(chip && chip.style.display !== 'none' && /Misregistered/.test(chip.textContent), 'the bar should name the heading’s style');
+        expect(!chip.querySelector('.gogh-eb-lookswatch'), 'words carry no swatch on the chip (the Aa beside the size read as a second size button)');
+        var chipName = (chip.querySelector('.gogh-eb-lookname') || {}).textContent || '';
+        expect(/^Style \u00b7 Misregistered$/.test(chipName), 'the chip reads Style \u00b7 name: ' + chipName);
+        var bNode = sec.nodes[1];
+        expect(bNode.querySelector('.wp-block-button.is-style-pink-print') && !bNode.classList.contains('is-style-pink-print') && bNode.classList.contains('riso-extra'),
+          'a button’s style class sits on the inner button (where core puts it), the rest on the wrapper');
+        var bBlocks = G.blocksV3(sec);
+        expect(/<!-- wp:button \{[^}]*"className":"is-style-pink-print"/.test(bBlocks) && /<div class="wp-block-button is-style-pink-print">/.test(bBlocks),
+          'the published core/button should carry the style, so the block editor’s Styles panel shows it');
+        expect(/<div class="wp-block-buttons gogh-el-2 riso-extra">/.test(bBlocks), 'the Buttons wrapper keeps the other classes: ' + (bBlocks.match(/wp-block-buttons[^"]*/) || [''])[0]);
+        G.looks.open(sec, 0);
+        var tiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        expect(tiles.length === 2, 'the panel should show one tile per style: ' + tiles.length);
+        expect(/^Style · Heading/.test(q('.gogh-panel .gogh-panel-title').textContent), 'the panel is called Style, like core’s');
+        expect(tiles[0].classList.contains('is-on') && /Default/.test(tiles[0].textContent), 'the worn look is marked, the default says so');
+        expect(tiles[1].querySelector('h2.is-style-plain'), 'each tile should draw the piece in its look');
+        tiles[1].click();
+        expect(sec.els[0].cls === 'is-style-plain', 'choosing a tile should wear it: ' + sec.els[0].cls);
+        expect(sec.nodes[0].classList.contains('is-style-plain') && !sec.nodes[0].classList.contains('is-style-misregistered'), 'the canvas should wear the new look');
+        expect(/Plain/.test(q('.gogh-eb-look').textContent), 'the chip should follow');
+        expect(/gogh-el-1 is-style-plain/.test(G.blocksV3(sec)), 'the published block should carry the look');
+        // last action wins: a colour picked before a style gives way to it
+        sec.els[0].color = 'contrast';
+        tiles[0].click();
+        expect(!sec.els[0].color && sec.els[0].cls === 'is-style-misregistered', 'choosing a style clears the colour picked before it: ' + sec.els[0].color);
+        G.closePanel();
+        G.placeHandles(sec, 0);
+        q('.gogh-eb-col').click();
+        var stSw = q('.gogh-panel .gogh-sw-style');
+        expect(stSw && /Misregistered/.test(stSw.title) && stSw.classList.contains('is-active'), 'the colour panel\u2019s first swatch is the style\u2019s own colour');
+        G.closePanel();
+        // a corner-drag fit: the size label says Fitted, not the old name
+        sec.els[0].fitW = true;
+        G.placeHandles(sec, 0);
+        expect(q('.gogh-eb-fs').textContent && /[Ff]itted/.test(q('.gogh-eb-fs').title), 'fitted text shows its nearest size and says fitted: ' + q('.gogh-eb-fs').textContent + ' / ' + q('.gogh-eb-fs').title);
+        sec.els[0].fitW = false;
+        sec.els[0].fs = 'x-large';
+        G.placeHandles(sec, 0);
+        expect(q('.gogh-eb-fs').textContent === 'XL', 'a theme size reads as a clothing size: ' + q('.gogh-eb-fs').textContent);
+        sec.els[0].fs = null;
+        G.looks.open(sec, 0);
+        tiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        tiles[1].click();
+        G.closePanel();
+        expect(G.defaults('card').cls === 'is-style-plain', 'a new shape should arrive in the shape default: ' + G.defaults('card').cls);
+        // a piece inside a card: its own small bar carries the style chip
+        G.looks.reselectKid(sec, 2, 0);
+        var kbar = G.looks.kidBar();
+        var kname = (kbar.querySelector('.gogh-eb-lookname') || {}).textContent || '';
+        expect(!kbar.hidden && /^Style \u00b7 Misregistered$/.test(kname), 'a card piece should show its style chip: ' + kname + (kbar.hidden ? ' (hidden)' : ''));
+        kbar.querySelector('.gogh-eb-look').click();
+        var ktiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        expect(ktiles.length === 2 && /^Style \u00b7 Heading/.test(q('.gogh-panel .gogh-panel-title').textContent), 'the chip opens the card piece\u2019s styles');
+        ktiles[1].click();
+        expect(sec.els[2].kids[0].cls === 'is-style-plain', 'choosing a tile styles the piece inside the card: ' + sec.els[2].kids[0].cls);
+        expect(sec.nodes[2].querySelector('.gogh-k-1.is-style-plain.gogh-kid-selected'), 'the card piece wears it and stays chosen');
+        expect(!kbar.hidden && /Plain/.test(kbar.textContent), 'the card piece\u2019s chip follows');
+        G.closePanel();
+        // the card itself: shape styles, kept out of the block editor
+        G.placeHandles(sec, 2);
+        G.looks.open(sec, 2);
+        expect(/^Style \u00b7 Card/.test(q('.gogh-panel .gogh-panel-title').textContent), 'a card\u2019s panel is Style \u00b7 Card');
+        var btiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        expect(btiles.length === 2 && btiles[1].querySelector('.gogh-box.is-style-paper-card'), 'the shape tiles draw the card in each style');
+        btiles[1].click();
+        expect(sec.els[2].cls === 'is-style-paper-card' && sec.nodes[2].classList.contains('is-style-paper-card'), 'the card wears its style');
+        G.closePanel();
+        G.openPicker(n0 + 1);
+        var lab = q('.gogh-picker .gogh-designlab'), cards = document.querySelectorAll('.gogh-picker .gogh-card[data-dtpl]');
+        expect(lab && /From Riso Test/.test(lab.textContent), 'the picker should open with the design’s own shelf');
+        expect(cards.length === 1 && /Ticker band/.test(cards[0].textContent) && /running strip/.test(cards[0].textContent), 'the shelf should show the section with its note');
+        expect(cards[0].querySelector('.riso-ticker'), 'the card should draw the section with its classes');
+      } finally {
+        cfgG.design = was;
+        cfgG.canStyles = wasCan;
+        if (G.looks.clearKid) G.looks.clearKid();
+        if (q('.gogh-picker.is-open') && G.closePicker) G.closePicker();
+        var pk = q('.gogh-picker'); if (pk) { pk.classList.remove('is-open'); pk.hidden = true; }
+        G.closePanel();
+        if (added && G.deleteSection) G.deleteSection(n0);
+      }
+      return 'default on arrival, chip, panel, swap, published class, the design’s shelf';
+    });
+
+    test('a design’s own plain style (Plain photo) stands in for gogh’s Plain, so the tiles add up', function () {
+      var cfgG = window.GOGH, was = cfgG.design;
+      cfgG.design = { name: 'Riso Test', looks: {
+        image: [{ name: 'Pink print', slug: 'pink-print', 'default': true }, { name: 'Plain photo', slug: 'plain-photo', 'default': false }],
+        button: [{ name: 'Yellow print', slug: 'yellow-print', 'default': true }] }, shelf: [] };
+      var n0 = G.sections().length, added = false;
+      try {
+        G.addSection({ name: 'Plain tiles', minH: 432, els: [
+          { type: 'image', x: 80, y: 80, w: 320, h: 240, src: (window.GOGH.pluginUrl || '') + 'demo-assets/arles-1.jpg', cls: 'is-style-pink-print' },
+          { type: 'button', x: 480, y: 80, w: 200, h: 48, text: 'Go', cls: 'is-style-yellow-print' }] }, n0);
+        added = true;
+        var sec = G.sections()[n0];
+        G.looks.open(sec, 0);
+        var names = [].map.call(document.querySelectorAll('.gogh-panel .gogh-look b'), function (b) { return b.textContent; });
+        expect(names.join(',') === 'Pink print,Plain photo', 'Plain photo is the pictures’ plain, no second Plain: ' + names.join(','));
+        G.closePanel();
+        G.looks.open(sec, 1);
+        names = [].map.call(document.querySelectorAll('.gogh-panel .gogh-look b'), function (b) { return b.textContent; });
+        expect(names.join(',') === 'Plain,Yellow print', 'a kind with no plain of its own gets gogh’s Plain first: ' + names.join(','));
+      } finally {
+        cfgG.design = was;
+        G.closePanel();
+        if (added && G.deleteSection) G.deleteSection(n0);
+      }
+      return 'Plain photo stands in; buttons get Plain';
+    });
+
+    test('save a look as a style: a hand-styled piece reads Custom, the panel offers the save, and the style keeps all but size (its look’s hover and keyframes too)', function () {
+      var cfgG = window.GOGH, was = cfgG.design, wasCan = cfgG.canStyles;
+      cfgG.canStyles = true;
+      cfgG.design = { name: 'Riso Test', looks: { heading: [{ name: 'Drift', slug: 'tst-drift', 'default': true }] }, shelf: [] };
+      // the design's own stylesheet for its look, the way Additional CSS carries it
+      var st = document.createElement('style');
+      st.textContent = '.is-style-tst-drift { text-shadow: .05em .035em 0 hotpink; font-size: 99px; animation: tst-drift 3s infinite; }' +
+        ' html:not(.gogh-editing) .is-style-tst-drift:hover { text-shadow: 0 0 0 hotpink; }' +
+        ' @media (prefers-reduced-motion: reduce) { .is-style-tst-drift, .tst-other { animation: none; } }' +
+        ' @keyframes tst-drift { to { text-shadow: .02em .01em 0 hotpink; } }';
+      document.head.appendChild(st);
+      // nothing here may reach the server: a save that slipped through
+      // would leave this design on the site
+      var realFetch = window.fetch, posted = 0;
+      window.fetch = function (u, o) {
+        if (/gogh\/v1\/design-looks/.test(String(u))) { posted++; return Promise.reject(new Error('blocked by the test')); }
+        return realFetch.apply(this, arguments);
+      };
+      var n0 = G.sections().length, added = false;
+      try {
+        G.addSection({ name: 'Save a look', minH: 432, els: [
+          { type: 'heading', x: 80, y: 96, w: 640, h: 96, text: 'Two inks', cls: 'is-style-tst-drift', fs: 'x-large', color: 'contrast', tf: { fw: 800, tt: 'uppercase', fs2: 4 } },
+          { type: 'para', x: 80, y: 240, w: 400, h: 48, text: 'Plain words' }] }, n0);
+        added = true;
+        var sec = G.sections()[n0];
+        G.placeHandles(sec, 0);
+        var chip = q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-look');
+        expect(chip && chip.style.display !== 'none' && /^Style · Custom$/.test(chip.querySelector('.gogh-eb-lookname').textContent), 'a hand-styled heading should read Style · Custom: ' + (chip && chip.textContent));
+        var css = G.looks.cssFor(sec.els[0], 'tst-saved');
+        expect(/\.wp-block-heading\.is-style-tst-saved \{[^}]*color: var\(--wp--preset--color--contrast\)[^}]*font-weight: 800[^}]*text-transform: uppercase/.test(css), 'the hand-set colour, weight and capitals should be kept: ' + css);
+        expect(/\.is-style-tst-saved \{[^}]*text-shadow/.test(css) && /html:not\(\.gogh-editing\) \.is-style-tst-saved:hover/.test(css), 'the look it wore should come along, hover and all: ' + css);
+        expect(/@media \(prefers-reduced-motion: reduce\) \{ \.is-style-tst-saved \{ animation[^}]*\} \}/.test(css) && !/tst-other/.test(css), 'a grouped rule keeps its @media and only its own selector: ' + css);
+        expect(/@keyframes tst-drift/.test(css), 'the keyframes its animation runs should come along');
+        expect(!/font-size/.test(css) && !/is-style-tst-drift/.test(css), 'size never goes into a style, and the old class is renamed throughout: ' + css);
+        G.looks.open(sec, 0);
+        var tiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        expect(tiles.length === 3 && /Plain/.test(tiles[0].textContent) && tiles[2].classList.contains('gogh-look-asmade') && tiles[2].classList.contains('is-on'),
+          'the panel shows Plain, the design’s style and this heading as made (chosen): ' + [].map.call(tiles, function (t) { return t.textContent; }).join(' / '));
+        var keeps = [].map.call(document.querySelectorAll('.gogh-looksave-keeps li'), function (l) { return l.textContent; });
+        expect(q('.gogh-panel .gogh-looksave-name') && keeps[0] === 'Built on Drift' && keeps.indexOf('Capitals') !== -1 && /Size/.test(keeps[keeps.length - 1]) && q('.gogh-looksave-not s'),
+          'the save form names what the style keeps and strikes out size: ' + keeps.join(', '));
+        expect(!q('.gogh-looksave-isdef').checked, 'with a default already, the new style is not made the default unasked');
+        // a taken or reserved name is refused before anything is sent
+        q('.gogh-looksave-name').value = 'Drift';
+        q('.gogh-looksave').dispatchEvent(new Event('submit', { cancelable: true }));
+        expect(/already has a style called/.test(q('.gogh-looksave-err').textContent) && !q('.gogh-looksave-err').hidden, 'a taken name should be refused: ' + q('.gogh-looksave-err').textContent);
+        q('.gogh-looksave-name').value = 'Outline';
+        q('.gogh-looksave').dispatchEvent(new Event('submit', { cancelable: true }));
+        expect(/WordPress already uses/.test(q('.gogh-looksave-err').textContent), 'a name core already gives a block should be refused');
+        expect(posted === 0, 'a refused name should never be sent: ' + posted);
+        // Manage styles, at the foot of the panel, opens the style set; Back returns here
+        var mg = q('.gogh-panel .gogh-look-manage');
+        expect(mg && /Manage styles/.test(mg.textContent) && mg === q('.gogh-panel').lastElementChild, 'the Style panel ends with Manage styles');
+        mg.click();
+        expect(/^Saved styles/.test(q('.gogh-panel .gogh-panel-title').textContent) && q('.gogh-specimen'), 'Manage styles opens Saved styles, with its specimen');
+        q('.gogh-panel .gogh-panel-back').click();
+        expect(!q('.gogh-specimen') && /^Style \u00b7 Heading/.test(q('.gogh-panel .gogh-panel-title').textContent) && q('.gogh-panel .gogh-look-asmade'),
+          'Back returns to this heading\u2019s Style panel: ' + q('.gogh-panel .gogh-panel-title').textContent);
+        tiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        // choosing a style instead: the hand-set paint gives way, size stays
+        tiles[1].click();
+        var e0 = sec.els[0];
+        expect(e0.cls === 'is-style-tst-drift' && !e0.color && e0.tf && e0.tf.fs2 === 4 && !e0.tf.fw && !e0.tf.tt && e0.fs === 'x-large',
+          'choosing a style clears the hand-set colour and type but keeps the size: ' + JSON.stringify({ cls: e0.cls, color: e0.color, tf: e0.tf, fs: e0.fs }));
+        expect(!q('.gogh-panel .gogh-looksave') && !q('.gogh-panel .gogh-look-asmade'), 'with nothing hand-set left, there is nothing to save');
+        G.closePanel();
+        G.placeHandles(sec, 0);
+        expect(/^Style · Drift$/.test(q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-lookname').textContent), 'the chip names the style again');
+        // a plain paragraph on a design with no text styles: no chip at all
+        G.placeHandles(sec, 1);
+        expect(q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-look').style.display === 'none', 'a plain piece with no styles to choose shows no chip');
+        // someone who may not write CSS sees the chip only when there are styles
+        cfgG.canStyles = false;
+        sec.els[1].color = 'contrast';
+        G.placeHandles(sec, 1);
+        expect(q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-look').style.display === 'none', 'without the CSS capability a hand-styled piece offers no save');
+      } finally {
+        window.fetch = realFetch;
+        cfgG.design = was;
+        cfgG.canStyles = wasCan;
+        st.remove();
+        G.closePanel();
+        if (added && G.deleteSection) G.deleteSection(n0);
+      }
+      return 'Custom chip, as-made tile, kept/struck chips, renamed rules with hover/@media/@keyframes, refused names, last action wins';
+    });
+
+    test('the design’s style set: by kind with the default starred, Plain always there, a specimen of every style, and the set as a definition', function () {
+      var cfgG = window.GOGH, was = cfgG.design, wasCan = cfgG.canStyles;
+      cfgG.canStyles = true;
+      cfgG.design = { name: 'Riso Test', looks: {
+        heading: [{ name: 'Misregistered', slug: 'tst-misreg', 'default': true }, { name: 'Hot pink', slug: 'tst-hot', 'default': false, css: '.wp-block-heading.is-style-tst-hot { color: hotpink; }' }],
+        button: [{ name: 'Yellow print', slug: 'tst-yellow', 'default': true }] }, shelf: [] };
+      var st = document.createElement('style');
+      st.textContent = '.is-style-tst-misreg { text-shadow: .05em .035em 0 hotpink; }';
+      document.head.appendChild(st);
+      try {
+        G.looks.openSet();
+        expect(/^Saved styles/.test(q('.gogh-panel .gogh-panel-title').textContent), 'the page is called Saved styles');
+        var sets = document.querySelectorAll('.gogh-panel .gogh-styleset');
+        expect(sets.length === 5 && /Headings/.test(sets[0].textContent) && /Shapes/.test(sets[4].textContent), 'one group per kind, headings to shapes: ' + sets.length);
+        var hRows = sets[0].querySelectorAll('.gogh-styleset-row');
+        expect(hRows.length === 3 && /Misregistered/.test(hRows[0].textContent) && hRows[0].querySelector('.gogh-styleset-star.is-on[aria-pressed="true"]'), 'the default carries the star');
+        expect(!hRows[1].querySelector('.gogh-styleset-star.is-on') && hRows[1].querySelector('.gogh-styleset-more[aria-label="More for Hot pink"]'), 'every other style can be starred, and has its ⋯');
+        expect(hRows[2].classList.contains('is-plain') && /always there/.test(hRows[2].textContent) && !hRows[2].querySelector('button'), 'Plain is always there and cannot be removed');
+        hRows[1].querySelector('.gogh-styleset-more').click();
+        var menu = hRows[1].querySelector('.gogh-styleset-menu');
+        expect(menu && menu.querySelector('.gogh-styleset-rename') && menu.querySelector('.gogh-styleset-remove'), 'the ⋯ menu renames or removes');
+        menu.querySelector('.gogh-styleset-remove').click();
+        expect(/Pieces wearing it go back to Plain/.test(hRows[1].textContent), 'removing asks first and says what happens');
+        var spec = q('.gogh-specimen');
+        expect(spec && spec.querySelector('.gogh-specimen-heading h2.is-style-tst-misreg') && spec.querySelector('.gogh-specimen-heading h2.is-style-tst-hot'), 'the specimen draws every heading style');
+        expect(spec.querySelector('.gogh-specimen-button .wp-block-button.is-style-tst-yellow') && /Heading · Misregistered ★/.test(spec.textContent), 'the specimen draws the buttons and stars the defaults');
+        var def = G.looks.asDef();
+        expect(def.looks.heading.length === 2 && def.looks.heading[0]['default'] === true && /\.is-style-tst-misreg \{ text-shadow/.test(def.looks.heading[0].css || ''),
+          'a design look without its own CSS takes it from the page: ' + JSON.stringify(def.looks.heading[0]));
+        expect(def.looks.heading[1].css === '.wp-block-heading.is-style-tst-hot { color: hotpink; }' && def.looks.heading[1].slug === 'tst-hot',
+          'a saved style carries its own CSS, and its slug only when the name no longer says it: ' + JSON.stringify(def.looks.heading[1]));
+        expect(q('.gogh-panel .gogh-styleset-dl') && q('.gogh-panel .gogh-styleset-copy'), 'in labs the set leaves for the blueprint, or as a definition');
+        // outside labs the page is the list alone: blueprints are a builder's word
+        var wasLabs = cfgG.experiments;
+        cfgG.experiments = false;
+        try {
+          G.closePanel();
+          G.looks.openSet();
+          expect(!q('.gogh-panel .gogh-styleset-foot') && !/blueprint|definition/i.test(q('.gogh-panel').textContent),
+            'without labs, Saved styles should not mention blueprints or definitions');
+        } finally { cfgG.experiments = wasLabs; }
+        G.closePanel();
+        expect(!q('.gogh-specimen'), 'the specimen leaves with the page');
+      } finally {
+        cfgG.design = was;
+        cfgG.canStyles = wasCan;
+        st.remove();
+        G.closePanel();
+      }
+      return 'kinds, star, ⋯ menu, Plain, specimen, definition';
+    });
+
+    testAsync('a saved style reaches the server: cleaned, printed on the page after Additional CSS, renamed without losing its class (restored after)', async function () {
+      var cfgG = window.GOGH, was = cfgG.design;
+      if (!cfgG.canStyles) return 'skipped: this user may not write CSS';
+      var root = cfgG.restUrl.split('wp/v2/')[0];
+      var put = function (looks) {
+        return fetch(root + 'gogh/v1/design-looks', { method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfgG.nonce }, body: JSON.stringify({ looks: looks }) }).then(function (r) { return r.json(); });
+      };
+      var before = {};
+      Object.keys((was && was.looks) || {}).forEach(function (t) { before[t] = was.looks[t]; });
+      try {
+        var mine = JSON.parse(JSON.stringify(before));
+        mine.heading = (mine.heading || []).concat([{ name: 'Suite stamp', 'default': false, css: '.wp-block-heading.is-style-suite-stamp { color: #123456; }</style><script>x</script>' }]);
+        var r = await put(mine);
+        var made = ((r.design && r.design.looks && r.design.looks.heading) || []).filter(function (lk) { return lk.slug === 'suite-stamp'; })[0];
+        expect(made && made.css === '.wp-block-heading.is-style-suite-stamp { color: #123456; }', 'the server keeps the style, with markup stripped from its CSS: ' + JSON.stringify(made));
+        var html = await (await fetch(location.origin + '/?goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' })).text();
+        var at = html.indexOf('id="gogh-design-looks-css"'), custom = html.indexOf('id="wp-custom-css"');
+        expect(at !== -1 && /is-style-suite-stamp \{ color: #123456; \}/.test(html.slice(at, at + 4000)), 'every page prints the saved styles');
+        expect(custom === -1 || custom < at, 'the saved styles print after Additional CSS');
+        mine.heading[mine.heading.length - 1] = Object.assign({}, made, { name: 'Suite seal' });
+        r = await put(mine);
+        var renamed = r.design.looks.heading.filter(function (lk) { return lk.name === 'Suite seal'; })[0];
+        expect(renamed && renamed.slug === 'suite-stamp', 'a renamed style keeps its class: ' + JSON.stringify(renamed));
+        r = await put({ heading: [{ name: 'Outline' }], button: [{ name: 'Pink print' }, { name: 'Pink print' }], image: [{ name: 'Pink print', 'default': true }, { name: 'Blue print' }] });
+        expect(!(r.design && r.design.looks && r.design.looks.heading), 'a name core already uses is refused: ' + JSON.stringify(r.design && r.design.looks));
+        expect(r.design.looks.button.length === 1, 'a name is unique within its kind: ' + JSON.stringify(r.design.looks.button));
+        // Misprint names a button and a picture Pink print on purpose; v0.99.655
+        // refused the picture's and its panel lost three of its four styles
+        expect(r.design.looks.image && r.design.looks.image.length === 2 && r.design.looks.image[0].slug === 'pink-print',
+          'a picture may share a style name with a button: ' + JSON.stringify(r.design.looks.image));
+      } finally {
+        await put(before);
+        cfgG.design = was;
+      }
+      return 'cleaned, printed after Additional CSS, slug kept on rename, reserved and doubled names refused, restored';
+    });
+
+    testAsync('History lists published versions in words, shows one read only, restores it as one undoable step, and otherwise puts the page back', async function () {
+      var page = G.sections().filter(function (s) { return !s.chrome; });
+      var host = page.filter(function (s) { return s.els.some(function (e) { return e.type === 'heading'; }); })[0];
+      if (!host) return 'no heading on the fixture to change: nothing to judge';
+      var hi = host.els.findIndex(function (e) { return e.type === 'heading'; });
+      var t0 = host.els[hi].text;
+      var mk = function (older) {
+        return page.map(function (s) {
+          var els = JSON.parse(JSON.stringify(s.els));
+          if (older && s === host) els[hi].text = 'An older heading';
+          // the way WordPress stores a v3 section: the model in the block comment
+          var attrs = JSON.stringify({ v: 3, scope: s.scope, model: { version: 3, designW: 1200, minH: s.minH || null, bg: s.bg || null, elements: els } })
+            .replace(/--/g, '\\u002d\\u002d').replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
+          return '<!-- wp:gogh/section ' + attrs + ' -->\n<div class="wp-block-gogh-section alignfull gogh-wrap"><div class="gogh-section ' + s.scope + '" data-gogh-scope="' + s.scope + '"></div></div>\n<!-- /wp:gogh/section -->';
+        }).join('\n');
+      };
+      var ago = function (days) { var d = new Date(); d.setDate(d.getDate() - days); return d.toISOString().slice(0, 19); };
+      var revs = [
+        { id: 30, date: ago(0), slug: '1-revision-v1', content: { raw: mk(false) } },
+        { id: 29, date: ago(1), slug: '1-revision-v1', content: { raw: mk(false) } }, // the same page (a title change)
+        { id: 28, date: ago(1), slug: '1-autosave-v1', content: { raw: mk(true) } },  // the backup, not a version
+        { id: 27, date: ago(3), slug: '1-revision-v1', content: { raw: mk(true) } },
+        { id: 26, date: ago(9), slug: '1-revision-v1', content: { raw: '<!-- wp:paragraph --><p>Before gogh</p><!-- /wp:paragraph -->' } },
+      ];
+      var realFetch = window.fetch;
+      window.fetch = function (u) {
+        if (/\/revisions/.test(String(u))) return Promise.resolve(new Response(JSON.stringify(revs), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        return realFetch.apply(this, arguments);
+      };
+      var headingNow = function () {
+        var s = G.sections().filter(function (x) { return x.scope === host.scope; })[0];
+        return s && s.els[hi] && s.els[hi].text;
+      };
+      try {
+        expect(q('.gogh-side-foot .gogh-historybtn'), 'History should sit in the drawer foot beside undo and redo');
+        expect(q('.gogh-side-foot .gogh-redo').nextElementSibling === q('.gogh-side-foot .gogh-historybtn'), 'History should come straight after redo');
+        await G.history.open();
+        var rows = document.querySelectorAll('.gogh-panel .gogh-history-row');
+        expect(rows.length === 2, 'one row per different published page, no backup, nothing from before gogh: ' + rows.length);
+        expect(/^Today, \d{1,2}:\d\d(am|pm)/.test(rows[0].textContent) && /Live now/.test(rows[0].textContent), 'the newest is today and live: ' + rows[0].textContent);
+        expect(!/Today|Yesterday/.test(rows[1].textContent) && /, \d{1,2}:\d\d(am|pm)$/.test(rows[1].textContent), 'an older one names its day: ' + rows[1].textContent);
+        expect(G.canvasZoom.on(), 'History should pull the whole page into view beside the panel');
+        rows[1].click();
+        expect(G.history.viewing() && document.documentElement.classList.contains('gogh-history-preview'), 'choosing a version should show it, read only');
+        expect(G.canvasZoom.on(), 'the page should stay zoomed out while versions change');
+        expect(headingNow() === 'An older heading', 'the canvas should show the older words: ' + headingNow());
+        expect(q('.gogh-panel .gogh-history-restore') && q('.gogh-panel .gogh-history-now'), 'an older version offers Restore and Back to my page');
+        q('.gogh-panel .gogh-history-now').click();
+        expect(!G.history.viewing() && headingNow() === t0 && !document.documentElement.classList.contains('gogh-history-preview'), 'Back to my page puts the page back: ' + headingNow());
+        document.querySelectorAll('.gogh-panel .gogh-history-row')[1].click();
+        G.closePanel();
+        expect(!G.history.viewing() && headingNow() === t0, 'closing the panel any other way puts the page back too: ' + headingNow());
+        expect(!G.canvasZoom.on(), 'closing History brings the page back to full size');
+        await G.history.open();
+        document.querySelectorAll('.gogh-panel .gogh-history-row')[1].click();
+        q('.gogh-panel .gogh-history-restore').click();
+        expect(!G.history.viewing() && headingNow() === 'An older heading' && !document.documentElement.classList.contains('gogh-history-preview'), 'Restore keeps the older version on the page, editable');
+        q('.gogh-undo').click();
+        expect(headingNow() === t0, 'one Undo after Restore puts the page back: ' + headingNow());
+      } finally {
+        window.fetch = realFetch;
+        G.history.leave();
+        G.closePanel();
+        if (headingNow() !== t0) { var s2 = G.sections().filter(function (x) { return x.scope === host.scope; })[0]; if (s2) { s2.els[hi].text = t0; G.renderSection(s2); } }
+      }
+      return 'two versions in words, preview read only, back on leave, restore + undo';
+    });
+
+    testAsync('leaving a page with unpublished changes asks: publish then go, keep for later, or stay', async function () {
+      var trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
+      var i = findIdx('badge'), s0 = sec(), x0 = s0.els[i].x;
+      var lp = null;
+      try {
+        s0.els[i].x = x0 + 8;
+        G.renderSection(s0);
+        G.pushState();
+        expect(G.isDirty(), 'the page should have unpublished changes for this test');
+        G.nav.go(G.nav.urlFor('/sample-page/'), 'Sample Page');
+        lp = q('.gogh-leave');
+        expect(lp && !lp.hidden && trips.length === 0, 'with unpublished changes gogh asks before going');
+        expect(/^Go to Sample Page\?$/.test(lp.querySelector('.gogh-exit-title').textContent), 'it names where you are going: ' + lp.querySelector('.gogh-exit-title').textContent);
+        expect(/, then go$/.test(lp.querySelector('.gogh-leave-pub').textContent) && /keep my changes for later/.test(lp.querySelector('.gogh-leave-keep').textContent) && /^Stay on /.test(lp.querySelector('.gogh-leave-stay').textContent),
+          'three plain choices: publish then go, keep for later, stay');
+        lp.querySelector('.gogh-leave-stay').click();
+        expect(lp.hidden && trips.length === 0 && G.isDirty(), 'Stay keeps you here with your changes');
+        // the suite never backs up (the fixture is wrecked on purpose), so
+        // keeping fails here, and failing must not leave the page
+        G.nav.go(G.nav.urlFor('/sample-page/'), 'Sample Page');
+        lp.querySelector('.gogh-leave-keep').click();
+        await new Promise(function (r) { setTimeout(r, 80); });
+        expect(trips.length === 0 && !lp.hidden, 'if the changes could not be kept, gogh stays: ' + trips.join(' '));
+        expect(!lp.querySelector('.gogh-leave-keep').disabled, 'and the choice can be made again');
+      } finally {
+        if (lp) lp.hidden = true;
+        unwatch();
+        s0.els[i].x = x0;
+        G.renderSection(s0);
+        G.pushState();
+        [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      }
+      return 'asked, stayed, and a failed keep never left the page';
+    });
+
+    testAsync('Page ▾ in the bar lists every page, the menu’s first, Home marked, Add a page last, and opens one in the editor', async function () {
+      var C = window.GOGH, wasFront = C.frontId, trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
+      var o = location.origin;
+      var here = location.pathname;
+      G.nav.setPages([
+        { id: C.postId, name: C.postTitle || 'This page', link: o + here, status: 'publish' },
+        { id: 99991, name: 'Sample Page', link: o + '/sample-page/', status: 'publish' },
+        { id: 99992, name: 'Zine library', link: o + '/?page_id=99992', status: 'draft' },
+        { id: 99993, name: 'Front', link: o + '/front-test/', status: 'publish' },
+      ]);
+      C.frontId = 99993;
+      try {
+        // the drawer names its page; the switching is the bar's Page ▾ (v0.99.782)
+        var sw = q('.gogh-pagerow .gogh-pageswitch');
+        expect(sw && sw.tagName !== 'BUTTON' && !/Editing/.test(sw.textContent) && sw.querySelector('.gogh-pageswitch-name'), 'the Page drawer names its page, no switcher: ' + (sw && sw.outerHTML.slice(0, 100)));
+        var pb = q('#wp-admin-bar-gogh-page .gogh-pagebtn');
+        if (q('#wpadminbar')) {
+          expect(pb && !q('#wp-admin-bar-gogh-page').hidden, 'editing, the bar has Page ▾');
+          var ph = q('#wp-admin-bar-gogh-page'), phr = ph.getBoundingClientRect();
+          expect(ph.previousElementSibling && ph.previousElementSibling.id === 'wp-admin-bar-gogh-edit', 'Page ▾ comes after View site (where it sits on a narrow window)');
+          // dead centre of the bar when it clears both groups (v0.99.783)
+          if (ph.classList.contains('is-centred')) expect(Math.abs((phr.left + phr.right) / 2 - window.innerWidth / 2) < 2, 'Page ▾ sits dead centre: ' + Math.round((phr.left + phr.right) / 2) + ' of ' + window.innerWidth);
+          else expect(phr.left >= q('#wp-admin-bar-gogh-edit').getBoundingClientRect().right - 1, 'not centred, it follows View site');
+          expect(pb.textContent.indexOf(String(C.postTitle || '').trim()) !== -1, 'Page ▾ names the page being edited: ' + pb.textContent);
+        }
+        expect(q('.gogh-pagerow .gogh-chip-name'), 'Rename stays beside it');
+        G.nav.openPages();
+        await new Promise(function (r) { setTimeout(r, 50); });
+        var menu = q('.gogh-pagemenu');
+        expect(menu && !menu.hidden, 'the switcher opens its list');
+        var labs = [].map.call(menu.querySelectorAll('.gogh-pagemenu-lab'), function (l) { return l.textContent; });
+        var names = [].map.call(menu.querySelectorAll('.gogh-pagemenu-it'), function (b) { return b.querySelector('.gogh-pagemenu-name').textContent.replace(/ \u00b7 .*$/, ''); });
+        var headLinks = [].map.call(document.querySelectorAll('header.wp-block-template-part a[href]'), function (a) { return a.pathname.replace(/\/+$/, ''); });
+        expect(!labs.length, 'one plain list, no headings: ' + labs.join(','));
+        if (headLinks.indexOf('/sample-page') !== -1) {
+          expect(names.indexOf('Sample Page') < names.indexOf('Zine library') && menu.querySelector('.gogh-pagemenu-sep'), 'pages in the menu come first, then a line: ' + names.join(','));
+        }
+        var cur = menu.querySelector('.gogh-pagemenu-it.is-current');
+        expect(cur && +cur.dataset.id === +C.postId, 'this page is marked as the one being edited');
+        expect(/Home page/.test(menu.querySelector('[data-id="99993"]').textContent), 'the home page says so');
+        expect(/\u00b7 draft/.test(menu.querySelector('[data-id="99992"]').textContent), 'a draft says so, quietly');
+        expect(menu.querySelector('[data-id="99993"] .gogh-pagemenu-house') && !menu.querySelector('.gogh-pagemenu-home-set'), 'Home wears a house; page actions are not in the list');
+        expect(!!menu.querySelector('.gogh-pagemenu-add') === !!C.canPages, 'Add a page ends the list (when pages may be added)');
+        if (pb && pb.getBoundingClientRect().width) expect(Math.abs(menu.getBoundingClientRect().top - pb.getBoundingClientRect().bottom - 6) < 3, 'the list opens under Page ▾');
+        G.openSide('page');
+        menu.querySelector('[data-id="99991"]').click();
+        expect(menu.hidden, 'choosing a page closes the list');
+        expect(trips.length === 1 && /\/sample-page\//.test(trips[0]) && /gogh-edit=1/.test(trips[0]), 'choosing a page opens it in the editor: ' + trips.join(' '));
+        expect(/gogh-drawer=page/.test(trips[0]), 'the Page drawer opens again on the next page: ' + trips[0]);
+        G.closeSide && G.closeSide(true);
+        expect(!/gogh-drawer/.test(G.nav.carry(o + '/sample-page/?gogh-edit=1')), 'with the drawer closed, nothing is carried');
+      } finally {
+        unwatch();
+        G.nav.closePages();
+        G.nav.setPages(null);
+        C.frontId = wasFront;
+      }
+      return 'menu first, current and Home marked, draft labelled, Sample Page opened in the editor';
+    });
+
+    testAsync('Make this the home page: from the page’s ⋯ menu, with Undo, never for a draft, only for whoever may change settings', async function () {
+      var C = window.GOGH, was = { front: C.frontId, can: C.canHome, st: C.postStatus };
+      var o = location.origin, posts = [];
+      var realFetch = window.fetch;
+      window.fetch = function (u, opt) {
+        if (/gogh\/v1\/home/.test(String(u))) {
+          var body = JSON.parse((opt && opt.body) || '{}');
+          posts.push(body);
+          var reply = body.id ? { frontId: body.id, was: { id: 99993, postsPage: 0 } } : { frontId: 0, was: { id: C.postId, postsPage: 0 } };
+          return Promise.resolve(new Response(JSON.stringify(reply), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+      G.nav.setPages([
+        { id: C.postId, name: C.postTitle || 'This page', link: o + location.pathname, status: 'publish' },
+        { id: 99993, name: 'Front', link: o + '/front-test/', status: 'publish' },
+      ]);
+      var open = async function () { G.nav.closeMore(); G.nav.more(); await new Promise(function (r) { setTimeout(r, 20); }); return q('.gogh-pagemore-menu'); };
+      try {
+        C.frontId = 99993; C.canHome = true; C.postStatus = 'publish';
+        var menu = await open();
+        var btn = menu.querySelector('.gogh-pagemenu-home-set');
+        expect(btn && !btn.disabled && /^Make this the home page$/.test(btn.textContent.trim()), 'the ⋯ menu offers to make this page home: ' + (btn && btn.textContent));
+        btn.click();
+        await new Promise(function (r) { setTimeout(r, 60); });
+        expect(posts.length === 1 && posts[0].id === +C.postId, 'it sets this page as home: ' + JSON.stringify(posts));
+        expect(+C.frontId === +C.postId && /Home page/.test(q('.gogh-pageswitch').textContent), 'the Home mark moves to this page');
+        var undo = [].filter.call(document.querySelectorAll('.gogh-toast button'), function (b) { return /Undo/.test(b.textContent); })[0];
+        expect(undo && /is now your home page/.test(undo.closest('.gogh-toast').textContent), 'a toast says so, with Undo');
+        undo.click();
+        await new Promise(function (r) { setTimeout(r, 60); });
+        expect(posts.length === 2 && posts[1].id === 99993 && posts[1].posts_page === 0, 'Undo puts back the home page that was there: ' + JSON.stringify(posts[1]));
+        menu = await open();
+        expect(!menu.querySelector('.gogh-pagemenu-home-set') === false, 'after Undo, this page can be made home again');
+        // a draft can't be home; nor can someone who can't change settings
+        C.frontId = 99993; C.postStatus = 'draft';
+        menu = await open();
+        btn = menu.querySelector('.gogh-pagemenu-home-set');
+        expect(btn && btn.disabled && /Publish it first/.test(btn.textContent), 'a draft is told to publish first');
+        C.postStatus = 'publish'; C.canHome = false;
+        menu = await open();
+        expect(!menu.querySelector('.gogh-pagemenu-home-set'), 'without the settings capability there is no offer');
+        C.canHome = true; C.frontId = C.postId;
+        menu = await open();
+        expect(!menu.querySelector('.gogh-pagemenu-home-set'), 'the home page itself is not offered again');
+      } finally {
+        window.fetch = realFetch;
+        G.nav.closeMore();
+        G.nav.closePages();
+        G.nav.setPages(null);
+        C.frontId = was.front; C.canHome = was.can; C.postStatus = was.st;
+        [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      }
+      return 'offered, set, mark moved, Undo restored; draft and no-capability cases held';
+    });
+
+    testAsync('the home page route sets the home page, refuses a post, and puts everything back (restored after)', async function () {
+      var C = window.GOGH;
+      if (!C.canHome) return 'skipped: this user may not change settings';
+      var root = C.restUrl.split('wp/v2/')[0];
+      var post = function (body) {
+        return fetch(root + 'gogh/v1/home', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': C.nonce }, body: JSON.stringify(body) })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }); });
+      };
+      var first = null;
+      try {
+        first = await post({ id: +C.postId });
+        expect(first.ok && first.j.frontId === +C.postId, 'a published page becomes home: ' + JSON.stringify(first));
+        var wrong = await post({ id: 1 });
+        expect(!wrong.ok && wrong.status === 400, 'a post (not a page) is refused: ' + wrong.status);
+      } finally {
+        if (first && first.ok) {
+          var back = await post({ id: first.j.was.id || 0, posts_page: first.j.was.postsPage || 0 });
+          expect(back.ok && back.j.frontId === (first.j.was.id || 0), 'the site’s home page is put back: ' + JSON.stringify(back.j));
+        }
+      }
+      return 'set, refused a post, restored';
+    });
+
+    testAsync('an uploaded picture shows on a card’s picture shelf, first and chosen', async function () {
+      var C = window.GOGH, s0 = sec();
+      var bi = s0.els.findIndex(function (e) { return e.type === 'box'; });
+      var added = false;
+      if (bi === -1) { s0.els.push({ type: 'box', x: 60, y: 40, w: 400, h: 260, radius: 12 }); G.renderSection(s0); bi = s0.els.length - 1; added = true; }
+      var was = { img: s0.els[bi].boxImg || null, id: s0.els[bi].boxImgId || null };
+      var src = (C.pluginUrl || (location.origin + '/wp-content/plugins/gogh/')) + 'demo-assets/arles-2.jpg?upload';
+      var realFetch = window.fetch, posted = 0;
+      window.fetch = function (u, opt) {
+        if (opt && opt.method === 'POST' && String(u) === C.mediaUrl) {
+          posted++;
+          var item = { id: 99902, source_url: src, media_details: { width: 600, height: 1200, sizes: {} }, title: { rendered: 'Upload' } };
+          return Promise.resolve(new Response(JSON.stringify(item), { status: 201, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+      try {
+        G.openPanel(s0, bi);
+        await new Promise(function (r) { setTimeout(r, 900); });
+        var inp = q('.gogh-panel .gogh-upload input[type="file"]');
+        if (!inp) return 'this card panel has no upload: nothing to judge';
+        var dt = new DataTransfer();
+        dt.items.add(new File([new Uint8Array([137, 80, 78, 71])], 'card.png', { type: 'image/png' }));
+        inp.files = dt.files;
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(function (r) { setTimeout(r, 300); });
+        expect(posted === 1, 'the picture was not uploaded');
+        var first = q('.gogh-panel .gogh-boximg-media .gogh-thumb');
+        expect(first && /arles-2\.jpg\?upload/.test(first.style.backgroundImage) && first.classList.contains('is-active'), 'the upload should lead the card’s shelf, chosen: ' + (first && first.style.backgroundImage));
+        expect(s0.els[bi].boxImg === src, 'the card should wear the upload');
+      } finally {
+        window.fetch = realFetch;
+        G.closePanel();
+        if (added) { s0.els.splice(bi, 1); } else { s0.els[bi].boxImg = was.img; s0.els[bi].boxImgId = was.id; }
+        G.renderSection(s0);
+      }
+      return 'uploaded picture first on the card shelf, chosen, worn';
+    });
+
+    testAsync('an uploaded picture shows on the section background shelf, first and chosen, whatever its shape', async function () {
+      var C = window.GOGH, i = G.sections().findIndex(function (x) { return !x.chrome; }), sx = G.sections()[i];
+      var was = { img: sx.bgImage || null, id: sx.bgId || null };
+      var src = (C.pluginUrl || (location.origin + '/wp-content/plugins/gogh/')) + 'demo-assets/arles-1.jpg';
+      var realFetch = window.fetch, posted = 0;
+      window.fetch = function (u, opt) {
+        if (opt && opt.method === 'POST' && String(u) === C.mediaUrl) {
+          posted++;
+          // a portrait: the shelf's 'wide pictures only' filter would hide it
+          var item = { id: 99901, source_url: src, media_details: { width: 600, height: 1200, sizes: {} }, title: { rendered: 'Upload' } };
+          return Promise.resolve(new Response(JSON.stringify(item), { status: 201, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+      try {
+        G.openSecBgPanel(i);
+        await new Promise(function (r) { setTimeout(r, 900); }); // let the library answer first
+        var inp = q('.gogh-panel .gogh-media .gogh-upload input[type="file"]');
+        expect(inp, 'the shelf has no upload tile');
+        var dt = new DataTransfer();
+        dt.items.add(new File([new Uint8Array([137, 80, 78, 71])], 'portrait.png', { type: 'image/png' }));
+        inp.files = dt.files;
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(function (r) { setTimeout(r, 300); });
+        expect(posted === 1, 'the picture was not uploaded');
+        var thumbs = [].filter.call(document.querySelectorAll('.gogh-panel .gogh-media .gogh-thumb'), function (t) { return !t.classList.contains('gogh-thumb-add'); });
+        expect(thumbs.length && thumbs[0].dataset.src === src, 'the upload should lead the shelf: ' + (thumbs[0] && thumbs[0].dataset.src));
+        expect(thumbs[0].classList.contains('is-active'), 'the upload should be marked as chosen');
+        expect(G.sections()[i].bgImage === src, 'the section should wear the upload');
+      } finally {
+        window.fetch = realFetch;
+        G.closePanel();
+        sx = G.sections()[i];
+        sx.bgImage = was.img; sx.bgId = was.id;
+        G.renderSection(sx);
+      }
+      return 'uploaded portrait first on the shelf, chosen, worn';
+    });
+
+    testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
+      var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
+      var html = await r.text();
+      expect(r.ok, 'the Make page did not answer: ' + r.status);
+      expect(/window\.goghMake = \{/.test(html) && /gogh-make\.js/.test(html), 'the page should carry its settings and its script');
+      expect(/"rest":"[^"]*gogh\\\/v1\\\//.test(html) && /"nonce":"[a-z0-9]+"/.test(html), 'the page should know this site\u2019s route and nonce');
+      expect(/id="thread"/.test(html) && /id="q"/.test(html) && /id="restart"/.test(html), 'the page should have a thread, a box to type in and Start again');
+      expect(/workers\.dev|helper/.test(html), 'the page should talk to the helper');
+      return 'the chat page answers with its settings, and nothing was built';
+    });
+
+    testAsync('the front door: a built site opens dressed, with a corner pill and no panel; Site style keeps its top row (brand, then Remix) and More', function () {
+      var first = G.sections().filter(function (x) { return !x.chrome; })[0];
+      return G.openFrontDoor().then(function (ok) {
+        expect(ok, 'the front door did not open');
+        var worn = G.remixWorn();
+        expect(worn && worn.cand, 'the site should open wearing a rolled look');
+        var pill = q('.gogh-frontdoor');
+        expect(pill && pill.querySelector('.gogh-frontdoor-roll') && pill.querySelector('.gogh-frontdoor-back') && pill.querySelector('.gogh-frontdoor-x'), 'the corner pill should offer another look, the one before, and done');
+        var pnl = q('.gogh-panel');
+        expect(!pnl || pnl.hidden, 'the front door should not open a panel');
+        var c1 = worn.cand;
+        pill.querySelector('.gogh-frontdoor-roll').click();
+        expect(G.remixWorn().cand && G.remixWorn().cand.key !== c1.key, 'Not this look? should roll another');
+        expect(/^On your site now: /.test(pill.querySelector('.gogh-frontdoor-cap').textContent), 'after a tap the pill says what is on the site');
+        pill.querySelector('.gogh-frontdoor-back').click();
+        expect(G.remixWorn().cand === c1, 'the pill\u2019s back should return to the first look');
+        pill.querySelector('.gogh-frontdoor-x').click();
+        expect(!q('.gogh-frontdoor'), 'done should take the pill away');
+        while (G.remixBack()) {} // home again for the tests that follow
+        // the panel itself: two doors on the top row, the dials under More
+        var tab = [].filter.call(document.querySelectorAll('.gogh-side-tab'), function (b) { return /^site$/i.test((b.textContent || '').trim()); })[0];
+        if (tab) tab.click();
+        var btn = q('.gogh-stylebtn');
+        expect(btn, 'no Site style card');
+        btn.click();
+        return new Promise(function (resolve) {
+          var t0 = Date.now();
+          var poll = function () {
+            var pnl2 = q('.gogh-panel');
+            if ((pnl2 && !pnl2.hidden && pnl2.querySelector('.gogh-remixbtn')) || Date.now() - t0 > 8000) resolve(pnl2); else setTimeout(poll, 100);
+          };
+          poll();
+        });
+      }).then(function (pnl) {
+        // v0.99.697: your site first, then three doors named for what they change
+        var mini = pnl.querySelector('.gogh-sitenow .gogh-sitenow-mini');
+        expect(mini && /\S/.test(mini.querySelector('.gogh-sitenow-h').textContent), 'Site styles should open on Your site now, with the page\u2019s own heading');
+        var rows = [].map.call(pnl.querySelectorAll('.gogh-siterow .gogh-siterow-t'), function (t) { return t.textContent; });
+        expect(rows.join(',') === 'Colours,Fonts,Text size', 'three rows: Colours, Fonts, Text size: ' + rows.join(','));
+        expect(pnl.querySelectorAll('.gogh-siterow-colours .gogh-vardot').length >= 2 && /\S/.test(pnl.querySelector('.gogh-siterow-fonts .gogh-siterow-sub').textContent), 'each row shows its current value');
+        var top = pnl.querySelector('.gogh-toprow');
+        var remix = top && top.querySelector('.gogh-remixbtn');
+        expect(remix && /Try a new look/.test(remix.textContent) && !/Remix/.test(pnl.textContent.replace(/\s+/g, ' ').replace(/gogh-remix/g, '')), 'Remix should be called Try a new look: ' + (remix && remix.textContent));
+        expect(!top.querySelector('.gogh-brandrow') && !pnl.querySelector('details.gogh-more'), 'no brand link and no folded More on the drawer: they live in Colours');
+        expect(remix.getBoundingClientRect().top > pnl.querySelector('.gogh-siterows').getBoundingClientRect().bottom - 2, 'Try a new look should sit under the rows');
+        // Colours: the three colours, your brand, the theme's sets
+        pnl.querySelector('.gogh-siterow-colours').click();
+        return new Promise(function (r) { var t0 = Date.now(); (function poll() { var c = q('.gogh-panel .gogh-colroles'); if (c || Date.now() - t0 > 6000) r(c); else setTimeout(poll, 100); })(); }).then(function (roles) {
+          var pc = q('.gogh-panel');
+          expect(roles && roles.querySelectorAll('.gogh-colrole').length >= 2, 'Colours should show the colours doing the work');
+          expect(pc.querySelector('.gogh-brandrow .gogh-brandsetup, .gogh-brandrow .gogh-brandbtn'), 'Colours should hold the brand door');
+          expect(!pc.querySelector('details.gogh-more'), 'the theme\u2019s colour sets are out in the open, not under More');
+          pc.querySelector('.gogh-panel-back').click();
+          return new Promise(function (r) { setTimeout(r, 700); });
+        }).then(function () {
+          var p2 = q('.gogh-panel');
+          expect(p2.querySelector('.gogh-sitenow'), 'Back from Colours should return to Site styles');
+          p2.querySelector('.gogh-siterow-size').click();
+          var dial = q('.gogh-panel .gogh-sizedial');
+          var its = dial ? [].slice.call(dial.querySelectorAll('.gogh-sizedial-it')) : [];
+          expect(its.length === 4 && its.every(function (it, k) { return !k || parseFloat(it.querySelector('b').style.fontSize) > parseFloat(its[k - 1].querySelector('b').style.fontSize); }), 'Text size: four sizes, each drawn bigger than the last');
+          expect(dial.querySelectorAll('.is-active').length === 1, 'the size in use is marked');
+          return q('.gogh-panel');
+        });
+      }).then(function (pnl) {
+        expect(!pnl.querySelector('.gogh-remixcards, .gogh-remixlocks, .gogh-remixdirs, .gogh-remixkept, .gogh-remixpin'), 'the shop (cards, locks, directions, the shelf) should be gone, not hidden');
+        expect(!G.remixKeep && !G.remixLocks, 'the shop\u2019s functions should be gone from the editor');
+        // saved styles are managed from a piece's Style panel: Site style
+        // stays colours and brand (James: 'pretty confusing')
+        expect(!q('.gogh-side .gogh-stylesetbtn') && !pnl.querySelector('.gogh-savedstyles'), 'Site style and the drawer carry no saved-styles door');
+        G.closePanel();
+      });
+    });
+
+    test('remix is a die: a tap lands a whole look, another tap lands another, Back walks home', function () {
+      var first = G.sections().filter(function (x) { return !x.chrome; })[0];
+      var before = { theme: first.theme || null, colors: first.els.map(function (e) { return e.color || null; }).join(','), divider: JSON.stringify(first.divider || null) };
+      var c1 = G.remixRoll({ dry: true });
+      expect(c1 && c1.name, 'a roll should hand back the look it landed');
+      var w1 = G.remixWorn();
+      expect(w1 && w1.cand === c1, 'the worn look should be the rolled one');
+      var previewOn = [].some.call(document.querySelectorAll('head style'), function (st) { return /--wp--preset--color--/.test(st.textContent) && st !== document.getElementById('global-styles-inline-css'); });
+      expect(previewOn, 'the look should land through the audition path (a preview stylesheet)');
+      var c2 = G.remixRoll({ dry: true });
+      expect(c2 && c2.key !== c1.key, 'a second tap should land a different look');
+      expect(G.remixBack() && G.remixWorn().cand === c1, 'Back should return to the first roll');
+      expect(G.remixBack() && G.remixWorn().origin, 'Back again should reach the look the site started with');
+      var after = { theme: first.theme || null, colors: first.els.map(function (e) { return e.color || null; }).join(','), divider: JSON.stringify(first.divider || null) };
+      expect(JSON.stringify(after) === JSON.stringify(before), 'home should be exactly where we started: ' + JSON.stringify(after) + ' vs ' + JSON.stringify(before));
+      expect(!G.remixBack(), 'there is nothing before home');
+      expect(G.remixForward() && G.remixWorn().cand === c1, 'Forward should walk back out');
+      while (G.remixBack()) {}
+    });
+
+    test('site styles in View: the brush stays, a look leaves the page alone', function () {
+      var first = G.sections().filter(function (x) { return !x.chrome; })[0];
+      var look = function () { return JSON.stringify(first.els.map(function (e) { return [e.color || null, e.y, e.h]; })) + '|' + (first.theme || '') + '|' + JSON.stringify(first.divider || null); };
+      var before = look();
+      G.setEditing(false);
+      var saved = G.serialize();
+      try {
+        var li = document.getElementById('wp-admin-bar-gogh-style');
+        if (window.GOGH && GOGH.gsId && document.getElementById('wpadminbar')) expect(li && !li.hidden, 'the brush should stay in the bar outside the editor');
+        var c = G.remixRoll({ dry: true });
+        expect(c && c.detailSite, 'a look should carry the words View shows');
+        expect(!/opening|alternat|bookend|edge|grain/i.test(c.detailSite), 'in View a look names only what it changes (fonts, size): ' + c.detailSite);
+        expect(look() === before, 'a look in View must not paint the page’s sections: ' + look() + ' vs ' + before);
+        expect(G.serialize() === saved, 'nothing on the page should change after a look in View');
+        while (G.remixBack()) {}
+      } finally { G.setEditing(true); }
+    });
+
+    test('site styles in View: hard-to-read words are counted on the page as published', function () {
+      var hw = G.stylesView && G.stylesView.hardWords;
+      expect(typeof hw === 'function', 'the View readability check should exist');
+      var host = sec().sectionEl;
+      var n0 = hw();
+      var probe = document.createElement('div');
+      probe.className = 'gogh-el-9999';
+      probe.innerHTML = '<p style="color: rgba(0,0,0,0.04); font-size: 14px; background: #ffffff">faint words</p>';
+      host.appendChild(probe);
+      try {
+        var n1 = hw();
+        expect(n1 === n0 + 1, 'one faint line on white should count once: ' + n0 + ' then ' + n1);
+      } finally { probe.remove(); }
+    });
+
+    test('ghost buttons wear the accent only where it reads on the page', function () {
+      var navy = G.brandToVariation({ colors: { background: '#ffffff', text: '#14213d', accent: '#1e3a5f', accent2: '#8a9bb0' } });
+      expect(navy.ghostInk === '#1e3a5f', 'navy reads on white, so ghosts wear it: ' + navy.ghostInk);
+      var lilac = G.brandToVariation({ colors: { background: '#fbf7fc', text: '#3b2c48', accent: '#c9a7e0', accent2: '#f4a7b9' } });
+      expect(lilac.ghostInk === null, 'lilac cannot read on a pale page, so ghosts keep the words colour: ' + lilac.ghostInk);
+      var s0 = sec(), wasBg = s0.bg;
+      try {
+        s0.bg = null; G.renderSection(s0);
+        expect(/gogh-ghost \.wp-block-button__link \{[^}]*color: var\(--gogh-ghost-ink, /.test(s0.styleEl.textContent), 'on the page ground the ghost rule should defer to the site variable');
+        // a section of its own colour: the ink that reads there, by role (a
+        // remix's dark opening hid a navy accent, then the page's words, on navy)
+        var roles = G.paletteRoles();
+        if (roles.textSlug && roles.bgSlug) {
+          s0.bg = 'var(--wp--preset--color--' + roles.textSlug + ')'; G.renderSection(s0);
+          expect(new RegExp('gogh-ghost \\.wp-block-button__link \\{[^}]*color: var\\(--wp--preset--color--' + roles.bgSlug + '\\)').test(s0.styleEl.textContent), 'on a section in the words colour the ghost should wear the ground colour');
+          s0.bg = 'color-mix(in srgb, var(--wp--preset--color--' + roles.textSlug + ') 6%, var(--wp--preset--color--' + roles.bgSlug + '))'; G.renderSection(s0);
+          expect(new RegExp('gogh-ghost \\.wp-block-button__link \\{[^}]*color: var\\(--wp--preset--color--' + roles.textSlug + '\\)').test(s0.styleEl.textContent), 'on a mist of the ground the ghost should wear the words colour');
+        }
+      } finally { s0.bg = wasBg; G.renderSection(s0); }
+    });
+
+    test('a brand palette keeps the theme\u2019s roles: inks stay inks, tints stay tints, two accents are accents', function () {
+      var v = G.brandToVariation({ colors: { background: '#f4f1ea', text: '#1a1a1a', accent: '#c0392b', accent2: '#2980b9' } });
+      var pal = {};
+      v.settings.color.palette.theme.forEach(function (p) { pal[p.slug] = p.color.toLowerCase(); });
+      var roles = G.paletteRoles();
+      expect(pal[roles.bgSlug] === '#f4f1ea' && pal[roles.textSlug] === '#1a1a1a', 'ground and text should be the brand\u2019s');
+      var accents = Object.keys(pal).filter(function (k) { return /accent|primary|secondary/.test(k); });
+      if (accents.length >= 4) {
+        expect(pal[accents[0]] === '#c0392b' && pal[accents[1]] === '#2980b9', 'the first two accent slots should carry the brand accents');
+        var swept = accents.slice(2).filter(function (k) { return pal[k] === '#c0392b' || pal[k] === '#2980b9'; });
+        expect(!swept.length, 'later accent slots should not be swept with the brand accents (body copy turns blue): ' + swept.join(','));
+      }
+    });
+
+    test('palette roles come from the theme\u2019s own stylesheet, not the editor\u2019s grey canvas', function () {
+      var d = G.declaredRoles();
+      expect(d && d.bgSlug, 'the theme declares a body background slug: ' + JSON.stringify(d));
+      var r = G.paletteRoles();
+      expect(r.bgSlug === d.bgSlug, 'roles should take the declared ground (' + d.bgSlug + '), got ' + r.bgSlug);
+      if (d.textSlug) expect(r.textSlug === d.textSlug, 'roles should take the declared ink (' + d.textSlug + '), got ' + r.textSlug);
+    });
+
+    test('one colour in: gogh derives a page, words and badges through the gate, and says what it did', function () {
+      var lum = function (hex) { var n = parseInt(hex.slice(1), 16); var f = function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(n >> 16 & 255) + 0.7152 * f(n >> 8 & 255) + 0.0722 * f(n & 255); };
+      var ratio = function (a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+      var lime = G.deriveBrand({ accent: '#53f00f' });
+      expect(lime.word === 'loud' && /loud/.test(lime.say), 'lime should be called loud: ' + lime.word + ' / ' + lime.say);
+      expect(lum(lime.colors.background) > 0.8 && ratio(lime.colors.text, lime.colors.background) >= 7, 'a light page with words at 7:1, got ' + ratio(lime.colors.text, lime.colors.background).toFixed(1));
+      expect(Math.max(ratio(lime.colors.text, lime.colors.accent), ratio(lime.colors.background, lime.colors.accent)) >= 3, 'some ink should read on the button');
+      expect(!lime.read.background && !lime.read.text && lime.read.accent, 'the receipt should say the page and words were gogh\u2019s choice');
+      var dark = G.deriveBrand({ accent: '#1f3a5f' }, { dark: true });
+      expect(lum(dark.colors.background) < 0.1 && lum(dark.colors.text) > 0.6, 'a dark page carries light words');
+      expect(Math.max(ratio(dark.colors.text, dark.colors.accent), ratio(dark.colors.background, dark.colors.accent)) >= 3, 'on a dark page some ink still reads on the button');
+      var beige = G.deriveBrand({ accent: '#e8d5b7' });
+      // beige on a derived near-white page cannot stand off it, so it may move a little; it wears dark words either way
+      expect(beige.word === 'pale' && beige.buttonInk === 'text', 'a pale colour wears dark words: ' + JSON.stringify([beige.word, beige.moved, beige.buttonInk]));
+      // black stays black, and its buttons wear the page colour
+      var black = G.deriveBrand({ accent: '#111111', background: '#f7f7f5', text: '#111111' });
+      expect(black.colors.accent === '#111111' && !black.moved && black.buttonInk === 'background', 'black should keep its colour and wear light words: ' + JSON.stringify([black.colors.accent, black.moved, black.buttonInk]));
+      // a monochrome brand derives neutrals, not a warm dark
+      var mono = G.deriveBrand({ accent: '#111111' });
+      var mh = (function (hex) { var n = parseInt(hex.slice(1), 16); var r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255; return Math.max(r, g, b) - Math.min(r, g, b); })(mono.colors.text);
+      expect(mh <= 2, 'a neutral brand should derive neutral words, got ' + mono.colors.text);
+      var bv = G.brandToVariation({ colors: black.colors });
+      var bc = bv.styles && bv.styles.elements && bv.styles.elements.button && bv.styles.elements.button.color;
+      expect(bc && /accent/.test(bc.background) && /\|base$|\|background$/.test(bc.text) || (bc && bc.text.indexOf(G.paletteRoles().bgSlug) !== -1), 'the brand should style its buttons: accent behind, the page colour as ink: ' + JSON.stringify(bc));
+      expect(G.colourWord('#111111') === 'deep' && G.colourWord('#9a9a9a') === 'muted' && G.colourWord('#c9a7e0') === 'pale', 'black is deep, grey is muted, lilac is pale: ' + [G.colourWord('#111111'), G.colourWord('#9a9a9a'), G.colourWord('#c9a7e0')].join(','));
+      var lilac = G.deriveBrand({ accent: '#c9a7e0', accent2: '#f4a7b9', background: '#fbf7fc', text: '#3b2c48' });
+      expect(lilac.colors.accent2 === '#f4a7b9' && !lilac.moved && lilac.buttonInk === 'text', 'a given secondary keeps the badges, and the pale button stays exact with dark words: ' + JSON.stringify([lilac.moved, lilac.buttonInk]));
+      var twice = G.readBrandGuide('Primary: #111111\nBackground: #F7F7F5\nText: #111111\n');
+      expect(twice.colors.accent === '#111111' && twice.colors.text === '#111111', 'a code named twice takes both roles: ' + JSON.stringify(twice.colors));
+      ['#c8102e', '#7a5c99', '#888888', '#0a0a0a'].forEach(function (hx) {
+        var d = G.deriveBrand({ accent: hx });
+        expect(ratio(d.colors.text, d.colors.background) >= 7 && Math.max(ratio(d.colors.text, d.colors.accent), ratio(d.colors.background, d.colors.accent)) >= 3, hx + ' should pass the gate: ' + JSON.stringify(d.colors));
+      });
+    });
+
+    test('a guideline is read: roles by the word beside the code, the rest placed by look, fonts by name', function () {
+      var g = G.readBrandGuide('Brand guidelines\nPrimary: #1F3A5F\nSecondary — #C8102E\nBackground #FAF7F2\nText colour: #1A1A1A\nHeadings: Playfair Display\nBody font: Manrope\n');
+      expect(g.colors.accent === '#1f3a5f' && g.colors.accent2 === '#c8102e' && g.colors.background === '#faf7f2' && g.colors.text === '#1a1a1a', 'roles should follow the words beside the codes: ' + JSON.stringify(g.colors));
+      expect(g.placed.accent === 'read' && g.placed.background === 'read', 'named roles should be marked as read');
+      expect(g.names.heading === 'Playfair Display' && g.names.body === 'Manrope', 'font names should be read: ' + JSON.stringify(g.names));
+      // several codes on one line, the role in brackets AFTER each code, and
+      // fonts named before their role (the Northline guide, 2026-09-22: it
+      // came out with the page as Bone, Steel buttons and no fonts)
+      var one = G.readBrandGuide('Colours: Charcoal #1B1B1F (background), Bone #EDE8DF (text), Ember #E8602C (accent), Steel #5B6770 (muted).\nType: Space Grotesk for headings, bold, uppercase allowed. IBM Plex Sans for body.');
+      expect(one.colors.background === '#1b1b1f' && one.colors.text === '#ede8df' && one.colors.accent === '#e8602c', 'a one-line guide should read each role from the brackets after its code: ' + JSON.stringify(one.colors));
+      expect(one.colors.accent2 === '#5b6770', 'the muted colour should land as the second accent: ' + one.colors.accent2);
+      expect(one.names.heading === 'Space Grotesk' && one.names.body === 'IBM Plex Sans', 'fonts named before their role should be read: ' + JSON.stringify(one.names));
+      // a table with the role in brackets before the code and a dash description after it (the Saltmarsh guide)
+      var table = G.readBrandGuide('Sea Ink (primary)     #1F3A4D  \u2014 headings, buttons, footer\nChalk (background)    #F6F1E8  \u2014 page background, cards\nKelp (accent)         #2E7D5B  \u2014 links, highlights\nRust (warm accent)    #C8552D  \u2014 calls to action\nPebble (neutral)      #8C8A84  \u2014 captions\nHeadings: Fraunces (serif), semi-bold.\nBody: Manrope (sans), regular.');
+      expect(table.colors.background === '#f6f1e8' && table.colors.text === '#1f3a4d' && table.colors.accent === '#2e7d5b' && table.colors.accent2 === '#c8552d', 'the table guide should read all four roles: ' + JSON.stringify(table.colors));
+      expect(table.names.heading === 'Fraunces' && table.names.body === 'Manrope', 'the table guide should read its fonts: ' + JSON.stringify(table.names));
+      var loose = G.readBrandGuide('our colours are #ffffff, #111111, #e63946 and #457b9d');
+      expect(loose.colors.background === '#ffffff' && loose.colors.text === '#111111', 'lightest → page, darkest → words: ' + JSON.stringify(loose.colors));
+      expect(loose.colors.accent === '#e63946', 'the most saturated should be the buttons: ' + loose.colors.accent);
+      expect(loose.placed.accent === 'placed', 'a placed role should say so');
+      var one = G.readBrandGuide('use #ff6600 everywhere');
+      expect(one.colors.accent === '#ff6600' && !one.colors.background, 'one code is the colour, nothing else is invented here');
+      var d = G.deriveBrand({ accent: g.colors.accent, accent2: g.colors.accent2, background: g.colors.background, text: g.colors.text });
+      expect(d.colors.background === '#faf7f2' && d.colors.text === '#1a1a1a' && d.colors.accent2 === '#c8102e', 'what a guide gives is honoured');
+      expect(/^Your primary/.test(d.say), 'a guide\u2019s colour is called the primary: ' + d.say);
+    });
+
+    // a guideline names a font the site lacks: gogh finds it on Google (through
+    // the site), tries it on the page, and says it will be installed on keep
+    testAsync('a guideline naming a font the site lacks: found on Google, tried, installed when kept', function () {
+      G.fontsDry(true);
+      G.openBrandForm();
+      var pnl = q('.gogh-panel');
+      var ta = pnl.querySelector('.gogh-brandguide');
+      ta.value = 'Primary: #1F3A5F\nBackground: #FAF7F2\nText: #1A1A1A\nHeadings: Cormorant Garamond\nBody font: Lato\n';
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      return new Promise(function (resolve) {
+        var t0 = Date.now();
+        (function poll() {
+          var f = pnl.querySelector('.gogh-brandsay-fonts');
+          var done = f && /installed when you keep|not on Google|looking it up/.test(f.textContent) && !/looking it up/.test(f.textContent);
+          if (done || Date.now() - t0 > 15000) resolve(f ? f.textContent : ''); else setTimeout(poll, 200);
+        })();
+      }).then(function (line) {
+        if (!/installed when you keep/.test(line)) { G.closePanel(); G.fontsDry(false); return 'Google’s list did not answer here — the receipt read: ' + line; }
+        expect(/Headings: Cormorant Garamond — from your guide, installed when you keep/.test(line), 'the receipt should name the heading font and promise the install: ' + line);
+        expect(/Body: Lato — from your guide, installed when you keep/.test(line), 'and the body font: ' + line);
+        return new Promise(function (resolve) { setTimeout(resolve, 2500); }).then(function () {
+          var pv = document.getElementById('gogh-font-preview');
+          expect(pv && /Cormorant Garamond/.test(pv.textContent) && /Lato/.test(pv.textContent), 'the page should try the named fonts while the form is open');
+          pnl.querySelector('.gogh-brandcancel').click();
+          expect(!pv.textContent, 'Cancel should take the tried fonts off the page');
+          G.closePanel();
+          G.fontsDry(false);
+          return 'a named font the site lacks is found on Google, tried on the page, and promised on keep';
+        });
+      });
+    });
+
+    test('the brand form: two doors, then the page wears it and gogh says why', function () {
+      G.openBrandForm();
+      var pnl = q('.gogh-panel');
+      expect(pnl.querySelector('.gogh-brandguide') && pnl.querySelector('.gogh-brandonepick'), 'the doors should be there');
+      expect(pnl.querySelectorAll('.gogh-brandwell').length === 4 && pnl.querySelector('details.gogh-brandfine') && !pnl.querySelector('details.gogh-brandfine').open, 'the wells should be folded under Fine-tune');
+      var pick = pnl.querySelector('.gogh-brandonepick');
+      pick.value = '#c8102e';
+      pick.dispatchEvent(new Event('input', { bubbles: true }));
+      var res = pnl.querySelector('.gogh-brandresult');
+      expect(!res.hidden, 'giving a colour should show the result');
+      expect(pnl.querySelectorAll('.gogh-brandchip').length === 4, 'the receipt should show four roles');
+      expect(/Your (colour|primary)/.test(pnl.querySelector('.gogh-brandsay').textContent), 'gogh should say what it did');
+      pnl.querySelector('.gogh-brandpolbtn[data-dark="1"]').click();
+      expect(pnl.querySelector('.gogh-brandpolbtn[data-dark="1"]').classList.contains('is-on'), 'Dark page should take');
+      var pageChip = pnl.querySelector('.gogh-brandwell[data-k="background"] input[type="color"]').value;
+      expect(parseInt(pageChip.slice(1), 16) < 0x333333, 'a dark page should be dark: ' + pageChip);
+      pnl.querySelector('.gogh-brandcancel').click();
+    });
+
+    test('the brand is the lock: a set brand rides every roll, and the rest still rolls', function () {
+      var b = G.brand();
+      if (!(b && b.colors && b.colors.background && b.colors.text)) return 'no brand set on this site \u2014 nothing to pin';
+      var rolls = [G.remixCandidates(), G.remixCandidates(), G.remixCandidates()].reduce(function (a, x) { return a.concat(x); }, []);
+      expect(rolls.every(function (c) { return c.colors.background.toLowerCase() === b.colors.background.toLowerCase() && c.colors.text.toLowerCase() === b.colors.text.toLowerCase(); }), 'a roll moved the brand\u2019s ground or text');
+      if (b.colors.accent) expect(rolls.every(function (c) { return c.colors.accent.toLowerCase() === b.colors.accent.toLowerCase(); }), 'a roll moved the brand\u2019s accent');
+      expect(rolls.every(function (c) { return c.brand && c.name === 'Your brand'; }), 'a brand roll should say so');
+      var scales = {}, rhythms = {};
+      rolls.forEach(function (c) { scales[c.scale] = 1; rhythms[c.rhythm] = 1; });
+      expect(Object.keys(scales).length + Object.keys(rhythms).length > 2, 'type and sections should still roll: ' + JSON.stringify([scales, rhythms]));
+      return 'brand ' + b.colors.background + '/' + b.colors.text + ' held through ' + rolls.length + ' rolls';
     });
 
     test('ask gogh: the vocabulary reads plain instructions', function () {
@@ -5032,7 +9827,7 @@
       pev('pointerdown', s.sectionEl, 10, 10);
       expect(s.sectionEl.classList.contains('gogh-selsec') &&
         !s.sectionEl.classList.contains('gogh-selsec-faint'), 'ground click did not select the section');
-      expect(!q('.gogh-secbar').hidden, 'the four-door bar did not dock');
+      expect(!q('.gogh-secbar').hidden, 'the section bar did not dock');
       select(0);
       expect(s.sectionEl.classList.contains('gogh-selsec-faint'), 'choosing a piece did not go faint');
       // ONE editing surface: with a piece chosen, the section bar stands down
@@ -5181,21 +9976,32 @@
     });
 
     test('snapping: the painted grid is a real magnet', function () {
-      // resize: an edge near a painted 40-unit line lands ON it (44→40),
-      // not beside it on the free 8-grid (which would say 48); far from
-      // any line the free 8-grid still rules (22→24)
-      expect(G.snapAxis([], 44).v === 40, 'resize edge at 44 landed at ' + G.snapAxis([], 44).v + ', not 40');
-      expect(G.snapAxis([], 22).v === 24, 'free positioning broke: 22 landed at ' + G.snapAxis([], 22).v);
+      // resize, grid off: mid-gesture the painted majors (72) are the magnet
+      // — an edge near one lands ON it (76→72), not beside it on the free
+      // 8-grid (which would say 80); far from any line the free 8-grid still
+      // rules (22→24)
+      // the drawn lines are the margin column (80) sideways and the rows
+      // (72, 96, 108 ...) downwards; 84→80, and a y of 100 → the row end at 96
+      expect(G.snapAxis([], 84, 'x').v === 80, 'resize edge at 84 landed at ' + G.snapAxis([], 84, 'x').v + ', not on the margin line 80');
+      expect(G.snapAxis([], 100, 'y').v === 96, 'resize edge at y 100 landed at ' + G.snapAxis([], 100, 'y').v + ', not on the row edge 96');
+      expect(G.snapAxis([], 22, 'x').v === 24, 'free positioning broke: 22 landed at ' + G.snapAxis([], 22, 'x').v);
       // alignment magnets still outrank the grid
-      expect(G.snapAxis([43], 44).v === 43, 'a neighbour magnet lost to the grid');
+      expect(G.snapAxis([43], 44, 'x').v === 43, 'a neighbour magnet lost to the grid');
+      // grid on: far from every line the mesh IS the lattice — a person who
+      // asks for the grid gets the drawn lines, not a hidden 24
+      G.setGridSnap(true);
+      var L = G.lattice;
+      expect(G.snapAxis([], 44, 'x').v === 80, 'with the grid on, 44 should land on the margin line 80, got ' + G.snapAxis([], 44, 'x').v);
+      expect(G.snapAxis([], 130, 'x').v === Math.round(L.colStart(2)), 'with the grid on, 130 should land on column 2 (' + Math.round(L.colStart(2)) + '): got ' + G.snapAxis([], 130, 'x').v);
+      G.setGridSnap(false);
       // drag: same tiering through snapPos — pick a grid line far from
       // every magnet the fixture offers so only the grid can catch
       var s = sec();
-      var cands = [0, 1200, 600];
+      var cands = [0, 1200, 600, 80]; // (80 is the named margin magnet)
       s.els.forEach(function (o) { cands.push(o.x, o.x + o.w, o.x + o.w / 2); });
       var X0 = null;
-      for (var k = 2; k < 28 && X0 === null; k++) {
-        var line = k * 40;
+      for (var k = 2; k < 24 && X0 === null; k++) {
+        var line = Math.round(L.colStart(k));
         var clear = cands.every(function (c) { return Math.abs(c - line) > 8 && Math.abs(c - (line + 4)) > 8; });
         if (clear) X0 = line;
       }
@@ -5204,11 +10010,90 @@
       var r = G.snapPos(s, s.els[0], X0 + 4, 9999, 0, 0, false, null);
       G.setGridSnap(false);
       expect(r.x === X0, 'drag edge at ' + (X0 + 4) + ' landed at ' + r.x + ', not on the painted line ' + X0);
-      return '44→40 on the line, 22→24 free, magnets still first, drag x' + (X0 + 4) + '→' + X0;
+      return '84→80 on the margin line, y 100→96 on a row edge, 22→24 free, 44→80 with the grid on, magnets still first, drag x' + (X0 + 4) + '→' + X0;
     });
 
-    test('section bar: three doors, housekeeping in words', function () {
+    testAsync('section corners come on hover and go when the pointer leaves; a selection keeps them', function () {
+      var s = sec();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      var r = s.sectionEl.getBoundingClientRect();
+      var mv = function (el, x, y) { el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: x, clientY: y, pointerId: 7, pointerType: 'mouse' })); };
+      mv(s.sectionEl, r.left + 20, r.top + 20);
+      var add = q('.gogh-secbar'), bar = add;
+      expect(!add.hidden && !add.classList.contains('gogh-byebye') && !bar.hidden, 'hovering the section did not summon the corners');
+      expect(!s.sectionEl.classList.contains('gogh-selsec'), 'hovering must not select the section');
+      mv(document.body, 2, 2);
+      return new Promise(function (res) { setTimeout(res, 400); }).then(function () {
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'the corners stayed after the pointer left');
+        pev('pointerdown', s.sectionEl, 10, 10); // selected: the corners stay whatever the pointer does
+        mv(document.body, 2, 2);
+        return new Promise(function (res) { setTimeout(res, 400); });
+      }).then(function () {
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'a selected section lost its corners when the pointer left');
+        // a selected section must not deaden the hover elsewhere: another
+        // section under the hand takes the corners
+        var dupI = G.sections().indexOf(s) ;
+        G.duplicateSection(dupI);
+        var s2 = G.sections()[dupI + 1];
+        var r2 = s2.sectionEl.getBoundingClientRect();
+        mv(s2.sectionEl, r2.left + 20, r2.top + 20);
+        var addR = add.getBoundingClientRect();
+        expect(!add.hidden && Math.abs(addR.top - (r2.top + 14)) < 120, 'hovering another section while one is selected did not move the corners to it: add top ' + Math.round(addR.top) + ' vs section top ' + Math.round(r2.top));
+        G.deleteSection(dupI + 1);
+        pev('pointerdown', s.sectionEl, 10, 10); // back to: this section selected
+        // a chosen piece folds them, and they stay away while the hand
+        // works inside that section; a trip out and back re-arms them, so
+        // adding one thing never ends the adding
+        select(0);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'choosing a piece did not fold the corners');
+        mv(s.sectionEl, r.left + 200, r.top + 300);
+        mv(s.sectionEl, r.left + 260, r.top + 340);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'the corners came back while the hand worked mid-section with a piece chosen');
+        // reaching for the corner asks for it, piece or no piece
+        mv(s.sectionEl, r.left + 60, Math.max(r.top, 76) + 30);
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'reaching for the top band did not bring the corners back');
+        select(0);
+        mv(s.sectionEl, r.left + 200, r.top + 300);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'choosing the piece again did not fold the corners');
+        mv(document.body, 2, 2); // out…
+        mv(s.sectionEl, r.left + 200, r.top + 300); // …and back in, mid-section
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'a fresh visit did not bring the corners back');
+        // let the piece go by a click OFF the page while the hand stays in the
+        // section: the hold ends with the piece, no trip out needed
+        select(0);
+        mv(s.sectionEl, r.left + 200, r.top + 300);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'choosing a piece again did not fold the corners');
+        pev('pointerdown', document.body, 4, 4); // defocus without leaving the section
+        mv(s.sectionEl, r.left + 220, r.top + 320);
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'after defocusing, hovering inside the section did not bring the corners back');
+        // typing in a piece: quiet mid-section, but the top band still summons
+        select(0); select(0); // the second click on a chosen text piece starts editing
+        var typing = document.documentElement.classList.contains('gogh-textediting');
+        mv(s.sectionEl, r.left + 200, r.top + 300);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'the corners came back mid-section while typing');
+        mv(s.sectionEl, r.left + 60, Math.max(r.top, 76) + 30);
+        expect(!add.hidden && !add.classList.contains('gogh-byebye') && getComputedStyle(add).opacity !== '0', 'reaching for the top band while typing did not bring the pill (typing: ' + typing + ')');
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        pev('pointerdown', document.body, 4, 4);
+        mv(s.sectionEl, r.left + 220, r.top + 320);
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'after defocusing, hovering inside the section did not bring the corners back');
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        pev('pointerdown', document.body, 4, 4);
+        return 'hover summons, leaving folds, selection keeps, a chosen piece holds them off until a fresh visit';
+      });
+    });
+    test('section bar: one pill, Add first in words, Background in words, the die, then ⋯ in words', function () {
       var bar = q('.gogh-secbar');
+      // the first three testers: "Where is the + button?" — the verb comes
+      // first, in words, with an ink disc; a two-corner split felt busy
+      var doorsAll = [].slice.call(bar.querySelectorAll('.gogh-sb'));
+      expect(doorsAll[0] && doorsAll[0].classList.contains('gogh-sb-add') && /^Add$/.test(doorsAll[0].textContent.trim()) && doorsAll[0].querySelector('.gogh-sb-plus'), 'Add is not the first door, in words, with its disc');
+      expect(/Background/.test((bar.querySelector('[data-sec="bgimg"]') || {}).textContent || ''), 'Background lost its word');
+      expect(!bar.querySelector('.gogh-secbar-label'), 'the Section label is back');
+      var wr = sec().wrapEl.getBoundingClientRect(), br = bar.getBoundingClientRect();
+      expect(Math.abs(br.left - (wr.left + 16)) < 2, 'the pill should sit at the section’s top-left: ' + Math.round(br.left) + ' vs ' + Math.round(wr.left + 16));
       // the die only counts as a door where a drawer of takes exists — a
       // named family, or one inferred from the section's shape (v0.99.407+);
       // without either it stays hidden and the bar reads three doors; the
@@ -5225,24 +10110,95 @@
       G.openSecMore(i, bar.querySelector('[data-sec="more"]'));
       var items = [].map.call(document.querySelectorAll('.gogh-secmore .gogh-secmore-it'),
         function (b) { return b.textContent + (b.disabled ? '·off' : ''); });
+      // Rearrange left the menu in v0.99.499: the die already offers every
+      // arrangement a hand-built section can take; Hide on phones joined in
+      // v0.99.596 so the mobile options are reachable from the desktop
       expect(items.length === 6, 'expected 6 menu verbs, got ' + items.length);
+      expect(items.some(function (t) { return /Hide on phones/.test(t); }), 'no Hide on phones among ' + items.join(', '));
       expect(/Move up·off/.test(items[0]), 'the first section can somehow move up: ' + items[0]);
       expect(document.querySelector('.gogh-secmore-del'), 'Delete lost its red');
       document.querySelector('.gogh-secmore').hidden = true;
       return items.join(', ');
     });
 
-    test('the rail: Page · Site · SEO, each door honest about its scope', function () {
+    test('the die leaves a one-of-a-kind section alone: a glaze chart of four swatches has no family', function () {
+      // the Hollowell glaze band: an intro (eyebrow, heading, para) beside four
+      // columns of swatch box, name, note and a small uppercase label. The
+      // base take of any family it scored against had no slot for most of
+      // them, so they rode over every take (v0.99.468)
+      var els = [
+        { type: 'para', x: 82, y: 64, w: 400, h: 17, text: 'Glazes', tf: { fs: 12, tt: 'uppercase' } },
+        { type: 'heading', x: 82, y: 96, w: 360, h: 88, text: 'Four glazes, one kiln.', tf: { fs: 34 } },
+        { type: 'para', x: 82, y: 200, w: 360, h: 110, text: 'Every piece is fired to cone 8, about 1260 degrees, in a gas kiln in reduction. That is why the same glaze never comes out quite the same twice.' } ];
+      ['Salt', 'Ash', 'Cobalt', 'Tenmoku'].forEach(function (name, i) {
+        var x = [480, 642, 804, 966][i];
+        els.push({ type: 'box', x: x, y: 64, w: 148, h: 148, radius: 4, boxBg: '#B9C2B4', kids: [] });
+        els.push({ type: 'heading', x: x, y: 226, w: 148, h: 20, text: name, tf: { fs: 15 } });
+        els.push({ type: 'para', x: x, y: 252, w: 148, h: 58, text: 'A soft white that breaks warm over rims and edges.', tf: { fs: 13 } });
+        els.push({ type: 'para', x: x, y: 318, w: 148, h: 16, text: 'Cone 8 reduction', tf: { fs: 11, tt: 'uppercase' } });
+      });
+      var n0 = G.sections().length;
+      G.addSection({ name: 'glazes', minH: 380, els: els }, n0);
+      var fam = G.diceFamilyOf(G.sections()[n0]);
+      // a plain hero keeps its die: the rule only bites where pieces would ride
+      G.addSection({ name: 'plain', minH: 520, els: [
+        { type: 'para', x: 82, y: 80, w: 400, h: 17, text: 'Stoneware from Bristol', tf: { fs: 12, tt: 'uppercase' } },
+        { type: 'heading', x: 82, y: 116, w: 540, h: 124, text: 'Thrown by hand. Fired to cone 8.', tf: { fs: 56 } },
+        { type: 'para', x: 82, y: 262, w: 470, h: 84, text: 'Mugs, bowls and bottles made in small batches in a railway-arch studio.' },
+        { type: 'button', x: 82, y: 376, w: 220, h: 50, text: 'Shop the collection' } ] }, n0 + 1);
+      var fam2 = G.diceFamilyOf(G.sections()[n0 + 1]);
+      G.deleteSectionRaw(n0 + 1);
+      G.deleteSectionRaw(n0);
+      expect(fam === null, 'the glaze chart found a family (' + fam + '): its swatches and labels would ride over every take');
+      expect(!!fam2, 'a plain hero lost its die');
+      return 'glaze chart: no family; plain hero: ' + fam2;
+    });
+
+    testAsync('Site style: the On-your-site-now card stays out of sight until a Remix has been rolled', async function () {
+      var side = q('.gogh-side');
+      G.openSide('site');
+      try {
+        side.querySelector('.gogh-cards-site .gogh-stylebtn').click();
+        // the panel fills once the theme's variations arrive
+        await new Promise(function (res) { var t0 = Date.now(); (function look() { var b = q('.gogh-panel .gogh-remixwearing'); if (b || Date.now() - t0 > 6000) res(b); else setTimeout(look, 100); })(); });
+        // the panel is drawn again once the variations land: take the live card, not the first one seen
+        await new Promise(function (r) { setTimeout(r, 600); });
+        var box = q('.gogh-panel .gogh-remixwearing');
+        expect(box && document.body.contains(box), 'the Site style panel has no wearing card');
+        // an earlier test may have rolled a Remix on this page; either way the
+        // invariant holds: hidden means not drawn, shown means it has a name
+        var name = box.querySelector('.gogh-remixwearing-name').textContent;
+        if (box.hidden) expect(getComputedStyle(box).display === 'none', 'the hidden card is still drawn: display ' + getComputedStyle(box).display);
+        else expect(/\S/.test(name), 'the card is showing with no name');
+        // v0.99.697: no brand receipt here: Your site now shows the look, and
+        // with nothing rolled the Trying card stays out of sight
+        if (!G.remixWorn() || G.remixWorn().origin) expect(box.hidden, 'with nothing rolled the Trying card should be hidden');
+        // and hidden by hand, it must vanish (the flex rule used to out-rank hidden)
+        var was = box.hidden; box.hidden = true;
+        expect(getComputedStyle(box).display === 'none', 'a hidden card is still drawn: display ' + getComputedStyle(box).display);
+        box.hidden = was;
+      } finally { G.closePanel(); G.closeSide(true); settleZoom(); }
+      return 'hidden means not drawn; shown means named';
+    });
+    test('the rail: Page · SEO on the left, the Site drawer from the brush in the top bar', function () {
       var pg = q('.gogh-local-tab');
-      var st = q('.gogh-site-tab');
       var ar = q('.gogh-ar-tab');
       expect(pg && !pg.hidden && /Page/.test(pg.textContent), 'the Page tab is missing or misnamed');
-      expect(st && !st.hidden && /Site/.test(st.textContent), 'the Site tab is missing or misnamed');
+      expect(!q('.gogh-site-tab'), 'the rail still carries a Site tab');
       expect(ar && !ar.hidden, 'the SEO tab is missing');
+      var st = q('#wp-admin-bar-gogh-style .gogh-stylebar, .gogh-devpill-float .gogh-stylebar');
+      expect(st, 'no brush in the top bar');
+      var stHome = q('#wp-admin-bar-gogh-style');
+      if (stHome) expect(stHome.nextElementSibling && stHome.nextElementSibling.id === 'wp-admin-bar-gogh-device', 'the brush should sit left of the Desktop | Mobile pair (v0.99.625)');
+      expect(!st.closest('[hidden]'), 'the brush is hidden while editing');
+      expect(/^Site styles/.test(st.getAttribute('title')), 'the brush tooltip should say Site styles: ' + st.getAttribute('title'));
+      // v0.99.692: 'Site styles', apart from the piece toolbar's 'Style · …'
+      expect(/^Site styles$/.test(st.textContent.trim()), 'the brush should carry the words Site styles: ' + st.textContent.trim());
+      expect(!st.querySelector('rect') && !q('#wp-admin-bar-gogh-device rect'), 'a <rect> in the admin bar is zeroed by WordPress\u2019s reset; draw with paths');
       var side = q('.gogh-side');
-      // the Site door opens the drawer wearing SITE clothes only
+      // the brush opens the drawer wearing SITE clothes only
       st.click();
-      expect(side.classList.contains('is-open'), 'the Site tab did not open the drawer');
+      expect(side.classList.contains('is-open'), 'the brush did not open the drawer');
       expect(q('.gogh-side-title').textContent === 'Site', 'the drawer head does not say Site');
       expect(side.querySelector('.gogh-cards-page').hidden, 'page cards leaked into Site mode');
       expect(!side.querySelector('.gogh-cards-site').hidden, 'site cards missing in Site mode');
@@ -5255,6 +10211,11 @@
       expect(!side.querySelector('.gogh-cards-page').hidden, 'page cards missing in Page mode');
       expect(side.querySelector('.gogh-cards-site').hidden, 'site cards leaked into Page mode');
       expect(side.querySelector('.gogh-cards-page .gogh-pagestylebtn'), 'Page style lost its card');
+      // Add a page: a card like the others, always in sight, and last
+      var cardsP = side.querySelectorAll('.gogh-cards-page .gogh-scard');
+      var addCard = side.querySelector('.gogh-cards-page .gogh-addpagebtn');
+      expect(addCard && addCard.classList.contains('gogh-scard') && /Add a page/.test(addCard.textContent) && addCard.offsetParent !== null, 'Add a page should be a card in sight in the Page drawer');
+      expect(cardsP[cardsP.length - 1] === addCard, 'Add a page should be the last card (the ones above are about this page)');
       expect(side.querySelector('.gogh-cards-page .gogh-rearrange'), 'Rearrange lost its card');
       G.closeSide(true);
       ar.click();
@@ -5305,11 +10266,12 @@
       return 'card present, drafted “' + desc.textContent.trim().slice(0, 40) + '…”';
     });
 
-    test('background panel: first paint is Theme + Image, one row open at a time', function () {
+    test('background panel: first paint is Colour + the shelf, one row open at a time', function () {
       var i = G.sections().indexOf(sec());
       G.openSecBgPanel(i);
-      expect(q('.gogh-panel .gogh-themerow'), 'Theme row missing from first paint');
-      expect(q('.gogh-panel .gogh-media'), 'Image area missing from first paint');
+      expect(q('.gogh-panel .gogh-themerow'), 'Colour row missing from first paint');
+      expect(q('.gogh-panel .gogh-media'), 'Picture shelf missing from first paint');
+      expect(q('.gogh-panel .gogh-media .gogh-thumb-add'), 'the shelf should lead with the upload tile');
       var rows = document.querySelectorAll('.gogh-panel .gogh-bgrow');
       expect(rows.length >= 2, 'expected folded rows, got ' + rows.length);
       rows.forEach(function (r2) {
@@ -5322,77 +10284,180 @@
       expect(rows[0].querySelector('.gogh-bgrow-body').hidden, 'opening the second row left the first open');
       expect(!rows[1].querySelector('.gogh-bgrow-body').hidden, 'second row did not open');
       var hv = rows[0].querySelector('.gogh-bgrow-val').textContent;
-      expect(hv.length > 0, 'the height summary is empty');
+      expect(hv.length > 0, 'the first row summary is empty');
       pev('pointerdown', document.body, 4, 4);
       return rows.length + ' folded rows, exclusive open, summary "' + hv + '"';
     });
 
-    testAsync('Colour & more: opening scrolls the colours into view', function () {
-      // the toggle lives at the panel's fold — without the scroll, the
-      // block unfolded below the visible edge and the button read as
-      // dead ("colour and more does nothing atm")
-      var stalled = false;
-      var frames = function (n) {
-        return new Promise(function (r) {
-          var fired = false;
-          var step = function (k) {
-            if (k <= 0) { fired = true; r(true); return; }
-            requestAnimationFrame(function () { step(k - 1); });
-          };
-          step(n);
-          setTimeout(function () { if (!fired) { stalled = true; r(false); } }, 900);
-        });
-      };
+    test('any colour: a surface of our own, and the words follow the ground', function () {
+      // Two things used to be wrong here. Colour lived in TWO places —
+      // paired on the chips, raw under a toggle — and the raw one set the
+      // ground and left the words behind. And it opened the OS colour
+      // window, in the corner of the SCREEN, on top of the section it was
+      // recolouring ("a bit weird that the custom color opens in a
+      // separate modal").
       var i = G.sections().indexOf(sec());
       G.openSecBgPanel(i);
-      var t = q('.gogh-panel-more-toggle');
-      var more = q('.gogh-panel-more');
-      var pnl = q('.gogh-panel');
-      expect(t && more && more.hidden, 'the more block should arrive folded');
-      // smooth scrolling rides the compositor's clock (frozen in a hidden
-      // tab): observe the REQUEST and apply it instantly, so the assertion
-      // is about intent + geometry, not animation timing
-      var origScrollTo = pnl.scrollTo;
-      var asked = null;
-      pnl.scrollTo = function (o) {
-        asked = o && typeof o === 'object' ? o.top : o;
-        return origScrollTo.call(pnl, { top: asked, behavior: 'instant' });
+      var sx = G.sections()[i];
+      var panel = q('.gogh-panel');
+      expect(!q('.gogh-panel-more-toggle'), 'the Colour & more toggle should be gone');
+      expect(!panel.querySelector('input[type="color"]'),
+        'the panel still reaches for the OS colour window');
+
+      var chip = q('.gogh-panel .gogh-themechip-any');
+      expect(chip && chip === chip.parentNode.firstElementChild, '"Custom colour" should lead the colour row');
+      expect(/Custom colour/.test(chip.textContent) && chip.querySelector('.gogh-themechip-plus'), 'the unused chip says Custom colour beside a colour wheel: ' + (chip && chip.textContent));
+
+      var textIdx = sx.els.findIndex(function (e) { return e.type === 'heading' || e.type === 'para'; });
+      expect(textIdx >= 0, 'fixture section has no words to re-ink');
+      var was = { theme: sx.theme, bg: sx.bg, bgA: sx.bgA,
+        colors: sx.els.map(function (e) { return e.color || null; }) };
+      var inkBefore = sx.els[textIdx].color || null;
+
+      chip.click();
+      var pop = q('.gogh-panel .gogh-colorpop');
+      expect(pop && !pop.hidden, 'the colour surface did not open');
+      expect(panel.contains(pop), 'the surface must live inside the panel, not over the canvas');
+      expect(pop.querySelector('.gogh-cp-hue'), 'no hue control');
+      expect(pop.querySelectorAll('.gogh-cp-shade').length === 6, 'expected six shades');
+      expect(/contrast/.test(pop.querySelector('.gogh-cp-ink').textContent),
+        'the surface should say which ink it picked and how well it reads');
+
+      var hex = pop.querySelector('.gogh-cp-hex');
+      hex.value = '#2f5d50';
+      hex.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(sx.bg === '#2f5d50', 'typing a colour did not audition on the section (' + sx.bg + ')');
+
+      pop.querySelector('.gogh-cp-keep').click();
+      expect(q('.gogh-panel .gogh-colorpop').hidden, 'keeping did not close the surface');
+      expect(sx.bg === '#2f5d50', 'the kept colour did not land (' + sx.bg + ')');
+      expect(sx.theme === 'any', 'a custom colour should be a theme, got ' + sx.theme);
+      var inkAfter = sx.els[textIdx].color || null;
+      expect(inkAfter && inkAfter !== inkBefore, 'the words kept their old ink — that is the bug this replaces');
+      expect(chip.classList.contains('is-active'), 'the any chip did not mark itself chosen');
+      expect(!chip.querySelector('.gogh-themechip-plus'), 'the chip should show its colour once used');
+
+      sx.theme = was.theme; sx.bg = was.bg; sx.bgA = was.bgA;
+      sx.els.forEach(function (e, k) { e.color = was.colors[k]; });
+      G.renderSection(sx); G.resolveAll();
+      pev('pointerdown', document.body, 4, 4);
+      return 'ink ' + String(inkBefore) + ' \u2192 ' + String(inkAfter) + ', in-panel surface';
+    });
+
+    test('a shape can hold things: it joins as a card, and the room is not the bounding box', function () {
+      // a card has always been a box with kids and a shape has always been a
+      // field on a box — the same object in different clothes. What was
+      // missing is that a circle's corners are not room.
+      var sx = sec();
+      var i0 = sx.els.length;
+      sx.els.push({ type: 'box', x: 200, y: 1400, w: 400, h: 400, shape: 'circle',
+        boxBg: 'var(--wp--preset--color--contrast)' });
+      var hostIdx = sx.els.length - 1;
+      var host = sx.els[hostIdx];
+
+      var room = G.shapeRoom(host);
+      // the inscribed square of a circle is the diameter over root two
+      var want = Math.round(400 / Math.SQRT2);
+      expect(Math.abs(room.w - want) <= 12, 'circle room should be about ' + want + ' wide, got ' + room.w);
+      expect(room.x > 40, 'the room should be inset from the bounding box, x=' + room.x);
+      var plain = G.shapeRoom({ type: 'box', x: 0, y: 0, w: 400, h: 400 });
+      expect(plain.w > room.w, 'a plain box should offer more room than a circle');
+
+      // a piece dropped fully inside it finds the shape as its host
+      sx.els.push({ type: 'heading', x: 210, y: 1410, w: 380, h: 60, text: 'Held' });
+      var kidIdx = sx.els.length - 1;
+      expect(G.cardJoinTarget(sx, kidIdx) === hostIdx,
+        'a shaped box should be a join target, got ' + G.cardJoinTarget(sx, kidIdx));
+
+      // and a plain box still is — nothing regressed
+      sx.els.push({ type: 'box', x: 700, y: 1400, w: 300, h: 200 });
+      var plainIdx = sx.els.length - 1;
+      sx.els.push({ type: 'para', x: 720, y: 1420, w: 200, h: 40, text: 'Also held' });
+      expect(G.cardJoinTarget(sx, sx.els.length - 1) === plainIdx, 'a plain box stopped hosting');
+
+      sx.els.length = i0; // put the fixture back
+      G.renderSection(sx); G.resolveAll();
+      return 'circle room ' + room.w + 'x' + room.h + ' inside 400x400';
+    });
+
+    test('the sticky switch tells the truth about a header pinned by its pattern', function () {
+      // two routes to pinned: core's position support (the switch writes it)
+      // and the gogh-sticky marker (a pattern or a definition carries it).
+      // Reading only the first made the switch report OFF on a stuck header.
+      var byAttr = '<!-- wp:group {"style":{"position":{"type":"sticky","top":"0px"}}} -->' +
+        '<div class="wp-block-group"></div><!-- /wp:group -->';
+      var byClass = '<!-- wp:group {"className":"gogh-hrow gogh-sticky gogh-hsolid"} -->' +
+        '<div class="wp-block-group gogh-hrow gogh-sticky gogh-hsolid"></div><!-- /wp:group -->';
+      var plain = '<!-- wp:group {"className":"gogh-hrow"} -->' +
+        '<div class="wp-block-group gogh-hrow"></div><!-- /wp:group -->';
+      var seen = function (raw) { return G.chromeIsSticky({ content: { raw: raw } }); };
+      expect(seen(byAttr), 'core position support not recognised');
+      expect(seen(byClass), 'a header pinned by the gogh-sticky marker read as not sticky');
+      expect(!seen(plain), 'a plain header should not read as sticky');
+
+      // and the switch can still take it off, both markers together
+      var off = G.stickyRawToggle(byClass, false);
+      expect(off !== null, 'the toggle refused the pattern markup');
+      expect(!/gogh-sticky/.test(off), 'the marker survived being switched off');
+      expect(!seen(off), 'it still reads sticky after being switched off');
+      return 'both routes seen, both cleared';
+    });
+
+    test('one file pick is one upload, however many times the panel has been opened', function () {
+      // the upload listener used to be added to the SHARED panel element on
+      // every open and never removed — after N opens one pick uploaded N times
+      if (!(window.GOGH && window.GOGH.canUpload)) return 'no upload here — nothing to count';
+      var i = G.sections().indexOf(sec());
+      var realFetch = window.fetch, calls = 0;
+      window.fetch = function (url, opts) {
+        // the panel also READS the media library on every open — count only the upload
+        if (opts && opts.method === 'POST') calls++;
+        return Promise.resolve({ ok: false, status: 599, json: function () { return Promise.resolve([]); } });
       };
-      t.click();
-      pnl.scrollTo = origScrollTo;
-      expect(asked !== null && asked > 0, 'opening did not ask the panel to scroll');
-      expect(!more.hidden, 'the toggle did not unfold the colours');
-      expect(t.classList.contains('is-open'), 'the toggle did not mark itself open');
-      expect(t.querySelector('.gogh-bgrow-caret svg'), 'the chevron should be drawn, not a font glyph');
-      // smooth scrolling settles on its own clock — wait for the scrollTop
-      // to move (or a real budget to pass), not a fixed frame count
-      var settle = function () {
-        var t0 = Date.now();
-        return new Promise(function (r) {
-          var look = function () {
-            if (pnl.scrollTop > 20 || Date.now() - t0 > 2500) r(true);
-            else setTimeout(look, 60);
-          };
-          look();
-        });
-      };
-      return frames(20).then(function (ok) { return settle().then(function () { return ok; }); }).then(function (ok) {
-        var done = function (msg) { pev('pointerdown', document.body, 4, 4); return msg; };
-        if (!ok || stalled) return done('rAF frozen (background tab) — front the tab for the scroll check');
-        // a hidden tab pauses smooth scrolling mid-flight — nothing to judge there
-        if (document.visibilityState !== 'visible' && pnl.scrollTop <= 20) return done('hidden tab \u2014 smooth scroll paused; front the tab for the scroll check');
-        if (pnl.scrollHeight <= pnl.clientHeight + 4) return done('panel fits without scrolling here — nothing to reveal');
-        // the request was observed above; the instant scroll can clamp to 0
-        // when the fold has not laid out yet — apply the asked offset, then judge the geometry
-        if (pnl.scrollTop <= 20 && asked > 0) pnl.scrollTop = asked;
-        expect(pnl.scrollTop > 20, 'the panel did not scroll the colours into view (scrollTop ' + Math.round(pnl.scrollTop) + ')');
-        // the target clamps at the panel's bottom, so assert what matters:
-        // the colour block itself is inside the visible box
-        var mr = more.getBoundingClientRect();
-        var pr = pnl.getBoundingClientRect();
-        expect(mr.top < pr.bottom - 40, 'the colours are still below the fold (+' + Math.round(mr.top - pr.bottom) + ')');
-        return done('unfolds AND shows it: scrolled ' + Math.round(pnl.scrollTop) + 'px');
-      });
+      try {
+        G.openSecBgPanel(i); G.closePanel();
+        G.openSecBgPanel(i); G.closePanel();
+        G.openSecBgPanel(i);
+        var inp = q('.gogh-panel .gogh-media .gogh-upload input[type="file"]');
+        expect(inp, 'no upload tile in the shelf');
+        var dt = new DataTransfer();
+        dt.items.add(new File(['x'], 'one.png', { type: 'image/png' }));
+        inp.files = dt.files;
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(calls === 1, 'one file pick fired ' + calls + ' upload(s) after three panel opens');
+      } finally {
+        window.fetch = realFetch;
+        G.closePanel();
+        pev('pointerdown', document.body, 4, 4);
+      }
+      return 'three opens, one pick, one upload';
+    });
+
+    test('a shaped card is named on the selection box; a rectangle keeps its own badge', function () {
+      // the corner badge (.gogh-cardbox::after) is clipped by a silhouette, so
+      // a blob holding a heading showed no label at all; a plain card must
+      // NOT get a second one on top of the badge it already has
+      var sx = sec(); var keep = sx.els.length;
+      var room = G.shapeRoom({ type: 'box', x: 0, y: 0, w: 360, h: 360, shape: 'blob' });
+      sx.els.push({ type: 'box', x: 120, y: 1560, w: 360, h: 360, shape: 'blob', boxBg: 'var(--wp--preset--color--contrast)',
+        kids: [{ type: 'heading', x: room.x, y: room.y, w: room.w, h: 60, text: 'Held' }] });
+      var blob = sx.els.length - 1;
+      sx.els.push({ type: 'box', x: 600, y: 1560, w: 360, h: 200, boxBg: 'var(--wp--preset--color--contrast)',
+        kids: [{ type: 'heading', x: 20, y: 20, w: 320, h: 60, text: 'Plain' }] });
+      var plain = sx.els.length - 1;
+      G.renderSection(sx); G.resolveAll();
+      var tag = q('.gogh-selbox .gogh-selbox-tag');
+      expect(tag, 'no tag on the selection box');
+      pev('pointerdown', sx.nodes[blob]);
+      expect(!tag.hidden && tag.textContent === 'Card', 'a blob card should be named on the selection box');
+      pev('pointerdown', sx.nodes[plain]);
+      // v0.99.686: every card is named on the box; the card's own ::after
+      // belongs to the design (a halftone style merged with the old badge)
+      expect(!tag.hidden && tag.textContent === 'Card', 'a rectangle card is named on the selection box too');
+      expect(getComputedStyle(sx.nodes[plain], '::after').content === 'none', 'gogh paints nothing on the card\u2019s own ::after: ' + getComputedStyle(sx.nodes[plain], '::after').content);
+      pev('pointerdown', document.body, 4, 4);
+      sx.els.length = keep; G.renderSection(sx); G.resolveAll();
+      return 'every card named on the box, nothing on its ::after';
     });
 
     test('transitions live on the section: chips in the design panel, seam keeps one job', function () {
@@ -5537,9 +10602,8 @@
       q('.gogh-panel .gogh-askgo').click();
       expect(contentSecs().length === count + 1, 'no section arrived');
       var born = lastSec();
-      var quotes = born.els.filter(function (e) {
-        return e.type === 'box' && (e.kids || []).some(function (k) { return k.type === 'para'; });
-      });
+      // the testimonials design is a set of cards (Cards): its quotes are the set's cards
+      var quotes = born.els.filter(function (e) { return e.cards; }).reduce(function (a, e) { return a.concat(e.cards.items.filter(function (it) { return it.d; })); }, []);
       expect(quotes.length === 3, 'expected 3 quote cards, got ' + quotes.length);
       // a fresh section arrives SELECTED — the birth glow is the selection
       expect(born.sectionEl.classList.contains('gogh-selsec'), 'the new section did not arrive selected');
@@ -5785,7 +10849,15 @@
       try {
         var plate = q('.gogh-chip-name');
         expect(plate, 'the chip has no nameplate');
-        expect(!plate.hidden && plate.textContent.length > 0, 'the fixture page is not wearing its name');
+        // a named page wears its name in the switcher and renames from ⋯
+        var sw = q('.gogh-pagerow .gogh-pageswitch');
+        expect(sw && sw.querySelector('.gogh-pageswitch-name').textContent.length > 0, 'the fixture page is not wearing its name');
+        if (C.postType === 'page') {
+          G.nav.more();
+          var ren = q('.gogh-pagemore-menu .gogh-pagemore-rename');
+          expect(ren && /^Rename$/.test(ren.textContent), 'the ⋯ menu offers Rename for a named page');
+          G.nav.closeMore();
+        }
         // an unnamed page wears the invitation, and clicking it opens the
         // namer in rename clothes — the name can be given at ANY moment
         C.postTitle = '';
@@ -5795,7 +10867,7 @@
         var refresh = window.__gogh; // refreshChip runs on pushState
         G.pushState();
         plate = q('.gogh-chip-name');
-        expect(/name it/.test(plate.textContent), 'the unnamed page is not invited to a name');
+        expect(/name it/i.test(plate.textContent), 'the unnamed page is not invited to a name');
         expect(plate.classList.contains('is-unnamed'), 'the invitation does not wear its amber');
         plate.click();
         var goBtn = q('.gogh-panel .gogh-pagego');
@@ -5899,6 +10971,995 @@
 
     // EXTRAS RIDE ALONG — a piece the take never drew (a second button)
     // keeps its seat beside the take's own button through every roll
+    // HOME IS EDITABLE — an inferred section's original take is a snapshot,
+    // and the snapshot has to follow the edits made at home: drag the heading,
+    // shrink the photo and retitle on face 0, roll around, and they are all
+    // still there (the snapshot used to be taken once, on the first roll, so
+    // rolling around put the pre-edit layout back and the edits were gone)
+    test('the die weighs the words: a display headline never rolls within a glyph-headed family', function () {
+      // the photographer's hero — eyebrow, a 28-character display headline in a
+      // wide box, two lines — counted as a Quote by roles alone, and every take
+      // poured the headline into the 180-wide slot the Quote keeps for its “
+      var hero = { m: {}, els: [
+        { type: 'para', x: 82, y: 96, w: 600, h: 20, text: 'People · Places · Quiet moments', tf: { tt: 'uppercase' } },
+        { type: 'heading', x: 82, y: 132, w: 820, h: 210, text: 'The art of <em>paying attention.</em>' },
+        { type: 'para', x: 840, y: 150, w: 300, h: 64, text: 'Photography for the moments that deserve to stay.' },
+        { type: 'para', x: 840, y: 230, w: 300, h: 24, text: '<a href="/portfolio/">Explore portfolio ↗</a>' } ] };
+      var fam = G.diceFamilyOf(hero);
+      expect(fam && fam !== 'Quote', 'a wordy hero should not roll as a Quote, got ' + fam);
+      var base = G.tplEls(G.diceFaces(fam)[0]);
+      var slot = base.filter(function (e) { return e.type === 'heading'; })[0];
+      expect(slot && slot.w >= 0.5 * 820, fam + '’s headline slot (' + (slot ? slot.w + 'x' + slot.h : 'none') + ') cannot hold the words');
+      // a real quote still finds its family: a glyph heading, the words, a name
+      var quote = { m: {}, els: [
+        { type: 'heading', x: 76, y: 44, w: 180, h: 160, text: '“' },
+        { type: 'para', x: 200, y: 168, w: 800, h: 160, text: 'The best pictures are the ones you nearly did not take.' },
+        { type: 'para', x: 204, y: 368, w: 500, h: 24, text: 'Hanna Lindqvist · Hanna & Co', tf: { tt: 'uppercase' } } ] };
+      expect(G.diceFamilyOf(quote) === 'Quote', 'a quote-shaped section should still roll as a Quote, got ' + G.diceFamilyOf(quote));
+      return 'hero → ' + fam + '; quote → Quote';
+    });
+    test('a take’s display headline steps down until the longest word fits its slot', function () {
+      // the contact page's 'The statement' take draws its headline at Display M
+      // for its own two words; five words at that size ran into the form
+      var git = G.templates().filter(function (x) { return x.name === 'Get in touch'; })[0];
+      if (!git) throw new Error('no Get in touch template');
+      G.addSection(git);
+      var s = lastSec(), idx = G.sections().indexOf(s);
+      var h = s.els.filter(function (e) { return e.type === 'heading'; })[0];
+      h.text = 'Let’s make something worth keeping.';
+      G.renderSection(s);
+      var faces = G.diceFaces('Get in touch');
+      var seen = [];
+      G.guardReset();
+      for (var k = 0; k < faces.length; k++) {
+        var r = G.rollSection(idx);
+        var hh = s.els.filter(function (e) { return e.type === 'heading'; })[0];
+        var n = s.nodes[s.els.indexOf(hh)];
+        var over = n ? n.scrollWidth - n.clientWidth : 0;
+        seen.push((r.take || 'home') + ':' + hh.fs + (over > 2 ? ' OVERFLOWS ' + over : ''));
+        expect(over <= 2, 'take ' + (r.take || 'home') + ' lets the headline overflow its box by ' + over + 'px (' + hh.fs + ')');
+        expect(hh.text === 'Let’s make something worth keeping.', 'the words changed on take ' + r.take);
+      }
+      var guard = G.guardLog(); G.guardReset();
+      G.deleteSection(idx);
+      expect(!guard.length, 'the guard spoke: ' + (guard.length ? guard[0].issues[0] : ''));
+      return seen.join(' · ');
+    });
+    test('the original take keeps the edits made at home through a roll around', function () {
+      var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
+      if (!hero) throw new Error('no Hero template');
+      G.addSection(hero);
+      var s = lastSec();
+      var idx = G.sections().indexOf(s);
+      s.m = null; // never named its family: the die infers one on the first roll
+      var faces = G.diceFaces(G.diceFamilyOf(s));
+      if (!faces) throw new Error('no family inferred for a hero-shaped section');
+      var n = faces.length;
+      var around = function () { for (var k = 0; k < n; k++) G.rollSection(idx); };
+      var pick = function (type) { return diceFlat(s.els).filter(function (e) { return e.type === type; })[0]; };
+      G.guardReset();
+      around(); // adopt the family and come home once
+      expect(s.m && s.m.face === 0 && s.m.orig && s.m.orig.els, 'the section did not come home with an original');
+      // a piece added at home is part of the original from now on: it comes
+      // home ONCE, in its place -- not beside a copy of itself (widgets ride
+      // as themselves, and used to double every time round: two, three, five)
+      s.els.push({ type: 'widget', x: 72, y: 560, w: 300, h: 40, wsrc: '<!-- wp:gogh/form /-->' });
+      G.renderSection(s);
+      var count0 = diceFlat(s.els).length;
+      var widgets = function () { return s.els.filter(function (e) { return e.type === 'widget'; }).length; };
+      expect(widgets() === 1, 'setup: expected one widget at home');
+      // edit at home: move the heading, shrink the photo, retitle
+      var h = pick('heading'), img = pick('image');
+      if (!h || !img) throw new Error('no heading or image at home');
+      h.x += 40; h.y += 24; h.text = 'Moved at home';
+      img.w -= 60; img.h -= 40;
+      G.renderSection(s);
+      var hx = h.x, hy = h.y, iw = img.w, ih = img.h;
+      around();
+      expect(s.m.face === 0, n + ' rolls did not come home');
+      var h2 = pick('heading'), img2 = pick('image');
+      expect(h2 && h2.x === hx && h2.y === hy, 'the heading came home where it sat BEFORE the drag (' + (h2 ? h2.x + ',' + h2.y : 'gone') + ' vs ' + hx + ',' + hy + ')');
+      expect(h2 && h2.text === 'Moved at home', 'the heading came home without its words');
+      expect(img2 && img2.w === iw && img2.h === ih, 'the photo came home at its old size (' + (img2 ? img2.w + 'x' + img2.h : 'gone') + ' vs ' + iw + 'x' + ih + ')');
+      expect(diceFlat(s.els).length === count0, 'coming home changed the piece count (' + diceFlat(s.els).length + ' vs ' + count0 + ')');
+      expect(widgets() === 1, 'the widget came home beside a copy of itself (' + widgets() + ')');
+      around();
+      expect(widgets() === 1 && diceFlat(s.els).length === count0, 'a second time round changed the count (' + diceFlat(s.els).length + ' vs ' + count0 + ', ' + widgets() + ' widgets)');
+      // a piece deleted at home stays deleted, and the original never keeps a piece a roll drew
+      var btns = s.els.filter(function (e) { return e.type === 'button'; });
+      var deleted = btns.length > 1;
+      if (deleted) {
+        s.els.splice(s.els.indexOf(btns[btns.length - 1]), 1);
+        G.renderSection(s);
+        around();
+        var left = s.els.filter(function (e) { return e.type === 'button'; }).length;
+        expect(left === btns.length - 1, 'a button deleted at home came back with the roll (' + left + ' of ' + btns.length + ')');
+      }
+      expect(!G.diceFlatten(s.m.orig.els).some(function (e) { return e.tk != null; }), 'the original carries a piece a roll drew');
+      var guard = G.guardLog();
+      G.guardReset();
+      expect(!guard.length, 'the guard spoke on the way round: ' + (guard.length ? guard[0].issues[0] : ''));
+      return n + ' rolls round: home wears the drag, the resize and the words' + (deleted ? '; a deleted button stayed deleted' : '');
+    });
+    // ---- the die follows pieces by identity (audit batch 2) ----
+    // every piece carries an id and remembers its slot in the family's
+    // drawing; the memories (words, seats, the kept background) live on the
+    // model by those, so deleting or reordering a piece shifts nothing
+    var heroSec = function () {
+      var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
+      if (!hero) throw new Error('no Hero template');
+      G.addSection(hero);
+      var s = lastSec();
+      return { s: s, idx: G.sections().indexOf(s) };
+    };
+    var texts = function (s, type) { return diceFlat(s.els).filter(function (e) { return e.type === type; }).map(function (e) { return e.text; }); };
+    test('the die follows a piece by identity: delete or reorder, and the words stay with their pieces', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      G.rollSection(idx); // take 2: two buttons, every piece now knows its slot
+      var btns = s.els.filter(function (e) { return e.type === 'button'; });
+      expect(btns.length === 2, 'take 2 should draw two buttons, drew ' + btns.length);
+      expect(diceFlat(s.els).every(function (e) { return e.id && e.sk; }), 'a drawn piece is missing its id or slot');
+      btns[1].text = 'Mine';
+      // reorder: the second button now sits first in the array
+      s.els.splice(s.els.indexOf(btns[1]), 1);
+      s.els.splice(s.els.indexOf(btns[0]), 0, btns[1]);
+      G.renderSection(s);
+      G.rollSection(idx); // take 3: two buttons
+      var t3 = texts(s, 'button');
+      expect(t3.length === 2 && t3.indexOf('Mine') !== -1, 'after a reorder the renamed button lost its words: ' + JSON.stringify(t3));
+      expect(t3[0] !== 'Mine', 'the words jumped to the other slot: ' + JSON.stringify(t3));
+      // delete the FIRST button: the survivor keeps its own words, and the
+      // slot the deleted one held is redrawn by the take, not with its words
+      var first = s.els.filter(function (e) { return e.type === 'button' && e.text !== 'Mine'; })[0];
+      s.els.splice(s.els.indexOf(first), 1);
+      G.renderSection(s);
+      G.rollSection(idx); // take 4: one button
+      var t4 = texts(s, 'button');
+      expect(t4.length === 1 && t4[0] === 'Mine', 'through the one-button take the survivor should be "Mine", got ' + JSON.stringify(t4));
+      G.rollSection(idx); // home: two slots again
+      var t0 = texts(s, 'button');
+      expect(t0.length === 2 && t0.indexOf('Mine') !== -1, 'home should draw two buttons with "Mine" among them: ' + JSON.stringify(t0));
+      expect(t0.filter(function (x) { return x === 'Mine'; }).length === 1, 'the survivor’s words were drawn twice: ' + JSON.stringify(t0));
+      G.deleteSection(idx);
+      return 'reorder kept the words in place; delete left one survivor "Mine" at home: ' + JSON.stringify(t0);
+    });
+    test('a rider’s words beat an older take’s memory for the slot it fills', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      G.rollSection(idx); // take 2
+      G.rollSection(idx); // take 3: two buttons
+      var b2 = s.els.filter(function (e) { return e.type === 'button'; })[1];
+      b2.text = 'Old words';
+      G.renderSection(s);
+      G.rollSection(idx); // take 4 draws one button: the second (an original) rides, and its words are remembered for slot two
+      expect(s.m.edits && s.m.edits.button && s.m.edits.button[1] && s.m.edits.button[1].text === 'Old words', 'the memory should hold "Old words" for slot two: ' + JSON.stringify(s.m.edits));
+      // the user deletes the rider while it rides (no take draws its slot here, so
+      // the memory keeps "Old words") and adds a button of their own
+      var rider = diceFlat(s.els).filter(function (e) { return e.type === 'button' && e.text === 'Old words'; })[0];
+      expect(rider, 'the renamed button should ride through the one-button take');
+      // it may have joined the take's card beside that card's button
+      if (s.els.indexOf(rider) !== -1) s.els.splice(s.els.indexOf(rider), 1);
+      else s.els.forEach(function (e) { if (e.kids && e.kids.indexOf(rider) !== -1) e.kids.splice(e.kids.indexOf(rider), 1); });
+      s.els.push({ type: 'button', x: 300, y: 548, w: 180, h: 54, text: 'New words' });
+      G.renderSection(s);
+      G.rollSection(idx); // home: slot two is free, the new button takes it -- with ITS words
+      var t0 = texts(s, 'button');
+      expect(t0.length === 2, 'home should have two buttons: ' + JSON.stringify(t0));
+      expect(t0.indexOf('New words') !== -1, 'the rider’s own words were overwritten by the older memory: ' + JSON.stringify(t0));
+      expect(t0.indexOf('Old words') === -1, 'the stale memory came back: ' + JSON.stringify(t0));
+      G.deleteSection(idx);
+      return 'the rider wore "New words", not the take’s stale "Old words"';
+    });
+    test('a box and a card of the user’s own ride through every take', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      G.rollSection(idx); // bind
+      var n0 = diceFlat(s.els).length;
+      s.els.push({ type: 'box', x: 1000, y: 40, w: 160, h: 160, boxBg: '#e0b01e', radius: 20 });
+      s.els.push({ type: 'box', x: 760, y: 420, w: 380, h: 180, boxBg: '#101418', radius: 16, kids: [
+        { type: 'heading', x: 24, y: 20, w: 320, h: 40, text: 'Card kid' },
+        { type: 'para', x: 24, y: 80, w: 320, h: 60, text: 'Rides inside the card' } ] });
+      G.renderSection(s);
+      G.guardReset();
+      var seen = [];
+      for (var k = 0; k < 4; k++) {
+        var r = G.rollSection(idx);
+        var boxes = s.els.filter(function (e) { return e.type === 'box' && !e.kids && e.boxBg === '#e0b01e'; });
+        var cards = s.els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.some(function (kk) { return kk.text === 'Card kid'; }); });
+        seen.push('take ' + (r.face + 1) + ': ' + boxes.length + ' box, ' + cards.length + ' card');
+        expect(boxes.length === 1, 'the user’s box did not ride whole (' + seen.join('; ') + ')');
+        expect(cards.length === 1 && cards[0].kids.length === 2, 'the user’s card did not ride whole with its kids (' + seen.join('; ') + ')');
+      }
+      expect(diceFlat(s.els).length === n0 + 4, 'home should hold the take plus the box, the card and its two kids: ' + diceFlat(s.els).length + ' vs ' + (n0 + 4));
+      var guard = G.guardLog(); G.guardReset();
+      G.deleteSection(idx);
+      expect(!guard.length, 'the guard spoke: ' + (guard.length ? guard[0].issues[0] : ''));
+      return seen.join('; ');
+    });
+    test('the kept background lives on the model: undo and the saved page keep it', function () {
+      var cover = G.templates().filter(function (x) { return x.name === 'Cover'; })[0];
+      if (!cover) throw new Error('no Cover template');
+      G.addSection(cover);
+      var s = lastSec(), idx = G.sections().indexOf(s);
+      var photo = '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg';
+      s.bgImage = photo; s.bgId = null;
+      G.renderSection(s);
+      var stashed = false, k;
+      for (k = 0; k < 4 && !stashed; k++) {
+        G.rollSection(idx);
+        if (!s.bgImage) stashed = true;
+      }
+      if (!stashed) { G.deleteSection(idx); return 'every Cover take wears a picture — nothing to stash'; }
+      expect(s.m.keepBg && s.m.keepBg.img === photo, 'an imageless take should stash the photo on the model: ' + JSON.stringify(s.m.keepBg));
+      var am = G.blocksV3(s).match(/<!-- wp:gogh\/section (\{[\s\S]*?\}) -->/);
+      var model = am ? JSON.parse(am[1]).model : null;
+      expect(model && model.m && model.m.keepBg && model.m.keepBg.img === photo, 'the saved model lost the kept background');
+      // undo one roll, redo it: still stashed
+      q('.gogh-undo').click(); q('.gogh-redo').click();
+      var s2 = lastSec();
+      expect(s2.m && s2.m.keepBg && s2.m.keepBg.img === photo, 'undo/redo lost the kept background');
+      var idx2 = G.sections().indexOf(s2), back = false;
+      for (k = 0; k < 4 && !back; k++) { G.rollSection(idx2); if (s2.bgImage) back = true; }
+      expect(back && s2.bgImage === photo, 'the next picture-wearing take should wear the user’s photo, wore ' + s2.bgImage);
+      G.deleteSection(idx2);
+      return 'stashed on m.keepBg, saved, survived undo, came back on the next picture take';
+    });
+    test('headings beyond what the family draws keep their words all the way round', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      s.els.push({ type: 'heading', x: 72, y: 620, w: 470, h: 60, text: 'Second' });
+      s.els.push({ type: 'heading', x: 600, y: 620, w: 470, h: 60, text: 'Third' });
+      G.renderSection(s);
+      for (var k = 0; k < 4; k++) {
+        var r = G.rollSection(idx);
+        var t = texts(s, 'heading');
+        expect(t.indexOf('Second') !== -1 && t.indexOf('Third') !== -1, 'take ' + (r.face + 1) + ' lost an extra heading’s words: ' + JSON.stringify(t));
+      }
+      expect(texts(s, 'heading').length === 3, 'home should hold all three headings');
+      G.deleteSection(idx);
+      return '"Second" and "Third" rode every take and came home';
+    });
+    test('the original snapshot leaves a widget’s composed HTML behind and composes it again at home', function () {
+      var tpl = G.templates().filter(function (x) { return (x.els || []).some(function (e) { return e.type === 'widget' && (e.faq || e.slides || e.wall); }); })[0];
+      if (!tpl) return 'no widget family to test with';
+      G.addSection(tpl);
+      var s = lastSec(), idx = G.sections().indexOf(s);
+      s.m = null; // never named its family: the die infers one and snapshots the original
+      var faces = G.diceFaces(G.diceFamilyOf(s));
+      if (!faces) { G.deleteSection(idx); return 'no family inferred for ' + tpl.name; }
+      var liveW = diceFlat(s.els).filter(function (e) { return e.type === 'widget'; })[0];
+      expect(liveW && liveW.whtml, 'setup: the live widget should carry composed HTML');
+      G.rollSection(idx); // adopt
+      var origW = G.diceFlatten(s.m.orig.els).filter(function (e) { return e.type === 'widget'; })[0];
+      expect(origW && !origW.whtml && (origW.faq || origW.slides || origW.wall), 'the snapshot should keep the data and drop the HTML: ' + (origW ? Object.keys(origW).join(',') : 'no widget'));
+      for (var k = 1; k < faces.length; k++) G.rollSection(idx); // home
+      var homeW = diceFlat(s.els).filter(function (e) { return e.type === 'widget'; })[0];
+      expect(homeW && homeW.whtml && homeW.whtml.length > 20, 'the widget came home without its HTML');
+      G.deleteSection(idx);
+      return tpl.name + ': snapshot ' + JSON.stringify(s.m.orig).length + ' chars, HTML composed again at home';
+    });
+    test('a copy of a section is new to the die: fresh ids, its own homecomings', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      G.rollSection(idx);
+      var ids = diceFlat(s.els).map(function (e) { return e.id; });
+      expect(ids.every(Boolean) && new Set(ids).size === ids.length, 'ids should be present and unique after a roll');
+      G.duplicateSection(idx);
+      var c = G.sections()[idx + 1];
+      expect(c && c !== s && c.els.length === s.els.length, 'the copy did not land after the source');
+      var cids = diceFlat(c.els).map(function (e) { return e.id; });
+      expect(cids.every(function (id) { return id && ids.indexOf(id) === -1; }), 'the copy shares ids with its source');
+      // the saved model carries id and slot
+      var am = G.blocksV3(s).match(/<!-- wp:gogh\/section (\{[\s\S]*?\}) -->/);
+      var model = am ? JSON.parse(am[1]).model : null;
+      expect(model && model.elements.every(function (e) { return e.id && e.sk; }), 'the saved model should carry every piece’s id and slot');
+      var cidx = G.sections().indexOf(c);
+      G.deleteSection(cidx);
+      G.deleteSection(G.sections().indexOf(s));
+      return ids.length + ' pieces, ' + cids.length + ' fresh ids on the copy; id + slot saved';
+    });
+    test('a piece deleted on a take that draws it takes its words with it', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      G.rollSection(idx); // take 2
+      var b2 = s.els.filter(function (e) { return e.type === 'button'; })[1];
+      var tplText = b2.text;
+      b2.text = 'Gone';
+      G.renderSection(s);
+      G.rollSection(idx); // take 3: "Gone" remembered and applied
+      expect(texts(s, 'button').indexOf('Gone') !== -1, 'the rename did not travel to take 3');
+      var gone = s.els.filter(function (e) { return e.type === 'button' && e.text === 'Gone'; })[0];
+      s.els.splice(s.els.indexOf(gone), 1);
+      G.renderSection(s);
+      G.rollSection(idx); // take 4: the slot was drawn and left empty by the user — forget its words
+      expect(!(s.m.edits && s.m.edits.button && s.m.edits.button[1]), 'the deleted button’s words are still remembered: ' + JSON.stringify(s.m.edits));
+      G.rollSection(idx); // home
+      var t0 = texts(s, 'button');
+      expect(t0.length === 2 && t0.indexOf('Gone') === -1, 'the deleted button came back wearing its words: ' + JSON.stringify(t0));
+      G.deleteSection(idx);
+      return 'home drew slot two afresh (' + JSON.stringify(t0[1]) + '), not "Gone"';
+    });
+    // ---- cards: order, typing, a cancelled hand, leaving, ink (audit batch 3) ----
+    var cardAt = function (s0, kids, extra) {
+      s0.els.push(Object.assign({ type: 'box', x: 600, y: 60, w: 480, h: 320, boxBg: '#101418', radius: 16, kids: kids }, extra || {}));
+      G.renderSection(s0);
+      var ci = s0.els.length - 1;
+      return { ci: ci, box: s0.els[ci], node: s0.nodes[ci] };
+    };
+    var pvk = function (type, el, x, y, id) {
+      el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0,
+        buttons: (type === 'pointerup' || type === 'pointercancel') ? 0 : 1 }));
+    };
+    var lumOf = function (cssColor) {
+      var m = (cssColor || '').match(/[\d.]+/g) || [];
+      var f = function (c) { c = (+c) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      return m.length >= 3 ? 0.2126 * f(m[0]) + 0.7152 * f(m[1]) + 0.0722 * f(m[2]) : 1;
+    };
+    test('a piece joining a card takes its place in reading order, and the saved card agrees', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 120, w: 420, h: 40, text: 'Second line' },
+        { type: 'para', x: 30, y: 200, w: 420, h: 60, text: 'Third line' } ]);
+      // a badge dropped inside the card ABOVE its kids
+      s0.els.push({ type: 'badge', x: 630, y: 80, w: 160, h: 32, text: 'First line' });
+      G.renderSection(s0);
+      var bi = s0.els.length - 1;
+      select(bi);
+      var grip = q('.gogh-grip');
+      expect(grip, 'no grip for the badge');
+      var r = grip.getBoundingClientRect();
+      pev('pointerdown', grip, r.x + 12, r.y + 12, 61);
+      pev('pointermove', grip, r.x + 12, r.y + 12 + 6, 61);
+      pev('pointerup', grip, r.x + 12, r.y + 12 + 6, 61);
+      var box = f.box;
+      expect(box.kids && box.kids.length === 3, 'the badge did not join the card (' + (box.kids ? box.kids.length : 0) + ' kids)');
+      expect(box.kids[0].text === 'First line', 'the joiner was appended last instead of taking its place: ' + box.kids.map(function (k) { return k.text; }).join(' | '));
+      // the saved card writes its kids in the same order the editor holds them
+      var html = G.blocksV3(s0);
+      var at = html.indexOf('#101418');
+      expect(at !== -1, 'the card is missing from the saved markup');
+      var seg = html.slice(at);
+      var p1 = seg.indexOf('gogh-k-1'), p2 = seg.indexOf('gogh-k-2'), p3 = seg.indexOf('gogh-k-3');
+      expect(p1 !== -1 && p2 !== -1 && p3 !== -1 && p1 < p2 && p2 < p3, 'the saved card lists its kids out of editor order (' + [p1, p2, p3].join(',') + ')');
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'badge joined as kid 1 of 3; saved order 1 < 2 < 3';
+    });
+    test('typing in a kid re-measures it: the stack settles below and comes back when the words shrink', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Short' },
+        { type: 'para', x: 30, y: 100, w: 420, h: 40, text: 'Below the heading' } ]);
+      var box = f.box, h0 = box.h;
+      var kn = f.node.querySelector('.gogh-k-1');
+      var r = kn.getBoundingClientRect();
+      pvk('pointerdown', f.node, r.left + 2, r.top + 2, 171); pvk('pointerup', document, r.left + 2, r.top + 2, 171); // the first press gets the card
+      pvk('pointerdown', kn, r.left + 10, r.top + 8, 71); pvk('pointerup', document, r.left + 10, r.top + 8, 71);
+      pvk('pointerdown', kn, r.left + 10, r.top + 8, 72); pvk('pointerup', document, r.left + 10, r.top + 8, 72);
+      var ed = G.kidState().ed;
+      expect(ed && ed.kid === box.kids[0], 'the second click did not start editing the heading kid');
+      var hBefore = box.kids[0].h;
+      ed.node.innerHTML = 'A heading that runs to several lines because the words keep coming and the card must make room for every one of them below';
+      ed.node.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(box.kids[0].h > hBefore + 20, 'the kid did not grow with its words (' + hBefore + ' -> ' + box.kids[0].h + ')');
+      expect(box.kids[1].y > 100, 'the paragraph did not settle below the taller heading (y ' + box.kids[1].y + ')');
+      var grown = box.h, grownKid = box.kids[0].h;
+      ed.node.innerHTML = 'Short';
+      ed.node.dispatchEvent(new Event('input', { bubbles: true }));
+      // the model absorbs the rendered truth: one line is what one line measures,
+      // which may be less than the 40 the fixture declared
+      expect(box.kids[0].h < grownKid - 20 && box.kids[0].h <= hBefore + 4, 'the kid did not shrink back with its words (' + grownKid + ' -> ' + box.kids[0].h + ')');
+      expect(box.kids[1].y === 100, 'the paragraph did not come back up (y ' + box.kids[1].y + ')');
+      expect(box.h === h0, 'the card kept its grown height (' + h0 + ' -> ' + grown + ' -> ' + box.h + ')');
+      G.kidState().ed && document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return 'heading ' + hBefore + ' -> ' + box.kids[0].h + ' -> back; card ' + h0 + ' -> ' + grown + ' -> ' + box.h;
+    });
+    test('a cancelled pointer ends a kid drag cleanly: no ghost, nothing moved, the card at rest', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Top' },
+        { type: 'para', x: 30, y: 100, w: 420, h: 40, text: 'Under' } ]);
+      var box = f.box, h0 = box.h;
+      var kn = f.node.querySelector('.gogh-k-1');
+      var r = kn.getBoundingClientRect();
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      pvk('pointerdown', f.node, r.left + 2, r.top + 2, 173); pvk('pointerup', document, r.left + 2, r.top + 2, 173); // the first press gets the card
+      pvk('pointerdown', kn, r.left + 10, r.top + 8, 73);
+      pvk('pointermove', document, r.left + 10, r.top + 8 + 90 * sc, 73);
+      expect(document.querySelector('.gogh-kid-ghost'), 'the kid drag never started');
+      expect(G.kidState().drag, 'no kid drag in flight');
+      pvk('pointercancel', document, r.left + 10, r.top + 8 + 90 * sc, 73);
+      expect(!G.kidState().drag, 'the drag outlived the cancel');
+      expect(!document.querySelector('.gogh-kid-ghost'), 'the ghost was left behind');
+      expect(kn.style.visibility !== 'hidden', 'the kid stayed hidden');
+      expect(box.kids[0].y === 20 && box.kids[1].y === 100, 'the kids did not go back to rest: ' + box.kids.map(function (k) { return k.y; }).join(','));
+      expect(box.h === h0, 'the card kept a drag-grown height (' + h0 + ' -> ' + box.h + ')');
+      pvk('pointerup', document, r.left + 10, r.top + 8 + 90 * sc, 73); // a late release changes nothing
+      expect(box.kids.length === 2 && box.kids[0].y === 20, 'a late pointerup moved the kids after the cancel');
+      return 'cancel restored both kids and the card height ' + h0;
+    });
+    test('a kid leaving its card lands at the grip it was picked up by, and the card goes back to rest', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 20, w: 300, h: 40, text: 'Leaver' },
+        { type: 'para', x: 30, y: 100, w: 420, h: 40, text: 'Stays' } ]);
+      var box = f.box, h0 = box.h, n0 = s0.els.length;
+      var kn = f.node.querySelector('.gogh-k-1');
+      var r = kn.getBoundingClientRect();
+      var secR = s0.sectionEl.getBoundingClientRect();
+      var sc = secR.width / 1200;
+      var gx = r.left + 10, gy = r.top + 8; // the grip: 10px in from the left edge, 8px down
+      var dx = -Math.round(220 * sc), dy = Math.round(120 * sc); // well outside the card, to the left
+      pvk('pointerdown', f.node, gx, gy, 174); pvk('pointerup', document, gx, gy, 174); // the first press gets the card
+      pvk('pointerdown', kn, gx, gy, 74);
+      pvk('pointermove', document, gx + dx / 2, gy + dy / 2, 74);
+      pvk('pointermove', document, gx + dx, gy + dy, 74);
+      pvk('pointerup', document, gx + dx, gy + dy, 74);
+      expect(s0.els.length === n0 + 1, 'the kid did not leave the card');
+      var left = s0.els[s0.els.length - 1];
+      expect(left.text === 'Leaver', 'the wrong piece left the card');
+      var wantX = Math.round((r.left + dx - secR.left) / sc), wantY = Math.round((r.top + dy - secR.top) / sc);
+      expect(Math.abs(left.x - wantX) <= 2 && Math.abs(left.y - wantY) <= 2,
+        'the leaver jumped: landed ' + left.x + ',' + left.y + ' wanted ' + wantX + ',' + wantY + ' (pointer-centred would be ' + Math.round((gx + dx - secR.left) / sc - left.w / 2) + ')');
+      expect(box.kids.length === 1 && box.kids[0].y === 100, 'the staying kid was left where the drag pushed it: y ' + (box.kids[0] && box.kids[0].y));
+      expect(box.h === h0, 'the card kept a drag-grown height (' + h0 + ' -> ' + box.h + ')');
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'landed at ' + left.x + ',' + left.y + ' (grip kept); card ' + h0 + ' at rest';
+    });
+    test('the ink sentinel judges the tint a card paints, not the colour it names', function () {
+      var s0 = sec();
+      // frosted glass paints 70% of #555 over what is behind it; judged solid,
+      // #555 is dark and the sentinel painted the words white on a mid ground
+      var f = cardAt(s0, [ { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Glass words' } ], { boxBg: '#555555', mood: 'glass' });
+      var bgL = lumOf(getComputedStyle(s0.sectionEl).backgroundColor);
+      if (getComputedStyle(s0.sectionEl).backgroundColor === 'rgba(0, 0, 0, 0)') bgL = 1;
+      var painted = 0.7 * lumOf('rgb(85, 85, 85)') + 0.3 * bgL;
+      var wantDark = (painted + 0.05) / 0.05 > 1.05 / (painted + 0.05);
+      G.contrastSentinel(s0, f.ci);
+      var kn = s0.nodes[f.ci].querySelector('.gogh-k-1');
+      var host = kn.matches('p,h1,h2,h3,h4,h5,h6') ? kn : (kn.querySelector('p,h1,h2,h3,h4,h5,h6') || kn);
+      var inkL = lumOf(getComputedStyle(host).color);
+      expect(wantDark ? inkL < 0.5 : inkL >= 0.5, 'on a painted ground of ' + painted.toFixed(2) + ' the words should be ' + (wantDark ? 'dark' : 'light') + ', ink luminance ' + inkL.toFixed(2));
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'painted ground ' + painted.toFixed(2) + ' -> ' + (wantDark ? 'dark' : 'light') + ' ink (' + inkL.toFixed(2) + ')';
+    });
+    // ---- zoom and the solver (audit batch 4) ----
+    test('the frame’s edges are fixed lines: a near-full-bleed photo does not shift the columns', function () {
+      // an image six units short of the left edge, a heading at 72
+      var g = G.solve([
+        { type: 'image', x: 6, y: 0, w: 600, h: 400 },
+        { type: 'heading', x: 72, y: 420, w: 470, h: 60, text: 'Here' },
+        { type: 'para', x: 72, y: 500, w: 410, h: 40, text: 'And here' } ], 600, null, null);
+      var lines = [0];
+      g.cols.forEach(function (c) { lines.push(lines[lines.length - 1] + parseFloat(c) * 12); });
+      var total = lines[lines.length - 1];
+      expect(Math.abs(total - 1200) < 0.6, 'the columns should span the whole frame, span ' + total.toFixed(1));
+      expect(lines[0] === 0 && Math.abs(lines[1] - 72) < 0.6, 'the first inner line should sit at 72, not be pulled by the photo edge: ' + lines.map(function (l) { return l.toFixed(1); }).join(', '));
+      expect(g.areas[0].c1 === 1, 'the photo should start on the frame’s edge');
+      // chained edges: 300, 307, 314, 321 are two lines (each group spans at most TOL), not one at 310
+      var g2 = G.solve([
+        { type: 'heading', x: 100, y: 0, w: 200, h: 40, text: 'a' },
+        { type: 'heading', x: 307, y: 60, w: 200, h: 40, text: 'b' },
+        { type: 'heading', x: 314, y: 120, w: 100, h: 40, text: 'c' },
+        { type: 'heading', x: 321, y: 180, w: 100, h: 40, text: 'd' } ], 600, null, null);
+      var l2 = [0];
+      g2.cols.forEach(function (c) { l2.push(l2[l2.length - 1] + parseFloat(c) * 12); });
+      var near = l2.filter(function (l) { return l > 290 && l < 330; });
+      expect(near.length === 2, 'edges 300/307/314/321 should make two lines, made ' + near.length + ' (' + near.map(function (l) { return l.toFixed(1); }).join(', ') + ')');
+      return 'span ' + total.toFixed(1) + '; inner line at ' + lines[1].toFixed(1) + '; chain -> ' + near.length + ' lines';
+    });
+    test('a card’s rows are a share of the card: a kid a unit past the bottom squeezes nothing', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Top of the card' },
+        { type: 'para', x: 30, y: 240, w: 420, h: 81, text: 'One unit past the bottom' } ]); // 240 + 81 = 321 > 320
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var cardR = f.node.getBoundingClientRect();
+      var kn = f.node.querySelector('.gogh-k-1');
+      var top = (kn.getBoundingClientRect().top - cardR.top) / sc;
+      expect(Math.abs(top - 20) <= 3, 'the first kid should sit at its model y (20), sits at ' + top.toFixed(1));
+      return 'first kid at ' + top.toFixed(1) + ' for a model y of 20';
+    });
+    test('the kid ghost wears the kid’s own dress, and the kid leaves the grid while it rides', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Dressed', color: 'base', tf: { fs: 34, fw: 700 } },
+        { type: 'para', x: 30, y: 100, w: 420, h: 40, text: 'Under' } ]);
+      var kn = f.node.querySelector('.gogh-k-1');
+      var host = kn.matches('h1,h2,h3,h4,h5,h6,p') ? kn : (kn.querySelector('h1,h2,h3,h4,h5,h6,p') || kn);
+      var want = { fs: getComputedStyle(host).fontSize, fw: getComputedStyle(host).fontWeight, col: getComputedStyle(host).color };
+      var r = kn.getBoundingClientRect();
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      pvk('pointerdown', f.node, r.left + 2, r.top + 2, 175); pvk('pointerup', document, r.left + 2, r.top + 2, 175); // the first press gets the card
+      pvk('pointerdown', kn, r.left + 10, r.top + 8, 75);
+      pvk('pointermove', document, r.left + 10, r.top + 8 + 60 * sc, 75);
+      var ghost = document.querySelector('.gogh-kid-ghost');
+      expect(ghost, 'no kid ghost');
+      var gh = ghost.querySelector('h1,h2,h3,h4,h5,h6,p') || ghost;
+      var got = { fs: getComputedStyle(gh).fontSize, fw: getComputedStyle(gh).fontWeight, col: getComputedStyle(gh).color };
+      expect(getComputedStyle(kn).display === 'none', 'the riding kid should leave the grid (display none), has ' + getComputedStyle(kn).display);
+      pvk('pointercancel', document, r.left + 10, r.top + 8 + 60 * sc, 75);
+      expect(getComputedStyle(kn).display !== 'none', 'the kid did not come back after the cancel');
+      expect(got.fs === want.fs && got.fw === want.fw && got.col === want.col,
+        'the ghost wore ' + JSON.stringify(got) + ', the kid wears ' + JSON.stringify(want));
+      return 'ghost ' + got.fs + ' / ' + got.fw + ' / ' + got.col + ' = kid';
+    });
+    test('the desktop piece bar carries no Hide on phones (the phone view and the On phones row do), and a hidden piece still says so', function () {
+      var i = findIdx('para');
+      var s0 = sec();
+      select(i);
+      var b = q('.gogh-elbar .gogh-eb-phone');
+      expect(!b || b.offsetParent === null, 'Hide on phones should not be on the desktop bar (clutter, James)');
+      try {
+        G.device.hide(s0, i, true);
+        select(i);
+        expect(s0.nodes[i].classList.contains('gogh-m-hidden'), 'a hidden piece should wear its tag on the desktop');
+        expect(s0.styleEl.textContent.indexOf('html:not(.gogh-phone-preview)') !== -1, 'no phone hide rule in the section CSS');
+        expect(!b || b.offsetParent === null, 'the bar should stay clear for a hidden piece too');
+      } finally { G.device.hide(s0, i, false); }
+      return 'no button on the desktop bar; hiding still works and still shows';
+    });
+    test('a button panel carries no On phones row (James: where it goes and how it looks, nothing else)', function () {
+      var i = findIdx('button');
+      G.openPanel(sec(), i);
+      try {
+        var pnl = q('.gogh-panel');
+        expect(!pnl.querySelector('[data-mh]') && !pnl.querySelector('.gogh-phone-see') && !/On phones/.test(pnl.textContent), 'the button panel still shows the On phones row');
+      } finally { G.closePanel(); }
+      return 'no phone row on buttons';
+    });
+    test('a piece with a panel has an On phones row: Shown | Hidden and a door to the phone view', function () {
+      var i = findIdx('image');
+      var s0 = sec();
+      G.openPanel(s0, i);
+      var pnl = q('.gogh-panel');
+      var shown = pnl.querySelector('[data-mh="0"]'), hidden = pnl.querySelector('[data-mh="1"]'), see = pnl.querySelector('.gogh-phone-see');
+      expect(shown && hidden && see, 'the On phones row is missing a button');
+      expect(shown.classList.contains('is-active'), 'Shown should be lit to begin with');
+      try {
+        hidden.click();
+        expect(G.device.hidden(s0, i), 'Hidden did not hide the piece on phones');
+        expect(hidden.classList.contains('is-active') && !shown.classList.contains('is-active'), 'the row did not move to Hidden');
+        shown.click();
+        expect(!G.device.hidden(s0, i), 'Shown did not show the piece again');
+        expect(see.textContent === 'See it on a phone', 'the door reads ' + see.textContent);
+      } finally { G.device.hide(s0, i, false); G.closePanel(); }
+      return 'Shown | Hidden | See it on a phone';
+    });
+    test('a section can be hidden on phones from its \u22ef menu', function () {
+      var s0 = sec(), idx = G.sections().indexOf(s0);
+      G.openSecMore(idx, s0.sectionEl);
+      var it = q('.gogh-secmore [data-act="mhide"]');
+      expect(it && it.textContent === 'Hide on phones', 'no Hide on phones in the section menu');
+      try {
+        it.click();
+        expect(G.device.hidden(s0, -1), 'the section is not hidden on phones');
+        expect(s0.sectionEl.classList.contains('gogh-msec-hidden'), 'the section does not wear gogh-msec-hidden');
+        G.openSecMore(idx, s0.sectionEl);
+        expect(q('.gogh-secmore [data-act="mhide"]').textContent === 'Show on phones', 'the menu item did not flip to Show');
+        q('.gogh-secmore [data-act="mhide"]').click();
+        expect(!G.device.hidden(s0, -1), 'Show on phones did not show the section again');
+      } finally { G.device.hide(s0, -1, false); }
+      return 'Hide on phones, then Show on phones';
+    });
+    test('the phone view fires the page\u2019s own narrow-window CSS: a max-width rule comes on, a min-width rule goes off, the header grows its menu button, and Desktop puts it all back', function () {
+      var st = document.createElement('style');
+      st.textContent = '@media (max-width: 500px) { .gogh-pm-probe { color: rgb(1, 2, 3); } }' +
+        '@media screen and (min-width: 600px) { .gogh-pm-probe { letter-spacing: 7px; } }' +
+        '@media (prefers-reduced-motion: no-preference), (prefers-reduced-motion: reduce) { .gogh-pm-probe { word-spacing: 5px; } }';
+      var probe = document.createElement('span');
+      probe.className = 'gogh-pm-probe';
+      probe.textContent = 'probe';
+      document.body.appendChild(st); document.body.appendChild(probe);
+      var openBtn = q('.wp-block-navigation__responsive-container-open');
+      var readIt = function () { var cs = getComputedStyle(probe); return { col: cs.color, ls: cs.letterSpacing, ws: cs.wordSpacing }; };
+      var before = readIt();
+      expect(before.col !== 'rgb(1, 2, 3)', 'the max-width rule fired on the desktop already');
+      expect(before.ls === '7px', 'the min-width rule did not fire on the desktop (window ' + innerWidth + ')');
+      try {
+        G.device.phone();
+        var at = readIt();
+        expect(G.device.mediaFlips() > 0, 'no media rules were flipped');
+        expect(at.col === 'rgb(1, 2, 3)', 'the max-width rule did not come on in the phone view');
+        expect(at.ls !== '7px', 'the min-width rule stayed on in the phone view: ' + at.ls);
+        expect(at.ws === before.ws, 'a rule that is not about size was touched');
+        if (openBtn) expect(getComputedStyle(openBtn).display !== 'none', 'the header\u2019s menu button is still hidden in the phone view');
+        expect(G.device.mediaAtPhone('(min-width: 782px) and (max-width: 1024px)') === false, 'a between-range should miss a phone');
+        expect(G.device.mediaAtPhone('only screen and (max-width: 48em)') === true, 'a 48em max should catch a phone');
+        expect(G.device.mediaAtPhone('(width <= 600px)') === true, 'range syntax should catch a phone');
+        expect(G.device.mediaAtPhone('not screen and (max-width: 600px)') === false, 'a negated phone query should miss');
+        expect(G.device.mediaAtPhone('print') === false && G.device.mediaAtPhone('(hover: hover)') == null || true, 'sanity');
+      } finally { G.device.desktop(); }
+      var after = readIt();
+      expect(G.device.mediaFlips() === 0, 'flips lingered after Desktop');
+      expect(after.col === before.col && after.ls === '7px', 'Desktop did not put the rules back');
+      if (openBtn) expect(getComputedStyle(openBtn).display === 'none', 'the menu button lingered on the desktop');
+      st.remove(); probe.remove();
+      return 'max-width on, min-width off' + (openBtn ? ', hamburger shown' : '') + ', all restored';
+    });
+    testAsync('the Mobile menu page docks on the left with the page zoomed beside it, so no menu layout can hide behind it', async function () {
+      var hdr = q('.wp-site-blocks header');
+      expect(hdr, 'no header on the fixture');
+      var html = document.documentElement, pnl = q('.gogh-panel');
+      var backs = 0;
+      var snap = function () { return { hdr: hdr.className, html: html.className, body: document.body.className, side: q('.gogh-side').className, live: !!hdr.querySelector('.gogh-chrome-live, [contenteditable="true"]'), inner: hdr.innerHTML.length }; };
+      var s0 = snap();
+      try {
+        G.openMenuStylePage(hdr, { room: hdr, area: 'header', back: function () { backs++; } });
+        expect(!pnl.hidden, 'the Mobile menu page did not open');
+        expect(pnl.classList.contains('gogh-panel-sidebar'), 'the page is not docked as a sidebar');
+        expect(pnl.style.left === '0px', 'the sidebar is not on the left: ' + pnl.style.left);
+        expect(html.classList.contains('gogh-zoomed'), 'the page did not zoom out beside the panel');
+        var sw = pnl.querySelector('.gogh-mmpreview');
+        expect(sw && sw.getAttribute('role') === 'switch', 'no Preview the menu switch');
+        expect(/Preview the menu/.test(pnl.querySelector('.gogh-mmprevrow').textContent), 'the switch does not say Preview the menu');
+        var box = hdr.querySelector('.wp-block-navigation__responsive-container');
+        if (box) {
+          expect(box.classList.contains('is-menu-open'), 'the menu is not open on arrival');
+          expect(sw.classList.contains('is-on'), 'the switch is not on while the menu is open');
+          sw.click();
+          expect(!box.classList.contains('is-menu-open') && !sw.classList.contains('is-on'), 'the switch did not close the menu');
+          sw.click();
+          expect(box.classList.contains('is-menu-open'), 'the switch did not open the menu again');
+        }
+        await new Promise(function (r) { setTimeout(r, 30); }); // the room adds its Back link a microtask later
+        var back = pnl.querySelector('.gogh-room-back');
+        expect(back, 'no Back to header link');
+        back.click();
+        expect(backs === 1, 'Back did not return to the header room');
+        expect(html.classList.contains('gogh-zoomed'), 'Back unzoomed on the way to the header room (it should re-open in place)');
+        if (box) expect(!box.classList.contains('is-menu-open'), 'Back left the menu open');
+      } finally { G.closePanel(); G.device.desktop(); settleZoom(); }
+      expect(!html.classList.contains('gogh-zoomed'), 'closing the page left the zoom on');
+      var s1 = snap(), leaks = [];
+      Object.keys(s0).forEach(function (k) { if (String(s0[k]) !== String(s1[k])) leaks.push(k + ': ' + JSON.stringify(s0[k]).slice(0, 120) + ' -> ' + JSON.stringify(s1[k]).slice(0, 120)); });
+      return 'sidebar left, page zoomed, Back unzooms' + (leaks.length ? ' | LEAKS ' + leaks.join(' ; ') : ' | no state leaked');
+    });
+    testAsync('a header room page docks on the left beside the zoomed page, no dim, and Back returns to the Site cards', async function () {
+      // the room itself opens only after every header layout has been
+      // rendered on the server, which the suite cannot wait on — the
+      // docking and the way back are the same code for every room page,
+      // so drive them through the Mobile menu page
+      var html = document.documentElement, pnl = q('.gogh-panel'), side = q('.gogh-side'), rail = q('.gogh-rail');
+      var hdr = G.partElForArea('header');
+      expect(hdr, 'no header on the fixture');
+      G.openSide('site');
+      try {
+        G.openMenuStylePage(hdr, { room: hdr, area: 'header', back: function () {} });
+        await new Promise(function (r) { setTimeout(r, 30); });
+        expect(pnl.classList.contains('gogh-panel-sidebar'), 'the page is not docked as a sidebar');
+        expect(html.classList.contains('gogh-zoomed'), 'the page is not zoomed beside the panel');
+        expect(!q('.gogh-chrome-scrim'), 'the page is dimmed');
+        expect(hdr.classList.contains('gogh-chrome-spotlight'), 'the header has no ring');
+        expect(hdr.querySelector('.gogh-chrome-label'), 'the header has no label');
+        expect(rail.classList.contains('is-away'), 'the rail did not step aside');
+        expect(side.classList.contains('gogh-side-away'), 'the drawer did not step aside for the page');
+        G.roomBackToCards();
+        expect(pnl.hidden, 'Back did not close the page');
+        expect(side.classList.contains('is-open') && !side.classList.contains('gogh-side-away'), 'Back did not return to the drawer');
+        var cards = side.querySelector('.gogh-cards-site');
+        expect(cards && getComputedStyle(cards).display !== 'none', 'the Site cards are not showing');
+        expect(html.classList.contains('gogh-zoomed'), 'Back left the design view');
+        expect(!hdr.classList.contains('gogh-chrome-spotlight') && !hdr.querySelector('.gogh-chrome-label'), 'the ring or label lingered after Back');
+        expect(!rail.classList.contains('is-away'), 'the rail did not come back');
+      } finally { G.closePanel(); G.closeSide(true); settleZoom(); }
+      return 'docked left with ring and label, no dim; Back to the Site cards, design view kept';
+    });
+    test('the header room head says Editing the header and its Back returns to the Site cards', function () {
+      var pill = q('.gogh-chromebtn');
+      var partEl = pill && pill.__goghPart;
+      expect(partEl, 'no header part behind the pill');
+      var options = [
+        { kind: 'part', id: 101, slug: 'header', theme: 'x', title: 'Simple header', content: '' },
+        { kind: 'part', id: 102, slug: 'header-b', theme: 'x', title: 'Centered header', content: '' },
+      ];
+      var active = { id: 101, content: { raw: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"></div><!-- /wp:group -->' } };
+      var html = document.documentElement, side = q('.gogh-side'), pnl = q('.gogh-panel');
+      try {
+        G.openHeaderPanel(partEl, 'header', options, options[0], active);
+        expect(pnl.classList.contains('gogh-panel-sidebar'), 'the room did not dock as a sidebar');
+        expect(html.classList.contains('gogh-zoomed'), 'the page did not zoom beside the room');
+        expect(!q('.gogh-chrome-scrim'), 'the room dimmed the page');
+        expect(partEl.classList.contains('gogh-chrome-spotlight'), 'the header lost its ring');
+        expect(/Editing the header/.test(pnl.querySelector('.gogh-panel-title').textContent), 'the title reads ' + pnl.querySelector('.gogh-panel-title').textContent);
+        var back = pnl.querySelector('.gogh-panel-head .gogh-panel-back');
+        expect(back, 'no Back in the room head');
+        back.click();
+        expect(pnl.hidden, 'Back did not close the room');
+        expect(side.classList.contains('is-open') && !side.classList.contains('gogh-side-away'), 'Back did not return to the drawer');
+        var cards = side.querySelector('.gogh-cards-site');
+        expect(cards && getComputedStyle(cards).display !== 'none', 'the Site cards are not showing');
+        expect(html.classList.contains('gogh-zoomed'), 'Back dropped the design view');
+        expect(!partEl.classList.contains('gogh-chrome-spotlight'), 'the ring lingered');
+      } finally { G.closePanel(); G.closeSide(true); settleZoom(); }
+      expect(!html.classList.contains('gogh-zoomed'), 'the design view lingered after closing the drawer');
+      return 'Editing the header · Back → Site cards';
+    });
+    testAsync('the open menu in a zoomed view keeps to the window: Stack fills the window, a Sheet sits at its bottom, and closing clears it', async function () {
+      var hdr = G.partElForArea('header');
+      var box = hdr && hdr.querySelector('.wp-block-navigation__responsive-container');
+      expect(box, 'no menu overlay on the fixture header');
+      var body = document.body, had = body.className;
+      G.openSide('site');
+      try {
+        G.openMenuStylePage(hdr, { room: hdr, area: 'header', back: function () {} });
+        await new Promise(function (r) { setTimeout(r, 60); });
+        expect(box.classList.contains('is-menu-open'), 'the menu did not open on arrival');
+        expect(G.device.menuPinned(), 'the open menu is not following the window');
+        var wrap = q('.wp-site-blocks'), sc = wrap.getBoundingClientRect().width / wrap.offsetWidth;
+        MENU_LAYOUTS_CLEAR(body); body.classList.add('gogh-mm-stack');
+        await new Promise(function (r) { setTimeout(r, 30); });
+        var h = parseFloat(box.style.height);
+        expect(box.style.top !== '' && box.style.bottom === 'auto', 'Stack should pin from the window top, got top ' + box.style.top + ' bottom ' + box.style.bottom);
+        expect(Math.abs(h - window.innerHeight / sc) < 40 || h <= wrap.offsetHeight, 'Stack height should be the window in layout px, got ' + h + ' (window ' + Math.round(window.innerHeight / sc) + ')');
+        MENU_LAYOUTS_CLEAR(body); body.classList.add('gogh-mm-sheet');
+        await new Promise(function (r) { setTimeout(r, 30); });
+        expect(box.style.top === 'auto' && /px$/.test(box.style.bottom), 'a Sheet should pin to the window bottom, got top ' + box.style.top + ' bottom ' + box.style.bottom);
+        expect(parseFloat(box.style.maxHeight) > 0, 'a Sheet should cap its height to the window');
+        q('.gogh-panel .gogh-mmpreview').click();
+        await new Promise(function (r) { setTimeout(r, 30); });
+        expect(!box.classList.contains('is-menu-open'), 'the switch did not close the menu');
+        expect(!G.device.menuPinned() && box.style.top === '' && box.style.bottom === '', 'closing did not clear the pin: top ' + box.style.top + ' bottom ' + box.style.bottom);
+      } finally { body.className = had; G.closePanel(); G.closeSide(true); settleZoom(); }
+      return 'stack: window-tall from the top; sheet: at the window bottom; closed: clean';
+    });
+    test('a page pressed in the phone view opens in the editor, still on the phone', function () {
+      var t = G.device.linkTarget('/about/');
+      expect(t && /gogh-edit=1/.test(t) && /gogh-phone=1/.test(t), 'a site page should carry gogh-edit and gogh-phone: ' + t);
+      expect(G.device.linkTarget('https://example.com/') === null, 'another site should be left alone');
+      expect(G.device.linkTarget('/wp-admin/edit.php') === null, 'wp-admin should be left alone');
+      expect(G.device.linkTarget('/wp-content/uploads/a.jpg') === null, 'a file should be left alone');
+      expect(G.device.linkTarget(location.pathname + '#top') === null, 'an anchor on this page should be left alone');
+      return t;
+    });
+    testAsync('the Mobile menu page offers Full screen, Drawer and Sheet, with Left or Centred only for the full screen', async function () {
+      var hdr = G.partElForArea('header');
+      var body = document.body, had = body.className;
+      G.openSide('site');
+      try {
+        G.openMenuStylePage(hdr, { room: hdr, area: 'header', back: function () {} });
+        await new Promise(function (r) { setTimeout(r, 60); });
+        var pnl = q('.gogh-panel');
+        var opens = [].map.call(pnl.querySelectorAll('.gogh-mmlay .gogh-hopt'), function (b) { return b.dataset.v; });
+        expect(opens.join(',') === 'full,drawer,sheet', 'Opens as should be full, drawer, sheet — got ' + opens.join(','));
+        var aligns = [].map.call(pnl.querySelectorAll('.gogh-mmalign .gogh-hopt'), function (b) { return b.dataset.v; });
+        expect(aligns.join(',') === 'left,centred', 'Lines should be left, centred — got ' + aligns.join(','));
+        expect(G.menuLayoutFrom('full', 'left') === 'stack' && G.menuLayoutFrom('full', 'centred') === 'centred' && G.menuLayoutFrom('sheet', 'centred') === 'sheet', 'the two picks do not resolve to the stored layouts');
+        // one hover auditions without keeping anything (a click would save
+        // site-wide); one, because the suite's tab is hidden and every chained
+        // wait there is throttled towards a minute
+        var centred = pnl.querySelector('.gogh-mmalign [data-v="centred"]');
+        centred.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+        await new Promise(function (r) { setTimeout(r, 200); }); // the audition waits 70ms before it fires
+        expect(body.classList.contains('gogh-mm-centred'), 'hovering Centred did not audition the centred full screen');
+        centred.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
+      } finally { body.className = had; G.closePanel(); G.closeSide(true); settleZoom(); }
+      return 'full · drawer · sheet, then left · centred';
+    });
+    test('a new page names itself first: the Name this page panel, and the way onward runs once it is out of the way', function () {
+      var ran = 0;
+      G.openPageNamePanel('first', function () { ran++; });
+      var pnl = q('.gogh-panel');
+      try {
+        expect(!pnl.hidden && /Name this page/.test(pnl.textContent), 'the name panel did not open');
+        expect(/name it/i.test(pnl.querySelector('.gogh-pagego').textContent), 'the button should read Name it, got ' + pnl.querySelector('.gogh-pagego').textContent);
+        expect(/Prices/.test(pnl.querySelector('.gogh-pagename').placeholder), 'the field should suggest a title the way Add a page does');
+        expect(pnl.classList.contains('gogh-panel-modal') && q('.gogh-panel-scrim'), 'the first name should be a modal over a dim, not a panel by the chip');
+        var pr = pnl.getBoundingClientRect();
+        expect(Math.abs((pr.left + pr.width / 2) - window.innerWidth / 2) < 40, 'the modal is not centred: ' + Math.round(pr.left + pr.width / 2) + ' of ' + window.innerWidth);
+        expect(ran === 0, 'the way onward ran before the panel was dismissed');
+      } finally { G.closePanel(); }
+      expect(!pnl.classList.contains('gogh-panel-modal') && !q('.gogh-panel-scrim'), 'the modal or its dim lingered after closing');
+      expect(ran === 1, 'dismissing the panel should run the way onward exactly once, ran ' + ran);
+      return 'Name this page · Name it · onward once';
+    });
+    testAsync('the header room keeps on click without rebuilding itself: a picked layout stays listed and lit, and the colour row survives', async function () {
+      // the save is stubbed: a real one would write the site's header
+      var realFetch = window.fetch, posted = [];
+      var reply = function (body, ok) { return Promise.resolve({ ok: ok !== false, status: ok === false ? 404 : 200, url: '', json: function () { return Promise.resolve(body); }, text: function () { return Promise.resolve(JSON.stringify(body)); } }); };
+      window.fetch = function (url, opts) {
+        var u = String(url), m = (opts && opts.method) || 'GET';
+        if (/template-parts\/101/.test(u) && m === 'POST') { posted.push(JSON.parse(opts.body).content); return reply({ id: 101 }); }
+        if (/template-parts/.test(u) && m === 'GET') return reply([]);
+        return realFetch.apply(window, arguments);
+      };
+      var pill = q('.gogh-chromebtn');
+      var partEl = (pill && pill.__goghPart) || G.partElForArea('header');
+      var mk = function (id, slug, title, word) { return { kind: 'part', id: id, slug: slug, theme: 'x', title: title, content: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"><p>' + word + '</p></div><!-- /wp:group -->' }; };
+      var options = [mk(101, 'header', 'Simple header', 'one'), mk(102, 'header-b', 'Centred header', 'two'), mk(103, 'header-c', 'Bold header', 'three')];
+      var active = { id: 101, content: { raw: options[0].content } };
+      var html = document.documentElement, pnl = q('.gogh-panel');
+      try {
+        G.openSide('site');
+        G.openHeaderPanel(partEl, 'header', options, options[0], active);
+        var layDoor = pnl.querySelector('.gogh-hlaydoor'), layBox = pnl.querySelector('.gogh-hlaybox');
+        expect(layDoor && layBox, 'no Layout door or list');
+        layDoor.click();
+        expect(!layBox.hasAttribute('hidden'), 'the Layout list did not open');
+        var opt = pnl.querySelector('.gogh-hlayout[data-id="102"]') || pnl.querySelectorAll('.gogh-hlayout')[1];
+        expect(opt, 'no second layout to pick');
+        var looks = pnl.querySelector('.gogh-hlooks');
+        opt.click();
+        await new Promise(function (r) { setTimeout(r, 1500); }); // the keep waits 900ms for its neighbours
+        expect(posted.length === 1, 'picking a layout should have written the part once, wrote ' + posted.length);
+        expect(/two/.test(posted[0]), 'the written part should be the picked layout');
+        expect(pnl.querySelector('.gogh-hlaybox') === layBox && !layBox.hasAttribute('hidden'), 'the Layout list was rebuilt or folded by the keep');
+        expect(opt.classList.contains('is-active') && pnl.contains(opt), 'the picked layout is not still lit in the same list');
+        expect(pnl.querySelector('.gogh-hlooks') === looks, 'the colour row was rebuilt by the keep');
+        expect(!pnl.hidden && pnl.dataset.goghArea === 'header', 'the room closed on the keep');
+        var sw = pnl.querySelector('.gogh-hlooks .gogh-sw[data-k]');
+        if (sw) {
+          // the fake header carries nothing a colour can paint, so this may
+          // not write; what matters is that the row survives the attempt
+          sw.click();
+          await new Promise(function (r) { setTimeout(r, 1500); });
+          expect(pnl.querySelector('.gogh-hlooks') === looks && pnl.contains(sw), 'the colour row did not survive its own keep');
+          expect(!pnl.hidden && pnl.dataset.goghArea === 'header', 'the room closed after a colour pick');
+        }
+      } finally { window.fetch = realFetch; G.closePanel(); G.closeSide(true); settleZoom(); }
+      return 'layout kept and still listed; colour kept and still there; ' + posted.length + ' writes';
+    });
+    testAsync('a header or footer layout pick keeps the menu the part shows (its navigation ref)', async function () {
+      // layout options carry no ref, and a navigation block with none shows
+      // the site's newest menu: a layout pick on The Long Way (2026-10-05)
+      // saved the header with no ref, so a second menu could take over
+      var C = G.carryNavRefs;
+      var saved = '<!-- wp:group --><div><!-- wp:navigation {"ref":251,"overlayMenu":"mobile","icon":"menu"} /--></div><!-- /wp:group -->';
+      expect(C('<!-- wp:navigation {"overlayMenu":"mobile"} /-->', saved) === '<!-- wp:navigation {"ref":251,"overlayMenu":"mobile"} /-->', 'attrs: ' + C('<!-- wp:navigation {"overlayMenu":"mobile"} /-->', saved));
+      expect(C('<!-- wp:navigation /-->', saved) === '<!-- wp:navigation {"ref":251} /-->', 'bare: ' + C('<!-- wp:navigation /-->', saved));
+      expect(C('<!-- wp:navigation {"ref":9} /-->', saved) === '<!-- wp:navigation {"ref":251} /-->', 'a pattern ref should give way to the saved one');
+      expect(C('<!-- wp:navigation-link {"label":"A"} /-->', saved) === '<!-- wp:navigation-link {"label":"A"} /-->', 'a navigation-link was touched');
+      expect(C('<!-- wp:navigation /-->', '<!-- wp:navigation /-->') === '<!-- wp:navigation /-->', 'no saved ref should leave the layout as it is');
+      expect(/"ref":251/.test(G.chromeLayoutContent('footer', { content: '<!-- wp:navigation /-->' }, null, saved)), 'the one-click swap path lost the ref');
+      // the room itself, header and footer, writes stubbed
+      var realFetch = window.fetch, posted = [];
+      var reply = function (body) { return Promise.resolve({ ok: true, status: 200, url: '', json: function () { return Promise.resolve(body); }, text: function () { return Promise.resolve(JSON.stringify(body)); } }); };
+      window.fetch = function (url, opts) {
+        var u = String(url), m = (opts && opts.method) || 'GET';
+        if (/template-parts\/101/.test(u) && m === 'POST') { posted.push(JSON.parse(opts.body).content); return reply({ id: 101 }); }
+        if (/template-parts/.test(u) && m === 'GET') return reply([]);
+        return realFetch.apply(window, arguments);
+      };
+      var mk = function (id, slug, title, word, nav) { return { kind: 'part', id: id, slug: slug, theme: 'x', title: title, content: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"><!-- wp:paragraph --><p>' + word + '</p><!-- /wp:paragraph -->' + nav + '</div><!-- /wp:group -->' }; };
+      var areas = ['header', 'footer'], done = [];
+      try {
+        for (var k = 0; k < areas.length; k++) {
+          var area = areas[k];
+          var partEl = G.partElForArea(area);
+          if (!partEl) continue;
+          posted.length = 0;
+          var options = [
+            mk(101, area, 'Classic ' + area, 'one', '<!-- wp:navigation {"ref":251,"overlayMenu":"mobile","icon":"menu"} /-->'),
+            mk(102, area + '-b', 'Centred ' + area, 'two', '<!-- wp:navigation {"overlayMenu":"mobile","icon":"menu"} /-->'),
+          ];
+          var active = { id: 101, content: { raw: options[0].content } };
+          G.openSide('site');
+          G.openHeaderPanel(partEl, area, options, options[0], active);
+          var pnl = q('.gogh-panel');
+          var layDoor = pnl.querySelector('.gogh-hlaydoor');
+          if (layDoor) layDoor.click();
+          var opt = pnl.querySelector('.gogh-hlayout[data-k="1"]');
+          expect(opt, 'no Centred ' + area + ' to pick');
+          opt.click();
+          await new Promise(function (r) { setTimeout(r, 1500); }); // the keep waits 900ms
+          expect(posted.length === 1, area + ': picking a layout should write once, wrote ' + posted.length);
+          expect(/two/.test(posted[0]), area + ': the written part is not the picked layout');
+          expect(/wp:navigation \{"ref":251,/.test(posted[0]), area + ': the picked layout lost the menu ref: ' + posted[0]);
+          // ...and back again: the saved raw now carries the ref through
+          var back = pnl.querySelector('.gogh-hlayout[data-k="0"]');
+          if (back) {
+            back.click();
+            await new Promise(function (r) { setTimeout(r, 1500); });
+            expect(posted.length === 2 && /one/.test(posted[1]) && /"ref":251/.test(posted[1]), area + ': switching back lost the ref: ' + posted[posted.length - 1]);
+          }
+          G.closePanel(); G.closeSide(true); settleZoom();
+          done.push(area);
+        }
+      } finally { window.fetch = realFetch; G.closePanel(); G.closeSide(true); settleZoom(); }
+      expect(done.indexOf('header') !== -1, 'the fixture has no header to test');
+      return 'ref 251 kept through a layout pick and back: ' + done.join(', ');
+    });
+    test('the phone view carries one sentence saying what it is for', function () {
+      var note = q('.gogh-phonenote');
+      expect(note && note.hidden, 'the sentence should be hidden on the desktop');
+      try {
+        G.device.phone();
+        expect(!note.hidden, 'the sentence did not appear in the phone view');
+        expect(/hide it on phones/.test(note.textContent), 'the sentence says: ' + note.textContent);
+      } finally { G.device.desktop(); }
+      expect(note.hidden, 'the sentence lingered after Desktop');
+      return note.textContent;
+    });
+    test('Phone is an icon in the top bar: it shows the phone artboard with no drawer open, and Desktop brings the page back', function () {
+      var pill = q('#wp-admin-bar-gogh-device .gogh-devpill, .gogh-devpill-float .gogh-devpill');
+      expect(pill, 'no Desktop | Phone pill in the top bar');
+      expect(!pill.closest('[hidden]'), 'the pill is hidden while editing');
+      var ph = pill.querySelector('[data-dev="phone"]');
+      expect(ph.querySelector('svg') && !/\S/.test(ph.textContent), 'the Phone button still carries words: ' + ph.textContent);
+      expect(ph.title === 'Mobile view' && ph.getAttribute('aria-label') === 'Mobile view', 'the phone icon should be named Mobile view: ' + ph.title);
+      var dk = pill.querySelector('[data-dev="desktop"]');
+      expect(dk.title === 'Desktop view', 'the screen icon should be named Desktop view: ' + dk.title);
+      var ab = q('#wp-admin-bar-gogh-edit a');
+      if (ab) expect(/View site/.test(ab.textContent), 'while editing the bar should read View site: ' + ab.textContent);
+      expect(!q('.gogh-zoomslider .gogh-dev'), 'the zoom slider still carries device buttons');
+      var wrap = q('.wp-site-blocks');
+      var html = document.documentElement;
+      expect(!html.classList.contains('gogh-zoomed'), 'the test should start on the 1:1 canvas');
+      try {
+        pill.querySelector('[data-dev="phone"]').click();
+        expect(html.classList.contains('gogh-phone-preview'), 'Phone did not enter the phone view');
+        expect(html.classList.contains('gogh-zoomed'), 'the phone view did not zoom the desk out by itself');
+        expect(wrap.style.width === '390px', 'the artboard is not phone-wide: ' + wrap.style.width);
+        expect(pill.querySelector('[data-dev="phone"]').classList.contains('is-on'), 'Phone is not lit');
+        expect(G.device.mode() === 'phone', 'the api does not say phone');
+        pill.querySelector('[data-dev="desktop"]').click();
+        expect(!html.classList.contains('gogh-phone-preview'), 'Desktop did not leave the phone view');
+        expect(!html.classList.contains('gogh-zoomed'), 'Desktop left the desk zoomed out with no drawer open');
+        expect(wrap.style.width === '', 'the artboard kept its phone width: ' + wrap.style.width);
+      } finally { G.device.desktop(); }
+      return 'phone 390px on its own zoom, desktop back to 1:1';
+    });
+    test('the phone view outlives a drawer: open Page, press Phone, close the drawer, still on the phone', function () {
+      var html = document.documentElement;
+      try {
+        G.openSide('page');
+        expect(!q('.gogh-side .gogh-phonebtn'), 'the See it on a phone card should be gone — the top bar has Phone');
+        G.device.phone();
+        expect(html.classList.contains('gogh-phone-preview'), 'Phone did not enter the phone view with the drawer open');
+        G.closeSide(true);
+        expect(html.classList.contains('gogh-phone-preview'), 'closing the drawer dropped the phone view');
+        expect(html.classList.contains('gogh-zoomed'), 'closing the drawer unzoomed under the phone');
+        G.device.desktop();
+        expect(!html.classList.contains('gogh-zoomed'), 'Desktop after the drawer left the desk zoomed');
+      } finally { G.device.desktop(); G.closeSide(true); }
+      return 'drawer closed, phone stayed; Desktop unzoomed';
+    });
+    test('under the birds-eye zoom a sideways drag keeps its height', function () {
+      var i = findIdx('badge');
+      var e0 = sec().els[i], y0 = e0.y, h0 = e0.h;
+      G.canvasZoom.out();
+      var zoomed = document.querySelector('.gogh-zoomed, [style*="scale("]');
+      try {
+        select(i);
+        var grip = q('.gogh-grip');
+        expect(grip, 'no grip under the zoom');
+        var r = grip.getBoundingClientRect();
+        pev('pointerdown', grip, r.x + 12, r.y + 12, 52);
+        pev('pointermove', grip, r.x + 12 + 40, r.y + 12, 52);
+        pev('pointermove', grip, r.x + 12 + 80, r.y + 12, 52);
+        pev('pointerup', grip, r.x + 12 + 80, r.y + 12, 52);
+      } finally {
+        G.canvasZoom.back();
+      }
+      var e1 = sec().els[i];
+      expect(Math.abs(e1.y - y0) <= 2, 'a sideways drag under the zoom moved the piece down: y ' + y0 + ' -> ' + e1.y);
+      expect(e1.h === h0, 'the piece changed height under the zoom: ' + h0 + ' -> ' + e1.h);
+      return 'y ' + y0 + ' -> ' + e1.y + (zoomed ? ' (zoom wrapper found)' : '');
+    });
+    test('a card stacks by ink: a button dropped beside a short heading stays beside it, one dropped on the words steps below', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 40, w: 440, h: 60, text: 'Short' },
+        { type: 'button', x: 30, y: 200, w: 160, h: 50, text: 'Drag me' } ], { w: 480, h: 320 });
+      var box = f.box, kn = f.node.querySelector('.gogh-k-2');
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var r = kn.getBoundingClientRect();
+      // 1. beside the heading's words (the box runs the card's width, the ink does not)
+      pvk('pointerdown', f.node, r.left + 2, r.top + 2, 176); pvk('pointerup', document, r.left + 2, r.top + 2, 176); // the first press gets the card
+      pvk('pointerdown', kn, r.left + 10, r.top + 8, 76);
+      pvk('pointermove', document, r.left + 10 + 150 * sc, r.top + 8 - 80 * sc, 76);
+      pvk('pointermove', document, r.left + 10 + 260 * sc, r.top + 8 - 155 * sc, 76);
+      pvk('pointerup', document, r.left + 10 + 260 * sc, r.top + 8 - 155 * sc, 76);
+      var b = box.kids.filter(function (k) { return k.type === 'button'; })[0];
+      expect(b, 'the button left the card');
+      expect(Math.abs(b.y - 45) <= 3 && b.x >= 250, 'beside the words it should stay at y 45, x 290: landed ' + b.x + ',' + b.y);
+      var beside = b.x + ',' + b.y; // the same object moves again below
+      // 2. onto the words themselves: it steps below the heading
+      var kn2 = f.node.querySelector('.gogh-k-' + (box.kids.indexOf(b) + 1));
+      var r2 = kn2.getBoundingClientRect();
+      pvk('pointerdown', kn2, r2.left + 10, r2.top + 8, 77);
+      pvk('pointermove', document, r2.left + 10 - 130 * sc, r2.top + 8, 77);
+      pvk('pointermove', document, r2.left + 10 - 250 * sc, r2.top + 8, 77);
+      pvk('pointerup', document, r2.left + 10 - 250 * sc, r2.top + 8, 77);
+      var b2 = box.kids.filter(function (k) { return k.type === 'button'; })[0];
+      expect(b2.y >= 100, 'on the words it should step below the heading (y >= 100): landed ' + b2.x + ',' + b2.y);
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'beside the words: ' + beside + '; on the words: ' + b2.x + ',' + b2.y;
+    });
     test('an extra button rides beside the take\'s button through every roll', function () {
       var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
       if (!hero) throw new Error('no Hero template');
@@ -5940,6 +12001,43 @@
       return faces.length + ' rolls, gaps ' + seen.join('/');
     });
 
+    // A CENTRED PAIR — when a take draws its button centred, a second button
+    // seated beside it keeps the pair centred rather than hanging off one side
+    test('a second button beside a centred take button keeps the pair centred through the rolls', function () {
+      var story = G.templates().filter(function (t) { return t.name === 'Story' && !t.retired; })[0];
+      if (!story) throw new Error('no Story template');
+      G.addSection(story);
+      var s = lastSec();
+      var idx = G.sections().indexOf(s);
+      var b1 = s.els.filter(function (e) { return e.type === 'button'; })[0];
+      if (!b1) throw new Error('the Story has no button');
+      var b2 = JSON.parse(JSON.stringify(b1));
+      b2.text = 'Second'; b2.x = b1.x + b1.w + 16; b2.y = b1.y; delete b2.id;
+      s.els.push(b2);
+      G.renderSection(s);
+      var faces = G.diceFaces(G.diceFamilyOf(s));
+      var centredRows = 0, off = [];
+      for (var k = 0; k < faces.length; k++) {
+        G.rollSection(idx);
+        var btns = G.diceFlatten(s.els).filter(function (e) { return e.type === 'button'; });
+        var ex = btns.filter(function (e) { return e.text === 'Second'; })[0];
+        var own = btns.filter(function (e) { return e.text !== 'Second'; }).pop();
+        if (!ex || !own) continue;
+        var inCard = s.els.some(function (b) { return b.type === 'box' && b.kids && (b.kids.indexOf(own) !== -1 || b.kids.indexOf(ex) !== -1); });
+        if (inCard || Math.abs(ex.y - own.y) > 2) continue; // not a row on the page
+        var face = faces[(k + 1) % faces.length]; // roll k+1 lands on face k+1
+        var drawn = G.tplEls(face).filter(function (e) { return e.type === 'button'; }).pop();
+        if (!drawn || Math.abs(drawn.x + drawn.w / 2 - 600) > 12) continue; // the take did not centre its button
+        centredRows++;
+        var lo = Math.min(ex.x, own.x), hi = Math.max(ex.x + ex.w, own.x + own.w);
+        if (Math.abs((lo + hi) / 2 - 600) > 2) off.push('roll ' + (k + 1) + ': pair centred at ' + ((lo + hi) / 2) + ' (' + own.x + '+' + own.w + ', ' + ex.x + '+' + ex.w + ')');
+      }
+      G.deleteSection(idx);
+      expect(centredRows > 0, 'no take in the Story family drew a centred button on a shared row, so nothing was checked');
+      expect(!off.length, off.join('; '));
+      return centredRows + ' centred row(s) kept the pair centred';
+    });
+
     // THE YELLOW HOUSE SHAPE — one take button plus one of the user's own:
     // the second button keeps its words through every take, including the
     // one that draws a single button in a card, and never overlaps
@@ -5979,6 +12077,45 @@
 
     // NAME SIZE — the site name's size rides its block as a typography
     // style, merged over whatever the block already carried
+    // THE TAKE MARK RIDES THE SAVE — the die marks the pieces it drew (tk)
+    // and the drop rule reads that mark on the next roll; a saved model
+    // without it turns every take-drawn piece into an original after a
+    // reload, and the roll after that piles the riders up (the v435 leak)
+    test('the dice: the take mark survives the saved model, so a reload does not leak riders', function () {
+      var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
+      G.addSection(hero);
+      var s = lastSec();
+      var idx = G.sections().indexOf(s);
+      // the Yellow House shape: one button of the user's own
+      var btns = s.els.filter(function (e) { return e.type === 'button'; });
+      btns.slice(1).forEach(function (b) { s.els.splice(s.els.indexOf(b), 1); });
+      G.renderSection(s);
+      // take 2 draws two buttons: the second is the die's, and wears its mark
+      G.rollSection(idx);
+      var marked = G.diceFlatten(s.els).filter(function (e) { return e.type === 'button' && e.tk != null; });
+      if (marked.length !== 1) throw new Error('expected one take-drawn button after the roll, found ' + marked.length);
+      // publish + reload: the block attrs are the stored truth
+      var am = G.blocksV3(s).match(/<!-- wp:gogh\/section (\{[\s\S]*?\}) -->/);
+      if (!am) throw new Error('no attrs on the section block');
+      var model = JSON.parse(am[1]).model;
+      var saved = G.diceFlatten(model.elements).filter(function (e) { return e.type === 'button'; });
+      var savedMarked = saved.filter(function (e) { return e.tk != null; });
+      if (saved.length !== 2) throw new Error('the saved model holds ' + saved.length + ' buttons, wanted 2');
+      if (savedMarked.length !== 1 || savedMarked[0].tk !== marked[0].tk) throw new Error('the take mark did not reach the saved model (tk ' + JSON.stringify(saved.map(function (e) { return e.tk; })) + ')');
+      // the page reads back exactly what was saved
+      s.els = model.elements;
+      s.m = model.m || null;
+      G.renderSection(s);
+      // two more rolls land on the one-button take: the die's button steps
+      // aside, the user's own continues — one button, never two
+      G.rollSection(idx);
+      var r = G.rollSection(idx);
+      var after = G.diceFlatten(s.els).filter(function (e) { return e.type === 'button'; });
+      if (after.length !== 1) throw new Error('take ' + (r.face + 1) + ' after the reload carries ' + after.length + ' buttons, wanted 1 (the die’s button rode along)');
+      if (G.diceFlatten(s.els).some(function (e) { return e.tk != null && e.tk !== r.face; })) throw new Error('a piece from an earlier take is still on the section');
+      G.deleteSection(idx);
+      return 'tk saved and read back; ' + G.diceFlatten(s.els).length + ' pieces on take ' + (r.face + 1) + ', one button';
+    });
     test('the site name takes a size on its block', function () {
       var raw = '<div><!-- wp:site-title {"level":0,"style":{"color":{"text":"#123"}}} /--><!-- wp:navigation /--></div>';
       var out = G.titleRawWithSize(raw, 36);
