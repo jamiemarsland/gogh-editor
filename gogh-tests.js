@@ -9364,6 +9364,39 @@
       while (G.remixBack()) {}
     });
 
+    test('site styles in View: the brush stays, a look leaves the page alone', function () {
+      var first = G.sections().filter(function (x) { return !x.chrome; })[0];
+      var look = function () { return JSON.stringify(first.els.map(function (e) { return [e.color || null, e.y, e.h]; })) + '|' + (first.theme || '') + '|' + JSON.stringify(first.divider || null); };
+      var before = look();
+      G.setEditing(false);
+      var saved = G.serialize();
+      try {
+        var li = document.getElementById('wp-admin-bar-gogh-style');
+        if (window.GOGH && GOGH.gsId && document.getElementById('wpadminbar')) expect(li && !li.hidden, 'the brush should stay in the bar outside the editor');
+        var c = G.remixRoll({ dry: true });
+        expect(c && c.detailSite, 'a look should carry the words View shows');
+        expect(!/opening|alternat|bookend|edge|grain/i.test(c.detailSite), 'in View a look names only what it changes (fonts, size): ' + c.detailSite);
+        expect(look() === before, 'a look in View must not paint the page’s sections: ' + look() + ' vs ' + before);
+        expect(G.serialize() === saved, 'nothing on the page should change after a look in View');
+        while (G.remixBack()) {}
+      } finally { G.setEditing(true); }
+    });
+
+    test('site styles in View: hard-to-read words are counted on the page as published', function () {
+      var hw = G.stylesView && G.stylesView.hardWords;
+      expect(typeof hw === 'function', 'the View readability check should exist');
+      var host = sec().sectionEl;
+      var n0 = hw();
+      var probe = document.createElement('div');
+      probe.className = 'gogh-el-9999';
+      probe.innerHTML = '<p style="color: rgba(0,0,0,0.04); font-size: 14px; background: #ffffff">faint words</p>';
+      host.appendChild(probe);
+      try {
+        var n1 = hw();
+        expect(n1 === n0 + 1, 'one faint line on white should count once: ' + n0 + ' then ' + n1);
+      } finally { probe.remove(); }
+    });
+
     test('ghost buttons wear the accent only where it reads on the page', function () {
       var navy = G.brandToVariation({ colors: { background: '#ffffff', text: '#14213d', accent: '#1e3a5f', accent2: '#8a9bb0' } });
       expect(navy.ghostInk === '#1e3a5f', 'navy reads on white, so ghosts wear it: ' + navy.ghostInk);

@@ -114,7 +114,9 @@
   // hero and the panel ended up sharing a stylesheet for logged-in eyes
   // (James: "a newly made mega menu looks quite broken")
   var wrapTags = [].slice.call(document.querySelectorAll('.gogh-wrap')).filter(function (w) { return !w.closest('.gogh-mega'); });
-  var wantEdit = /[?&]gogh-edit=1/.test(location.search);
+  // the shop, the blog and category pages load the editor for Site styles
+  // alone (v0.99.788): no canvas there, so nothing can begin editing
+  var wantEdit = !cfg.stylesOnly && /[?&]gogh-edit=1/.test(location.search);
   // a page whose content is native blocks (a starter site's page, a classic
   // page) is NOT an empty page — the blank-canvas machinery must leave it be
   function goghHasNativeContent() {
@@ -3002,10 +3004,14 @@
   // there is no bar to carry the door (a seamless playground). The bar
   // prints after this script, so the check waits for the document.
   var cornerAway = function () {
+    if (cfg.stylesOnly) return true; // no page to edit here
     return /\bwoocommerce-(cart|checkout|account)\b/.test(document.body.className) || !!document.getElementById('wpadminbar');
   };
   editBtnWrap.hidden = cornerAway();
   document.addEventListener('DOMContentLoaded', function () { if (!editing) editBtnWrap.hidden = cornerAway(); });
+  // the bar prints after this script, so the brush finds its place once the page is in
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { mountStyleBtn(); });
+  else setTimeout(mountStyleBtn, 0);
   var editBtn = editBtnWrap.querySelector('.gogh-btn-edit');
 
   // ---------- the post's front end is for READING ----------
@@ -3390,8 +3396,44 @@
     '<svg class="gogh-ab-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m14.622 17.897-10.68-2.913"/><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"/><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/></svg><span class="gogh-stylebar-word">Site styles</span></a>';
   styleHome.querySelector('a').addEventListener('click', function (ev) {
     ev.preventDefault();
+    // outside the editor the brush opens Site styles straight over the
+    // page, the way a visitor sees it: no drawer, no rail (James,
+    // 2026-10-28: 'editing is kinda editing content'). A style change is
+    // live the moment it lands, so it never needed the editor's Publish
+    if (!editing) { if (stylesInView()) closeStylesInView(); else openStylePanel(ev.currentTarget); return; }
     if (side.classList.contains('is-open') && side.dataset.mode === 'site' && !side.querySelector('.gogh-panel')) closeSide(); else openSide('site');
   });
+  // the brush in View: in the bar's right group, just left of the ?, as
+  // while editing (where Computer | Phone join it between brush and ?).
+  // Only for people who can change the site's look (gsId says so)
+  function mountStyleBtn() {
+    if (editing || !cfg.gsId || !cfg.theme) return;
+    if (!styleHome.parentNode) {
+      var mark = document.getElementById('wp-admin-bar-gogh-help');
+      var right = document.getElementById('wp-admin-bar-top-secondary');
+      if (mark && mark.parentNode) mark.parentNode.insertBefore(styleHome, mark);
+      else if (right) right.insertBefore(styleHome, right.firstChild);
+      else return;
+    }
+    styleHome.hidden = false;
+  }
+  function stylesInView() { return !editing && panelOpen; }
+  function closeStylesInView() {
+    closePanel();
+  }
+  // a press on the zoomed-out page while Site styles is open in View puts
+  // the panel away instead of following a link mid-look
+  document.addEventListener('click', function (ev) {
+    if (!stylesInView()) return;
+    if (ev.target.closest && (ev.target.closest('.gogh-panel') || ev.target.closest('#wpadminbar') || ev.target.closest('.gogh-toast, .gogh-toasts'))) return;
+    if (!ev.target.closest || !ev.target.closest('.wp-site-blocks')) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    closeStylesInView();
+  }, true);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && stylesInView()) { closeStylesInView(); ev.stopPropagation(); }
+  }, true);
   function mountDevPill() {
     // on the right of the admin bar, just left of the ? (James: 'move it over
     // to the right - just to the left of help'): it is a way of LOOKING, so it
@@ -5788,6 +5830,7 @@
     if (pageHome) { if (on) mountPageBtn(); pageHome.hidden = !on || !!cfg.writeUrl; if (on) placePageBtn(); }
     devHome.hidden = !on || !!cfg.writeUrl; // the write room has no canvas to preview
     styleHome.hidden = !on;
+    if (!on) mountStyleBtn(); // the brush stays: Site styles opens in View too
     // a room's Done reloads the page; the drawer it came from comes back
     if (on) { try { var reopen = sessionStorage.getItem('gogh-reopen-side'); if (reopen) { sessionStorage.removeItem('gogh-reopen-side'); setTimeout(function () { openSide(reopen); }, 300); } } catch (e) {} }
     if (!on) {
@@ -20348,7 +20391,7 @@
       if (seq !== fontPreviewSeq) return;
       if (!fontPreviewEl) { fontPreviewEl = document.createElement('style'); fontPreviewEl.id = 'gogh-font-preview'; document.head.appendChild(fontPreviewEl); }
       fontPreviewEl.textContent = fontPairCss(pair);
-      S.forEach(function (s2) { growReflow(s2, true); });
+      if (editing) S.forEach(function (s2) { growReflow(s2, true); }); // the editor's re-measure; View's grid grows on its own
     });
   }
   function clearFontsPreview() {
@@ -20357,7 +20400,7 @@
 
     if (fontPreviewEl && fontPreviewEl.textContent) {
       fontPreviewEl.textContent = '';
-      S.forEach(function (s2) { growReflow(s2, true); });
+      if (editing) S.forEach(function (s2) { growReflow(s2, true); }); // the editor's re-measure; View's grid grows on its own
     }
   }
   var googleCollection = null;
@@ -20474,10 +20517,10 @@
     styles.elements.heading = obj(styles.elements.heading);
     styles.elements.heading.typography = obj(styles.elements.heading.typography);
     if (headRef) styles.elements.heading.typography.fontFamily = headRef; else delete styles.elements.heading.typography.fontFamily;
-    return fetch(GSROOT + 'global-styles/' + cfg.gsId, {
+    return styleUndoMark().then(function () { return fetch(GSROOT + 'global-styles/' + cfg.gsId, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
       body: JSON.stringify({ settings: settings, styles: styles }),
-    }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); });
+    }); }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); });
   }
   // the page wears the new type without a reload: swap the theme CSS in, then re-flow
   function reskinType() {
@@ -20490,11 +20533,11 @@
         else if (fresh && !cur) document.head.appendChild(fresh.cloneNode(true));
       });
       fontSizesCache = null;
-      S.forEach(function (s2) { growReflow(s2, true); });
+      if (editing) S.forEach(function (s2) { growReflow(s2, true); }); // the editor's re-measure; View's grid grows on its own
       // a wider face can push a take's headline off the page: step its
       // display size down until the longest word fits, as a roll would
-      S.forEach(function (s2) { try { diceFitWords(s2); } catch (err) {} });
-      settleReflowPasses();
+      if (editing) S.forEach(function (s2) { try { diceFitWords(s2); } catch (err) {} });
+      if (editing) settleReflowPasses();
       refreshChip();
     });
   }
@@ -20535,7 +20578,7 @@
       })
       .then(function () { dropped = fontsDropped.slice(); clearFontsPreview(); return reskinType(); })
       .then(function () {
-        if (wasClean) savedSnap = dirtySnap();
+        if (editing && wasClean) savedSnap = dirtySnap();
         fontsLastKept = pair;
         if (busy && busy.remove) busy.remove();
         // a brand pins its fonts for Remix: the kept pair becomes the brand's,
@@ -21704,6 +21747,9 @@
   }
   // paint a look's sections; returns what they wore so a hover can put it back
   function remixPaintRhythm(cand) {
+    // a section's colours belong to its page, and a page changes only in the
+    // editor: in View a look is the site's colours, fonts and size alone
+    if (!editing) return [];
     var themes = sectionThemes(remixHistory[0] && remixHistory[0].roles);
     var by = {};
     themes.forEach(function (t) { by[t.slug] = t; });
@@ -21742,6 +21788,7 @@
     return snaps;
   }
   function remixRestoreGeo(snaps) {
+    if (!editing) return;
     var content = S.filter(function (x) { return !x.chrome; });
     snaps.forEach(function (snap, k) {
       var secx = content[k];
@@ -21751,6 +21798,7 @@
     });
   }
   function remixRestoreRhythm(snaps) {
+    if (!editing) return;
     var content = S.filter(function (x) { return !x.chrome; });
     snaps.forEach(function (snap, k) {
       var secx = content[k];
@@ -21873,6 +21921,7 @@
     if (!entry) return;
     remixCommitting = true;
     quietToasts = true;
+    styleUndoMark(); styleUndoHold++; // a look's colours and its size come back as one step
     var v, scale;
     if (entry.origin) {
       v = { title: entry.title, styles: (entry.gs && entry.gs.styles) || {}, settings: (entry.gs && entry.gs.settings) || {} };
@@ -21920,11 +21969,14 @@
     }).then(function () {
       remixScalePreview(null);
       keepPaint();
-      pushState();
-      S.forEach(function (secx) { if (!secx.chrome) contrastSentinel(secx); });
+      if (editing) {
+        pushState();
+        S.forEach(function (secx) { if (!secx.chrome) contrastSentinel(secx); });
+      } else viewReadability();
     }).catch(function () {
       toast('gogh could not save that look \u2014 it stays for now.', { error: true });
     }).then(function () {
+      styleUndoHold--;
       remixCommitting = false;
       // the sentinel's picture judgement lands a moment later: stay quiet for it
       setTimeout(function () { if (!remixCommitting) quietToasts = false; }, 3000);
@@ -22068,6 +22120,7 @@
         key: key,
         name: brand ? 'Your brand' : r.say + v.say + ' on ' + g.say,
         brand: !!brand,
+        detailSite: (remixPairSay(pair) ? remixPairSay(pair) + ', ' : '') + scaleSay + ' type',
         detail: (remixPairSay(pair) ? remixPairSay(pair) + ', ' : '') + scaleSay + ' type, ' + rhythmSay + (divider ? ', ' + (/^[aeiou]/i.test(divider) ? 'an ' : 'a ') + divider + ' edge' : '') + (fx === 'grain' ? ', grain' : ''),
         colors: { background: bg, text: tx, accent: ac, accent2: brand && brand.accent2 ? brand.accent2 : ac },
         fonts: pair,
@@ -22763,12 +22816,12 @@
     if (btn) btn.disabled = true;
     var wasClean = !isDirty(); // rescaling re-measures heights; don't falsely dirty clean content
     var H = { 'X-WP-Nonce': cfg.nonce };
-    return Promise.all([
+    return styleUndoMark().then(function () { return Promise.all([
       fetch(GSROOT + 'global-styles/themes/' + encodeURIComponent(cfg.theme), { headers: H, credentials: 'same-origin' })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }),
       fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }),
-    ]).then(function (both) {
+    ]); }).then(function (both) {
       var themeSizes = themeFontSizeList((((both[0] || {}).settings || {}).typography || {}).fontSizes);
       if (!themeSizes || !themeSizes.length) throw new Error('theme declares no font sizes');
       var settings = (both[1] && both[1].settings) || {};
@@ -22793,10 +22846,10 @@
         if (fresh && cur) cur.textContent = fresh.textContent;
       });
       fontSizesCache = null;
-      S.forEach(function (s2) { growReflow(s2, true); }); // new type scale re-wraps headings — push/pull to match
-      if (wasClean) savedSnap = dirtySnap(); // re-measured heights are the new clean baseline
+      if (editing) S.forEach(function (s2) { growReflow(s2, true); }); // new type scale re-wraps headings — push/pull to match
+      if (editing && wasClean) savedSnap = dirtySnap(); // re-measured heights are the new clean baseline
       refreshChip();
-      settleReflowPasses(); // catch a late webfont re-render
+      if (editing) settleReflowPasses(); // catch a late webfont re-render
       cfg.typeScale = factor;
       fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/type-scale', {
         method: 'POST',
@@ -22812,6 +22865,136 @@
       toast('Could not rescale the type \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
       return false;
     });
+  }
+  // ---------- readability in View: say so, don't touch ----------
+  // the sentinel re-inks pieces, and pieces belong to the page, which only
+  // changes in the editor. In View a new look reads the page as published
+  // and, when words have become hard to read here, says so and offers the
+  // fix in the editor (where it is an ordinary change, under Undo)
+  function viewHardWords() {
+    var lum = function (c) {
+      var f = c.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+      return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2];
+    };
+    var parse = function (str) {
+      var m = String(str || '').match(/rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[,\/ ]+([\d.]+%?))?\)/);
+      if (!m) { var c = cssToRgba(str); return c ? { rgb: c.rgb, a: c.a } : null; }
+      var a = m[4] == null ? 1 : (String(m[4]).indexOf('%') !== -1 ? parseFloat(m[4]) / 100 : +m[4]);
+      return { rgb: [+m[1], +m[2], +m[3]], a: a };
+    };
+    var bad = 0;
+    var hosts = document.querySelectorAll('.wp-site-blocks .gogh-section [class*="gogh-el-"] :is(p, h1, h2, h3, h4, h5, h6, li)');
+    [].forEach.call(hosts, function (h) {
+      if (!h.offsetParent || !(h.textContent || '').trim()) return;
+      var cs = getComputedStyle(h);
+      var tx = parse(cs.color);
+      if (!tx) return;
+      // the ground right behind the words: the first painted background up
+      // the tree; a picture or a gradient on the way is a ground this cannot
+      // read, so those words are left to the editor's sentinel
+      var ground = null;
+      for (var n = h; n && n !== document.body; n = n.parentElement) {
+        var ns = getComputedStyle(n);
+        if (ns.backgroundImage && ns.backgroundImage !== 'none') return;
+        var bg = parse(ns.backgroundColor);
+        if (bg && bg.a > 0.5) { ground = bg.rgb; break; }
+        if (n.classList && n.classList.contains('wp-site-blocks')) break;
+      }
+      if (!ground) { var bb = parse(getComputedStyle(document.body).backgroundColor); ground = bb && bb.a > 0.5 ? bb.rgb : [255, 255, 255]; }
+      var ink = tx.rgb.map(function (v, k) { return v * tx.a + ground[k] * (1 - tx.a); });
+      var l1 = lum(ink), l2 = lum(ground);
+      var ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+      var px = parseFloat(cs.fontSize) || 16, wt = parseInt(cs.fontWeight, 10) || 400;
+      var need = (px >= 24 || (px >= 18.66 && wt >= 700)) ? 3 : 4.5;
+      if (ratio < need) bad++;
+    });
+    return bad;
+  }
+  function viewReadability() {
+    if (editing) return;
+    // after the commit's quiet spell, so the swapped colours have painted
+    // and the toast is not swallowed
+    setTimeout(function () {
+      if (editing) return;
+      var bad = viewHardWords();
+      if (!bad) return;
+      // the fix needs the canvas: the shop, the blog and posts only say so
+      var canFix = !cfg.stylesOnly && !cfg.writeUrl;
+      toast((bad === 1 ? 'One piece of text on this page is' : bad + ' pieces of text on this page are') + ' hard to read in this look.', {
+        ttl: 9000,
+        actions: canFix ? [{ label: 'Fix on this page', onClick: fixReadabilityHere }] : [],
+      });
+    }, 3400);
+  }
+  // the fix is a page change, so it happens in the editor: the canvas
+  // opens, then the sentinel re-inks what it can, and Publish takes it live
+  function fixReadabilityHere() {
+    closeStylesInView();
+    if (cfg.stylesOnly || cfg.writeUrl) return;
+    setEditing(true);
+    var tries = 0;
+    (function waitCanvas() {
+      if (!renderCanvasOnce.done && ++tries < 60) { setTimeout(waitCanvas, 100); return; }
+      setTimeout(function () { S.forEach(function (secx) { if (!secx.chrome) contrastSentinel(secx); }); }, 400);
+    })();
+  }
+  // ---------- Undo for the site's look ----------
+  // a style change skips Publish, so the page's Undo never covered it (and
+  // in View there is no page Undo at all). The look keeps its own short
+  // memory for this visit: the global styles, the type size and the
+  // style's name as they were before each change. A roll's colours and its
+  // size are one step (the commit holds the mark open across both writes)
+  var styleUndoStack = [], styleUndoHold = 0, styleUndoBusy = false;
+  var styleUndoPending = Promise.resolve();
+  function styleUndoMark() {
+    if (styleUndoHold > 0 || styleUndoBusy || !cfg.gsId) return styleUndoPending;
+    var entry = { scale: +cfg.typeScale || 100, name: cfg.activeStyle || '' };
+    styleUndoPending = fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j) return;
+        entry.gs = { styles: j.styles || {}, settings: j.settings || {} };
+        styleUndoStack.push(entry);
+        if (styleUndoStack.length > 12) styleUndoStack.shift();
+        paintStyleUndo(panel);
+      }).catch(function () {});
+    return styleUndoPending;
+  }
+  function styleUndo() {
+    var entry = styleUndoStack.pop();
+    if (!entry || !entry.gs || styleUndoBusy) return Promise.resolve(false);
+    styleUndoBusy = true;
+    // a roll in flight would land on top of the undo: stop it, and start the
+    // die's history again from the look that comes back
+    clearTimeout(remixCommitT);
+    remixAuditionOff();
+    remixHistory = []; remixAt = -1;
+    quietToasts = true;
+    return applyVariation({ title: entry.name, styles: entry.gs.styles, settings: entry.gs.settings, raw: true }).then(function (ok) {
+      // the size rides in the global styles' font sizes; its dial and the
+      // style's name are gogh's own options
+      cfg.typeScale = entry.scale;
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/type-scale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ scale: entry.scale }),
+      }).catch(function () {});
+      quietToasts = false;
+      styleUndoBusy = false;
+      if (ok) toast('Put back the look from before.', { ttl: 3500 });
+      else styleUndoStack.push(entry);
+      paintStyleUndo(panel);
+      remixSayWearing();
+      return ok;
+    });
+  }
+  function paintStyleUndo(pnl) {
+    var b = pnl && pnl.querySelector('.gogh-styleundo');
+    if (!b) return;
+    b.hidden = !styleUndoStack.length;
+    b.textContent = '↶ Undo the last style change';
+    if (!b.__wired) { b.__wired = true; b.addEventListener('click', function () { b.disabled = true; styleUndo().then(function () { b.disabled = false; }); }); }
   }
   // ---------- Site styles: what you have, then what you can change ----------
   // James: 'i think its confusing for beginners'. The drawer opened on a
@@ -22912,7 +23095,9 @@
       panel.innerHTML =
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Site styles</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
-        '<div class="gogh-panel-hint">The colours and fonts of every page.</div>' +
+        // the clock, said out loud: a style change skips Publish, in both modes
+        '<div class="gogh-panel-hint">The colours and fonts of every page. Changes go live as you make them.</div>' +
+        '<button type="button" class="gogh-styleundo" hidden></button>' +
         '<div class="gogh-sitenow"><span class="gogh-sitenow-lab">Your site now</span>' +
         '<div class="gogh-sitenow-mini"><span class="gogh-sitenow-h"></span><span class="gogh-sitenow-p"></span><span class="gogh-sitenow-btns"><span class="gogh-sitenow-b"></span></span></div></div>' +
         '<div class="gogh-siterows">' +
@@ -22923,7 +23108,15 @@
         '</div>' +
         // Remix, named for what it does, under the doors
         '<div class="gogh-toprow"></div>';
-      panel.querySelector('.gogh-panel-close').addEventListener('click', function () { backToDesign(); });
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () { if (editing) backToDesign(); else closeStylesInView(); });
+      // in View there is no drawer to go back to: the way out says Close
+      if (!editing) {
+        var outBtn = panel.querySelector('.gogh-panel-close');
+        outBtn.classList.add('is-close');
+        outBtn.title = 'Close Site styles';
+        outBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+      }
+      paintStyleUndo(panel);
       panel.querySelector('.gogh-siterow-colours').addEventListener('click', function () { openColoursPanel(anchorEl); });
       panel.querySelector('.gogh-siterow-fonts').addEventListener('click', function () { openFontsPanel(anchorEl); });
       panel.querySelector('.gogh-siterow-size').addEventListener('click', function () { openTextSizePanel(anchorEl); });
@@ -22937,7 +23130,8 @@
           '<span class="gogh-remixline">Changes colours and fonts across your site. Back puts it back.</span>' +
           '<div class="gogh-remixwearing" hidden>' +
             '<span class="gogh-remixwearing-words"><span class="gogh-remixwearing-lab">Trying</span>' +
-            '<span class="gogh-remixwearing-name"></span><span class="gogh-remixwearing-detail"></span></span>' +
+            '<span class="gogh-remixwearing-name"></span><span class="gogh-remixwearing-detail"></span>' +
+            '<span class="gogh-remixwearing-clock"></span></span>' +
             '<span class="gogh-remixwearing-foot"><span class="gogh-remixwearing-count"></span>' +
             '<span class="gogh-remixwearing-ways"><button type="button" class="gogh-remixback" title="The look before this one">↶ Back</button>' +
             // closure, not a decision: the look is already on; Keep just says so and closes the panel
@@ -22959,14 +23153,19 @@
           wearingBox.hidden = false; line.hidden = true;
           rollBtn.textContent = '✦ Try another';
           wearingBox.querySelector('.gogh-remixwearing-name').textContent = (w.cand && w.cand.name) || 'a new look';
-          wearingBox.querySelector('.gogh-remixwearing-detail').textContent = (w.cand && w.cand.detail) || '';
+          // in View a look leaves the page's sections alone, so the detail
+          // names only what changes: the fonts and the size
+          wearingBox.querySelector('.gogh-remixwearing-detail').textContent = (w.cand && (editing ? w.cand.detail : (w.cand.detailSite || w.cand.detail))) || '';
+          var clock = wearingBox.querySelector('.gogh-remixwearing-clock');
+          if (clock) clock.textContent = !editing ? 'Live on every page now.' :
+            (w.cand && w.cand.rhythm && w.cand.rhythm !== 'plain' ? 'Colours and fonts are live now. This page\u2019s section colours go live when you publish.' : 'Live on every page now.');
           wearingBox.querySelector('.gogh-remixwearing-count').textContent = 'Look ' + remixAt;
           backBtn.disabled = remixAt <= 0;
         });
         backBtn.addEventListener('click', function () { remixBack(); });
         wrap.querySelector('.gogh-remixkeep').addEventListener('click', function () {
           var w = remixWorn();
-          backToDesign(); // the same way out as Back: the side rail comes back
+          if (editing) backToDesign(); else closeStylesInView(); // the same way out as Back
           var said = w && !w.origin && w.cand ? (w.cand.name === 'Your brand' ? 'your brand' + (w.cand.detail ? ', ' + w.cand.detail : '') : w.cand.name) : '';
           toast(said ? 'Kept. Your site now uses ' + said + '.' : 'Kept.', { ttl: 3500 });
         });
@@ -23248,18 +23447,18 @@
     // keep what the audition showed: if the pair only mapped the heading, write
     // the inferred body font in too, so applying matches the preview (and the name)
     var styles = v.styles || {};
-    var inferredBody = variationBodyFont(v);
+    var inferredBody = v.raw ? null : variationBodyFont(v); // an undo puts back exactly what was there
     if (inferredBody && !((styles.typography || {}).fontFamily)) {
       styles = JSON.parse(JSON.stringify(styles));
       styles.typography = styles.typography || {};
       styles.typography.fontFamily = inferredBody;
     }
-    return fetch(GSROOT + 'global-styles/' + cfg.gsId, {
+    return styleUndoMark().then(function () { return fetch(GSROOT + 'global-styles/' + cfg.gsId, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
       body: JSON.stringify({ styles: styles, settings: v.settings || {} }),
-    }).then(function (r) {
+    }); }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       // hot-swap the theme CSS so the whole page re-skins without a reload. MUST
       // bypass the cache: a cached copy carries the OLD style's fonts/colours, so
@@ -23298,12 +23497,14 @@
       // document.fonts.ready waits for them, so the measure sees the real
       // wrapped height. (ensureVariationFonts above preloads the JS FontFaces;
       // this also covers the CSS @font-face the swap brings in.)
-      S.forEach(function (s) { growReflow(s, true); }); // new type re-wraps headings — push/pull what's below to match
-      S.forEach(function (s) { try { diceFitWords(s); } catch (err) {} }); // a wider face steps a take's headline down until its longest word fits
-      if (wasClean) savedSnap = dirtySnap(); // re-measured heights are the new clean baseline
+      // re-measuring is the editor's: in View the published grid's rows grow
+      // with their words on their own, and the page is never touched
+      if (editing) S.forEach(function (s) { growReflow(s, true); }); // new type re-wraps headings — push/pull what's below to match
+      if (editing) S.forEach(function (s) { try { diceFitWords(s); } catch (err) {} }); // a wider face steps a take's headline down until its longest word fits
+      if (editing && wasClean) savedSnap = dirtySnap(); // re-measured heights are the new clean baseline
       if (sel) placeHandles(sel.sec, sel.i);
       refreshChip();
-      settleReflowPasses(); // the webfont can re-render the heading a few frames later — catch that height too
+      if (editing) settleReflowPasses(); // the webfont can re-render the heading a few frames later — catch that height too
       if (btn) btn.disabled = false;
       // remember the style's NAME — global styles forget it on copy
       cfg.activeStyle = v.title || '';
@@ -23316,6 +23517,7 @@
       [].forEach.call(panel.querySelectorAll('.gogh-varbtn.is-current'), function (x) { x.classList.remove('is-current'); });
       if (btn) btn.classList.add('is-current');
       toast('Theme style applied: ' + (v.title || ''));
+      if (!editing && !remixCommitting && !styleUndoBusy) viewReadability();
       return true;
     }).catch(function (err) {
       if (btn) btn.disabled = false;
@@ -24344,6 +24546,8 @@
     hueToward: hueToward,
     openFrontDoor: openFrontDoor,
     remixRoll: remixRoll,
+    // Site styles outside the editor (v0.99.788)
+    stylesView: { inView: stylesInView, close: closeStylesInView, hardWords: viewHardWords, fix: fixReadabilityHere, undoDepth: function () { return styleUndoStack.length; }, undo: styleUndo },
     remixBack: remixBack,
     remixForward: remixForward,
     remixWorn: remixWorn,

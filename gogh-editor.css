@@ -5256,3 +5256,13 @@ html.gogh-editing .gogh-cs-link a, html.gogh-editing .gogh-cs-btns .wp-block-but
 /* a window this narrow is a phone already: Computer | Phone steps aside so
    Page, the brush and Publish keep one row (v0.99.782) */
 @media screen and (max-width: 400px) { html.gogh-editing #wpadminbar #wp-admin-bar-gogh-device { display: none !important; } }
+/* Site styles in View (v0.99.788): the look's own Undo under the hint, and
+   the clock on the wearing card — what is live, what waits for Publish */
+.gogh-styleundo { all: unset; display: inline-block; margin: -2px 0 12px; font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 5px 8px; margin-left: -8px; border-radius: 6px; cursor: pointer; color: var(--gogh-ui-fg); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); }
+.gogh-styleundo:hover { background: var(--gogh-ui-hover); text-decoration-color: currentColor; }
+.gogh-styleundo:focus-visible { outline: 2px solid var(--gogh-ui-accent, #3858e9); outline-offset: 1px; }
+.gogh-styleundo:disabled { opacity: .35; cursor: default; }
+.gogh-styleundo[hidden] { display: none; }
+.gogh-remixwearing-clock { display: block; font-size: 11px; line-height: 1.4; opacity: .6; margin-top: 3px; }
+.gogh-remixwearing-clock:empty { display: none; }
+.gogh-panel-back.is-close::after, html[data-gogh-scope="site"] .gogh-panel-back.is-close::after { content: "Close"; }
