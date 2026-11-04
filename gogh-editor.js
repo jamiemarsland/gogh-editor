@@ -14712,6 +14712,13 @@
       return n ? '<span class="gogh-nb gogh-nb-' + (where === 'top' ? 'top' : 'bot') + '" style="background:' + escAttr(n.bg) + '"></span>' : '';
     };
     try { picker.style.setProperty('--gogh-body-ff', getComputedStyle(document.body).fontFamily); } catch (err) {}
+    // a theme that paints its page outside the palette has no slot to name:
+    // the tiles still sit on what the page is painted with
+    try {
+      var pageCs = getComputedStyle(document.body);
+      if (!/rgba\(0, 0, 0, 0\)|transparent/.test(pageCs.backgroundColor)) picker.style.setProperty('--gogh-page-bg', pageCs.backgroundColor);
+      picker.style.setProperty('--gogh-page-ink', pageCs.color);
+    } catch (err) {}
     var cardEls = {}; // a card's pieces, by its key, so a shop card can be redrawn with real products
     var tplCardHTML = function (tpl, t, popular, si) {
       var els = tplEls(tpl);

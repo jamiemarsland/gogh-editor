@@ -6219,6 +6219,27 @@
       var un = Object.keys(unchecked);
       return tried + ' starters and takes, ' + blocks + ' blocks valid' + (un.length ? '; not checkable here (no editor script): ' + un.join(', ') : '');
     });
+    // a theme without base or contrast (Purple) gets those two slots pointed at
+    // its own page colours; this one has its own, so nothing may be written over
+    // them. The chooser's tiles sit on the page either way, even with no slot
+    test('the chooser’s tiles sit on the page’s own colours, and a theme’s own base is left alone', function () {
+      expect(!document.getElementById('gogh-slot-alias-inline-css'), 'the suite’s theme has base and contrast: no alias should be printed');
+      G.openPicker(0, null);
+      var pk = document.querySelector('.gogh-picker');
+      try {
+        var pv = pk.querySelector('.gogh-card-prev');
+        expect(pv, 'no tile in the chooser');
+        var body = getComputedStyle(document.body);
+        expect(pk.style.getPropertyValue('--gogh-page-ink') === body.color, 'the page’s ink was not handed to the chooser: ' + pk.style.getPropertyValue('--gogh-page-ink'));
+        var probe = document.createElement('div');
+        probe.style.cssText = 'display:none;background-color:var(--wp--preset--color--base)';
+        document.body.appendChild(probe);
+        var base = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        expect(getComputedStyle(pv).backgroundColor === base, 'the tile’s ground is not the theme’s base: ' + getComputedStyle(pv).backgroundColor + ' / ' + base);
+        return 'tile on ' + getComputedStyle(pv).backgroundColor + ', no alias on a theme with its own slots';
+      } finally { pk.querySelector('.gogh-picker-close').click(); }
+    });
     testAsync('every palette reads: Site styles and Remix rolls, in every section theme', function () {
       // rgb() and the newer color(srgb 0–1 floats) a colour-mix ground resolves to
       var rgb = function (str) {
