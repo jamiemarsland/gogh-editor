@@ -46,6 +46,8 @@
     return w.charAt(0).toUpperCase() + w.slice(1);
   }
   if (!cfg) return;
+  // looks kept before the rename still carry the old word in their stored name
+  cfg.activeStyle = String(cfg.activeStyle || '').replace(/^Remix \u00b7 /, '');
   // where the admin bar ENDS, not how tall it is: in Playground's seamless
   // mode the bar is moved down a few pixels (gogh-frame-nudge), and the
   // drawers docked at its height overlapped it (James)
@@ -16663,7 +16665,9 @@
     var rgb = cssToRgb(t.bg);
     if (!rgb) return null;
     var l = sentinelLum(rgb);
-    return l < 0.3 ? 'dark' : (l > 0.55 ? 'light' : 'mid');
+    // dark starts where white words read better than black ones (0.18); a
+    // mustard at 0.29 wears black words, and "dark" offered it first
+    return l < 0.18 ? 'dark' : (l > 0.55 ? 'light' : 'mid');
   }
   function askThemesFeeling(feel) {
     return sectionThemes().filter(function (t) { return askThemeFeel(t) === feel; });
@@ -18051,8 +18055,10 @@
     // Darkest, each a 1 and, where the accent reads on it, a 2 with accent
     // headings; Bright from the accents. All drawn from the site palette by
     // role, so changing the palette recolours every section. A theme is
-    // offered only where its words read (4.5:1) and its headings (3:1),
-    // measured from the colours the page draws now. The slugs keep their
+    // offered only where its words read (4.5:1) and its headings clear the
+    // sentinel's floor, or it would flip them straight back and a 2 would be
+    // its 1 under another name; measured from the colours the page draws
+    // now. The slugs keep their
     // old names (paper, mist, ink): sections and Remix's rhythm use them
     var rd = function (fg, bg2) {
       var a1 = cssToRgb(fg), b1 = cssToRgb(bg2);
@@ -18074,7 +18080,7 @@
         if ((g.rank >= 2) !== dark || rd(v(g.ink), g.bg) < 4.5) return;
         var nm = NAMES[g.rank], grp = dark ? 'dark' : 'light';
         list.push({ slug: g.slug, name: nm + ' 1', group: grp, bg: g.bg, ink: g.ink });
-        if (acc && rd(v(acc), g.bg) >= 3) list.push({ slug: g.slug + '-2', name: nm + ' 2', group: grp, bg: g.bg, ink: g.ink, head: acc });
+        if (acc && rd(v(acc), g.bg) >= CONTRAST_FLOOR) list.push({ slug: g.slug + '-2', name: nm + ' 2', group: grp, bg: g.bg, ink: g.ink, head: acc });
       });
       return list;
     };
@@ -21959,7 +21965,7 @@
       if (remixAudition && remixAudition.snaps) remixRestoreGeo(remixAudition.snaps);
       if (!entry.origin) {
         v = brandToVariation({ colors: entry.cand.colors, fonts: entry.cand.fonts || null, families: entry.cand.families || null });
-        v.title = 'Remix \u00b7 ' + entry.cand.name;
+        v.title = entry.cand.name;
       }
       return entry.origin ? remixFetchOrigin(entry).then(function () { return applyVariation(v); }) : applyVariation(v);
     });

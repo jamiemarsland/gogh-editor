@@ -2261,15 +2261,35 @@
       var named = themes.filter(function (t) { return t.group !== 'backdrop'; }).map(function (t) { return t.name; });
       expect(named.every(function (n) { return /^(Lightest|Light|Dark|Darkest|Bright) \d$/.test(n); }), 'themes should be named by lightness: ' + named.join(', '));
       expect(themes.some(function (t) { return t.slug === 'paper'; }) && themes.some(function (t) { return t.slug === 'ink'; }), 'the page ground and its inverse keep their slugs (sections and Remix use them)');
-      var two = themes.filter(function (t) { return t.head; })[0];
-      if (!two) return themes.length + ' themes; this palette’s accent reads on no ground, so no 2s';
+      var twos = themes.filter(function (t) { return t.head; });
+      if (!twos.length) return themes.length + ' themes; this palette’s accent reads on no ground, so no 2s';
       G.addSection({ name: 'Two', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 500, h: 60, text: 'Heading' }, { type: 'para', x: 72, y: 132, w: 500, h: 48, text: 'Words' } ] }, G.sections().length);
       var sx = G.sections()[G.sections().length - 1];
       try {
-        G.applySectionTheme(G.sections().indexOf(sx), two);
-        expect(sx.theme === two.slug && sx.els[0].color === two.head && sx.els[1].color === two.ink, two.name + ' should put the accent on headings only: ' + sx.els[0].color + ' / ' + sx.els[1].color);
+        // every 2 on offer: one the sentinel flips back is its 1 under another name
+        twos.forEach(function (two) {
+          G.applySectionTheme(G.sections().indexOf(sx), two);
+          expect(sx.theme === two.slug && sx.els[0].color === two.head && sx.els[1].color === two.ink, two.name + ' should put the accent on headings only: ' + sx.els[0].color + ' / ' + sx.els[1].color);
+        });
       } finally { G.deleteSection(G.sections().indexOf(sx)); }
       return themes.length + ' themes: ' + named.join(', ');
+    });
+    // a mid-tone accent (#a49404: 3.08:1 on white, wears black words) offered
+    // a Lightest 2 the sentinel undid, and led the "dark" offers. Pinned, so
+    // this still bites on a site whose accent is a pale yellow
+    test('section themes: a mid-tone accent gets no 2 the sentinel would undo, and is not offered as dark', function () {
+      var pin = document.createElement('style');
+      pin.textContent = ':root { --wp--preset--color--accent-1: #a49404 !important; }';
+      document.head.appendChild(pin);
+      try {
+        var themes = G.sectionThemes();
+        if (!themes.some(function (t) { return t.slug === 'accent-1'; })) return 'this palette has no accent-1 to pin';
+        expect(!themes.some(function (t) { return t.slug === 'paper-2' && t.head === 'accent-1'; }), 'Lightest 2 is under the sentinel’s floor, so it should not be offered');
+        var offers = G.askRead('change the background to dark').build(sec()).map(function (c) { return c.name; });
+        var bright = themes.filter(function (t) { return t.slug === 'accent-1'; })[0].name;
+        expect(offers.length && offers.indexOf(bright) === -1, 'a mustard ground wears black words, it is not dark: ' + offers.join(', '));
+        return 'dark offers: ' + offers.join(', ');
+      } finally { pin.remove(); }
     });
     test('section themes: pick a look, the words come with it', function () {
       var themes = G.sectionThemes();
@@ -9729,7 +9749,8 @@
       var bg = getComputedStyle(s.sectionEl).backgroundColor;
       var m = (bg.match(/\d+(\.\d+)?/g) || []).map(Number);
       expect(m.length >= 3, 'unreadable computed background: ' + bg);
-      var lum = (m[0] * 0.2126 + m[1] * 0.7152 + m[2] * 0.0722) / 255;
+      // a color-mix ground computes to color(srgb 0.2 0.2 0.2), on a 0-1 scale
+      var lum = (m[0] * 0.2126 + m[1] * 0.7152 + m[2] * 0.0722) / (/^color\(/.test(bg) ? 1 : 255);
       expect(lum < 0.4, 'the painted background is not dark: ' + bg);
       return 'painted ' + bg + ' (luminance ' + lum.toFixed(2) + ')';
     });
