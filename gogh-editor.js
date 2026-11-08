@@ -3333,7 +3333,7 @@
     if (mode !== 'phone' && mode !== 'desktop') return;
     if (mode === deviceMode) return;
     deviceMode = mode;
-    phoneNote.hidden = mode !== 'phone';
+    phoneNote.hidden = mode !== 'phone' || !editing; // an editing hint: View's phone is for looking
     clearMobileSel(); // a selection/toolbar never outlives a device switch
     [].forEach.call(document.querySelectorAll('.gogh-dev'), function (b) {
       var on = b.getAttribute('data-dev') === mode;
@@ -3406,8 +3406,11 @@
     if (side.classList.contains('is-open') && side.dataset.mode === 'site' && !side.querySelector('.gogh-panel')) closeSide(); else openSide('site');
   });
   // the brush in View: in the bar's right group, just left of the ?, as
-  // while editing (where Computer | Phone join it between brush and ?).
-  // Only for people who can change the site's look (gsId says so)
+  // while editing. Only for people who can change the site's look (gsId
+  // says so). Computer | Phone sit between brush and ? in View too, so
+  // nothing in the bar moves when you click Edit: the brush used to jump
+  // 82px left as the pair appeared. In View, Phone shows the published
+  // page at phone width; nothing is selectable and nothing is written
   function mountStyleBtn() {
     if (editing || !cfg.gsId || !cfg.theme) return;
     if (!styleHome.parentNode) {
@@ -3418,6 +3421,12 @@
       else return;
     }
     styleHome.hidden = false;
+    // only where the bar has its spot: off the bar mountDevPill floats the
+    // pair and takes the brush into it, which View never wants
+    if (!cfg.writeUrl && (document.getElementById('wp-admin-bar-gogh-help') || document.getElementById('wp-admin-bar-gogh-edit'))) {
+      mountDevPill(); // keeps the order brush, pair, ?
+      devHome.hidden = false;
+    }
   }
   function stylesInView() { return !editing && panelOpen; }
   function closeStylesInView() {
@@ -5831,6 +5840,7 @@
     if (on) mountDevPill();
     if (pageHome) { if (on) mountPageBtn(); pageHome.hidden = !on || !!cfg.writeUrl; if (on) placePageBtn(); }
     devHome.hidden = !on || !!cfg.writeUrl; // the write room has no canvas to preview
+    phoneNote.hidden = !(on && deviceMode === 'phone'); // Edit pressed while View shows the phone
     styleHome.hidden = !on;
     if (!on) mountStyleBtn(); // the brush stays: Site styles opens in View too
     // a room's Done reloads the page; the drawer it came from comes back
