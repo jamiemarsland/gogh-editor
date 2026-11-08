@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.788 · knowledge base 3c98532.
+Generated for plugin version 0.99.789 · knowledge base 815231e.
 
 ---
 
@@ -1165,11 +1165,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.788**
+- Plugin version: **0.99.789**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.788`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.789`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1299,6 +1299,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `frontpage_template_hierarchy` | filter | 10 |
 | `wp_head` | action | 10 |
 | `wp_head` | action | 10 |
+| `enqueue_block_assets` | action | 10 |
 | `wp_head` | action | 10 |
 | `enqueue_block_assets` | action | 10 |
 | `init` | action | 10 |
@@ -1800,4 +1801,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`394` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`396` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
