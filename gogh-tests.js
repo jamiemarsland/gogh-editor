@@ -8996,7 +8996,15 @@
           return '<!-- wp:gogh/section ' + attrs + ' -->\n<div class="wp-block-gogh-section alignfull gogh-wrap"><div class="gogh-section ' + s.scope + '" data-gogh-scope="' + s.scope + '"></div></div>\n<!-- /wp:gogh/section -->';
         }).join('\n');
       };
-      var ago = function (days) { var d = new Date(); d.setDate(d.getDate() - days); return d.toISOString().slice(0, 19); };
+      // a revision's `date` is wall-clock time with no zone, and History reads
+      // it as local: write local time, never UTC (toISOString), or the newest
+      // lands on tomorrow every evening west of UTC
+      var ago = function (days) {
+        var d = new Date();
+        d.setDate(d.getDate() - days);
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        return d.toISOString().slice(0, 19);
+      };
       var revs = [
         { id: 30, date: ago(0), slug: '1-revision-v1', content: { raw: mk(false) } },
         { id: 29, date: ago(1), slug: '1-revision-v1', content: { raw: mk(false) } }, // the same page (a title change)
