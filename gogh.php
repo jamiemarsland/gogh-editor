@@ -3861,6 +3861,54 @@ function gogh_design_looks_css() {
 }
 // printed after Additional CSS (101), so a saved style sits where a design's
 // own stylesheet does: last, and winning ties with the theme's styles
+// gogh's designs and its CSS name the page's colours by the common slots, base
+// and contrast, with a light-theme fallback. A theme without them (Purple:
+// theme-1 to theme-7) kept the fallback whatever it wore: under a dark remix
+// the chooser's tiles stayed white, near-white headings vanished on them, and
+// the sentinel judged words against white on a navy page (James: 'we still
+// got some sentinal issues on certain remixes'). Those two slots point at the
+// colours the theme really paints its page with, and follow a remix with them.
+function gogh_slot_alias_rules( $slugs, $background, $text ) {
+	$rules = array();
+	foreach ( array( 'base' => $background, 'contrast' => $text ) as $slot => $value ) {
+		if ( in_array( $slot, $slugs, true ) || ! is_string( $value ) ) {
+			continue;
+		}
+		if ( preg_match( '/^var\(--wp--preset--color--([a-z0-9-]+)\)$|^var:preset\|color\|([a-z0-9-]+)$/', trim( $value ), $m ) ) {
+			$slug = '' !== $m[1] ? $m[1] : $m[2];
+			if ( in_array( $slug, $slugs, true ) ) {
+				$rules[] = '--wp--preset--color--' . $slot . ': var(--wp--preset--color--' . $slug . ');';
+			}
+		} elseif ( preg_match( '/^#[0-9a-fA-F]{3,8}$/', trim( $value ) ) ) {
+			$rules[] = '--wp--preset--color--' . $slot . ': ' . trim( $value ) . ';';
+		}
+	}
+	return $rules ? ':root, body { ' . implode( ' ', $rules ) . ' }' : '';
+}
+function gogh_slot_alias_css() {
+	if ( ! function_exists( 'wp_get_global_settings' ) ) {
+		return '';
+	}
+	$slugs = array();
+	foreach ( (array) wp_get_global_settings( array( 'color', 'palette' ) ) as $origin ) {
+		foreach ( (array) $origin as $entry ) {
+			if ( ! empty( $entry['slug'] ) ) {
+				$slugs[] = $entry['slug'];
+			}
+		}
+	}
+	$color = (array) wp_get_global_styles( array( 'color' ) );
+	return gogh_slot_alias_rules( $slugs, $color['background'] ?? null, $color['text'] ?? null );
+}
+// this hook runs for the front end and the block editor's canvas alike
+add_action( 'enqueue_block_assets', function () {
+	$css = gogh_slot_alias_css();
+	if ( '' !== $css ) {
+		wp_register_style( 'gogh-slot-alias', false, array(), GOGH_VERSION );
+		wp_add_inline_style( 'gogh-slot-alias', $css );
+		wp_enqueue_style( 'gogh-slot-alias' );
+	}
+} );
 add_action( 'wp_head', function () {
 	$css = gogh_design_looks_css();
 	if ( '' !== $css ) {

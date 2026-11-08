@@ -1425,8 +1425,8 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   overflow: hidden;
   /* previews sit on the THEME's canvas, exactly like the section will on
      the page — a dark well hid the theme's (dark) text entirely */
-  background: var(--wp--preset--color--base, #fff);
-  color: var(--wp--preset--color--contrast, #16181c);
+  background: var(--wp--preset--color--base, var(--gogh-page-bg, #fff));
+  color: var(--wp--preset--color--contrast, var(--gogh-page-ink, #16181c));
   /* the picker resets font-family for its own UI; the stage restores the
      page's body font so previews are honest minis (set in openPicker) */
   font-family: var(--gogh-body-ff, inherit);
@@ -2843,7 +2843,7 @@ html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
 
 /* pattern previews sit on the page's real background, not the card chrome —
    dark-on-dark themes stay readable */
-.gogh-card-pattern .gogh-card-prev { background: var(--wp--preset--color--base, #fff); }
+.gogh-card-pattern .gogh-card-prev { background: var(--wp--preset--color--base, var(--gogh-page-bg, #fff)); }
 
 .gogh-panel .gogh-chrome-rows { max-height: 300px; overflow-y: auto; }
 
