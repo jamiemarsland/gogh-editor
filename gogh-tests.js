@@ -4910,6 +4910,37 @@
       }
     });
 
+    test('header room: closing a room page (Logo & name) brings the Edit header pill back', function () {
+      // Logo & name's "use your name" re-renders the header, which takes
+      // its veil (and the Edit header pill) with it; the page's ✕ then
+      // closed with no area to re-veil, and the pill stayed gone until a
+      // reload. A room page belongs to its room: every exit re-veils
+      var pill = q('.gogh-chromebtn');
+      var partEl = pill.__goghPart;
+      var options = [
+        { kind: 'part', id: 101, slug: 'header', theme: 'x', title: 'Simple header', content: '' },
+        { kind: 'part', id: 102, slug: 'header-b', theme: 'x', title: 'Centered header', content: '' },
+      ];
+      var active = { id: 101, content: { raw: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"></div><!-- /wp:group -->' } };
+      var headerPill = function () {
+        return [].slice.call(document.querySelectorAll('.gogh-chromeveil-pill')).filter(function (b) { return /Edit header/.test(b.textContent); })[0] || null;
+      };
+      G.openHeaderPanel(partEl, 'header', options, options[0], active);
+      var panel = document.querySelector('.gogh-panel');
+      try {
+        panel.querySelector('.gogh-hlogo').click();
+        expect(/Logo/.test((panel.querySelector('.gogh-panel-title') || {}).textContent || ''), 'the Logo & name page did not open');
+        expect(panel.dataset.goghArea === 'header', 'a room page must still belong to the header room (area: ' + (panel.dataset.goghArea || 'none') + ')');
+        // what a header re-render does: the veil goes with the old markup
+        var hp = headerPill();
+        if (hp) hp.closest('.gogh-chromeveil').remove();
+        expect(!headerPill(), 'could not take the veil away');
+      } finally {
+        panel.querySelector('.gogh-panel-head .gogh-panel-close').click(); G.closeSide(true); settleZoom();
+      }
+      expect(headerPill(), 'closing the Logo & name page left the header with no Edit header pill');
+    });
+
     test('header panel: Esc reverts every audition - no stranded paint', function () {
       var pill = q('.gogh-chromebtn');
       var partEl = pill.__goghPart;

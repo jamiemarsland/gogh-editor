@@ -30297,6 +30297,11 @@
   function stayInRoom(roomOpt, anchorEl) {
     if (roomOpt && roomOpt.room) {
       dockRoomSide(roomOpt.room, roomOpt.area);
+      // a room page is still the room: every way out (✕, Escape, a click on
+      // the page) puts the Edit header pill back from this. Without it, a
+      // page that re-rendered the header (Logo & name's "use your name")
+      // closed to a header with no pill until a reload
+      panel.dataset.goghArea = roomOpt.area;
       panelCleanup = function () { exitChromeMode(); railBox.classList.remove('is-away'); };
       panel.classList.add('gogh-room-swap');
       panel.addEventListener('animationend', function h() {
