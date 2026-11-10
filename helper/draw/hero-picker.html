@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pick the top of the page</title>
+<style>
+/* gogh's hero picker: an MCP app the connector hands to a chat. One choice —
+   the design at the top of a page — drawn with gogh's own code (gogh-draw.js,
+   lifted from the editor at build time) in the definition's words, picture,
+   colours and type. Build sends the choice back to the agent as a message;
+   the widget never publishes. */
+:root {
+  --w-ground: transparent;
+  --w-surface: #ffffff;
+  --w-line: #dcdfe4;
+  --w-ink: #1a1c20;
+  --w-muted: #646a74;
+  --w-accent: #2271b1;
+  --w-accent-ink: #ffffff;
+}
+:root[data-theme="dark"] {
+  --w-surface: #1f2125;
+  --w-line: #34373d;
+  --w-ink: #eceef2;
+  --w-muted: #9aa1ab;
+  --w-accent: #5a9fdc;
+  --w-accent-ink: #0d1117;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--w-ground); }
+body { color: var(--w-ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.w { padding: 2px 2px 6px; display: flex; flex-direction: column; gap: 10px; }
+.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bar .title { margin-right: auto; font-weight: 600; display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.bar .title small { font-weight: 400; color: var(--w-muted); }
+button { font: inherit; color: inherit; }
+.chip { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.chip:hover { border-color: var(--w-muted); }
+.build { appearance: none; border: 0; background: var(--w-accent); color: var(--w-accent-ink); font-weight: 600; font-size: 13px; padding: 7px 13px; border-radius: 8px; cursor: pointer; }
+.build[disabled] { opacity: .5; cursor: default; }
+:is(.chip, .take, .pal, .build):focus-visible { outline: 2px solid var(--w-accent); outline-offset: 2px; }
+.takes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, .8fr); gap: 8px; }
+@media (max-width: 560px) { .takes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.take { appearance: none; padding: 0; border: 2px solid transparent; border-radius: 8px; background: var(--w-surface); cursor: pointer; overflow: hidden; text-align: left; display: flex; flex-direction: column; box-shadow: 0 0 0 1px var(--w-line); }
+.take[aria-pressed="true"] { border-color: var(--w-accent); box-shadow: none; }
+.take .name { font-size: 11.5px; padding: 4px 7px 5px; color: var(--w-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.take[aria-pressed="true"] .name { color: var(--w-ink); font-weight: 500; }
+.take.more { border: 1.5px dashed var(--w-line); box-shadow: none; background: transparent; align-items: center; justify-content: center; color: var(--w-muted); font-size: 12px; gap: 2px; min-height: 64px; }
+.take.more span { font-size: 18px; line-height: 1; }
+.prev { position: relative; width: 100%; overflow: hidden; }
+.thumb { aspect-ratio: 1200 / 640; }
+.big { border-radius: 8px; box-shadow: 0 0 0 1px var(--w-line); }
+.stage { position: absolute; top: 0; left: 0; width: 1200px; transform-origin: 0 0; container-type: inline-size; display: block; }
+.stage > .gogh-section { display: grid; }
+.foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.foot .lab { font-size: 12px; color: var(--w-muted); }
+.pals { display: flex; gap: 6px; flex-wrap: wrap; }
+.pal { appearance: none; border: 1px solid var(--w-line); background: var(--w-surface); border-radius: 999px; padding: 3px 10px 3px 4px; display: flex; gap: 7px; align-items: center; font-size: 12.5px; cursor: pointer; }
+.pal[aria-pressed="true"] { border-color: var(--w-accent); box-shadow: inset 0 0 0 1px var(--w-accent); }
+.sw { display: flex; }
+.sw i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); margin-right: -4px; }
+.foot .hint { margin-left: auto; font-size: 12px; color: var(--w-muted); }
+.sent { font-size: 13px; color: var(--w-muted); }
+.empty { padding: 24px; text-align: center; color: var(--w-muted); border: 1px dashed var(--w-line); border-radius: 8px; }
+/* a picture the widget may not load (an address outside the chat's allowed
+   list) shows as a quiet tone, not a broken icon */
+.gogh-theme img.gogh-noimg { visibility: hidden; }
+.gogh-theme .gogh-section:has(img.gogh-noimg) { background-color: color-mix(in srgb, var(--wp--preset--color--contrast) 12%, var(--wp--preset--color--base)); }
+@media (prefers-reduced-motion: no-preference) { .take, .pal, .chip { transition: border-color .15s, box-shadow .15s; } }
+__THEME_CSS__
+</style>
+</head>
+<body>
+<div class="w" id="w">
+  <div class="bar">
+    <div class="title"><span id="where">The top of the page</span> <small id="count"></small></div>
+    <button class="chip" id="prev" aria-label="Previous design" type="button">‹</button>
+    <button class="chip" id="next" aria-label="Next design" type="button">›</button>
+    <button class="build" id="build" type="button" disabled>Build from this</button>
+  </div>
+  <div class="takes" id="takes" role="group" aria-label="Designs"><div class="empty" style="grid-column:1/-1">Drawing your designs…</div></div>
+  <div class="prev big" id="bigbox"></div>
+  <div class="foot">
+    <span class="lab">Colours</span>
+    <div class="pals" id="pals" role="group" aria-label="Colours"></div>
+    <span class="hint" id="hint">Point to try, click to keep</span>
+  </div>
+  <div class="sent" id="sent" hidden></div>
+</div>
+<script>__DRAW_JS__</script>
+<script>
+(function () {
+  'use strict';
+  var G = window.goghDraw;
+  // the families a page can open with, and the order they are offered in
+  var FAMILIES = ['Hero', 'Cover', 'Big statement'];
+  var GOGH_RAW = 'https://raw.githubusercontent.com/jamiemarsland/gogh-editor/main/';
+  var FONT_DEFAULT = { heading: 'Manrope', body: 'Manrope', hw: 400 };
+  var DEMO = {
+    name: 'Hollowell', palette: { base: '#F6F5F1', contrast: '#22252A', accents: ['#2D4EA2', '#ECEAE3', '#B9C2B4', '#22252A'] },
+    fonts: { heading: 'Young Serif', body: 'Ysabeau Office' },
+    pages: [{ title: 'Home', front: true, sections: [{ take: 'Hero', eyebrow: 'Stoneware from Bristol', heading: 'Thrown by hand. Fired to cone 8.', text: 'Mugs, bowls and bottles made in small batches in a railway-arch studio, glazed in four colours we mix ourselves.', button: 'Shop the collection', button2: 'Visit the studio', image: '/wp-content/plugins/gogh/starters/ceramics/hero-wheel.jpg' }] }]
+  };
+
+  var st = { def: null, page: 0, section: 0, opts: [], at: 0, shown: 0, pals: [], pal: 0, palShown: 0, built: false, rolls: 0, from: 0 };
+
+  /* ---------- the chat: MCP Apps over postMessage, or ChatGPT's bridge ---------- */
+  var rid = 0, pend = {}, inHost = window.parent !== window, ready = false;
+  function send(m) { try { window.parent.postMessage(m, '*'); } catch (e) {} }
+  function request(method, params) {
+    return new Promise(function (res, rej) {
+      var id = ++rid; pend[id] = { res: res, rej: rej };
+      send({ jsonrpc: '2.0', id: id, method: method, params: params || {} });
+      setTimeout(function () { if (pend[id]) { delete pend[id]; rej(new Error('no answer to ' + method)); } }, 8000);
+    });
+  }
+  function notify(method, params) { send({ jsonrpc: '2.0', method: method, params: params || {} }); }
+  window.addEventListener('message', function (ev) {
+    var m = ev.data;
+    if (!m || m.jsonrpc !== '2.0') return;
+    if (m.id != null && !m.method && pend[m.id]) {
+      var p = pend[m.id]; delete pend[m.id];
+      if (m.error) p.rej(new Error(m.error.message || 'error')); else p.res(m.result);
+      return;
+    }
+    if (!m.method) return;
+    var a = m.params || {};
+    if (m.method === 'ui/notifications/tool-input' && a.arguments) fromArgs(a.arguments);
+    else if (m.method === 'ui/notifications/tool-result') fromResult(a);
+    else if (m.method === 'ui/notifications/host-context-changed') hostTheme(a);
+    if (m.id != null) send({ jsonrpc: '2.0', id: m.id, result: {} }); // teardown, ping
+  });
+  function hostTheme(ctx) {
+    if (ctx && (ctx.theme === 'dark' || ctx.theme === 'light')) document.documentElement.setAttribute('data-theme', ctx.theme);
+  }
+  function fromArgs(args) {
+    if (!args || !args.definition || st.def) return;
+    st.page = +args.page || 0; st.section = +args.section || 0;
+    start(args.definition);
+  }
+  function fromResult(r) {
+    var sc = r && r.structuredContent;
+    if (sc && sc.definition) {
+      st.page = sc.page || 0; st.section = sc.section || 0;
+      if (sc.fields) st.fields = sc.fields;
+      if (!st.def) start(sc.definition, sc);
+    }
+  }
+  var lastH = 0;
+  function sizeUp() {
+    if (!inHost) return;
+    var h = Math.ceil(document.getElementById('w').getBoundingClientRect().height) + 4;
+    if (Math.abs(h - lastH) < 2) return;
+    lastH = h;
+    notify('ui/notifications/size-changed', { height: h });
+  }
+  function boot() {
+    if (window.openai) { // ChatGPT's own bridge, when that is what we got
+      hostTheme({ theme: window.openai.theme });
+      var out = window.openai.toolOutput, inp = window.openai.toolInput;
+      if (out && out.fields) st.fields = out.fields;
+      if (out && out.definition) start(out.definition, out); else if (inp && inp.definition) start(inp.definition);
+      window.addEventListener('openai:set_globals', function () { var o = window.openai.toolOutput; if (o && o.definition && !st.def) start(o.definition, o); });
+      return;
+    }
+    if (!inHost) { start(DEMO); return; } // opened on its own: show the example
+    request('ui/initialize', { appInfo: { name: 'gogh hero picker', version: '1.0.0' }, appCapabilities: {}, protocolVersion: '2026-01-26' })
+      .then(function (r) { ready = true; hostTheme(r && r.hostContext); notify('ui/notifications/initialized', {}); })
+      .catch(function () { if (!st.def) start(DEMO); });
+  }
+
+  /* ---------- the site's look: colours and type as theme variables ---------- */
+  function hex(v) { return /^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v) : null; }
+  function rgb(h) { h = h.replace('#', ''); return [0, 2, 4].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+  function lum(h) { return rgb(h).map(function (c) { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }).reduce(function (s, c, i) { return s + c * [0.2126, 0.7152, 0.0722][i]; }, 0); }
+  function ratio(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+  function mix(a, b, t) { var p = rgb(a), q = rgb(b); return '#' + p.map(function (c, i) { return ('0' + Math.round(c + (q[i] - c) * t).toString(16)).slice(-2); }).join(''); }
+  function palettes(def) {
+    var p = def.palette || {}, base = hex(p.base) || '#FFFFFF', ink = hex(p.contrast) || '#111111';
+    var acc = (p.accents || []).map(hex).filter(Boolean);
+    var out = [{ id: 'yours', name: def.palette ? 'As drafted' : 'The theme’s', base: base, contrast: ink, accents: acc }];
+    var dark = lum(base) < lum(ink) ? base : ink, light = dark === base ? ink : base;
+    out.push({ id: 'dark', name: 'Dark', base: dark, contrast: light, accents: acc });
+    var lead = acc.filter(function (a) { return ratio(a, base) > 1.6 && Math.max(ratio(a, light), ratio(a, dark)) >= 4.5; })[0];
+    if (lead) out.push({ id: 'colour', name: 'In colour', base: lead, contrast: ratio(lead, light) >= ratio(lead, dark) ? light : dark, accents: acc });
+    return out;
+  }
+  function themeVars(P) {
+    var a = P.accents.slice(), base = P.base, ink = P.contrast;
+    var fill = [ink, mix(ink, base, 0.35), mix(base, ink, 0.12), mix(ink, base, 0.6), mix(base, ink, 0.06)], k = 0;
+    while (a.length < 6) a.push(fill[Math.min(k++, fill.length - 1)]);
+    var v = '--wp--preset--color--base:' + base + ';--wp--preset--color--contrast:' + ink + ';';
+    a.forEach(function (c, i) { v += '--wp--preset--color--accent-' + (i + 1) + ':' + c + ';'; });
+    return v;
+  }
+  function fontsOf(def) {
+    var f = def.fonts, pair = null;
+    if (typeof f === 'string') (G.FONT_PAIRS || []).forEach(function (p) { if (p.key === f.toLowerCase() && p.heading) pair = { heading: p.heading.name, body: p.body.name, hw: p.heading.w }; });
+    else if (f && typeof f === 'object') pair = { heading: String(f.heading || f.body || FONT_DEFAULT.heading), body: String(f.body || f.heading || FONT_DEFAULT.body), hw: 400 };
+    return pair || FONT_DEFAULT;
+  }
+  function loadFonts(F) {
+    var fams = [F.heading, F.body].filter(function (x, i, a) { return x && a.indexOf(x) === i; });
+    var href = 'https://fonts.googleapis.com/css2?' + fams.map(function (n) { return 'family=' + encodeURIComponent(n).replace(/%20/g, '+') + ':wght@400;600;700'; }).join('&') + '&display=swap';
+    var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href;
+    l.onload = function () { if (document.fonts) document.fonts.ready.then(refit); };
+    document.head.appendChild(l);
+  }
+  function picUrl(u) {
+    u = String(u || '');
+    if (/^\/wp-content\/plugins\/gogh\//.test(u)) return GOGH_RAW + u.replace(/^\/wp-content\/plugins\/gogh\//, '');
+    return /^https:\/\//i.test(u) ? u : '';
+  }
+
+  /* ---------- the designs ---------- */
+  function sectionOf(def) {
+    var pages = def.pages || [], pg = pages[st.page];
+    if (!pg) { pages.forEach(function (p, i) { if (!pg && p.front) { pg = p; st.page = i; } }); }
+    pg = pg || pages[0] || { title: 'Home', sections: [] };
+    return { page: pg, sc: (pg.sections || [])[st.section] || {} };
+  }
+  function optionsFor(cur) {
+    var all = [];
+    FAMILIES.forEach(function (fam) { (G.diceFaces(fam) || []).forEach(function (t, k) { all.push({ take: fam, face: k ? t.take : 'The original' }); }); });
+    // the one drafted first, then one of each family before their other takes
+    var first = all.filter(function (o) { return o.take === cur.take && o.face === (cur.face || 'The original'); });
+    var rest = all.filter(function (o) { return first.indexOf(o) === -1; });
+    rest.sort(function (a, b) { var fa = all.indexOf(a) % 4 === 0 ? 0 : 1, fb = all.indexOf(b) % 4 === 0 ? 0 : 1; return fa - fb || all.indexOf(a) - all.indexOf(b); });
+    return first.concat(rest);
+  }
+  function label(o) { return o.face === 'The original' ? o.take : o.take + ' · ' + o.face.replace(/^The /, ''); }
+  var drawn = {};
+  function draw(o, P, scope) {
+    var sc = st.sc, key = o.take + '|' + o.face;
+    var tpl = drawn[key];
+    if (!tpl) {
+      var words = {}; ['eyebrow', 'heading', 'text', 'button', 'button2', 'badge', 'link'].forEach(function (k) { if (sc[k]) words[k] = sc[k]; });
+      var pic = picUrl(sc.image); if (pic) words.image = pic;
+      tpl = drawn[key] = G.fillTake(Object.assign({ take: o.take, face: o.face }, words));
+    }
+    if (!tpl) return '';
+    var els = G.tplEls(tpl);
+    var css = G.buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null, bgImage: tpl.bgImage || null, bgA: tpl.bgA != null ? tpl.bgA : null });
+    var inner = els.map(function (e, i) { return G.makeNode(e, i).outerHTML; }).join('');
+    return '<style>' + css + '</style><div class="stage gogh-wrap"><div class="gogh-section ' + scope + '">' + inner + '</div></div>';
+  }
+  function themed(box, P) {
+    box.className = box.className.replace(/\s*gogh-theme/, '') + ' gogh-theme';
+    box.setAttribute('style', themeVars(P) + '--gogh-body-ff:"' + st.fonts.body + '",system-ui,sans-serif;--gogh-heading-ff:"' + st.fonts.heading + '",Georgia,serif;');
+  }
+  function quietPictures(root) {
+    [].forEach.call(root.querySelectorAll('img'), function (im) { im.addEventListener('error', function () { im.classList.add('gogh-noimg'); }); });
+  }
+  function refit() {
+    [].forEach.call(document.querySelectorAll('.stage'), function (s) {
+      var box = s.parentNode, sec = s.firstElementChild;
+      var k = box.clientWidth / 1200;
+      s.style.transform = 'scale(' + k + ')';
+      if (box.id === 'bigbox' && sec) box.style.height = Math.ceil(sec.offsetHeight * k) + 'px';
+    });
+    sizeUp();
+  }
+  function show(i, p) {
+    st.shown = i;
+    var box = document.getElementById('bigbox');
+    themed(box, st.pals[p]);
+    box.innerHTML = draw(st.opts[i], st.pals[p], 'gogh-wb');
+    quietPictures(box);
+    document.getElementById('count').textContent = label(st.opts[i]) + ' · ' + (i + 1) + ' of ' + st.opts.length;
+    refit();
+  }
+  function paintTakes() {
+    var host = document.getElementById('takes');
+    host.innerHTML = '';
+    for (var n = 0; n < 4; n++) (function (i) {
+      var o = st.opts[i];
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'take';
+      b.setAttribute('aria-pressed', i === st.at ? 'true' : 'false');
+      b.setAttribute('aria-label', label(o));
+      b.innerHTML = '<div class="prev thumb"></div><div class="name">' + label(o) + '</div>';
+      var box = b.firstChild; themed(box, st.pals[st.palShown]);
+      box.innerHTML = draw(o, st.pals[st.palShown], 'gogh-wt' + i);
+      quietPictures(box);
+      b.addEventListener('mouseenter', function () { if (!st.built) show(i, st.palShown); });
+      b.addEventListener('focus', function () { if (!st.built) show(i, st.palShown); });
+      b.addEventListener('mouseleave', function () { if (!st.built) show(st.at, st.pal); });
+      b.addEventListener('click', function () { if (st.built) return; st.at = i; show(i, st.pal); paintTakes(); });
+      host.appendChild(b);
+    })((st.from + n) % st.opts.length);
+    var more = document.createElement('button');
+    more.type = 'button'; more.className = 'take more';
+    more.innerHTML = '<span>+</span>More designs';
+    more.addEventListener('click', function () { if (st.built) return; st.rolls++; st.from = (st.from + 4) % st.opts.length; paintTakes(); });
+    host.appendChild(more);
+    refit();
+  }
+  function paintPals() {
+    var host = document.getElementById('pals');
+    host.innerHTML = '';
+    st.pals.forEach(function (P, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'pal';
+      b.setAttribute('aria-pressed', i === st.pal ? 'true' : 'false');
+      b.innerHTML = '<span class="sw"><i style="background:' + P.base + '"></i><i style="background:' + (P.accents[0] || P.contrast) + '"></i><i style="background:' + P.contrast + '"></i></span>' + P.name;
+      b.addEventListener('mouseenter', function () { if (st.built) return; st.palShown = i; show(st.at, i); });
+      b.addEventListener('mouseleave', function () { if (st.built) return; st.palShown = st.pal; show(st.at, st.pal); });
+      b.addEventListener('click', function () { if (st.built) return; st.pal = st.palShown = i; show(st.at, i); paintPals(); paintTakes(); });
+      host.appendChild(b);
+    });
+  }
+  function start(def, result) {
+    if (!G || !def || typeof def !== 'object') return;
+    st.def = def;
+    var s = sectionOf(def); st.sc = s.sc;
+    document.getElementById('where').textContent = (s.page.title || 'This page') + ' · the top';
+    st.opts = optionsFor({ take: s.sc.take, face: s.sc.face });
+    st.pals = palettes(def);
+    st.fonts = fontsOf(def); loadFonts(st.fonts);
+    st.at = 0; st.pal = st.palShown = 0;
+    paintPals(); paintTakes(); show(0, 0);
+    document.getElementById('build').disabled = false;
+  }
+
+  /* ---------- the choice goes back to the agent ---------- */
+  document.getElementById('prev').onclick = function () { if (st.built || !st.opts.length) return; st.at = (st.at + st.opts.length - 1) % st.opts.length; if (st.at < st.from || st.at >= st.from + 4) st.from = st.at; show(st.at, st.pal); paintTakes(); };
+  document.getElementById('next').onclick = function () { if (st.built || !st.opts.length) return; st.at = (st.at + 1) % st.opts.length; if (st.at < st.from || st.at >= st.from + 4) st.from = st.at; show(st.at, st.pal); paintTakes(); };
+  document.getElementById('build').onclick = function () {
+    if (st.built || !st.def) return;
+    var o = st.opts[st.at], P = st.pals[st.pal], s = sectionOf(st.def);
+    var path = 'pages[' + st.page + '].sections[' + st.section + ']';
+    var title = s.page.title || 'page', where = /page$/i.test(title) ? title : title + ' page';
+    var said = 'Use “' + label(o) + '” for the top of the ' + where + (P.id === 'yours' ? '.' : P.id === 'dark' ? ', on the dark colours.' : ', in colour.');
+    // a design with less room (Big statement has no paragraph or picture)
+    // must lose the fields it cannot show, or the check refuses the site
+    var fit = st.fields && st.fields[o.take], drop = [];
+    if (fit) Object.keys(st.sc).forEach(function (k) { if (['take', 'face', 'anchor', 'items', 'mood', 'look', 'posts'].indexOf(k) === -1 && fit.indexOf(k) === -1) drop.push(k); });
+    var how = 'In the definition, set ' + path + '.take to "' + o.take + '"' + (o.face !== 'The original' ? ' and face to "' + o.face + '"' : st.sc.face ? ' and remove face' : '') +
+      (drop.length ? ', remove ' + drop.join(', ') + ' (this design has no room for ' + (drop.length > 1 ? 'them' : 'it') + ')' : '') +
+      (P.id === 'yours' ? '' : ', and palette to ' + JSON.stringify({ base: P.base, contrast: P.contrast, accents: P.accents })) +
+      '. Then gogh_check and gogh_publish, and give me the link.';
+    var choice = { section: path, take: o.take, face: o.face, palette: P.id === 'yours' ? null : { base: P.base, contrast: P.contrast, accents: P.accents }, rolls: st.rolls };
+    st.built = true;
+    var btn = this; btn.disabled = true; btn.textContent = 'Sent';
+    document.getElementById('hint').hidden = true;
+    var sent = document.getElementById('sent'); sent.hidden = false;
+    sent.textContent = 'Sent to your assistant: ' + label(o) + (P.id === 'yours' ? '' : P.id === 'dark' ? ', dark' : ', in colour') + '.';
+    var text = said + '\n\n' + how;
+    if (window.openai && window.openai.sendFollowUpMessage) { window.openai.sendFollowUpMessage({ prompt: text }); return; }
+    if (!inHost) { console.log('[gogh hero picker]', text, choice); return; }
+    request('ui/update-model-context', { content: [{ type: 'text', text: 'The person chose: ' + JSON.stringify(choice) }], structuredContent: choice }).catch(function () {});
+    request('ui/message', { role: 'user', content: [{ type: 'text', text: text }] }).catch(function () {
+      sent.textContent = 'Tell your assistant: “' + said + '”';
+    });
+  };
+  window.addEventListener('resize', refit);
+  window.__goghPicker = st;
+  boot();
+})();
+</script>
+</body>
+</html>

@@ -150,10 +150,16 @@ def main():
     if worker_src.exists():
         dist = HERE / 'worker' / 'dist'
         dist.mkdir(parents=True, exist_ok=True)
+        # the connector's widgets draw with the editor's own code (helper/draw)
+        sys.path.insert(0, str(HERE / 'draw'))
+        import build_draw
+        build_draw.build()
         w = (worker_src.read_text(encoding='utf-8')
              .replace('__UI__', js_string(hosted))
-             .replace('__PROMPT__', prompt_lit))
-        for ph in ('__UI__', '__PROMPT__'):
+             .replace('__PROMPT__', prompt_lit)
+             .replace('__HERO_PICKER__', js_string(build_draw.picker()))
+             .replace('__FACES__', json.dumps(build_draw.faces(), ensure_ascii=False)))
+        for ph in ('__UI__', '__PROMPT__', '__HERO_PICKER__', '__FACES__'):
             if ph in w:
                 sys.exit(f'build.py: placeholder {ph} did not substitute in worker.js')
         built = dist / 'worker.js'

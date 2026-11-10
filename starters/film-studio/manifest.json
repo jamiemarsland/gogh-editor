@@ -1,0 +1,95 @@
+{
+  "name": "Film studio",
+  "description": "A dark, cinematic site for a video production studio — Halcyon: films, campaigns, documentaries",
+  "palette": {
+    "base": "#0B0B0B",
+    "contrast": "#FFFFFF",
+    "accents": [
+      "#1C1C1C",
+      "#C9C9C9"
+    ]
+  },
+  "variation": "Evening",
+  "pages": [
+    {
+      "slug": "home",
+      "title": "Home",
+      "file": "home.html",
+      "front": true,
+      "template": "page-no-title"
+    },
+    {
+      "slug": "about",
+      "title": "About",
+      "file": "about.html",
+      "template": "page-no-title"
+    },
+    {
+      "slug": "work",
+      "title": "Work",
+      "file": "work.html",
+      "template": "page-no-title"
+    },
+    {
+      "slug": "services",
+      "title": "Services",
+      "file": "services.html",
+      "template": "page-no-title"
+    },
+    {
+      "slug": "insights",
+      "title": "Insights",
+      "file": "insights.html",
+      "blog": true
+    },
+    {
+      "slug": "contact",
+      "title": "Contact",
+      "file": "contact.html",
+      "template": "page-no-title"
+    }
+  ],
+  "preview": {
+    "base": "#0B0B0B",
+    "contrast": "#FFFFFF",
+    "accent-1": "#1C1C1C",
+    "accent-2": "#C9C9C9"
+  },
+  "chrome": {
+    "header": "gogh-header-classic",
+    "footer": "gogh-footer-columns"
+  },
+  "type": "Video production studio",
+  "posts": [
+    {
+      "slug": "why-your-brand-needs-a-film-not-an-advert",
+      "title": "Why your brand needs a film, not an advert",
+      "file": "post-1.html",
+      "category": "Insights",
+      "image": "post-projector.jpg"
+    },
+    {
+      "slug": "the-first-creative-conversation",
+      "title": "The first creative conversation",
+      "file": "post-2.html",
+      "category": "Insights",
+      "image": "post-team.jpg"
+    },
+    {
+      "slug": "what-a-cutdown-suite-is-for",
+      "title": "What a cutdown suite is for",
+      "file": "post-3.html",
+      "category": "Insights",
+      "image": "post-reels.jpg",
+      "style": "manual"
+    },
+    {
+      "slug": "one-shoot-day-done-properly",
+      "title": "One shoot day, done properly",
+      "file": "post-4.html",
+      "category": "Insights",
+      "image": "post-clapper.jpg"
+    }
+  ],
+  "media": []
+}

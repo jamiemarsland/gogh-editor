@@ -1,0 +1,335 @@
+{
+ "name": "Small Hours",
+ "tagline": "Essays by Maud Ellery on paying attention",
+ "palette": {
+  "base": "#F6F2EA",
+  "contrast": "#1E1B17",
+  "accents": [
+   "#9E2B25",
+   "#1E1B17",
+   "#1E1B17",
+   "#1E1B17",
+   "#6E655B",
+   "#E4DCCF"
+  ]
+ },
+ "fonts": {
+  "heading": "Instrument Serif",
+  "body": "Source Serif 4"
+ },
+ "chrome": {
+  "header": "gogh-header-classic",
+  "footer": "gogh-footer-simple",
+  "sticky": false
+ },
+ "blog_look": "ledger",
+ "open": "writing",
+ "pages": [
+  {
+   "title": "Home",
+   "slug": "home",
+   "front": true,
+   "sections": [
+    {
+     "name": "The latest essay",
+     "minH": 576,
+     "els": [
+      {
+       "type": "para",
+       "x": 200,
+       "y": 96,
+       "w": 800,
+       "h": 24,
+       "text": "The latest essay · 14 September 2026",
+       "tf": {
+        "fs": 14,
+        "col": "#6E655B"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 200,
+       "y": 144,
+       "w": 800,
+       "h": 96,
+       "text": "The kettle and the hour",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 200,
+       "y": 264,
+       "w": 640,
+       "h": 72,
+       "text": "Four minutes is long enough to notice the morning, if you let the kettle set the pace.",
+       "tf": {
+        "fs": 21
+       }
+      },
+      {
+       "type": "button",
+       "x": 200,
+       "y": 384,
+       "w": 216,
+       "h": 48,
+       "text": "Read the essay",
+       "href": "/?name=the-kettle-and-the-hour",
+       "btnBg": "accent-1"
+      }
+     ]
+    },
+    {
+     "take": "Latest posts",
+     "heading": "The archive",
+     "posts": {
+      "look": "ledger",
+      "count": 8,
+      "show": {
+       "date": true
+      }
+     }
+    },
+    {
+     "name": "About",
+     "minH": 432,
+     "els": [
+      {
+       "type": "para",
+       "x": 200,
+       "y": 96,
+       "w": 800,
+       "h": 24,
+       "text": "About",
+       "tf": {
+        "fs": 14,
+        "col": "#6E655B"
+       }
+      },
+      {
+       "type": "para",
+       "x": 200,
+       "y": 144,
+       "w": 760,
+       "h": 96,
+       "text": "I write one essay a month about paying attention: to walks, kettles, old letters and the things people keep. Small Hours is where they live.",
+       "tf": {
+        "fs": 28
+       }
+      },
+      {
+       "type": "button",
+       "x": 200,
+       "y": 288,
+       "w": 216,
+       "h": 48,
+       "text": "More about me",
+       "href": "/about/",
+       "ghost": true
+      }
+     ]
+    },
+    {
+     "name": "Get the next one",
+     "minH": 432,
+     "background": "#EFE6DA",
+     "els": [
+      {
+       "type": "heading",
+       "x": 200,
+       "y": 96,
+       "w": 800,
+       "h": 72,
+       "text": "Get the next one",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 200,
+       "y": 192,
+       "w": 640,
+       "h": 72,
+       "text": "One essay a month and nothing else. Follow along in any feed reader, or write to me and I’ll answer.",
+       "tf": {
+        "fs": 19
+       }
+      },
+      {
+       "type": "button",
+       "x": 200,
+       "y": 288,
+       "w": 216,
+       "h": 48,
+       "text": "Follow by RSS",
+       "href": "/feed/",
+       "btnBg": "accent-1"
+      },
+      {
+       "type": "button",
+       "x": 440,
+       "y": 288,
+       "w": 192,
+       "h": 48,
+       "text": "Write to me",
+       "href": "/contact/",
+       "ghost": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Essays",
+   "slug": "essays",
+   "blog": true,
+   "sections": []
+  },
+  {
+   "title": "About",
+   "slug": "about",
+   "sections": [
+    {
+     "name": "About",
+     "minH": 864,
+     "els": [
+      {
+       "type": "para",
+       "x": 200,
+       "y": 96,
+       "w": 800,
+       "h": 24,
+       "text": "About",
+       "tf": {
+        "fs": 14,
+        "col": "#6E655B"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 200,
+       "y": 144,
+       "w": 800,
+       "h": 96,
+       "text": "Maud Ellery",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 200,
+       "y": 288,
+       "w": 680,
+       "h": 120,
+       "text": "I was a librarian for fourteen years, which is mostly a job about noticing what people need before they ask. Now I write, slowly, about the small things that hold a day together.",
+       "tf": {
+        "fs": 21
+       }
+      },
+      {
+       "type": "para",
+       "x": 200,
+       "y": 432,
+       "w": 680,
+       "h": 96,
+       "text": "I walk most mornings, keep a commonplace book and answer every letter, eventually. A new essay arrives here on the third Sunday of each month.",
+       "tf": {
+        "fs": 21
+       }
+      },
+      {
+       "type": "para",
+       "x": 200,
+       "y": 576,
+       "w": 800,
+       "h": 24,
+       "text": "Elsewhere",
+       "tf": {
+        "fs": 14,
+        "col": "#6E655B"
+       }
+      },
+      {
+       "type": "para",
+       "x": 200,
+       "y": 624,
+       "w": 680,
+       "h": 120,
+       "text": "Essays have appeared in The Slow Review, Field Notes Quarterly and The Kitchen Table. A small collection, Ordinary Weather, is out from Lantern Press.",
+       "tf": {
+        "fs": 19
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Contact",
+   "slug": "contact",
+   "sections": [
+    {
+     "take": "Get in touch",
+     "eyebrow": "Write to me",
+     "heading": "Letters are welcome",
+     "text": "Tell me what you noticed, or what you think I got wrong. I read everything and answer most of it, usually on a Sunday."
+    }
+   ]
+  }
+ ],
+ "posts": [
+  {
+   "title": "The kettle and the hour",
+   "date": "2026-09-14",
+   "slug": "the-kettle-and-the-hour",
+   "excerpt": "Four minutes is long enough to notice the morning, if you let the kettle set the pace.",
+   "content": "<!-- wp:paragraph --><p>My kettle takes four minutes to boil. For years I spent those minutes on my phone, and the morning arrived already full of other people.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>Last winter I started standing at the window instead. Nothing much happens out there: a neighbour scrapes his car, a gull complains, the light changes from grey to slightly less grey.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>Four minutes is not long enough to do anything, which is exactly why it is long enough to notice something.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:paragraph --><p>I have not become calmer, or wiser, or better at mornings. But I know what the street looks like at seven in every month of the year now, and that feels like owning something.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>The kettle clicks off. I make the tea. The day can come in.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "On keeping a commonplace book",
+   "date": "2026-08-17",
+   "slug": "on-keeping-a-commonplace-book",
+   "excerpt": "A notebook of other people’s sentences turns out to be a portrait of the person copying them.",
+   "content": "<!-- wp:paragraph --><p>A commonplace book is a notebook of things worth keeping: lines from books, overheard remarks, a recipe, the name of a tree. People kept them for centuries before anyone called it a system.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>Mine is a green hardback with a broken spine. I copy things out by hand, which is slow, and the slowness is the point. You only copy what you mean to remember.</p><!-- /wp:paragraph -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">What ends up in it</h2><!-- /wp:heading -->\n\n<!-- wp:paragraph --><p>Reading it back, I find almost nothing about success and a great deal about weather, walking and kindness from strangers. The book knows what I care about better than I do.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>A notebook of other people’s sentences is, in the end, a self-portrait.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:paragraph --><p>If you start one, start badly. The first page of mine is a bus timetable.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "Walking the same mile for a year",
+   "date": "2026-07-20",
+   "slug": "walking-the-same-mile",
+   "excerpt": "I walked one route every morning for a year. It was a different mile every day.",
+   "content": "<!-- wp:paragraph --><p>The rule was simple: the same mile, every morning, from my door to the end of the canal path and back.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>By March I knew which bench the heron used and which house fed the foxes. By May I could tell the day of the week from the bins.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>Repetition is not the opposite of discovery. It is how you earn it.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:paragraph --><p>People asked if I got bored. I did, in February, for about a week. Then the blackthorn came out and I forgave the whole route.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>I have changed routes now. I miss the heron.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "What the repair shop knows",
+   "date": "2026-06-15",
+   "slug": "what-the-repair-shop-knows",
+   "excerpt": "Behind a counter full of broken radios is a whole philosophy of keeping things.",
+   "content": "<!-- wp:paragraph --><p>There is a repair shop at the bottom of my road with a hand-painted sign and a counter covered in radios. The man who runs it has been there for thirty-one years.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>He told me most things are not broken, only neglected. A loose wire, a dry joint, a fuse nobody thought to check.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>Most things are not broken, only neglected.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:paragraph --><p>I took him my grandmother’s clock. He opened the back, blew on it, and it started ticking. He would not take any money.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>I think about that often, and not only about clocks.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "A defence of the second draft",
+   "date": "2026-05-18",
+   "slug": "a-defence-of-the-second-draft",
+   "excerpt": "The first draft is for finding out what you think. The second is for the reader.",
+   "content": "<!-- wp:paragraph --><p>Every essay on this site was worse the first time. Some of them were much worse.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>The first draft is where I find out what I think. It wanders, repeats itself and buries the point in the fourth paragraph.</p><!-- /wp:paragraph -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Where the work is</h2><!-- /wp:heading -->\n\n<!-- wp:paragraph --><p>The second draft is for you. It cuts the throat-clearing, moves the point to the top and takes out the clever sentence I was proud of, because it was only there for me.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>The clever sentence is usually the one that has to go.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:paragraph --><p>There is no third draft. By then I am only moving commas around.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "Notes from a night bus",
+   "date": "2026-04-13",
+   "slug": "notes-from-a-night-bus",
+   "excerpt": "The last bus home is a small, tired city of its own.",
+   "content": "<!-- wp:paragraph --><p>The last bus leaves the centre at twenty past midnight. I took it every Friday for a month and wrote down what I saw.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>A nurse asleep against the window with her shoes off. Two students arguing about a film, both wrong. A man carrying a cake, very carefully, all the way to the terminus.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>Everyone on the night bus is going home, and everyone is carrying something.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:paragraph --><p>The driver said goodnight to every single passenger. Nobody said it back, and he did not seem to mind.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "The weather in old letters",
+   "date": "2026-03-16",
+   "slug": "the-weather-in-old-letters",
+   "excerpt": "My grandparents wrote to each other about the weather for forty years. It was never really about the weather.",
+   "content": "<!-- wp:paragraph --><p>I found a shoebox of my grandparents’ letters in the loft. Almost every one begins with the weather.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>At first this seemed dull. Then I noticed that the weather got worse when one of them was ill, and brighter in the letters after my mother was born.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>“Frost again, but the light is lovely” is a love letter, if you know how to read it.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:paragraph --><p>We think of small talk as empty. I am not sure it ever was.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "Why I stopped counting books",
+   "date": "2026-02-16",
+   "slug": "why-i-stopped-counting-books",
+   "excerpt": "I used to set myself a number of books a year. I read more since I stopped.",
+   "content": "<!-- wp:paragraph --><p>For six years I set myself a target: fifty books, then sixty. I hit it every year and remember almost none of them.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>Counting made me choose short books, skip the slow ones and abandon nothing, because abandoning did not count.</p><!-- /wp:paragraph -->\n\n<!-- wp:pullquote --><figure class=\"wp-block-pullquote\"><blockquote><p>A number is a terrible reason to finish a book.</p></blockquote></figure><!-- /wp:pullquote -->\n\n<!-- wp:paragraph --><p>Last year I read nineteen. I reread two of them straight away. I can tell you what every one of them was about.</p><!-- /wp:paragraph -->"
+  }
+ ]
+}

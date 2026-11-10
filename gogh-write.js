@@ -2022,6 +2022,7 @@
   var chosenCats = [];
   var chosenTags = [];
   var chosenNames = [];
+  var barSay = null; // the top bar's status, once it is drawn
   var doPublish = function (b) {
     var already = statusWord === 'Published';
     b.disabled = true;
@@ -2039,6 +2040,7 @@
         updateSEODot();
         note('Answer-ready ✓ — your story facts travel with this post. Tap ✦ to see what machines see.');
         b.onclick = function () { location.href = post.link; };
+        if (barSay) barSay();
       } else {
         b.textContent = already ? 'Update' : 'Publish';
         b.disabled = false;
@@ -2073,6 +2075,52 @@
   mast.title = 'Back to your site';
   document.body.appendChild(mast);
   mast.addEventListener('click', leaveGuard);
+  // ---------- the same top bar as the canvas ----------
+  // James: 'we probs need the admin toolbar when editing and publishing
+  // posts'. Publish lived in the floating chip here and in the bar's corner
+  // everywhere else: one place to publish, one way out, in every room. The
+  // chip keeps what is the writer's own (the count, saved, categories)
+  (function () {
+    var ab = document.getElementById('wpadminbar');
+    if (!ab) return;
+    document.body.classList.add('gogh-w-hasbar');
+    if (cfg.adminColor) document.documentElement.style.setProperty('--gogh-publish', cfg.adminColor);
+    var acct = document.getElementById('wp-admin-bar-my-account');
+    var right = document.getElementById('wp-admin-bar-top-secondary');
+    var li = document.createElement('li');
+    li.id = 'wp-admin-bar-gogh-publish';
+    li.innerHTML = '<div class="gogh-w-barchip"><span class="gogh-w-bardot"></span><span class="gogh-w-bartxt"></span>' +
+      '<button type="button" class="gogh-w-barpub"></button></div>';
+    if (acct && acct.parentNode) acct.parentNode.insertBefore(li, acct.nextSibling);
+    else if (right) right.appendChild(li);
+    var txt = li.querySelector('.gogh-w-bartxt'), pub = li.querySelector('.gogh-w-barpub');
+    barSay = function () {
+      var draft = statusWord !== 'Published';
+      txt.textContent = draft ? 'Draft \u00b7 not live yet' : 'Live';
+      li.classList.toggle('is-draft', draft);
+      li.title = draft ? 'This post is a draft: readers can\u2019t see it yet. Your words save as you type.' : 'This post is live. Your changes save as you type; Update makes sure the latest is out.';
+      if (!pub.disabled && !pub.onclick) pub.textContent = draft ? 'Publish' : 'Update';
+    };
+    barSay();
+    pub.addEventListener('click', function () { if (!pub.onclick) doPublish(pub); });
+    // every way out of the room saves first: the site's name goes home,
+    // View post goes to the post
+    var siteA = document.querySelector('#wp-admin-bar-site-name > a');
+    if (siteA) { siteA.href = cfg.homeUrl || '/'; siteA.removeAttribute('title'); siteA.addEventListener('click', leaveGuard); }
+    var viewA = document.querySelector('#wp-admin-bar-gogh-edit > a');
+    if (viewA) viewA.addEventListener('click', leaveGuard);
+    // the calm stays: typing fades the bar to a whisper, a moved mouse or
+    // a pause brings it back
+    var calmT = 0;
+    var wake = function () { clearTimeout(calmT); document.body.classList.remove('gogh-w-typing'); };
+    body.addEventListener('input', function () {
+      document.body.classList.add('gogh-w-typing');
+      clearTimeout(calmT);
+      calmT = setTimeout(wake, 2500);
+    });
+    if (title) title.addEventListener('input', function () { document.body.classList.add('gogh-w-typing'); clearTimeout(calmT); calmT = setTimeout(wake, 2500); });
+    document.addEventListener('mousemove', function () { if (document.body.classList.contains('gogh-w-typing')) wake(); });
+  })();
   // ---------- the cover chooses its photo ----------
   // ("we need to be able to set a background image for the cover post
   // type") — when the post wears Cover, a quiet glass chip sits on the
