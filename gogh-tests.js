@@ -9724,6 +9724,41 @@
       pnl.querySelector('.gogh-brandcancel').click();
     });
 
+    testAsync('the brand form\u2019s picture door: a picture\u2019s strongest colour becomes the brand', function () {
+      var draw = function (parts) {
+        var c = document.createElement('canvas'); c.width = c.height = 100;
+        var x = c.getContext('2d');
+        parts.forEach(function (pt) { x.fillStyle = pt[0]; x.fillRect(pt[1], pt[2], pt[3], pt[4]); });
+        return c.toDataURL('image/png');
+      };
+      var hue = function (hex) {
+        var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+        var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        if (mx === mn) return -1;
+        var h = mx === r ? ((g - b) / (mx - mn) + 6) % 6 : mx === g ? (b - r) / (mx - mn) + 2 : (r - g) / (mx - mn) + 4;
+        return Math.round(h * 60);
+      };
+      var read = function (src) { return new Promise(function (res) { G.photoColours(src, res); }); };
+      // mostly grey wall, a big orange door, a small blue window
+      var street = draw([['#8a8a8a', 0, 0, 100, 100], ['#e06a10', 0, 0, 60, 70], ['#1f5fb8', 70, 10, 25, 25]]);
+      var fog = draw([['#8a8a8a', 0, 0, 100, 100], ['#f4f4f4', 0, 0, 100, 40]]);
+      return Promise.all([read(street), read(fog), read('data:image/png;base64,AAAA')]).then(function (got) {
+        var a = got[0];
+        expect(a && hue(a.accent) >= 15 && hue(a.accent) <= 40, 'the orange door should be the main colour: ' + JSON.stringify(a));
+        expect(a.accent2 && hue(a.accent2) >= 200 && hue(a.accent2) <= 230, 'the blue window should be the second colour: ' + JSON.stringify(a));
+        expect(got[1] === null, 'a picture with no colour in it has no brand colour to give: ' + JSON.stringify(got[1]));
+        expect(got[2] === null, 'a picture that cannot be read gives nothing, quietly');
+        // the door is in the form when the page has pictures, and stays out when it has none
+        var pics = G.pagePictures(6);
+        G.openBrandForm();
+        var pnl = q('.gogh-panel'), thumbs = pnl.querySelectorAll('.gogh-brandpic').length;
+        var doors = !!pnl.querySelector('.gogh-brandguide') && !!pnl.querySelector('.gogh-brandonepick');
+        pnl.querySelector('.gogh-brandcancel').click();
+        expect(thumbs === pics.length && doors, 'the form should offer each of the page\u2019s pictures, beside its other doors: ' + thumbs + ' of ' + pics.length);
+        return 'orange leads, blue follows, grey gives nothing; ' + thumbs + ' picture(s) offered';
+      });
+    });
+
     test('the brand is the lock: a set brand rides every roll, and the rest still rolls', function () {
       var b = G.brand();
       if (!(b && b.colors && b.colors.background && b.colors.text)) return 'no brand set on this site \u2014 nothing to pin';

@@ -22530,6 +22530,70 @@
   // given: any of { accent, background, text, accent2 } (hex) and fonts; the
   // rest is derived. opts.dark asks for a dark page; a given background
   // decides the polarity itself.
+  // ---------- colours from a picture ----------
+  // The brand form's third door (logged in the panel study as 'use my logo'):
+  // a person who has no brand colour usually has a PICTURE that is the brand.
+  // The picture's strongest colour becomes the main colour and gogh derives
+  // the rest exactly as it does for a picked colour, so every promise the
+  // form already makes (readable words, Remix keeps it) still holds.
+  // done({ accent, accent2 }) in hex, accent2 null when the picture has one
+  // colour family; done(null) when the pixels cannot be read (a picture on
+  // another site that does not allow it) or nothing in it is coloured.
+  function photoColours(src, done) {
+    var im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.onload = function () {
+      try {
+        var N = 40, c = document.createElement('canvas');
+        c.width = c.height = N;
+        var x = c.getContext('2d');
+        x.drawImage(im, 0, 0, N, N);
+        var d = x.getImageData(0, 0, N, N).data;
+        var bins = [], i;
+        for (i = 0; i < 12; i++) bins.push({ w: 0, r: 0, g: 0, b: 0, n: 0 });
+        for (i = 0; i < d.length; i += 4) {
+          var r = d[i], g = d[i + 1], b = d[i + 2];
+          if (d[i + 3] < 128) continue; // a logo's see-through ground is not a colour
+          var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+          var l = (0.299 * r + 0.587 * g + 0.114 * b) / 255, sat = mx ? (mx - mn) / mx : 0;
+          if (sat < 0.25 || l < 0.15 || l > 0.92) continue; // greys, near-black and near-white carry no hue
+          var hh = mx === r ? ((g - b) / (mx - mn) + 6) % 6 : mx === g ? (b - r) / (mx - mn) + 2 : (r - g) / (mx - mn) + 4;
+          var bin = bins[Math.floor(hh * 2) % 12];
+          // the family's colour leans to its vivid pixels: a plain average of a
+          // wheat field is mud, and nobody's brand is mud
+          var wgt = sat * sat;
+          bin.w += wgt; bin.r += r * wgt; bin.g += g * wgt; bin.b += b * wgt; bin.n++;
+        }
+        var order = bins.map(function (_, k) { return k; }).sort(function (a, b2) { return bins[b2].w - bins[a].w; });
+        var hexOf = function (bn) {
+          return '#' + [bn.r, bn.g, bn.b].map(function (v) { return ('0' + Math.round(v / bn.w).toString(16)).slice(-2); }).join('');
+        };
+        var first = bins[order[0]];
+        // a few stray pixels are not the picture's colour
+        if (!first.n || first.n < N * N * 0.01) { done(null); return; }
+        var second = null;
+        for (i = 1; i < 12 && !second; i++) {
+          var gap = Math.abs(order[i] - order[0]);
+          gap = Math.min(gap, 12 - gap);
+          if (gap >= 3 && bins[order[i]].n >= N * N * 0.02) second = bins[order[i]];
+        }
+        done({ accent: hexOf(first), accent2: second ? hexOf(second) : null });
+      } catch (err) { done(null); }
+    };
+    im.onerror = function () { done(null); };
+    im.src = src;
+  }
+  // the pictures this page already shows, in reading order, each once
+  function pagePictures(max) {
+    var out = [], seen = {};
+    var add = function (src) { if (src && !seen[src] && out.length < (max || 6)) { seen[src] = true; out.push(src); } };
+    S.forEach(function (sec) {
+      if (!sec || sec.chrome) return;
+      add(sec.bgImage);
+      diceFlatten(sec.els || []).forEach(function (e) { if (e.type === 'image') add(e.src); });
+    });
+    return out;
+  }
   function deriveBrand(given, opts) {
     given = given || {};
     opts = opts || {};
@@ -22679,12 +22743,17 @@
       ['accent2', 'Badges', 'Badges and extra highlights'],
     ];
     var cat = fontCatalogue();
+    var pics = pagePictures(6);
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Your brand</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back">✕</button></div>' +
       '<div class="gogh-panel-hint">Give gogh the one colour that’s yours — or paste your brand guidelines and it reads everything in them. Either way it builds the rest, and Remix keeps it through every roll.</div>' +
       '<div class="gogh-branddoor gogh-branddoor-one"><span class="gogh-branddoor-lab">Your brand colour</span>' +
       '<label class="gogh-brandone"><input type="color" class="gogh-brandonepick" value="' + escAttr(local.colors.accent || '#2f5d8a') + '" /><span class="gogh-brandone-say">' + (had ? 'Change it and gogh updates everything else to match' : 'Pick the colour that’s yours. gogh uses it for buttons and links and chooses the rest to match') + '</span></label></div>' +
+      (pics.length ? '<div class="gogh-branddoor gogh-branddoor-pic"><span class="gogh-branddoor-lab">Or take it from a picture on this page</span>' +
+        '<div class="gogh-brandpics">' + pics.map(function (src, k) {
+          return '<button type="button" class="gogh-brandpic" data-k="' + k + '" title="Take the colours from this picture" aria-label="Take the colours from picture ' + (k + 1) + '" style="background-image:url(&quot;' + escAttr(src) + '&quot;)"></button>';
+        }).join('') + '</div><div class="gogh-brandpic-say" role="status"></div></div>' : '') +
       '<div class="gogh-branddoor"><span class="gogh-branddoor-lab">Or paste your brand guidelines</span>' +
       '<textarea class="gogh-input gogh-brandguide" rows="3" placeholder="Anything with colour codes in it — a style guide, a designer’s email, a page an AI wrote. gogh reads the colours by their roles, and the fonts by name."></textarea></div>' +
       '<div class="gogh-brandresult" hidden>' +
@@ -22824,6 +22893,30 @@
       given.accent = this.value; // only the main colour moves; a pasted guideline keeps its other roles
       if (given.placed) given.placed.accent = 'read';
       rederive();
+    });
+    // door: a picture on the page. Its strongest colour is the main colour,
+    // a second colour family (when the picture has one) is the badges'
+    var picGave2 = false;
+    panel.querySelectorAll('.gogh-brandpic').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var say = panel.querySelector('.gogh-brandpic-say');
+        photoColours(pics[+b.dataset.k], function (got) {
+          if (!panel.contains(b)) return; // the form was closed while the picture loaded
+          if (!got) {
+            say.textContent = 'gogh could not read the colours in that picture. Try another, or pick your colour above.';
+            return;
+          }
+          panel.querySelectorAll('.gogh-brandpic').forEach(function (o) { o.classList.toggle('is-on', o === b); });
+          given.accent = got.accent;
+          if (got.accent2) { given.accent2 = got.accent2; picGave2 = true; }
+          else if (picGave2) { delete given.accent2; picGave2 = false; }
+          if (given.placed) { given.placed.accent = 'read'; if (got.accent2) given.placed.accent2 = 'read'; }
+          panel.querySelector('.gogh-brandonepick').value = got.accent;
+          panel.querySelector('.gogh-brandone-say').textContent = 'Taken from your picture. Change it and gogh updates everything else to match';
+          say.textContent = '';
+          rederive();
+        });
+      });
     });
     // the one fork: a light page or a dark one
     panel.querySelectorAll('.gogh-brandpolbtn').forEach(function (b) {
@@ -24703,7 +24796,7 @@
     cssColorToHex: cssColorToHex,
     effectiveBgHex: effectiveBgHex,
     markSwatchLegibility: markSwatchLegibility,
-    openBrandForm: openBrandForm,
+    openBrandForm: openBrandForm, photoColours: photoColours, pagePictures: pagePictures,
     openMenuManager: openMenuManager,
     measureTextHeights: measureTextHeights,
   };
