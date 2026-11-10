@@ -5270,3 +5270,30 @@ html.gogh-editing .gogh-cs-link a, html.gogh-editing .gogh-cs-btns .wp-block-but
 .gogh-remixwearing-clock { display: block; font-size: 11px; line-height: 1.4; opacity: .6; margin-top: 3px; }
 .gogh-remixwearing-clock:empty { display: none; }
 .gogh-panel-back.is-close::after, html[data-gogh-scope="site"] .gogh-panel-back.is-close::after { content: "Close"; }
+
+/* ---------- squint: hold S to blur the page and see what stands out ---------- */
+html.gogh-editing .wp-site-blocks { transition: filter 0.16s ease; }
+html.gogh-squint .wp-site-blocks { filter: blur(clamp(5px, 0.6vw, 10px)); }
+html.gogh-squint .gogh-selbox,
+html.gogh-squint .gogh-elbar,
+html.gogh-squint .gogh-secbar,
+html.gogh-squint .gogh-hbar,
+html.gogh-squint .gogh-guide,
+html.gogh-squint .gogh-dist { visibility: hidden; }
+.gogh-squintsay {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 99999;
+  background: #1d2327;
+  color: #f0f0f1;
+  font: 600 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 9px 16px;
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+}
+.gogh-squintsay[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { html.gogh-editing .wp-site-blocks { transition: none; } }

@@ -15995,6 +15995,7 @@
       { label: 'Shape', act: 'shapes' },
       { label: 'Form', kind: 'form' },
       { label: 'Write', kind: 'write' },
+      { label: 'Squint \u00b7 see what stands out', act: 'squint' },
     ];
     if (cfg.canExp) items.push({ label: 'Experience', kind: 'exp' });
     if (cfg.hasWoo) items.push({ label: 'Products grid', kind: 'products' });
@@ -16032,6 +16033,7 @@
   function runCmd(it) {
     closeCmd();
     if (it.act === 'shapes') return openShapeInsertPanel();
+    if (it.act === 'squint') return squint(true, 1800);
     if (it.kind) addElementAtViewport(it.kind);
     else addSection(TEMPLATES[it.tpl], S.indexOf(viewportSection()) + 1);
   }
@@ -24619,6 +24621,7 @@
     duplicateSection: duplicateSection,
     rollSection: rollSection,
     rollGlide: rollGlide, glideSnap: glideSnap, glideFrom: glideFrom,
+    squint: squint,
     diceFaces: diceFaces,
     composeShop: composeShop,
     composePosts: composePosts,
@@ -24740,6 +24743,30 @@
   }
   document.dispatchEvent(new CustomEvent('gogh:ready'));
 
+  // ---------- squint ----------
+  // A designer's oldest habit: blur your eyes and see what is left. Whatever
+  // still stands out is what a visitor sees first. Hold S and the page blurs,
+  // the editor's own furniture steps back, and a line says what to look for;
+  // let go and it is as it was. Nothing on the page changes, so there is
+  // nothing to undo. No button: the bar stays clean, and / offers it by name.
+  var squintSay = document.createElement('div');
+  squintSay.className = 'gogh-squintsay';
+  squintSay.setAttribute('role', 'status');
+  squintSay.textContent = 'Squinting. What stands out first? (Hold S any time.)';
+  squintSay.hidden = true;
+  document.body.appendChild(squintSay);
+  var squintT = null;
+  function squint(on, ms) {
+    clearTimeout(squintT);
+    on = !!on && editing;
+    document.documentElement.classList.toggle('gogh-squint', on);
+    squintSay.hidden = !on;
+    if (on && ms) squintT = setTimeout(function () { squint(false); }, ms);
+    return on;
+  }
+  window.addEventListener('keyup', function (ev) { if (ev.key && ev.key.toLowerCase() === 's') squint(false); });
+  window.addEventListener('blur', function () { squint(false); });
+
   // ---------- keyboard ----------
   window.addEventListener('keydown', function (ev) {
     if (ev.key === 'Escape' && panelOpen) {
@@ -24762,6 +24789,11 @@
     if (ev.key === '/' && !typing && cmd.hidden) {
       ev.preventDefault();
       openCmd();
+      return;
+    }
+    if (!typing && cmd.hidden && !ev.metaKey && !ev.ctrlKey && !ev.altKey && ev.key && ev.key.toLowerCase() === 's') {
+      ev.preventDefault();
+      if (!ev.repeat) squint(true);
       return;
     }
     if (ev.key === 'Escape' && textEditing) {

@@ -7243,6 +7243,39 @@
       return 'heading travels, text stays, new button fades in';
     });
 
+    test('squint: holding S blurs the page and letting go puts it back; typing an s never squints', function () {
+      var html = document.documentElement, say = q('.gogh-squintsay'), page = q('.wp-site-blocks');
+      var key = function (type, target) { (target || document).dispatchEvent(new KeyboardEvent(type, { key: 's', bubbles: true, cancelable: true })); };
+      // an earlier test may have left a panel open or a field focused: both rightly stop a squint
+      G.closePanel();
+      if (document.activeElement && document.activeElement !== document.body && document.activeElement.blur) document.activeElement.blur();
+      var why = JSON.stringify({ active: document.activeElement && document.activeElement.tagName, cmd: (q('.gogh-cmd') || {}).hidden, picker: (q('.gogh-picker') || {}).hidden });
+      expect(say && say.hidden && !html.classList.contains('gogh-squint'), 'the page should start clear');
+      key('keydown');
+      var on = html.classList.contains('gogh-squint'), blurred = /blur/.test(getComputedStyle(page).filter), told = !say.hidden;
+      key('keyup');
+      var off = !html.classList.contains('gogh-squint') && say.hidden;
+      expect(on && blurred && told, 'holding S should blur the page and say so: ' + JSON.stringify([on, blurred, told]) + ' ' + why);
+      expect(off, 'letting go should put the page back');
+      // someone typing an s into a field is typing, not squinting
+      var inp = document.createElement('input');
+      document.body.appendChild(inp); inp.focus();
+      key('keydown', inp);
+      var typed = html.classList.contains('gogh-squint');
+      key('keyup', inp); inp.remove();
+      expect(!typed, 'an s typed into a field must not squint');
+      // S with a modifier is somebody else's shortcut, never a squint (Alt here:
+      // Cmd+S would really publish the fixture page, and did, breaking later tests)
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 's', altKey: true, bubbles: true, cancelable: true }));
+      var withMod = html.classList.contains('gogh-squint');
+      G.squint(false);
+      expect(!withMod, 'S with a modifier must not squint');
+      // the / menu offers it by name, for a moment
+      expect(G.squint(true, 5000) === true && html.classList.contains('gogh-squint'), 'the menu\u2019s squint should blur the page');
+      G.squint(false);
+      return 'S blurs and clears; fields and modified keys are left alone';
+    });
+
     test('a card colour pick re-judges its words, and any colour is one well away', function () {
       // James made a card, chose black, and the words stayed black
       var probe = function (slug) {
