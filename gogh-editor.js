@@ -5263,8 +5263,7 @@
   // the piece is set down, not switched: a small settle after the drop's
   // measuring is done (a transform, so no box or model number moves)
   function softLand(node) {
-    if (!node || !node.animate) return;
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!node || !node.animate || calmMotion()) return;
     requestAnimationFrame(function () {
       try {
         node.animate([{ transform: 'scale(1.02)' }, { transform: 'scale(1)' }],
@@ -14175,6 +14174,55 @@
     return { face: next, of: faces.length, take: t2.take || null };
   }
 
+  // ---------- the glide: a roll re-lays the pieces, it does not swap them ----------
+  // The die used to switch the section in one frame, so the eye lost every
+  // piece and had to find it again. Now each piece that continues into the
+  // next take travels there from where it was, and a piece the take adds
+  // fades in. Only where things SIT is animated (the `translate` property,
+  // so a turned piece still travels straight): sizes land at once, and it
+  // is over in 200ms, before the settle's first later pass measures anything.
+  function calmMotion() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function glideSnap(sec) {
+    var at = {};
+    if (!sec || !sec.sectionEl) return at;
+    diceEnsureIds(sec.els);
+    var sr = sec.sectionEl.getBoundingClientRect();
+    sec.els.forEach(function (e, i) {
+      var n = sec.nodes[i];
+      if (!n) return;
+      var r = n.getBoundingClientRect();
+      at[e.id] = { x: r.left - sr.left, y: r.top - sr.top };
+    });
+    return at;
+  }
+  function glideFrom(sec, before) {
+    if (!sec || !before || calmMotion()) return 0;
+    var sr = sec.sectionEl.getBoundingClientRect(), moved = 0;
+    sec.els.forEach(function (e, i) {
+      var n = sec.nodes[i];
+      if (!n || !n.animate) return;
+      var a = before[e.id];
+      try {
+        if (!a) { n.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' }); moved++; return; }
+        var r = n.getBoundingClientRect();
+        var dx = a.x - (r.left - sr.left), dy = a.y - (r.top - sr.top);
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+        n.animate([{ translate: dx + 'px ' + dy + 'px' }, { translate: '0px 0px' }],
+          { duration: 200, easing: 'cubic-bezier(.2,.8,.3,1)' });
+        moved++;
+      } catch (err) {}
+    });
+    return moved;
+  }
+  // the die on the page: the same roll, seen as one movement
+  function rollGlide(idx) {
+    var sec = S[idx];
+    var before = sec ? glideSnap(sec) : null;
+    var rolled = rollSection(idx);
+    if (rolled) glideFrom(S[idx], before);
+    return rolled;
+  }
+
   // ---------- the Layouts panel ----------
   // Every take of a section side by side, each drawn with the section's OWN
   // words and pictures (James: 'build the layouts panel', from the Section
@@ -16358,7 +16406,7 @@
     if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
     if (b.dataset.sec === 'layouts') { openLayoutsPanel(secBarIdx); return; }
     if (b.dataset.sec === 'dice') {
-      var rolled = rollSection(secBarIdx);
+      var rolled = rollGlide(secBarIdx);
       if (rolled) {
         b.classList.remove('is-rolling');
         void b.offsetWidth;
@@ -24570,6 +24618,7 @@
     moveSection: moveSection,
     duplicateSection: duplicateSection,
     rollSection: rollSection,
+    rollGlide: rollGlide, glideSnap: glideSnap, glideFrom: glideFrom,
     diceFaces: diceFaces,
     composeShop: composeShop,
     composePosts: composePosts,

@@ -7218,6 +7218,31 @@
       return 'heading, picture and card are named; margin and centre keep their names';
     });
 
+    test('a roll glides: pieces that continue travel, a new piece fades in, nothing else moves', function () {
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      G.addSection({ name: 'Glide', minH: 420, els: [
+        { type: 'heading', x: 100, y: 80, w: 500, h: 60, text: 'Travels' },
+        { type: 'para', x: 100, y: 180, w: 500, h: 60, text: 'Stays' },
+      ] }, 0);
+      var s0 = contentSecs()[0];
+      var before = G.glideSnap(s0);
+      expect(Object.keys(before).length === 2 && s0.els.every(function (e) { return !!e.id && !!before[e.id]; }), 'every piece should be found by its id: ' + JSON.stringify(before));
+      var head = s0.els[0];
+      head.x = 500; head.y = 240;
+      s0.els.push({ type: 'button', x: 100, y: 300, w: 160, h: 48, text: 'New here' });
+      G.renderSection(s0);
+      var moved = G.glideFrom(s0, before);
+      var anims = s0.nodes.map(function (n) { return n.getAnimations().map(function (a) { var k = a.effect.getKeyframes()[0]; return k.translate ? 'travel' : (k.opacity === '0' ? 'fade' : '?'); }).join(','); });
+      // the model and the box it draws are untouched: only the eye's path is animated
+      var rested = s0.nodes[0].offsetLeft > 0 && head.x === 500 && head.y === 240;
+      s0.nodes.forEach(function (n) { n.getAnimations().forEach(function (a) { a.cancel(); }); });
+      G.deleteSection(G.sections().indexOf(s0));
+      if (reduced) { expect(moved === 0, 'reduced motion asks for no glide'); return 'reduced motion: the roll lands at once'; }
+      expect(moved === 2 && anims[0] === 'travel' && anims[1] === '' && anims[2] === 'fade', 'the heading should travel, the text stay, the button fade in: ' + JSON.stringify([moved, anims]));
+      expect(rested, 'the model keeps the landing spot while the piece travels');
+      return 'heading travels, text stays, new button fades in';
+    });
+
     test('a card colour pick re-judges its words, and any colour is one well away', function () {
       // James made a card, chose black, and the words stayed black
       var probe = function (slug) {
