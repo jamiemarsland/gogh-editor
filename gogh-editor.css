@@ -1175,7 +1175,11 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   background: #4a63d8;
   padding: 3px 7px;
   border-radius: 7px;
+  white-space: nowrap;
 }
+.gogh-guide-v::after { top: var(--gogh-tag-top, 8px); }
+/* a line near the right edge wears its name on the left, inside the page */
+.gogh-guide-v.gogh-guide-flip::after { left: auto; right: 6px; }
 .gogh-guide[data-tag=""]::after, .gogh-guide:not([data-tag])::after { content: none; }
 .gogh-guide-h::after { top: 6px; left: 10px; }
 .gogh-guide-v { width: 1px; }

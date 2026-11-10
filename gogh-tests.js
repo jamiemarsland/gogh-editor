@@ -7185,6 +7185,39 @@
       });
     });
 
+    test('a guide that catches a neighbour says which one; the page keeps its own names', function () {
+      // snapPos is pure: a made-up section, so no other magnet can crowd the answer
+      var fake = { minH: 600, els: [
+        { type: 'heading', x: 200, y: 100, w: 400, h: 80 },
+        { type: 'image', x: 700, y: 310, w: 300, h: 200 },
+        { type: 'box', x: 80, y: 420, w: 200, h: 100, kids: [{ type: 'para' }] },
+      ] };
+      var mover = { type: 'para', x: 0, y: 0, w: 260, h: 40 };
+      var edge = G.snapPos(fake, mover, 203, 250, 260, 40, false);
+      expect(edge.x === 200 && edge.tx === 'in line with the heading', 'a left edge 3 off the heading should land on it and say so: ' + JSON.stringify([edge.x, edge.tx]));
+      var mid = G.snapPos(fake, mover, 722, 250, 260, 40, false);
+      expect(mid.x === 720 && mid.tx === 'centred on the picture', 'its middle on the picture\u2019s middle should say centred on the picture: ' + JSON.stringify([mid.x, mid.tx]));
+      var row = G.snapPos(fake, mover, 420, 308, 260, 40, false);
+      expect(row.y === 310 && row.ty === 'in line with the picture', 'a top 2 off the picture\u2019s top should say so: ' + JSON.stringify([row.y, row.ty]));
+      // the card sits ON the margin: the margin keeps its name, the card adds none
+      var marg = G.snapPos(fake, mover, 82, 250, 260, 40, false);
+      expect(marg.x === 80 && marg.tx === null, 'the margin is the page\u2019s line, never the card\u2019s: ' + JSON.stringify([marg.x, marg.tx]));
+      var centre = G.snapPos(fake, mover, 471, 250, 260, 40, false);
+      expect(centre.x === 470 && centre.tx === null, 'the page centre keeps its own name: ' + JSON.stringify([centre.x, centre.tx]));
+      // and the line wears the words; near the right edge it wears them on the inside
+      var s0 = sec();
+      G.showGuides(s0, 200, null, edge.tx, null);
+      var gv = q('.gogh-guide-v');
+      var said = gv.dataset.tag, flipL = gv.classList.contains('gogh-guide-flip');
+      G.showGuides(s0, 1000, null, edge.tx, null);
+      var flipR = gv.classList.contains('gogh-guide-flip');
+      G.showGuides(s0, 80, null, marg.tx, null);
+      var margin = gv.dataset.tag;
+      G.hideGuides();
+      expect(said === 'in line with the heading' && !flipL && flipR && margin === 'margin', 'the guide should wear the name, flip near the right edge, and still say margin: ' + JSON.stringify([said, flipL, flipR, margin]));
+      return 'heading, picture and card are named; margin and centre keep their names';
+    });
+
     test('a card colour pick re-judges its words, and any colour is one well away', function () {
       // James made a card, chose black, and the words stayed black
       var probe = function (slug) {

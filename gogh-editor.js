@@ -5238,6 +5238,40 @@
     elbar.hidden = false;
   }
 
+  // a guide that caught a NEIGHBOUR says which one, in plain words: the
+  // snap reads as meant, and the words of layout arrive without a lesson
+  function guideWord(o) {
+    return { heading: 'heading', para: 'text', button: 'button', image: 'picture', video: 'video', badge: 'badge',
+      icon: 'icon', rule: 'line', embed: 'embed', box: o.kids && o.kids.length ? 'card' : 'shape' }[o.type] || 'piece';
+  }
+  // the page's own lines (edges, centre, margin) keep their names: a
+  // neighbour that happens to sit on one never renames it
+  function guideNames(tagX, tagY, o, pageX, pageY) {
+    var nm = guideWord(o);
+    var put = function (map, v, words, page) {
+      if (v in map) return;
+      for (var q = 0; q < page.length; q++) if (Math.round(page[q]) === Math.round(v)) return;
+      map[v] = words;
+    };
+    put(tagX, o.x, 'in line with the ' + nm, pageX);
+    put(tagX, o.x + o.w, 'in line with the ' + nm, pageX);
+    put(tagX, o.x + o.w / 2, 'centred on the ' + nm, pageX);
+    put(tagY, o.y, 'in line with the ' + nm, pageY);
+    put(tagY, o.y + o.h, 'in line with the ' + nm, pageY);
+    put(tagY, o.y + o.h / 2, 'centred on the ' + nm, pageY);
+  }
+  // the piece is set down, not switched: a small settle after the drop's
+  // measuring is done (a transform, so no box or model number moves)
+  function softLand(node) {
+    if (!node || !node.animate) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    requestAnimationFrame(function () {
+      try {
+        node.animate([{ transform: 'scale(1.02)' }, { transform: 'scale(1)' }],
+          { duration: 180, easing: 'cubic-bezier(.2,.8,.3,1)', composite: 'add' });
+      } catch (err) {}
+    });
+  }
   function showGuides(sec, gx, gy, tagX, tagY) {
     var r = sec.sectionEl.getBoundingClientRect();
     var s = r.width / W;
@@ -5249,6 +5283,10 @@
       // the centre earns a name: pink says aligned, the tag says WHERE
       guideV.dataset.tag = tagX || (Math.round(gx) === Math.round(W / 2) ? 'centre'
         : (Math.round(gx) === MARGIN || Math.round(gx) === W - MARGIN) ? 'margin' : '');
+      guideV.classList.toggle('gogh-guide-flip', gx > W * 0.7);
+      // the name stays in sight: in a tall section scrolled past its top, the
+      // chip rides just under the bar instead of sitting off-screen
+      guideV.style.setProperty('--gogh-tag-top', Math.max(8, 60 - r.top) + 'px');
       guideV.hidden = false;
     } else guideV.hidden = true;
     if (gy !== null) {
@@ -19422,7 +19460,7 @@
         var d = Math.abs(t[0] - t[1]);
         if (d <= SNAP && (!gBest || d < gBest.d)) gBest = { d: d, v: t[0], edge: t[1] };
       });
-      if (gBest) { e.x = Math.round(e.x + (gBest.v - gBest.edge)); sn.gx = gBest.v; }
+      if (gBest) { e.x = Math.round(e.x + (gBest.v - gBest.edge)); sn.gx = gBest.v; sn.tx = null; }
     }
     drag.gxCap = sn.gx !== null;
     drag.gyCap = sn.gy !== null;
@@ -19503,7 +19541,7 @@
         // the drag can end, or the page be rebuilt, before this frame comes
         if (!drag || drag.sec !== sec || !sec.els[drag.i]) return;
         resolveAndApply(sec);
-        showGuides(sec, sn.gx, sn.gy);
+        showGuides(sec, sn.gx, sn.gy, sn.tx, sn.ty);
         // the numbers are power-user furniture: distance rulers and their
         // badges appear while Alt is held, never by default. A plain drag
         // says one thing — the solid ghost and the landing box (James's
@@ -19733,6 +19771,8 @@
       }
     }
     if (multiD) { sel = null; } else { placeHandles(sec, i); }
+    softLand(sec.nodes[i]);
+    if (multiD) multiD.forEach(function (mm) { softLand(sec.nodes[mm.j]); });
     pushState();
     if (zoomState) layoutZoom(); // a taller/shorter section shifts the birds-eye — re-fit the scroll cap
   }
@@ -23591,13 +23631,15 @@
     return drag.multi.some(function (mm) { return els[mm.j] === o; });
   }
   function snapPos(sec, exclude, x, y, w, h, free, textCXOff) {
-    if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
+    if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null, tx: null, ty: null };
     var H = designH(sec.els, sec.minH);
     var candX = [0, W, W / 2, MARGIN, W - MARGIN], candY = [0, H, H / 2];
+    var tagX = {}, tagY = {}, pageX = candX.slice(), pageY = candY.slice();
     sec.els.forEach(function (o) {
       if (o === exclude || dragMate(o)) return;
       candX.push(o.x, o.x + o.w, o.x + o.w / 2);
       candY.push(o.y, o.y + o.h, o.y + o.h / 2);
+      guideNames(tagX, tagY, o, pageX, pageY);
     });
     function best(edges, cands) {
       var d = SNAP + 1, snap = null, guide = null;
@@ -23649,6 +23691,8 @@
       y: sy ? Math.round(sy.v) : (ggy !== null ? Math.round(ggy) : (gl ? Math.round(meshY(y)) : Math.round(y))),
       gx: sx ? sx.g : null,
       gy: sy ? sy.g : null,
+      tx: sx ? (tagX[sx.g] || null) : null,
+      ty: sy ? (tagY[sy.g] || null) : null,
     };
   }
 
