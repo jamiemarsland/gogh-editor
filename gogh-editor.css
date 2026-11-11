@@ -2594,10 +2594,10 @@ html.gogh-zoomed body { background: #dfe0e5 !important; }
 /* the birds-eye is a DESIGN surface, not an element editor: get every editing
    affordance out of the frame so folks see the DESIGN and arrange SECTIONS, not
    fiddle element by element (that's the zoomed-in edit mode) */
-html.gogh-zoomed .gogh-secbar,
+html.gogh-zoomed:not(.gogh-zoomwide) .gogh-secbar,
 html.gogh-zoomed .gogh-elbar,
 html.gogh-zoomed .gogh-hbar,
-html.gogh-zoomed .gogh-inserter,
+html.gogh-zoomed:not(.gogh-zoomwide) .gogh-inserter,
 html.gogh-zoomed .gogh-chip-float,
 html.gogh-zoomed .gogh-convertbtn,
 html.gogh-zoomed .gogh-chromebtn,
@@ -5310,3 +5310,38 @@ html.gogh-squint .gogh-dist { visibility: hidden; }
 .gogh-brandpic:focus-visible { outline: 2px solid #4a63d8; outline-offset: 2px; }
 .gogh-brandpic-say { font: 12.5px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; opacity: 0.75; margin-top: 5px; }
 .gogh-brandpic-say:empty { display: none; }
+
+/* ---------- zoomed out on its own (.gogh-zoomwide) ----------
+   the page at half size with no sidebar, edited by the section */
+.gogh-widesay {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  background: #1d2327;
+  color: #f0f0f1;
+  font: 600 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 9px 16px;
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+}
+.gogh-widesay[hidden] { display: none; }
+html.gogh-zoomwide .gogh-section { cursor: grab; }
+html.gogh-zoomwide .gogh-section * { cursor: inherit !important; }
+html.gogh-zoomwide.gogh-widedragging, html.gogh-zoomwide.gogh-widedragging * { cursor: grabbing !important; }
+/* the rings are drawn on the shrunken page: double them so they read */
+html.gogh-zoomwide.gogh-editing .gogh-section.gogh-hoversec:not(.gogh-selsec) { outline-width: 3px; outline-offset: -3px; }
+html.gogh-zoomwide.gogh-editing .gogh-section.gogh-selsec { outline-width: 4px; outline-offset: -4px; }
+html.gogh-zoomwide .gogh-wrap.gogh-widelift { opacity: 0.45; }
+.gogh-wideline {
+  position: fixed;
+  height: 4px;
+  border-radius: 2px;
+  background: #4a63d8;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  z-index: 99998;
+  pointer-events: none;
+}
+.gogh-wideline[hidden] { display: none; }

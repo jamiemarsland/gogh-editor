@@ -3204,7 +3204,7 @@
   var zoomSlider = document.createElement('div');
   zoomSlider.className = 'gogh-zoomslider';
   zoomSlider.hidden = true;
-  zoomSlider.title = 'Zoom — ⌥ scroll, or ⌥Z to toggle the design view'; // discover the shortcuts
+  zoomSlider.title = 'Zoom: pinch, Option-scroll, or Option-Z'; // discover the shortcuts
   zoomSlider.innerHTML =
     '<span class="gogh-zoomslider-val">100%</span>' +
     '<input type="range" min="20" max="100" step="1" value="100" aria-label="Zoom the page (Option-scroll, or Option-Z to toggle)">';
@@ -6053,6 +6053,7 @@
   function layoutZoom() {
     if (!zoomState) return;
     var wrap = zoomState.wrap;
+    var wide = syncWide(); // zoomed out on its own: no sidebar beside the page
     // phone preview pins the artboard to a phone's width so the page's own
     // mobile @container rules fire; desktop clears any pinned width
     if (deviceMode === 'phone') { if (wrap.style.width !== PHONE_W + 'px') wrap.style.width = PHONE_W + 'px'; }
@@ -6076,7 +6077,8 @@
     // auto-fit within the span; the slider can override it (0.15–1). The full
     // desktop page caps at 0.62 so it never overlaps the chrome, but a phone
     // artboard is already narrow — let it show near life-size (up to 1)
-    var maxFit = deviceMode === 'phone' ? 1 : 0.62;
+    // on its own the page pulls further back: half size shows two screens of it
+    var maxFit = deviceMode === 'phone' ? 1 : (wide ? 0.5 : 0.62);
     lastZoomAuto = Math.max(0.38, Math.min(maxFit, (span - pad * 2) / pageW));
     // the slider can pull OUT from the fit size but never past it — a bigger
     // scale would overlap the sidebar/slider, so auto-fit is the max zoom
@@ -6094,6 +6096,12 @@
     // real bottom, no sea of empty desk to wade through
     document.body.style.height = Math.round(originalH * s) + 'px';
     document.body.style.overflowY = 'hidden';
+    // on its own the slider names the real size (50%), not a share of a fit
+    if (wide) {
+      zoomSlider.querySelector('.gogh-zoomslider-val').textContent = Math.round(s * 100) + '%';
+      // the chosen section's bar follows its section as the page resizes
+      if (secBarIdx !== null && !secBar.hidden && S[secBarIdx]) showSecBar(secBarIdx);
+    }
     if (mSel) positionMtoolbar(); // keep the override toolbar pinned to its element
     if (menuFollow) menuOverlayPlace(); // the open menu keeps to the window
   }
@@ -6114,6 +6122,7 @@
     panel.style.left = z.pl || ''; panel.style.top = z.pt || '';
     panel.style.right = z.pr || ''; panel.style.bottom = z.pb || '';
     document.documentElement.classList.remove('gogh-zoomed');
+    zoomWide = false; syncWide();
     zoomSlider.hidden = true;
     zoomFrac = null;
     setTimeout(function () {
@@ -6149,8 +6158,17 @@
       (t.closest && t.closest('[contenteditable="true"], .gogh-panel, .gogh-side'))));
   }
   var wheelZoomGate = 0; // debounce the enter/exit transitions to one per gesture
+  // a trackpad pinch arrives as a wheel with ctrlKey set and no Control key
+  // down; Control + a real wheel stays the browser's own zoom
+  var ctrlDown = false;
+  window.addEventListener('keydown', function (ev) { if (ev.key === 'Control') ctrlDown = true; }, true);
+  window.addEventListener('keyup', function (ev) { if (ev.key === 'Control') ctrlDown = false; }, true);
+  window.addEventListener('blur', function () { ctrlDown = false; });
   window.addEventListener('wheel', function (ev) {
-    if (!editing || !ev.altKey || ev.metaKey || ev.ctrlKey) return;
+    var pinch = ev.ctrlKey && !ctrlDown && !ev.altKey && !ev.metaKey;
+    if (!editing || ev.metaKey || !(pinch || (ev.altKey && !ev.ctrlKey))) return;
+    // only a pinch that started on the page (or the desk around it) zooms it
+    if (pinch && !zoomState && cfg.writeUrl) return;
     if (zoomShortcutBlocked(ev.target)) return;
     ev.preventDefault(); // ⌥+wheel zooms; it must not also scroll the page
     var now = (window.performance && performance.now) ? performance.now() : (+new Date());
@@ -6159,12 +6177,12 @@
     if (zoomState) {
       var v = +zoomSlider.querySelector('input').value;
       if (zoomingIn && v >= 100) {
-        if (now - wheelZoomGate > 320) { wheelZoomGate = now; closeSide(true); } // back to full size
+        if (now - wheelZoomGate > 320) { wheelZoomGate = now; if (!zoomWideClose(ev.clientY)) closeSide(true); } // back to full size
       } else {
         setZoomPct(v + (zoomingIn ? step : -step));
       }
     } else if (!zoomingIn) {
-      if (now - wheelZoomGate > 320) { wheelZoomGate = now; openSide(); } // drop into the birds-eye
+      if (now - wheelZoomGate > 320) { wheelZoomGate = now; zoomWideOpen(); } // pull back to see the whole page
     }
   }, { passive: false });
   document.addEventListener('keydown', function (ev) {
@@ -6173,14 +6191,181 @@
     if (zoomShortcutBlocked(ev.target)) return;
     ev.preventDefault();
     if (deviceMode === 'phone') { closeSide(true); seeOnDesktop(); }
+    else if (zoomWideClose()) return;
     else if (side.classList.contains('is-open') || zoomState) closeSide(true);
-    else openSide();
+    else zoomWideOpen();
   });
+
+  // ---------- zoomed out on its own ----------
+  // James: 'i really like the ability to zoom out to see more of the design
+  // of a page'. The page pulls back with no sidebar beside it, and at this
+  // size it is edited by the SECTION: choose one (its own bar docks, full
+  // size), drag it to a new place, add one between two others. Pieces are
+  // too small to aim at here, so a press on one chooses its section, and a
+  // double-click grows the page back around that spot to work on it.
+  var zoomWide = false;
+  function wideOn() {
+    return !!(zoomWide && zoomState && !panelOpen && !side.classList.contains('is-open') && deviceMode !== 'phone');
+  }
+  var wideSay = document.createElement('div');
+  wideSay.className = 'gogh-widesay';
+  wideSay.setAttribute('role', 'status');
+  wideSay.textContent = 'Zoomed out. Drag a section to move it. Double-click to zoom back in.';
+  wideSay.hidden = true;
+  document.body.appendChild(wideSay);
+  var wideLine = document.createElement('div');
+  wideLine.className = 'gogh-wideline';
+  wideLine.hidden = true;
+  document.body.appendChild(wideLine);
+  var wideSayT = null;
+  function syncWide() {
+    var on = wideOn();
+    document.documentElement.classList.toggle('gogh-zoomwide', on);
+    if (!on && wideSay) { wideSay.hidden = true; wideDragEnd(false); }
+    return on;
+  }
+  function zoomWideOpen() {
+    if (!editing || cfg.writeUrl || zoomState || panelOpen || deviceMode === 'phone') return false;
+    var wrap = document.querySelector('.wp-site-blocks');
+    if (!wrap) return false;
+    if (textEditing) exitTextEdit();
+    sel = null; clearMulti(); hideHandles();
+    var sn = document.querySelector('.gogh-selected');
+    if (sn) sn.classList.remove('gogh-selected');
+    // the spot in the middle of the screen stays in the middle
+    var top = wrap.getBoundingClientRect().top + window.scrollY;
+    var mid = window.scrollY + window.innerHeight / 2 - top;
+    zoomWide = true;
+    zoomOutCanvas();
+    layoutZoom(); // the slider's label was reset to the fit: name the real size
+    var m = /scale\(([\d.]+)\)/.exec(wrap.style.transform);
+    var sc = m ? +m[1] : 0.5;
+    window.scrollTo(window.scrollX, Math.max(0, top + mid * sc - window.innerHeight / 2));
+    wideSay.style.top = (barBottom() + 14) + 'px';
+    wideSay.hidden = false;
+    clearTimeout(wideSayT);
+    wideSayT = setTimeout(function () { wideSay.hidden = true; }, 5000);
+    return true;
+  }
+  // back to full size, the page growing around cy (the middle of the screen
+  // when nobody pointed)
+  function zoomWideClose(cy) {
+    if (!wideOn()) return false;
+    deselectSection();
+    closeSideAt(cy == null ? window.innerHeight / 2 : cy, function () { zoomWide = false; unzoomCanvas(); });
+    return true;
+  }
+  function wideSecAt(t) {
+    var w = t && t.closest && t.closest('.gogh-wrap');
+    if (!w) return -1;
+    for (var i = 0; i < S.length; i++) if (S[i].wrapEl === w) return i;
+    return -1;
+  }
+  // where a dragged section would land: beside which other section, and on
+  // which side of it. null when that is where it already sits.
+  function wideDropAt(sec, cy) {
+    var list = S.filter(function (s2) { return !s2.chrome; });
+    var others = list.filter(function (s2) { return s2 !== sec; });
+    if (!others.length) return null;
+    var at = others.length; // past the last one
+    for (var i = 0; i < others.length; i++) {
+      var r = others[i].wrapEl.getBoundingClientRect();
+      if (cy < r.top + r.height / 2) { at = i; break; }
+    }
+    if (at === list.indexOf(sec)) return null; // its own seat
+    return at < others.length ? { ref: others[at], before: true } : { ref: others[others.length - 1], before: false };
+  }
+  var wideDrag = null, wideTap = null, wideScrollRaf = null;
+  function wideDragEnd(drop) {
+    var d = wideDrag;
+    wideDrag = null;
+    wideLine.hidden = true;
+    if (wideScrollRaf) { cancelAnimationFrame(wideScrollRaf); wideScrollRaf = null; }
+    document.documentElement.classList.remove('gogh-widedragging');
+    if (!d) return;
+    d.sec.wrapEl.classList.remove('gogh-widelift');
+    if (!d.on || !drop || !d.to) return;
+    if (d.to.before) d.to.ref.wrapEl.before(d.sec.wrapEl); else d.to.ref.wrapEl.after(d.sec.wrapEl);
+    resyncContentOrder(); // S follows the DOM; records the state for Undo
+    layoutZoom();
+    var moved = d.sec;
+    setTimeout(function () { var k = S.indexOf(moved); if (k !== -1 && wideOn()) selectSection(k); }, 80);
+  }
+  function wideDragMove(cy) {
+    var d = wideDrag;
+    if (!d || !d.on) return;
+    d.cy = cy;
+    d.to = wideDropAt(d.sec, cy);
+    if (!d.to) { wideLine.hidden = true; return; }
+    var r = d.to.ref.wrapEl.getBoundingClientRect();
+    wideLine.style.left = r.left + 'px';
+    wideLine.style.width = r.width + 'px';
+    wideLine.style.top = ((d.to.before ? r.top : r.bottom) - 2) + 'px';
+    wideLine.hidden = false;
+  }
+  document.addEventListener('pointerdown', function (ev) {
+    if (!editing || ev.button !== 0 || !wideOn()) return;
+    var t = ev.target, page = document.querySelector('.wp-site-blocks');
+    if (!t || !t.closest || !page) return;
+    var now = performance.now();
+    // the second press of a double-click may land on the section bar that
+    // the first press summoned under the hand: it still means 'zoom in here'
+    var twice = wideTap && now - wideTap.t < 400 && Math.abs(ev.clientX - wideTap.x) < 8 && Math.abs(ev.clientY - wideTap.y) < 8;
+    if (!page.contains(t) && !(twice && secBar.contains(t))) return; // bars, the slider and menus keep their own presses
+    ev.stopPropagation();
+    ev.preventDefault();
+    closeSecMore();
+    if (twice) {
+      wideTap = null;
+      zoomWideClose(ev.clientY); // a double-click: work on this spot at full size
+      return;
+    }
+    wideTap = { t: now, x: ev.clientX, y: ev.clientY };
+    var idx = wideSecAt(t);
+    if (idx === -1 || S[idx].chrome) { deselectSection(); return; }
+    selectSection(idx);
+    wideDrag = { sec: S[idx], x: ev.clientX, y: ev.clientY, cy: ev.clientY, on: false, to: null };
+  }, true);
+  window.addEventListener('pointermove', function (ev) {
+    var d = wideDrag;
+    if (!d) return;
+    if (!d.on) {
+      if (Math.abs(ev.clientX - d.x) + Math.abs(ev.clientY - d.y) < 7) return;
+      if (S.filter(function (s2) { return !s2.chrome; }).length < 2) { wideDrag = null; return; }
+      d.on = true;
+      wideTap = null;
+      hideSecBar();
+      d.sec.wrapEl.classList.add('gogh-widelift');
+      document.documentElement.classList.add('gogh-widedragging');
+      // held near the top or bottom edge, the page rolls under the hand
+      (function roll() {
+        if (!wideDrag || !wideDrag.on) return;
+        var y = wideDrag.cy, step = y < barBottom() + 60 ? -14 : (y > window.innerHeight - 70 ? 14 : 0);
+        if (step) { window.scrollBy(0, step); wideDragMove(y); }
+        wideScrollRaf = requestAnimationFrame(roll);
+      })();
+    }
+    ev.stopPropagation();
+    wideDragMove(ev.clientY);
+  }, true);
+  window.addEventListener('pointerup', function () { if (wideDrag) wideDragEnd(true); }, true);
+  window.addEventListener('pointercancel', function () { if (wideDrag) wideDragEnd(false); }, true);
+  // Esc walks outward here too: the chosen section first, then the zoom
+  window.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape' || !wideOn()) return;
+    if (wideDrag && wideDrag.on) { ev.stopPropagation(); wideDragEnd(false); return; }
+    if (selSecIdx !== null || !cmd.hidden || !secMore.hidden || !picker.hidden) return; // theirs first
+    ev.stopPropagation();
+    zoomWideClose();
+  }, true);
 
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
     clearPageStylePreview(); // a page-style audition never outlives its panel
     if (deviceMode === 'phone') { zoomForPhone = true; requestAnimationFrame(layoutZoom); } // the phone view outlives the panel
+    // zoomed out on its own with no panel open (an Undo's tidy-up, a stray
+    // press): there is nothing to close, and the zoom is not the panel's
+    else if (zoomWide && !panelOpen) requestAnimationFrame(layoutZoom);
     else if (!keepZoomThroughClose) unzoomCanvas(); // a style audition's zoom-out never outlives its panel
     var roomArea = panel.dataset.goghArea;
     exitChromeMode(); // leave the header room cleanly — dim off, spotlight off
@@ -15996,6 +16181,7 @@
       { label: 'Form', kind: 'form' },
       { label: 'Write', kind: 'write' },
       { label: 'Squint \u00b7 see what stands out', act: 'squint' },
+      { label: 'Zoom out \u00b7 see the whole page', act: 'zoomwide' },
     ];
     if (cfg.canExp) items.push({ label: 'Experience', kind: 'exp' });
     if (cfg.hasWoo) items.push({ label: 'Products grid', kind: 'products' });
@@ -16034,6 +16220,7 @@
     closeCmd();
     if (it.act === 'shapes') return openShapeInsertPanel();
     if (it.act === 'squint') return squint(true, 1800);
+    if (it.act === 'zoomwide') return zoomWideOpen();
     if (it.kind) addElementAtViewport(it.kind);
     else addSection(TEMPLATES[it.tpl], S.indexOf(viewportSection()) + 1);
   }
@@ -18962,7 +19149,7 @@
     // the zoomed-out design view is for LOOKING — full-size boundary
     // furniture floating over a half-scale canvas reads as debris
     // ("we shouldn't show transition option when zoomed out")
-    if (document.documentElement.classList.contains('gogh-zoomed')) {
+    if (document.documentElement.classList.contains('gogh-zoomed') && !wideOn()) {
       goghFadeOut(inserter);
       return;
     }
@@ -24797,6 +24984,7 @@
     effectiveBgHex: effectiveBgHex,
     markSwatchLegibility: markSwatchLegibility,
     openBrandForm: openBrandForm, photoColours: photoColours, pagePictures: pagePictures,
+    zoomWide: { open: zoomWideOpen, close: zoomWideClose, on: wideOn, dropAt: wideDropAt },
     openMenuManager: openMenuManager,
     measureTextHeights: measureTextHeights,
   };

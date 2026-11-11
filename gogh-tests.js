@@ -7276,6 +7276,62 @@
       return 'S blurs and clears; fields and modified keys are left alone';
     });
 
+    test('zoom out on its own: no sidebar, sections are chosen and moved, pieces are left alone', function () {
+      var html = document.documentElement, Z = G.zoomWide;
+      G.closePanel();
+      if (G.closeSide) G.closeSide(true);
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      expect(!Z.on() && !G.canvasZoom.on(), 'the page should start at full size');
+      expect(Z.open() === true, 'the zoom should open');
+      var wideCls = html.classList.contains('gogh-zoomwide') && html.classList.contains('gogh-zoomed');
+      var noSide = !q('.gogh-side').classList.contains('is-open') && q('.gogh-panel').hidden;
+      var sc = +((/scale\(([\d.]+)\)/.exec(q('.wp-site-blocks').style.transform) || [])[1] || 0);
+      var label = q('.gogh-zoomslider-val').textContent;
+      // a press on a piece chooses its SECTION here, never the piece
+      var s0 = sec(), node = s0.nodes[0], r = node.getBoundingClientRect();
+      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, clientX: r.left + 2, clientY: r.top + 2 }));
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      var pieceChosen = !!q('.gogh-selected'), secChosen = s0.sectionEl.classList.contains('gogh-selsec');
+      var barShown = getComputedStyle(q('.gogh-secbar')).display !== 'none';
+      // where a dragged section would land: far above everything is the top
+      // seat, far below is the last, and its own seat is no move at all
+      var content = G.sections().filter(function (x) { return !x.chrome; });
+      var first = content[0], last = content[content.length - 1];
+      var up = content.length > 1 ? Z.dropAt(last, -99999) : null;
+      var down = content.length > 1 ? Z.dropAt(first, 99999) : null;
+      var stay = Z.dropAt(first, -99999);
+      // a sidebar opening takes the page back to its own fitted view
+      G.openSide('page');
+      var withSide = Z.on();
+      G.closeSide(true);
+      var afterSide = G.canvasZoom.on();
+      // and back again by name
+      Z.open();
+      var again = Z.on();
+      var closed = Z.close();
+      var off = !Z.on() && !G.canvasZoom.on() && !html.classList.contains('gogh-zoomwide');
+      // the page eases back over a few frames: land it now, so the tests that
+      // follow measure a page at rest
+      var wr = q('.wp-site-blocks');
+      wr.style.transition = 'none'; wr.style.transform = ''; void wr.offsetWidth;
+      window.scrollTo(0, 0);
+      G.deselectSection && G.deselectSection();
+      expect(wideCls, 'the zoom should mark the page as zoomed out on its own');
+      expect(noSide, 'no sidebar or panel should come with it');
+      expect(sc > 0.2 && sc <= 0.5, 'the page should sit at half size or smaller, got ' + sc);
+      expect(label === Math.round(sc * 100) + '%', 'the slider should name the real size, got ' + label);
+      expect(!pieceChosen && secChosen, 'a press on a piece should choose its section');
+      expect(barShown, 'the chosen section should show its bar');
+      if (content.length > 1) {
+        expect(up && up.ref === first && up.before === true, 'dragged above everything, a section lands first');
+        expect(down && down.ref === last && down.before === false, 'dragged below everything, a section lands last');
+      }
+      expect(stay === null, 'dropping a section on its own seat is no move');
+      expect(!withSide && !afterSide, 'opening and closing a sidebar should end at full size');
+      expect(again && closed === true && off, 'closing the zoom should bring the page back to full size');
+      return 'half size, no sidebar; sections chosen and placed; pieces left alone';
+    });
+
     test('a card colour pick re-judges its words, and any colour is one well away', function () {
       // James made a card, chose black, and the words stayed black
       var probe = function (slug) {
