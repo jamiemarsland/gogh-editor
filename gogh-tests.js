@@ -7329,6 +7329,18 @@
       expect(stay === null, 'dropping a section on its own seat is no move');
       expect(!withSide && !afterSide, 'opening and closing a sidebar should end at full size');
       expect(again && closed === true && off, 'closing the zoom should bring the page back to full size');
+      // the number in the top bar: it names the size and is the way in for
+      // anyone who does not know a shortcut
+      var num = q('.gogh-devpill .gogh-zoomnum');
+      expect(num && num.textContent === '100%' && !num.classList.contains('is-on'), 'the bar should show 100% at full size');
+      expect(/Zoom out/.test(num.title), 'the number should say what a press does: ' + num.title);
+      num.click();
+      var viaNum = Z.on(), numTxt = num.textContent, numOn = num.classList.contains('is-on');
+      num.click();
+      var numBack = !Z.on() && !G.canvasZoom.on() && num.textContent === '100%';
+      wr.style.transition = 'none'; wr.style.transform = ''; void wr.offsetWidth;
+      expect(viaNum && numOn && numTxt === Math.round(sc * 100) + '%', 'a press on the number should zoom out and show the size, got ' + numTxt);
+      expect(numBack, 'a second press should bring the page back to 100%');
       return 'half size, no sidebar; sections chosen and placed; pieces left alone';
     });
 

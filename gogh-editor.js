@@ -3204,7 +3204,7 @@
   var zoomSlider = document.createElement('div');
   zoomSlider.className = 'gogh-zoomslider';
   zoomSlider.hidden = true;
-  zoomSlider.title = 'Zoom: pinch, Option-scroll, or Option-Z'; // discover the shortcuts
+  zoomSlider.title = 'Zoom: the number in the top bar, a pinch, Option-scroll, or Option-Z'; // discover the shortcuts
   zoomSlider.innerHTML =
     '<span class="gogh-zoomslider-val">100%</span>' +
     '<input type="range" min="20" max="100" step="1" value="100" aria-label="Zoom the page (Option-scroll, or Option-Z to toggle)">';
@@ -3509,6 +3509,33 @@
     b.addEventListener('click', function () {
       if (b.getAttribute('data-dev') === 'phone') seeOnPhone(); else seeOnDesktop();
     });
+  });
+  // The zoom, findable without a shortcut (James: 'most folks wont know the
+  // shortcut'). A number, not a third icon: Desktop and Phone answer 'which
+  // device', the zoom answers 'how far back am I standing', and a percentage
+  // reads as zoom with no name to explain ('what does whole page mean?').
+  // It shows the size the page is drawn at, and a press steps back or returns.
+  var zoomNum = document.createElement('button');
+  zoomNum.type = 'button';
+  zoomNum.className = 'gogh-dev gogh-zoomnum';
+  zoomNum.textContent = '100%';
+  if (!cfg.writeUrl) devPill.appendChild(zoomNum); // a post view has no canvas to zoom
+  function syncZoomNum() {
+    var m = zoomState && /scale\(([\d.]+)\)/.exec(zoomState.wrap.style.transform);
+    var pct = m ? Math.round(+m[1] * 100) : 100;
+    var wide = wideOn();
+    zoomNum.textContent = pct + '%';
+    zoomNum.classList.toggle('is-on', wide);
+    zoomNum.setAttribute('aria-pressed', wide ? 'true' : 'false');
+    var tip = wide ? 'Back to full size' : (zoomState ? 'The page is at ' + pct + '%' : 'Zoom out to see more of the page');
+    zoomNum.title = tip;
+    zoomNum.setAttribute('aria-label', tip);
+  }
+  syncZoomNum();
+  zoomNum.addEventListener('click', function () {
+    if (zoomWideClose()) return;
+    if (deviceMode === 'phone') { seeOnDesktop(); }
+    if (!zoomState) zoomWideOpen();
   });
 
   // ---------- mobile overrides: tune the phone layout from the desktop editor ----------
@@ -6102,6 +6129,7 @@
       // the chosen section's bar follows its section as the page resizes
       if (secBarIdx !== null && !secBar.hidden && S[secBarIdx]) showSecBar(secBarIdx);
     }
+    syncZoomNum();
     if (mSel) positionMtoolbar(); // keep the override toolbar pinned to its element
     if (menuFollow) menuOverlayPlace(); // the open menu keeps to the window
   }
@@ -6123,6 +6151,7 @@
     panel.style.right = z.pr || ''; panel.style.bottom = z.pb || '';
     document.documentElement.classList.remove('gogh-zoomed');
     zoomWide = false; syncWide();
+    syncZoomNum();
     zoomSlider.hidden = true;
     zoomFrac = null;
     setTimeout(function () {
@@ -16181,7 +16210,7 @@
       { label: 'Form', kind: 'form' },
       { label: 'Write', kind: 'write' },
       { label: 'Squint \u00b7 see what stands out', act: 'squint' },
-      { label: 'Zoom out \u00b7 see the whole page', act: 'zoomwide' },
+      { label: 'Zoom out \u00b7 see more of the page', act: 'zoomwide' },
     ];
     if (cfg.canExp) items.push({ label: 'Experience', kind: 'exp' });
     if (cfg.hasWoo) items.push({ label: 'Products grid', kind: 'products' });
