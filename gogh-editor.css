@@ -5338,7 +5338,7 @@ html.gogh-zoomwide.gogh-widedragging, html.gogh-zoomwide.gogh-widedragging * { c
 /* the rings are drawn on the shrunken page: double them so they read */
 html.gogh-zoomwide.gogh-editing .gogh-section.gogh-hoversec:not(.gogh-selsec) { outline-width: 3px; outline-offset: -3px; }
 html.gogh-zoomwide.gogh-editing .gogh-section.gogh-selsec { outline-width: 4px; outline-offset: -4px; }
-html.gogh-zoomwide .gogh-wrap.gogh-widelift { opacity: 0.45; }
+html.gogh-zoomwide .gogh-wrap.gogh-widelift { opacity: 0.92; box-shadow: 0 0 0 6px #4a63d8, 0 50px 120px -20px rgba(0, 0, 0, 0.55); }
 .gogh-wideline {
   position: fixed;
   height: 4px;

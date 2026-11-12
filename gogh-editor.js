@@ -6312,8 +6312,14 @@
     if (wideScrollRaf) { cancelAnimationFrame(wideScrollRaf); wideScrollRaf = null; }
     document.documentElement.classList.remove('gogh-widedragging');
     if (!d) return;
+    if (!d.on) {
+      // let go where it was pressed: the second of two is a double-click
+      if (drop && d.twice) zoomWideClose(d.y);
+      return;
+    }
     d.sec.wrapEl.classList.remove('gogh-widelift');
-    if (!d.on || !drop || !d.to) return;
+    if (d.was) { d.sec.wrapEl.style.transform = d.was.tf; d.sec.wrapEl.style.zIndex = d.was.z; d.sec.wrapEl.style.position = d.was.pos; }
+    if (!drop || !d.to) return;
     if (d.to.before) d.to.ref.wrapEl.before(d.sec.wrapEl); else d.to.ref.wrapEl.after(d.sec.wrapEl);
     resyncContentOrder(); // S follows the DOM; records the state for Undo
     layoutZoom();
@@ -6324,7 +6330,12 @@
     var d = wideDrag;
     if (!d || !d.on) return;
     d.cy = cy;
-    d.to = wideDropAt(d.sec, cy);
+    d.sec.wrapEl.style.transform = 'translateY(' + Math.round((cy - d.y + window.scrollY - d.scroll0) / d.sc) + 'px)';
+    // the section's leading edge decides: it takes a neighbour's place once
+    // that edge is past the neighbour's middle, as a sortable list does (the
+    // pointer alone asked for a much longer drag on tall sections)
+    var lr = d.sec.wrapEl.getBoundingClientRect();
+    d.to = wideDropAt(d.sec, cy >= d.y - (window.scrollY - d.scroll0) ? lr.bottom : lr.top);
     if (!d.to) { wideLine.hidden = true; return; }
     var r = d.to.ref.wrapEl.getBoundingClientRect();
     wideLine.style.left = r.left + 'px';
@@ -6344,26 +6355,45 @@
     ev.stopPropagation();
     ev.preventDefault();
     closeSecMore();
-    if (twice) {
-      wideTap = null;
-      zoomWideClose(ev.clientY); // a double-click: work on this spot at full size
+    // a second press in the same spot is a double-click only if it is let go
+    // without moving: choose a section, then press and drag it straight away,
+    // and it drags (it used to zoom back in instead)
+    wideTap = twice ? null : { t: now, x: ev.clientX, y: ev.clientY };
+    var idx = wideSecAt(t);
+    if (idx === -1 || S[idx].chrome) {
+      deselectSection();
+      if (twice) wideDrag = { sec: null, x: ev.clientX, y: ev.clientY, cy: ev.clientY, on: false, to: null, twice: true };
       return;
     }
-    wideTap = { t: now, x: ev.clientX, y: ev.clientY };
-    var idx = wideSecAt(t);
-    if (idx === -1 || S[idx].chrome) { deselectSection(); return; }
     selectSection(idx);
-    wideDrag = { sec: S[idx], x: ev.clientX, y: ev.clientY, cy: ev.clientY, on: false, to: null };
+    wideDrag = { sec: S[idx], x: ev.clientX, y: ev.clientY, cy: ev.clientY, on: false, to: null, twice: !!twice };
   }, true);
+  // nothing native may take the gesture: a picture or a link starting its own
+  // drag cancels the pointer, and the section never moves
+  ['dragstart', 'selectstart'].forEach(function (type) {
+    document.addEventListener(type, function (ev) {
+      var page = document.querySelector('.wp-site-blocks');
+      if (wideOn() && page && ev.target && page.contains(ev.target.nodeType === 1 ? ev.target : ev.target.parentNode)) ev.preventDefault();
+    }, true);
+  });
   window.addEventListener('pointermove', function (ev) {
     var d = wideDrag;
     if (!d) return;
     if (!d.on) {
       if (Math.abs(ev.clientX - d.x) + Math.abs(ev.clientY - d.y) < 7) return;
-      if (S.filter(function (s2) { return !s2.chrome; }).length < 2) { wideDrag = null; return; }
+      if (!d.sec || S.filter(function (s2) { return !s2.chrome; }).length < 2) { wideDrag = null; return; }
       d.on = true;
       wideTap = null;
       hideSecBar();
+      wideSay.hidden = true;
+      // the section comes with the hand: lifted off the page, above its
+      // neighbours, so there is no doubt it has been picked up
+      var w0 = d.sec.wrapEl;
+      d.was = { tf: w0.style.transform, z: w0.style.zIndex, pos: w0.style.position };
+      d.sc = +((/scale\(([\d.]+)\)/.exec(zoomState.wrap.style.transform) || [])[1] || 0.5);
+      d.scroll0 = window.scrollY;
+      if (!getComputedStyle(w0).position || getComputedStyle(w0).position === 'static') w0.style.position = 'relative';
+      w0.style.zIndex = '60';
       d.sec.wrapEl.classList.add('gogh-widelift');
       document.documentElement.classList.add('gogh-widedragging');
       // held near the top or bottom edge, the page rolls under the hand
