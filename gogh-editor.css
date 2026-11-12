@@ -1906,6 +1906,13 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 }
 .gogh-sb-del:hover { background: #ffe3db; }
 .gogh-sb:disabled { opacity: 0.25; cursor: default; }
+/* zoomed out on its own, the bar is four verbs: Move up, Move down, Duplicate, Delete */
+.gogh-secbar > .gogh-sb-w { display: none !important; }
+html.gogh-zoomwide .gogh-secbar > :not(.gogh-sb-w) { display: none !important; }
+html.gogh-zoomwide .gogh-secbar > .gogh-sb.gogh-sb-w { display: inline-flex !important; }
+html.gogh-zoomwide .gogh-secbar > .gogh-sb-div.gogh-sb-w { display: block !important; }
+.gogh-sb.gogh-sb-wtxt { padding-left: 12px; }
+html.gogh-zoomwide .gogh-secmore { display: none !important; }
 
 /* theme palette swatches in the divider panel */
 .gogh-swrow {
@@ -2601,7 +2608,7 @@ html.gogh-zoomed body { background: #dfe0e5 !important; }
 html.gogh-zoomed:not(.gogh-zoomwide) .gogh-secbar,
 html.gogh-zoomed .gogh-elbar,
 html.gogh-zoomed .gogh-hbar,
-html.gogh-zoomed:not(.gogh-zoomwide) .gogh-inserter,
+html.gogh-zoomed .gogh-inserter,
 html.gogh-zoomed .gogh-chip-float,
 html.gogh-zoomed .gogh-convertbtn,
 html.gogh-zoomed .gogh-chromebtn,

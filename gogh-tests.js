@@ -7293,6 +7293,30 @@
       window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
       var pieceChosen = !!q('.gogh-selected'), secChosen = s0.sectionEl.classList.contains('gogh-selsec');
       var barShown = getComputedStyle(q('.gogh-secbar')).display !== 'none';
+      // the bar here is four verbs and nothing that adds or restyles
+      var seen = [].filter.call(q('.gogh-secbar').querySelectorAll('button'), function (x) { return getComputedStyle(x).display !== 'none'; })
+        .map(function (x) { return x.dataset.sec; }).join(',');
+      // Duplicate and Delete work on the whole section, and '/' adds nothing
+      var nBefore = G.sections().length;
+      q('.gogh-secbar [data-sec="wdup"]').click();
+      var nDup = G.sections().length, stillWide = Z.on();
+      var copyIdx = G.sections().indexOf(s0) + 1;
+      G.selectSection(copyIdx);
+      q('.gogh-secbar [data-sec="wdel"]').click();
+      var nDel = G.sections().length;
+      // Undo brings the deleted copy back WHERE IT WAS on the page, not at
+      // the bottom (the list was right and the page was wrong)
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true, cancelable: true }));
+      var domOrder = [].map.call(document.querySelectorAll('.wp-site-blocks .gogh-wrap'), function (w) { return w; });
+      var backInPlace = G.sections().length === nBefore + 1 &&
+        G.sections().every(function (x, k, all) { return k === 0 || domOrder.indexOf(all[k - 1].wrapEl) < domOrder.indexOf(x.wrapEl); });
+      s0 = G.sections().filter(function (x) { return !x.chrome; })[0]; // Undo rebuilt every section
+      G.selectSection(copyIdx);
+      q('.gogh-secbar [data-sec="wdel"]').click();
+      nDel = G.sections().length;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true }));
+      var cmdShut = q('.gogh-cmd').hidden;
+      var seamShut = getComputedStyle(q('.gogh-inserter')).display === 'none';
       // where a dragged section would land: far above everything is the top
       // seat, far below is the last, and its own seat is no move at all
       var content = G.sections().filter(function (x) { return !x.chrome; });
@@ -7322,6 +7346,12 @@
       expect(label === Math.round(sc * 100) + '%', 'the slider should name the real size, got ' + label);
       expect(!pieceChosen && secChosen, 'a press on a piece should choose its section');
       expect(barShown, 'the chosen section should show its bar');
+      expect(seen === 'wup,wdown,wdup,wdel', 'zoomed out, the bar should be Move up, Move down, Duplicate, Delete: ' + seen);
+      expect(nDup === nBefore + 1 && stillWide, 'Duplicate should copy the section and stay zoomed out');
+      expect(nDel === nBefore, 'Delete should take the copy away again');
+      expect(backInPlace, 'Undo should put a deleted section back where it was on the page');
+      expect(cmdShut, 'the / menu should not open while zoomed out');
+      expect(seamShut, 'no + Section should show between sections while zoomed out');
       if (content.length > 1) {
         expect(up && up.ref === first && up.before === true, 'dragged above everything, a section lands first');
         expect(down && down.ref === last && down.before === false, 'dragged below everything, a section lands last');
@@ -7341,7 +7371,7 @@
       wr.style.transition = 'none'; wr.style.transform = ''; void wr.offsetWidth;
       expect(viaNum && numOn && numTxt === Math.round(sc * 100) + '%', 'a press on the number should zoom out and show the size, got ' + numTxt);
       expect(numBack, 'a second press should bring the page back to 100%');
-      return 'half size, no sidebar; sections chosen and placed; pieces left alone';
+      return 'half size, no sidebar; sections arranged, copied and deleted; nothing added or restyled';
     });
 
     test('a card colour pick re-judges its words, and any colour is one well away', function () {
@@ -10373,7 +10403,7 @@
       // named family, or one inferred from the section's shape (v0.99.407+);
       // without either it stays hidden and the bar reads three doors; the
       // ✦ Ask Gogh door retired with the parked model tier
-      var doors = [].filter.call(bar.querySelectorAll('.gogh-sb'), function (b) { return !b.hidden; });
+      var doors = [].filter.call(bar.querySelectorAll('.gogh-sb'), function (b) { return !b.hidden && getComputedStyle(b).display !== 'none'; });
       var fam = G.diceFamilyOf(sec());
       var want = 3 + (fam ? 1 : 0);
       expect(doors.length === want,

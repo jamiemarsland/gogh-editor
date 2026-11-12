@@ -2956,6 +2956,13 @@
       // before (our true next sibling) whenever it shares anchor and parent.
       var anchor = (prevIns && prevIns.host === host && prevIns.stable === stable)
         ? prevIns.wrap : stable;
+      // a section the page no longer holds (a delete being undone) has no
+      // place of its own to go back to: it sits straight before the section
+      // that follows it. Sent to the end marker instead it came back at the
+      // BOTTOM of the page whenever anything (even white space) sat between
+      // two sections, while the saved order stayed right
+      if (!Object.prototype.hasOwnProperty.call(anchorOf, d.scope) && !(d.src && convertStash[d.src]) &&
+          prevIns && prevIns.host === host) { anchor = prevIns.wrap; stable = prevIns.stable; }
       host.insertBefore(sec.wrapEl, anchor && anchor.parentNode === host ? anchor : null);
       prevIns = { wrap: sec.wrapEl, host: host, stable: stable };
       newS.unshift(sec);
@@ -6228,10 +6235,12 @@
   // ---------- zoomed out on its own ----------
   // James: 'i really like the ability to zoom out to see more of the design
   // of a page'. The page pulls back with no sidebar beside it, and at this
-  // size it is edited by the SECTION: choose one (its own bar docks, full
-  // size), drag it to a new place, add one between two others. Pieces are
-  // too small to aim at here, so a press on one chooses its section, and a
-  // double-click grows the page back around that spot to work on it.
+  // size it is ARRANGED by the section and nothing else: choose one, drag it
+  // to a new place, or use its slim bar (Move up, Move down, Duplicate,
+  // Delete). Nothing is added and nothing is restyled here (James: 'i dont
+  // think we should let folks add stuff or change stuff in zoom out view,
+  // just rearrange sections'); a press on a piece chooses its section, and
+  // a double-click grows the page back around that spot to work on it.
   var zoomWide = false;
   function wideOn() {
     return !!(zoomWide && zoomState && !panelOpen && !side.classList.contains('is-open') && deviceMode !== 'phone');
@@ -6247,6 +6256,15 @@
   wideLine.hidden = true;
   document.body.appendChild(wideLine);
   var wideSayT = null;
+  // asked to add or change something here: say where that happens, once
+  // every few seconds, not on every key
+  var wideNoAt = 0;
+  function wideNo() {
+    var now = Date.now();
+    if (now - wideNoAt < 4000) return;
+    wideNoAt = now;
+    toast('Zoomed out is for arranging sections. Double-click the page to zoom in and add or change things.', { ttl: 4500 });
+  }
   function syncWide() {
     var on = wideOn();
     document.documentElement.classList.toggle('gogh-zoomwide', on);
@@ -16491,7 +16509,15 @@
     '<button type="button" class="gogh-sb gogh-sb-dice" data-sec="dice" title="Roll another take of this design" hidden><svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3.2" stroke="currentColor" stroke-width="1.6"/><circle cx="5.4" cy="5.4" r="1.25" fill="currentColor"/><circle cx="10.6" cy="5.4" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="5.4" cy="10.6" r="1.25" fill="currentColor"/><circle cx="10.6" cy="10.6" r="1.25" fill="currentColor"/></svg></button>' +
     '<button type="button" class="gogh-sb-take" data-sec="layouts" title="See every layout of this design side by side" hidden></button>' +
     '<i class="gogh-sb-div" aria-hidden="true"></i>' +
-    '<button type="button" class="gogh-sb gogh-sb-more" data-sec="more" title="Move, duplicate, save, delete…">⋯</button>';
+    '<button type="button" class="gogh-sb gogh-sb-more" data-sec="more" title="Move, duplicate, save, delete…">⋯</button>' +
+    // zoomed out on its own the bar is these four and nothing else: that
+    // view is for arranging sections, never for adding to or restyling one
+    // (James: 'just rearrange sections')
+    '<button type="button" class="gogh-sb gogh-sb-word gogh-sb-w" data-sec="wup" title="Move this section up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg><span>Move up</span></button>' +
+    '<button type="button" class="gogh-sb gogh-sb-word gogh-sb-w" data-sec="wdown" title="Move this section down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg><span>Move down</span></button>' +
+    '<i class="gogh-sb-div gogh-sb-w" aria-hidden="true"></i>' +
+    '<button type="button" class="gogh-sb gogh-sb-word gogh-sb-w gogh-sb-wtxt" data-sec="wdup" title="Make a copy of this section below it"><span>Duplicate</span></button>' +
+    '<button type="button" class="gogh-sb gogh-sb-word gogh-sb-w gogh-sb-wtxt gogh-sb-del" data-sec="wdel" title="Delete this section"><span>Delete</span></button>';
   secBar.hidden = true;
   document.body.appendChild(secBar);
   var secBarIdx = null;
@@ -16614,6 +16640,9 @@
       var nm = secTakeName(S[idx], fam);
       takeL.title = (nm ? 'Take ' + lab + ' of this design: ' + nm + '. ' : '') + 'See every layout side by side';
     }
+    var wUp = secBar.querySelector('[data-sec="wup"]'), wDown = secBar.querySelector('[data-sec="wdown"]');
+    if (wUp) wUp.disabled = !pageNeighbour(S[idx].wrapEl, -1);
+    if (wDown) wDown.disabled = !pageNeighbour(S[idx].wrapEl, 1);
     var r = S[idx].wrapEl.getBoundingClientRect();
     // the bar DOCKS: it sits at the section's top edge, and for a section
     // taller than the screen it pins to the viewport while any of the
@@ -16651,6 +16680,8 @@
   secBar.addEventListener('click', function (ev) {
     var b = ev.target.closest('.gogh-sb, .gogh-sb-take');
     if (!b || secBarIdx === null) return;
+    if (/^w/.test(b.dataset.sec)) { wideSecAct(b.dataset.sec, secBarIdx); return; }
+    if (wideOn()) return; // zoomed out, the four above are the whole bar
     if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
     if (b.dataset.sec === 'layouts') { openLayoutsPanel(secBarIdx); return; }
     if (b.dataset.sec === 'dice') {
@@ -16666,6 +16697,34 @@
     if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx, b); return; }
     if (b.dataset.sec === 'more') { openSecMore(secBarIdx, b); return; }
   });
+  // the zoomed-out bar's four verbs. Each leaves the section chosen, so the
+  // next press is one click away, and re-fits the page (its length changed)
+  function wideSecAct(act, idx) {
+    var s0 = S[idx];
+    if (!s0 || s0.chrome || !wideOn()) return;
+    var keep = function (who) {
+      layoutZoom();
+      // the page follows the section: moved past the edge of the screen it
+      // would take its bar with it, and the next press would have nowhere
+      // to land
+      var r = who.wrapEl.getBoundingClientRect(), topRoom = barBottom() + 90;
+      if (r.top < topRoom) window.scrollBy(0, r.top - topRoom);
+      else if (r.top > window.innerHeight - 220) window.scrollBy(0, r.top - (window.innerHeight - 220) + Math.min(r.height, 200));
+      setTimeout(function () { var k = S.indexOf(who); if (k !== -1 && wideOn()) selectSection(k); }, 80);
+    };
+    if (act === 'wup' || act === 'wdown') { moveSection(idx, act === 'wup' ? -1 : 1); keep(s0); return; }
+    if (act === 'wdup') { duplicateSection(idx); keep(S[S.indexOf(s0) + 1] || s0); return; }
+    if (act === 'wdel') {
+      if (S.filter(function (s) { return !s.chrome; }).length < 2) {
+        toast('That is the only section on the page. Add another before deleting it.');
+        return;
+      }
+      deselectSection();
+      deleteSection(idx);
+      layoutZoom();
+      toast('Section deleted.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+    }
+  }
   // ---------- the ⋯ menu: housekeeping in words ----------
   var secMore = document.createElement('div');
   secMore.className = 'gogh-secmore';
@@ -19208,7 +19267,7 @@
     // the zoomed-out design view is for LOOKING — full-size boundary
     // furniture floating over a half-scale canvas reads as debris
     // ("we shouldn't show transition option when zoomed out")
-    if (document.documentElement.classList.contains('gogh-zoomed') && !wideOn()) {
+    if (document.documentElement.classList.contains('gogh-zoomed')) {
       goghFadeOut(inserter);
       return;
     }
@@ -25128,6 +25187,7 @@
     var typing = a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName));
     if (ev.key === '/' && !typing && cmd.hidden) {
       ev.preventDefault();
+      if (wideOn()) { wideNo(); return; }
       openCmd();
       return;
     }
@@ -25170,6 +25230,7 @@
     }
     if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'a') {
       // select all, within the section that has the eye
+      if (wideOn()) return; // zoomed out, sections are the pieces
       var secA = sel ? sel.sec : (multiSel ? multiSel.sec : (selSecIdx !== null ? S[selSecIdx] : null));
       if (!secA || !secA.els.length) return;
       ev.preventDefault();
@@ -25205,6 +25266,7 @@
     // to delete using backspace/delete?")
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && selSecIdx !== null && S[selSecIdx]) {
       ev.preventDefault();
+      if (wideOn()) { wideSecAct('wdel', selSecIdx); return; }
       var dsec = S[selSecIdx];
       if (dsec.chrome) { toast('The header and footer stay \u2014 edit them instead.'); return; }
       if (S.filter(function (s) { return !s.chrome; }).length < 2) {
@@ -27357,6 +27419,7 @@
   }
   document.addEventListener('paste', function (ev) {
     if (!editing || inAField(ev.target) || textEditing || panelOpen) return;
+    if (wideOn()) { ev.preventDefault(); ev.stopImmediatePropagation(); wideNo(); return; }
     var cd = ev.clipboardData;
     var target = pasteTarget();
     if (!cd || !target) return;
