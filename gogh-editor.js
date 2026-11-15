@@ -6202,7 +6202,7 @@
   window.addEventListener('blur', function () { ctrlDown = false; });
   window.addEventListener('wheel', function (ev) {
     var pinch = ev.ctrlKey && !ctrlDown && !ev.altKey && !ev.metaKey;
-    if (!editing || ev.metaKey || !(pinch || (ev.altKey && !ev.ctrlKey))) return;
+    if ((!editing && !zoomNum.isConnected) || ev.metaKey || !(pinch || (ev.altKey && !ev.ctrlKey))) return;
     // only a pinch that started on the page (or the desk around it) zooms it
     if (pinch && !zoomState && cfg.writeUrl) return;
     if (zoomShortcutBlocked(ev.target)) return;
@@ -6222,7 +6222,7 @@
     }
   }, { passive: false });
   document.addEventListener('keydown', function (ev) {
-    if (!editing || !ev.altKey || ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
+    if ((!editing && !zoomNum.isConnected) || !ev.altKey || ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
     if (ev.code !== 'KeyZ') return; // ⌥Z — match the physical key ('⌥z' prints 'Ω' on macOS)
     if (zoomShortcutBlocked(ev.target)) return;
     ev.preventDefault();
@@ -6256,6 +6256,19 @@
   wideLine.hidden = true;
   document.body.appendChild(wideLine);
   var wideSayT = null;
+  // in View the zoom is for LOOKING (James: 'show this mode without having
+  // to be in edit mode'): nothing is chosen, nothing moves, no link fires
+  function wideSayText() {
+    if (editing) return 'Zoomed out. Drag a section to move it. Double-click to zoom back in.';
+    return cfg.stylesOnly ? 'Zoomed out. Double-click to zoom back in.' : 'Zoomed out. Double-click to zoom back in, or press Edit to rearrange sections.';
+  }
+  // Edit and View site are links: the page reloads, so the link carries the
+  // zoom across and the next page opens already stepped back
+  function syncZoomLink(on) {
+    var a = document.querySelector('#wp-admin-bar-gogh-edit a');
+    if (!a || !a.href) return;
+    try { var u = new URL(a.href, location.href); u.searchParams[on ? 'set' : 'delete']('gogh-zoom', '1'); a.href = u.toString(); } catch (e) {}
+  }
   // asked to add or change something here: say where that happens, once
   // every few seconds, not on every key
   var wideNoAt = 0;
@@ -6268,11 +6281,12 @@
   function syncWide() {
     var on = wideOn();
     document.documentElement.classList.toggle('gogh-zoomwide', on);
+    syncZoomLink(on);
     if (!on && wideSay) { wideSay.hidden = true; wideDragEnd(false); }
     return on;
   }
   function zoomWideOpen() {
-    if (!editing || cfg.writeUrl || zoomState || panelOpen || deviceMode === 'phone') return false;
+    if (cfg.writeUrl || zoomState || panelOpen || deviceMode === 'phone') return false; // View too: there it is for looking only
     var wrap = document.querySelector('.wp-site-blocks');
     if (!wrap) return false;
     if (textEditing) exitTextEdit();
@@ -6288,6 +6302,7 @@
     var m = /scale\(([\d.]+)\)/.exec(wrap.style.transform);
     var sc = m ? +m[1] : 0.5;
     window.scrollTo(window.scrollX, Math.max(0, top + mid * sc - window.innerHeight / 2));
+    wideSay.textContent = wideSayText();
     wideSay.style.top = (barBottom() + 14) + 'px';
     wideSay.hidden = false;
     clearTimeout(wideSayT);
@@ -6362,7 +6377,7 @@
     wideLine.hidden = false;
   }
   document.addEventListener('pointerdown', function (ev) {
-    if (!editing || ev.button !== 0 || !wideOn()) return;
+    if (ev.button !== 0 || !wideOn()) return;
     var t = ev.target, page = document.querySelector('.wp-site-blocks');
     if (!t || !t.closest || !page) return;
     var now = performance.now();
@@ -6377,7 +6392,7 @@
     // without moving: choose a section, then press and drag it straight away,
     // and it drags (it used to zoom back in instead)
     wideTap = twice ? null : { t: now, x: ev.clientX, y: ev.clientY };
-    var idx = wideSecAt(t);
+    var idx = editing ? wideSecAt(t) : -1; // in View no section is chosen
     if (idx === -1 || S[idx].chrome) {
       deselectSection();
       if (twice) wideDrag = { sec: null, x: ev.clientX, y: ev.clientY, cy: ev.clientY, on: false, to: null, twice: true };
@@ -6426,6 +6441,15 @@
     wideDragMove(ev.clientY);
   }, true);
   window.addEventListener('pointerup', function () { if (wideDrag) wideDragEnd(true); }, true);
+  // looking, not visiting: a press on a link in the zoomed-out page in View
+  // goes nowhere (the editor already holds its own links)
+  document.addEventListener('click', function (ev) {
+    if (editing || !wideOn()) return;
+    var page = document.querySelector('.wp-site-blocks');
+    if (!page || !ev.target || !page.contains(ev.target)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+  }, true);
   window.addEventListener('pointercancel', function () { if (wideDrag) wideDragEnd(false); }, true);
   // Esc walks outward here too: the chosen section first, then the zoom
   window.addEventListener('keydown', function (ev) {
@@ -32744,6 +32768,12 @@
     if (wantEdit || editing) {
       renderCanvasOnce();
     }
+    // arrived from Edit or View site pressed while zoomed out: stay zoomed out
+    var bootZoom = /[?&]gogh-zoom=1/.test(location.search);
+    if (bootZoom) {
+      try { var uz = new URL(location.href); uz.searchParams.delete('gogh-zoom'); if (!wantEdit) window.history.replaceState(null, '', uz); } catch (ez) {}
+      setTimeout(function () { if (window.__gogh && window.__gogh.zoomWide) window.__gogh.zoomWide.open(); }, 450);
+    }
     if (wantEdit) {
       setEditing(true);
       var willBuild = !!(cfg.siteDef && /[?&]gogh-build=1/.test(location.search));
@@ -32762,6 +32792,7 @@
       try {
         var u = new URL(location.href);
         var wantPhone = u.searchParams.get('gogh-phone') === '1';
+        u.searchParams.delete('gogh-zoom');
         var wantDrawer = u.searchParams.get('gogh-drawer');
         u.searchParams.delete('gogh-edit');
         u.searchParams.delete('gogh-phone');

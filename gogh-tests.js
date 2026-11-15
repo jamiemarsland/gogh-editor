@@ -7284,6 +7284,11 @@
       expect(!Z.on() && !G.canvasZoom.on(), 'the page should start at full size');
       expect(Z.open() === true, 'the zoom should open');
       var wideCls = html.classList.contains('gogh-zoomwide') && html.classList.contains('gogh-zoomed');
+      // Edit and View site are links: while zoomed out they carry the zoom
+      // across, so View (where the zoom is for looking only) and Edit hand
+      // the same view to each other
+      var modeLink = q('#wp-admin-bar-gogh-edit a');
+      var carries = !modeLink || /[?&]gogh-zoom=1/.test(modeLink.href);
       var noSide = !q('.gogh-side').classList.contains('is-open') && q('.gogh-panel').hidden;
       var sc = +((/scale\(([\d.]+)\)/.exec(q('.wp-site-blocks').style.transform) || [])[1] || 0);
       var label = q('.gogh-zoomslider-val').textContent;
@@ -7341,6 +7346,8 @@
       window.scrollTo(0, 0);
       G.deselectSection && G.deselectSection();
       expect(wideCls, 'the zoom should mark the page as zoomed out on its own');
+      expect(carries, 'while zoomed out, the Edit / View site link should carry the zoom');
+      expect(!q('#wp-admin-bar-gogh-edit a') || !/gogh-zoom/.test(q('#wp-admin-bar-gogh-edit a').href), 'back at full size the link should drop it');
       expect(noSide, 'no sidebar or panel should come with it');
       expect(sc > 0.2 && sc <= 0.5, 'the page should sit at half size or smaller, got ' + sc);
       expect(label === Math.round(sc * 100) + '%', 'the slider should name the real size, got ' + label);
