@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.792
+# Knowledge-base audit — plugin v0.99.793
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -159,5 +159,9 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.791 → 0.99.792
-- added UI label: "Take the colours from this picture"
+- version: 0.99.792 → 0.99.793
+- added UI label: "Delete this section"
+- added UI label: "Make a copy of this section below it"
+- added UI label: "Move this section down"
+- added UI label: "Move this section up"
+- added toast: "Zoomed out is for arranging sections. Double-click the page to zoom in and add or change things."

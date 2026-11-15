@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.792**
+- Plugin version: **0.99.793**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.792`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.793`). Quote the plugin header version.
 
 ## Design constants
 
@@ -311,6 +311,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Delete saved section"
 - "Delete the selection"
 - "Delete the set"
+- "Delete this section"
 - "Delivery & returns"
 - "Desktop menu"
 - "Desktop view"
@@ -374,6 +375,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Link text (⌘K)"
 - "List"
 - "Make a card"
+- "Make a copy of this section below it"
 - "Make it freeform"
 - "Make these a set"
 - "Make these cards one set: add, move and restyle them together"
@@ -391,6 +393,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Move later"
 - "Move left"
 - "Move right"
+- "Move this section down"
+- "Move this section up"
 - "Move up"
 - "Move up in the phone stack"
 - "Move, duplicate, save, delete…"
@@ -611,6 +615,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "You left changes on this page unpublished. Bring them back?"
 - "Your changes could not be kept for later. Publish them, or stay on "
 - "Your site is now called “"
+- "Zoomed out is for arranging sections. Double-click the page to zoom in and add or change things."
 - "gogh backed up unpublished work from an earlier session."
 - "gogh can’t safely swap this image."
 - "gogh could not change the page style — "
@@ -641,5 +646,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`400` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`401` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
