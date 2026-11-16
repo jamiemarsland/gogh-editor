@@ -3081,7 +3081,11 @@ function gogh_starter_apply_chrome( $m, $made ) {
 				) );
 			}
 			// point the live header's menu at the new navigation
-			$part = get_block_template( get_stylesheet() . '//header', 'wp_template_part' );
+			// (a theme whose parts carry other names — Mētis has header-a to
+			// header-c and footer-a to footer-e — is told which one its
+			// templates use: chrome.header_part / chrome.footer_part)
+			$hslug = ! empty( $m['chrome']['header_part'] ) ? sanitize_title( $m['chrome']['header_part'] ) : 'header';
+			$part = get_block_template( get_stylesheet() . '//' . $hslug, 'wp_template_part' );
 			if ( $part && $nav_id && ! is_wp_error( $nav_id ) ) {
 				$praw = (string) $part->content;
 				// a starter may choose one of gogh's own headers — the Yellow
@@ -3119,8 +3123,8 @@ function gogh_starter_apply_chrome( $m, $made ) {
 						$pid = wp_insert_post( array(
 							'post_type'    => 'wp_template_part',
 							'post_status'  => 'publish',
-							'post_title'   => 'header',
-							'post_name'    => 'header',
+							'post_title'   => $hslug,
+							'post_name'    => $hslug,
 							'post_content' => $next,
 						) );
 						if ( $pid && ! is_wp_error( $pid ) ) {
@@ -3190,9 +3194,10 @@ function gogh_merge_style_settings( $cur, $part ) {
 }
 // the live footer, for the active theme: its saved copy is replaced, or one
 // is saved over the theme's file
-function gogh_write_footer_part( $content ) {
+function gogh_write_footer_part( $content, $slug = 'footer' ) {
+	$slug    = $slug ? sanitize_title( $slug ) : 'footer';
 	$content = wp_slash( $content ); // the post functions unslash: a label's \u0026 came out as u0026
-	$fpart = get_block_template( get_stylesheet() . '//footer', 'wp_template_part' );
+	$fpart = get_block_template( get_stylesheet() . '//' . $slug, 'wp_template_part' );
 	if ( $fpart && ! empty( $fpart->wp_id ) ) {
 		wp_update_post( array( 'ID' => $fpart->wp_id, 'post_content' => $content ) );
 		return;
@@ -3200,8 +3205,8 @@ function gogh_write_footer_part( $content ) {
 	$fpid = wp_insert_post( array(
 		'post_type'    => 'wp_template_part',
 		'post_status'  => 'publish',
-		'post_title'   => 'footer',
-		'post_name'    => 'footer',
+		'post_title'   => $slug,
+		'post_name'    => $slug,
 		'post_content' => $content,
 	) );
 	if ( $fpid && ! is_wp_error( $fpid ) ) {
@@ -3587,7 +3592,7 @@ function gogh_site_def_boot( $def ) {
 	// a design may bring its own footer as block markup: a theme's default
 	// one can be a sampler of another shop's links (Purple's cardigans)
 	if ( ! empty( $def['footer'] ) && is_string( $def['footer'] ) && false !== strpos( $def['footer'], '<!-- wp:' ) ) {
-		gogh_write_footer_part( wp_kses_post( substr( $def['footer'], 0, 65536 ) ) );
+		gogh_write_footer_part( wp_kses_post( substr( $def['footer'], 0, 65536 ) ), isset( $def['chrome']['footer_part'] ) ? (string) $def['chrome']['footer_part'] : 'footer' );
 	}
 	try {
 		gogh_starter_apply_styles( $m );

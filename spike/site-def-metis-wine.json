@@ -1,0 +1,991 @@
+{
+ "name": "Maron",
+ "tagline": "Wine bar & bottle shop, Margate.",
+ "variation": "Ismarus",
+ "chrome": {
+  "header_part": "header-a",
+  "footer_part": "footer-c"
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Hero",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 72,
+       "w": 440,
+       "h": 24,
+       "text": "Wine bar & bottle shop · Margate",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 120,
+       "w": 540,
+       "h": 288,
+       "text": "Wine with nothing added and nothing to prove.",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 432,
+       "w": 460,
+       "h": 96,
+       "text": "A hundred and forty bottles from people who farm their own grapes, twelve of them open by the glass. Drink in at the long table or take one home.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 552,
+       "w": 176,
+       "h": 48,
+       "text": "See the list",
+       "href": "/the-list/"
+      },
+      {
+       "type": "button",
+       "x": 272,
+       "y": 552,
+       "w": 136,
+       "h": 48,
+       "text": "Find us",
+       "href": "/visit/",
+       "ghost": true
+      },
+      {
+       "type": "image",
+       "x": 640,
+       "y": 48,
+       "w": 480,
+       "h": 576,
+       "src": "https://images.unsplash.com/photo-1596641069082-b1d5ac2b6fc1?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Wooden chairs and tables in front of shelves of wine",
+       "radius": 16
+      }
+     ]
+    },
+    {
+     "name": "By the glass",
+     "minH": 792,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "Open this week",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 640,
+       "h": 72,
+       "text": "By the glass",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "para",
+       "x": 760,
+       "y": 168,
+       "w": 360,
+       "h": 24,
+       "text": "<a href=\"/the-list/\">The whole list →</a>",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 384,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Pét-nat rosé, Loire",
+          "d": "Cloudy, strawberry, gone too quickly",
+          "price": "£8"
+         },
+         {
+          "t": "Skin-contact Rkatsiteli, Kakheti",
+          "d": "Amber, tea and dried apricot, from a clay qvevri",
+          "price": "£9"
+         },
+         {
+          "t": "Aligoté, Burgundy",
+          "d": "Lemon, salt and a bit of grip",
+          "price": "£9"
+         },
+         {
+          "t": "Chilled Gamay, Beaujolais",
+          "d": "Light, crunchy, straight from the fridge",
+          "price": "£8"
+         },
+         {
+          "t": "Mencía, Ribeira Sacra",
+          "d": "Dark fruit and smoke off a slate hillside",
+          "price": "£10"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 672,
+       "w": 640,
+       "h": 24,
+       "text": "125ml. Every bottle on the shelf can be opened for £8 corkage.",
+       "tf": {
+        "fs": 14
+       }
+      }
+     ]
+    },
+    {
+     "name": "Drink in or take away",
+     "minH": 720,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 96,
+       "w": 480,
+       "h": 528,
+       "src": "https://images.unsplash.com/photo-1558670460-cad0c19b1840?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "White wine being poured at a table of friends",
+       "radius": 16
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 120,
+       "w": 440,
+       "h": 24,
+       "text": "How it works",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 640,
+       "y": 168,
+       "w": 480,
+       "h": 120,
+       "text": "Drink in, or take it home.",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 312,
+       "w": 460,
+       "h": 120,
+       "text": "Everything on the shelf has a price on the neck. Take it home at that price, or add £8 and we will open it here with bread, anchovies and whatever cheese came in.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "box",
+       "x": 640,
+       "y": 456,
+       "w": 480,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 640,
+       "y": 480,
+       "w": 140,
+       "h": 48,
+       "text": "140",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 528,
+       "w": 140,
+       "h": 24,
+       "text": "bottles",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 800,
+       "y": 480,
+       "w": 140,
+       "h": 48,
+       "text": "12",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 800,
+       "y": 528,
+       "w": 140,
+       "h": 24,
+       "text": "by the glass",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 960,
+       "y": 480,
+       "w": 160,
+       "h": 48,
+       "text": "£8",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 960,
+       "y": 528,
+       "w": 160,
+       "h": 24,
+       "text": "corkage",
+       "tf": {
+        "fs": 13
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    },
+    {
+     "name": "Why",
+     "minH": 576,
+     "els": [
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 192,
+       "w": 880,
+       "h": 144,
+       "text": "“Good wine is grapes, time and somebody paying attention.”",
+       "fs": "2-x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 160,
+       "y": 360,
+       "w": 880,
+       "h": 24,
+       "text": "Ines Maron, who chooses the bottles",
+       "tf": {
+        "fs": 14
+       },
+       "align": "center"
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1537640538966-79f369143f8f?w=2000&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-1)",
+     "tint": 70
+    },
+    {
+     "name": "This month",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "At the long table",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 640,
+       "h": 72,
+       "text": "This month",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 312,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "Thu 5",
+          "t": "Meet the grower: Domaine des Quatre Vents",
+          "d": "Six wines and the person who made them",
+          "role": "£28"
+         },
+         {
+          "k": "Sun 15",
+          "t": "Orange wine, start to finish",
+          "d": "A tasting for people who are not sure yet",
+          "role": "£22"
+         },
+         {
+          "k": "Thu 19",
+          "t": "Oysters and Muscadet",
+          "d": "Whitstable natives, shucked at the bar",
+          "role": "Walk in"
+         },
+         {
+          "k": "Sat 28",
+          "t": "Bottle swap",
+          "d": "Bring one you love, leave with one you have never heard of",
+          "role": "Free"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "k": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "Find us",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 120,
+       "w": 440,
+       "h": 24,
+       "text": "Find us",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 168,
+       "w": 480,
+       "h": 120,
+       "text": "Northdown Road, by the sea.",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 312,
+       "w": 440,
+       "h": 96,
+       "text": "Wednesday and Thursday, 4 to 10<br>Friday and Saturday, 12 to 11<br>Sunday, 12 to 6",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 432,
+       "w": 440,
+       "h": 48,
+       "text": "No bookings under six. Dogs welcome, children until seven.",
+       "tf": {
+        "fs": 15
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 504,
+       "w": 168,
+       "h": 48,
+       "text": "Plan a visit",
+       "href": "/visit/",
+       "ghost": true
+      },
+      {
+       "type": "embed",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 456,
+       "url": "https://www.google.com/maps?q=Northdown+Road,+Cliftonville,+Margate&output=embed",
+       "radius": 16
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-8)"
+    }
+   ],
+   "slug": "home",
+   "front": true,
+   "menu": false
+  },
+  {
+   "title": "The list",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "The list",
+     "minH": 432,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 72,
+       "w": 440,
+       "h": 24,
+       "text": "Changes every Wednesday",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 120,
+       "w": 720,
+       "h": 144,
+       "text": "The list",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 288,
+       "w": 560,
+       "h": 72,
+       "text": "Twelve open at a time. Glasses are 125ml; ask for a taste of anything before you choose.",
+       "tf": {
+        "fs": 18
+       }
+      }
+     ]
+    },
+    {
+     "name": "Sparkling and orange",
+     "minH": 576,
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 72,
+       "w": 640,
+       "h": 72,
+       "text": "Sparkling & orange",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 168,
+       "w": 1040,
+       "h": 312,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Pét-nat rosé, Loire",
+          "d": "Cloudy, strawberry, gone too quickly",
+          "price": "£8"
+         },
+         {
+          "t": "Col fondo Prosecco, Veneto",
+          "d": "Bottle-fermented, dry, yeasty, nothing like the other kind",
+          "price": "£8"
+         },
+         {
+          "t": "Skin-contact Rkatsiteli, Kakheti",
+          "d": "Amber, tea and dried apricot, from a clay qvevri",
+          "price": "£9"
+         },
+         {
+          "t": "Macerated Pinot Gris, Alsace",
+          "d": "Copper-coloured, rose hip and blood orange",
+          "price": "£10"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    },
+    {
+     "name": "White",
+     "minH": 576,
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 72,
+       "w": 640,
+       "h": 72,
+       "text": "White",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 168,
+       "w": 1040,
+       "h": 312,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Aligoté, Burgundy",
+          "d": "Lemon, salt and a bit of grip",
+          "price": "£9"
+         },
+         {
+          "t": "Muscadet sur lie, Loire",
+          "d": "Sea spray and lemon pith; ask about the oysters",
+          "price": "£7"
+         },
+         {
+          "t": "Chenin Blanc, Swartland",
+          "d": "Old bush vines, baked apple and beeswax",
+          "price": "£9"
+         },
+         {
+          "t": "Assyrtiko, Santorini",
+          "d": "Volcanic, salty, sharp as a tack",
+          "price": "£11"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "Red",
+     "minH": 576,
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 72,
+       "w": 640,
+       "h": 72,
+       "text": "Red",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 168,
+       "w": 1040,
+       "h": 312,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Chilled Gamay, Beaujolais",
+          "d": "Light, crunchy, straight from the fridge",
+          "price": "£8"
+         },
+         {
+          "t": "Mencía, Ribeira Sacra",
+          "d": "Dark fruit and smoke off a slate hillside",
+          "price": "£10"
+         },
+         {
+          "t": "Frappato, Sicily",
+          "d": "Pale, floral, a red for a hot day",
+          "price": "£9"
+         },
+         {
+          "t": "Syrah, northern Rhône",
+          "d": "Black olive and pepper, the serious one",
+          "price": "£12"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    }
+   ],
+   "slug": "the-list"
+  },
+  {
+   "title": "Visit",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Visit",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "Visit",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 480,
+       "h": 216,
+       "text": "Come and find us",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 384,
+       "w": 440,
+       "h": 96,
+       "text": "168 Northdown Road, Cliftonville, Margate CT9 2QN. Ten minutes on foot from the station, two from the sea.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 480,
+       "w": 440,
+       "h": 96,
+       "text": "Wednesday and Thursday, 4 to 10<br>Friday and Saturday, 12 to 11<br>Sunday, 12 to 6",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "embed",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 528,
+       "url": "https://www.google.com/maps?q=Northdown+Road,+Cliftonville,+Margate&output=embed",
+       "radius": 16
+      }
+     ]
+    },
+    {
+     "name": "The room",
+     "minH": 648,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 96,
+       "w": 520,
+       "h": 456,
+       "src": "https://images.unsplash.com/photo-1541401154946-62f8d84bd284?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Plates of food and bottles of wine on a table",
+       "radius": 16
+      },
+      {
+       "type": "para",
+       "x": 680,
+       "y": 144,
+       "w": 440,
+       "h": 24,
+       "text": "Private tastings",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 680,
+       "y": 192,
+       "w": 440,
+       "h": 120,
+       "text": "The long table seats fourteen.",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "para",
+       "x": 680,
+       "y": 336,
+       "w": 420,
+       "h": 120,
+       "text": "Birthdays, work dos and people who just want to learn something. Six wines, a plate of things to eat and someone to talk you through it. From £30 a head.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "button",
+       "x": 680,
+       "y": 480,
+       "w": 200,
+       "h": 48,
+       "text": "Ask about a date",
+       "href": "mailto:hello@maron.example"
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    }
+   ],
+   "slug": "visit"
+  }
+ ],
+ "footer": "<!-- wp:group {\"tagName\":\"footer\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|70\",\"bottom\":\"var:preset|spacing|60\"},\"margin\":{\"top\":\"0\",\"bottom\":\"0\"}},\"background\":{\"gradient\":\"var:preset|gradient|gradient-8\"}},\"layout\":{\"type\":\"constrained\"}} -->\n<footer class=\"wp-block-group\" style=\"margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--60)\"><!-- wp:columns {\"align\":\"wide\"} -->\n<div class=\"wp-block-columns alignwide\"><!-- wp:column {\"width\":\"40%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:40%\"><!-- wp:site-title {\"level\":0,\"fontSize\":\"x-large\"} /-->\n\n<!-- wp:site-tagline {\"fontSize\":\"small\"} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Open</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">Wed &amp; Thu 4–10<br>Fri &amp; Sat 12–11<br>Sun 12–6</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Find us</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">168 Northdown Road<br>Margate CT9 2QN<br><a href=\"mailto:hello@maron.example\">hello@maron.example</a></p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n</div>\n<!-- /wp:columns -->\n\n<!-- wp:paragraph {\"align\":\"wide\",\"fontSize\":\"x-small\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|60\"}}}} -->\n<p class=\"alignwide has-x-small-font-size\" style=\"margin-top:var(--wp--preset--spacing--60)\">© 2026 Maron · Over-18s only at the bar · Please drink like you have somewhere to be tomorrow</p>\n<!-- /wp:paragraph --></footer>\n<!-- /wp:group -->\n",
+ "credits": [
+  {
+   "name": "Gabriella Clare Marino",
+   "link": "https://unsplash.com/@gabiontheroad"
+  },
+  {
+   "name": "Caroline Attwood",
+   "link": "https://unsplash.com/@_carolineattwood"
+  },
+  {
+   "name": "David Köhler",
+   "link": "https://unsplash.com/@davidkhlr"
+  },
+  {
+   "name": "Evelyn Semenyuk",
+   "link": "https://unsplash.com/@evysem"
+  }
+ ]
+}
