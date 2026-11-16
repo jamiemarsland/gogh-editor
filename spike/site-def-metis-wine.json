@@ -13,13 +13,13 @@
    "sections": [
     {
      "name": "Hero",
-     "minH": 720,
+     "minH": 648,
      "els": [
       {
        "type": "para",
-       "x": 80,
-       "y": 72,
-       "w": 440,
+       "x": 160,
+       "y": 120,
+       "w": 880,
        "h": 24,
        "text": "Wine bar & bottle shop · Margate",
        "tf": {
@@ -27,53 +27,62 @@
         "fw": 600,
         "ls2": 0.2,
         "tt": "uppercase"
-       }
+       },
+       "align": "center"
       },
       {
        "type": "heading",
-       "x": 80,
-       "y": 120,
-       "w": 540,
-       "h": 288,
+       "x": 160,
+       "y": 168,
+       "w": 880,
+       "h": 240,
        "text": "Wine with nothing added and nothing to prove.",
-       "fs": "__disp-s"
+       "fs": "__disp-s",
+       "align": "center"
       },
       {
        "type": "para",
-       "x": 80,
+       "x": 320,
        "y": 432,
-       "w": 460,
-       "h": 96,
-       "text": "A hundred and forty bottles from people who farm their own grapes, twelve of them open by the glass. Drink in at the long table or take one home.",
+       "w": 560,
+       "h": 72,
+       "text": "A hundred and forty bottles from people who farm their own grapes, twelve of them open by the glass.",
        "tf": {
         "fs": 18
-       }
+       },
+       "align": "center"
       },
       {
        "type": "button",
-       "x": 80,
-       "y": 552,
-       "w": 176,
+       "x": 424,
+       "y": 528,
+       "w": 168,
        "h": 48,
        "text": "See the list",
        "href": "/the-list/"
       },
       {
        "type": "button",
-       "x": 272,
-       "y": 552,
-       "w": 136,
+       "x": 608,
+       "y": 528,
+       "w": 168,
        "h": 48,
        "text": "Find us",
        "href": "/visit/",
        "ghost": true
-      },
+      }
+     ]
+    },
+    {
+     "name": "The room",
+     "minH": 576,
+     "els": [
       {
        "type": "image",
-       "x": 640,
-       "y": 48,
-       "w": 480,
-       "h": 576,
+       "x": 80,
+       "y": 0,
+       "w": 1040,
+       "h": 504,
        "src": "https://images.unsplash.com/photo-1596641069082-b1d5ac2b6fc1?w=1600&q=80&fm=jpg&fit=max",
        "alt": "Wooden chairs and tables in front of shelves of wine",
        "radius": 16
@@ -86,9 +95,9 @@
      "els": [
       {
        "type": "para",
-       "x": 80,
+       "x": 200,
        "y": 96,
-       "w": 440,
+       "w": 800,
        "h": 24,
        "text": "Open this week",
        "tf": {
@@ -96,38 +105,24 @@
         "fw": 600,
         "ls2": 0.2,
         "tt": "uppercase"
-       }
+       },
+       "align": "center"
       },
       {
        "type": "heading",
-       "x": 80,
+       "x": 200,
        "y": 144,
-       "w": 640,
+       "w": 800,
        "h": 72,
        "text": "By the glass",
-       "fs": "3-x-large"
-      },
-      {
-       "type": "para",
-       "x": 760,
-       "y": 168,
-       "w": 360,
-       "h": 24,
-       "text": "<a href=\"/the-list/\">The whole list →</a>",
-       "tf": {
-        "fs": 15,
-        "fw": 600
-       },
-       "align": "right",
-       "m": {
-        "hidden": true
-       }
+       "fs": "3-x-large",
+       "align": "center"
       },
       {
        "type": "cards",
-       "x": 80,
+       "x": 200,
        "y": 264,
-       "w": 1040,
+       "w": 800,
        "h": 384,
        "cards": {
         "layout": "ledger",
@@ -198,135 +193,108 @@
       },
       {
        "type": "para",
-       "x": 80,
+       "x": 200,
        "y": 672,
-       "w": 640,
+       "w": 800,
        "h": 24,
-       "text": "125ml. Every bottle on the shelf can be opened for £8 corkage.",
+       "text": "125ml. <a href=\"/the-list/\">The whole list →</a>",
        "tf": {
         "fs": 14
-       }
+       },
+       "align": "center"
       }
-     ]
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
     },
     {
-     "name": "Drink in or take away",
-     "minH": 720,
+     "name": "How it works",
+     "minH": 504,
      "els": [
       {
-       "type": "image",
+       "type": "box",
        "x": 80,
        "y": 96,
-       "w": 480,
-       "h": 528,
-       "src": "https://images.unsplash.com/photo-1558670460-cad0c19b1840?w=1600&q=80&fm=jpg&fit=max",
-       "alt": "White wine being poured at a table of friends",
-       "radius": 16
-      },
-      {
-       "type": "para",
-       "x": 640,
-       "y": 120,
-       "w": 440,
-       "h": 24,
-       "text": "How it works",
-       "tf": {
-        "fs": 12,
-        "fw": 600,
-        "ls2": 0.2,
-        "tt": "uppercase"
-       }
-      },
-      {
-       "type": "heading",
-       "x": 640,
-       "y": 168,
-       "w": 480,
-       "h": 120,
-       "text": "Drink in, or take it home.",
-       "fs": "3-x-large"
-      },
-      {
-       "type": "para",
-       "x": 640,
-       "y": 312,
-       "w": 460,
-       "h": 120,
-       "text": "Everything on the shelf has a price on the neck. Take it home at that price, or add £8 and we will open it here with bread, anchovies and whatever cheese came in.",
-       "tf": {
-        "fs": 17
-       }
-      },
-      {
-       "type": "box",
-       "x": 640,
-       "y": 456,
-       "w": 480,
+       "w": 320,
        "h": 24,
        "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "heading",
-       "x": 640,
-       "y": 480,
-       "w": 140,
+       "x": 80,
+       "y": 120,
+       "w": 320,
        "h": 48,
-       "text": "140",
+       "text": "Drink in.",
        "fs": "x-large"
       },
       {
        "type": "para",
-       "x": 640,
-       "y": 528,
-       "w": 140,
-       "h": 24,
-       "text": "bottles",
+       "x": 80,
+       "y": 192,
+       "w": 320,
+       "h": 168,
+       "text": "Sit at the long table. Every bottle on the shelf can be opened for £8 corkage, with bread, anchovies and whatever cheese came in.",
        "tf": {
-        "fs": 13
+        "fs": 16
        }
+      },
+      {
+       "type": "box",
+       "x": 440,
+       "y": 96,
+       "w": 320,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 440,
+       "y": 120,
+       "w": 320,
+       "h": 48,
+       "text": "Take it home.",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 440,
+       "y": 192,
+       "w": 320,
+       "h": 168,
+       "text": "Everything has its price on the neck. Tell us what is for dinner and how much you want to spend, and we will find it.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "box",
+       "x": 800,
+       "y": 96,
+       "w": 320,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
       },
       {
        "type": "heading",
        "x": 800,
-       "y": 480,
-       "w": 140,
+       "y": 120,
+       "w": 320,
        "h": 48,
-       "text": "12",
+       "text": "Ask us.",
        "fs": "x-large"
       },
       {
        "type": "para",
        "x": 800,
-       "y": 528,
-       "w": 140,
-       "h": 24,
-       "text": "by the glass",
+       "y": 192,
+       "w": 320,
+       "h": 168,
+       "text": "We have tasted all of it and will open nearly anything for a taste. Nobody here will make you say “minerality”.",
        "tf": {
-        "fs": 13
-       }
-      },
-      {
-       "type": "heading",
-       "x": 960,
-       "y": 480,
-       "w": 160,
-       "h": 48,
-       "text": "£8",
-       "fs": "x-large"
-      },
-      {
-       "type": "para",
-       "x": 960,
-       "y": 528,
-       "w": 160,
-       "h": 24,
-       "text": "corkage",
-       "tf": {
-        "fs": 13
+        "fs": 16
        }
       }
-     ],
-     "background": "var(--wp--preset--color--theme-6)"
+     ]
     },
     {
      "name": "Why",
@@ -365,9 +333,9 @@
      "els": [
       {
        "type": "para",
-       "x": 80,
+       "x": 200,
        "y": 96,
-       "w": 440,
+       "w": 800,
        "h": 24,
        "text": "At the long table",
        "tf": {
@@ -375,107 +343,213 @@
         "fw": 600,
         "ls2": 0.2,
         "tt": "uppercase"
-       }
+       },
+       "align": "center"
       },
       {
        "type": "heading",
-       "x": 80,
+       "x": 200,
        "y": 144,
-       "w": 640,
+       "w": 800,
        "h": 72,
        "text": "This month",
-       "fs": "3-x-large"
+       "fs": "3-x-large",
+       "align": "center"
       },
       {
-       "type": "cards",
+       "type": "box",
        "x": 80,
        "y": 264,
-       "w": 1040,
-       "h": 312,
-       "cards": {
-        "layout": "ledger",
-        "look": "open",
-        "pic": "none",
-        "act": "none",
-        "titles": 1,
-        "extras": {
-         "k": 1,
-         "price": 0,
-         "role": 1,
-         "n": 0
-        },
-        "items": [
-         {
-          "k": "Thu 5",
-          "t": "Meet the grower: Domaine des Quatre Vents",
-          "d": "Six wines and the person who made them",
-          "role": "£28"
-         },
-         {
-          "k": "Sun 15",
-          "t": "Orange wine, start to finish",
-          "d": "A tasting for people who are not sure yet",
-          "role": "£22"
-         },
-         {
-          "k": "Thu 19",
-          "t": "Oysters and Muscadet",
-          "d": "Whitstable natives, shucked at the bar",
-          "role": "Walk in"
-         },
-         {
-          "k": "Sat 28",
-          "t": "Bottle swap",
-          "d": "Bring one you love, leave with one you have never heard of",
-          "role": "Free"
-         }
-        ],
-        "type": {
-         "t": {
-          "tf": {
-           "fs": 17,
-           "fw": 600
-          },
-          "body": 1
-         },
-         "d": {
-          "tf": {
-           "fs": 15,
-           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
-          }
-         },
-         "k": {
-          "tf": {
-           "fs": 15,
-           "fw": 600
-          }
-         },
-         "role": {
-          "tf": {
-           "fs": 15,
-           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
-          }
+       "w": 320,
+       "h": 288,
+       "boxBg": "var(--wp--preset--color--theme-6)",
+       "radius": 20,
+       "kids": [
+        {
+         "type": "para",
+         "x": 28,
+         "y": 28,
+         "w": 264,
+         "h": 24,
+         "text": "Thursday 5 · £28",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
          }
         },
-        "box": {
-         "look": "open",
-         "pad": 18,
-         "gap": 4,
-         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        {
+         "type": "heading",
+         "x": 28,
+         "y": 64,
+         "w": 264,
+         "h": 72,
+         "text": "Meet the grower",
+         "fs": "large",
+         "tf": {
+          "fs": 26,
+          "lh": 1.15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 148,
+         "w": 264,
+         "h": 68,
+         "text": "Domaine des Quatre Vents: six wines and the person who made them.",
+         "tf": {
+          "fs": 15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 232,
+         "w": 264,
+         "h": 24,
+         "text": "<a href=\"/visit/\">Ask about a seat →</a>",
+         "tf": {
+          "fs": 15,
+          "fw": 600
+         }
         }
-       }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 440,
+       "y": 264,
+       "w": 320,
+       "h": 288,
+       "boxBg": "var(--wp--preset--color--theme-6)",
+       "radius": 20,
+       "kids": [
+        {
+         "type": "para",
+         "x": 28,
+         "y": 28,
+         "w": 264,
+         "h": 24,
+         "text": "Sunday 15 · £22",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 28,
+         "y": 64,
+         "w": 264,
+         "h": 72,
+         "text": "Orange wine, start to finish",
+         "fs": "large",
+         "tf": {
+          "fs": 26,
+          "lh": 1.15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 148,
+         "w": 264,
+         "h": 68,
+         "text": "A tasting for people who are not sure about it yet.",
+         "tf": {
+          "fs": 15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 232,
+         "w": 264,
+         "h": 24,
+         "text": "<a href=\"/visit/\">Ask about a seat →</a>",
+         "tf": {
+          "fs": 15,
+          "fw": 600
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 800,
+       "y": 264,
+       "w": 320,
+       "h": 288,
+       "boxBg": "var(--wp--preset--color--theme-6)",
+       "radius": 20,
+       "kids": [
+        {
+         "type": "para",
+         "x": 28,
+         "y": 28,
+         "w": 264,
+         "h": 24,
+         "text": "Thursday 19 · walk in",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 28,
+         "y": 64,
+         "w": 264,
+         "h": 72,
+         "text": "Oysters and Muscadet",
+         "fs": "large",
+         "tf": {
+          "fs": 26,
+          "lh": 1.15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 148,
+         "w": 264,
+         "h": 68,
+         "text": "Whitstable natives, shucked at the bar until they run out.",
+         "tf": {
+          "fs": 15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 232,
+         "w": 264,
+         "h": 24,
+         "text": "<a href=\"/visit/\">Find us →</a>",
+         "tf": {
+          "fs": 15,
+          "fw": 600
+         }
+        }
+       ]
       }
      ]
     },
     {
      "name": "Find us",
-     "minH": 648,
+     "minH": 864,
      "els": [
       {
        "type": "para",
-       "x": 80,
-       "y": 120,
-       "w": 440,
+       "x": 200,
+       "y": 96,
+       "w": 800,
        "h": 24,
        "text": "Find us",
        "tf": {
@@ -483,55 +557,37 @@
         "fw": 600,
         "ls2": 0.2,
         "tt": "uppercase"
-       }
+       },
+       "align": "center"
       },
       {
        "type": "heading",
-       "x": 80,
-       "y": 168,
-       "w": 480,
-       "h": 120,
+       "x": 200,
+       "y": 144,
+       "w": 800,
+       "h": 72,
        "text": "Northdown Road, by the sea.",
-       "fs": "3-x-large"
+       "fs": "3-x-large",
+       "align": "center"
       },
       {
        "type": "para",
-       "x": 80,
-       "y": 312,
-       "w": 440,
-       "h": 96,
-       "text": "Wednesday and Thursday, 4 to 10<br>Friday and Saturday, 12 to 11<br>Sunday, 12 to 6",
-       "tf": {
-        "fs": 17
-       }
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 432,
-       "w": 440,
+       "x": 200,
+       "y": 240,
+       "w": 800,
        "h": 48,
-       "text": "No bookings under six. Dogs welcome, children until seven.",
+       "text": "Wednesday and Thursday, 4 to 10 · Friday and Saturday, 12 to 11 · Sunday, 12 to 6",
        "tf": {
-        "fs": 15
-       }
-      },
-      {
-       "type": "button",
-       "x": 80,
-       "y": 504,
-       "w": 168,
-       "h": 48,
-       "text": "Plan a visit",
-       "href": "/visit/",
-       "ghost": true
+        "fs": 16
+       },
+       "align": "center"
       },
       {
        "type": "embed",
-       "x": 640,
-       "y": 96,
-       "w": 480,
-       "h": 456,
+       "x": 80,
+       "y": 336,
+       "w": 1040,
+       "h": 432,
        "url": "https://www.google.com/maps?q=Northdown+Road,+Cliftonville,+Margate&output=embed",
        "radius": 16
       }
@@ -974,10 +1030,6 @@
   {
    "name": "Gabriella Clare Marino",
    "link": "https://unsplash.com/@gabiontheroad"
-  },
-  {
-   "name": "Caroline Attwood",
-   "link": "https://unsplash.com/@_carolineattwood"
   },
   {
    "name": "David Köhler",

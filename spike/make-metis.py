@@ -53,6 +53,10 @@ def cards(x, y, w, h, items, layout='g3', role=0, bg=None):
         'box': {'look': 'panel', 'gap': 12, 'minH': h, 'bg': bg or C(6), 'radius': 16, 'pad': 24}}}
 def stat(n, label, x, y, w=220):
     return [hd(n, x, y, w, 48, 'x-large'), pa(label, x, y + 48, w, 24, 13)]
+def tile(x, y, kicker, title, text, href, link, bg, h=312):
+    return {'type': 'box', 'x': x, 'y': y, 'w': 320, 'h': h, 'boxBg': bg, 'radius': 20, 'kids': [
+        eb(kicker, 28, 28, 264), hd(title, 28, 64, 264, 72, 'large', tf={'fs': 26, 'lh': 1.15}),
+        pa(text, 28, 148, 264, h - 220, 15), pa('<a href="' + href + '">' + link + '</a>', 28, h - 56, 264, 24, 15, fw=600)]}
 def sec(name, minH, els, **k):
     s = {'name': name, 'minH': minH, 'els': els}; s.update(k); return s
 def page(title, sections, **k):
@@ -97,42 +101,37 @@ SITES['band'] = {
   'chrome': {'header_part': 'header-a', 'footer_part': 'footer-c'},
   'pages': [
    page('Home', [
-    sec('Hero', 720, [
-      eb('New album · out 6 March', 80, 72, 440),
-      hd('Slack Water', 80, 120, 560, 216, '__disp-s'),
-      pa('Ten songs about leaving a harbour town and coming back to it, written in a net loft over one long winter. The second record from Halyard.', 80, 360, 460, 96, 18),
-      bt('Hear the record', 80, 504, 200, '/music/'), bt('Tour dates', 296, 504, 160, '/tour/', True),
-      im('1608319917470-9d9179430f8d', 640, 48, 480, 576, 'A singer mid-song under purple stage light'),
-      pa('Morwenna, The Poly, Falmouth', 640, 624, 480, 24, 13, 'right'),
+    sec('Hero', 792, [
+      eb('Halyard · new album · out 6 March', 160, 216, 880, 'theme-1', 'center'),
+      hd('Slack Water', 80, 264, 1040, 216, '__max', 'center', color='theme-1', tf={'fs': 132, 'lh': 1}),
+      pa('Ten songs about leaving a harbour town and coming back to it, written in a net loft over one long winter.', 320, 504, 560, 72, 19, 'center', color='theme-1'),
+      {**bt('Hear the record', 392, 624, 200, '/music/'), 'btnBg': 'theme-7', 'btnText': 'theme-2'},
+      {**bt('Tour dates', 608, 624, 200, '/tour/'), 'btnBg': 'theme-1', 'btnText': 'theme-2'},
+    ], image=U('1632054553195-bfd7034fee25', 2000), background=C(2), tint=52),
+    sec('Three ways in', 504, [
+      tile(80, 96, 'Listen', 'Ten songs, forty-two minutes', 'Recorded live in six days. On heavy black vinyl, or wherever you listen.', '/music/', 'The record →', C(7)),
+      tile(440, 96, 'See us', 'Ten nights in March', 'Falmouth to Glasgow and back, with our friends Greyhen. Three are nearly gone.', '/tour/', 'Tour dates →', C(8)),
+      tile(800, 96, 'Stay close', 'A letter, once a month', 'New songs, early tickets and the odd photograph of the van broken down.', 'mailto:hello@halyard.example', 'Join the list →', C(9)),
     ]),
     sec('Spring tour', 792, [
       eb('On the road', 80, 96, 440), hd('The spring tour', 80, 144, 640, 72),
       pa('<a href="/tour/">All ten dates →</a>', 760, 168, 360, 24, 15, 'right', fw=600, m={'hidden': True}),
       ledger(80, 264, 1040, tour[:5], k=1, role=1),
       bt('See every date', 80, 672, 200, '/tour/', True),
+    ], background=C(6)),
+    sec('The band', 936, [
+      im('1481886756534-97af88ccb438', 80, 96, 1040, 480, 'A band rehearsing in a small studio'),
+      hd('Four people and a van.', 80, 624, 400, 144, '3-x-large'),
+      pa('Morwenna Pascoe sings and plays guitar. Jago Trethewey plays the other guitar, louder.', 520, 624, 280, 144, 16),
+      pa('Kit Hallam plays bass and drives. Dev Sandhu plays drums and never stops talking.', 840, 624, 280, 144, 16),
+      pa('We met working summer jobs on the same quay in 2019. The van is called Doris.', 520, 792, 600, 48, 16),
     ]),
     sec('The record', 720, [
-      im('1603048588665-791ca8aea617', 80, 96, 480, 480, 'A black vinyl record turning on a turntable'),
-      eb('The record', 640, 120, 440), hd('Ten songs, one winter, no click track.', 640, 168, 480, 168),
-      pa('We recorded it live in a room, the four of us facing each other, in six days. What you hear is what happened. It comes on heavy black vinyl with a lyric sheet, or wherever you listen.', 640, 360, 460, 120),
-      bt('Buy the vinyl · £24', 640, 504, 232, '/music/'),
-    ], background=C(7)),
-    sec('Live', 576, [
-      hd('“The best night out in a harbour town since the fleet came in.”', 160, 192, 880, 144, '2-x-large', 'center', color='theme-1'),
-      pa('Tidelines magazine, on the Falmouth launch', 160, 360, 880, 24, 14, 'center', color='theme-1'),
-    ], image=U('1632054553195-bfd7034fee25', 2000), background=C(2), tint=62),
-    sec('The band', 792, [
-      eb('Who we are', 80, 96, 440), hd('Four people and a van.', 80, 144, 480, 72),
-      pa('Morwenna Pascoe sings and plays guitar. Jago Trethewey plays the other guitar, louder. Kit Hallam plays bass and drives. Dev Sandhu plays drums and never stops talking.', 80, 240, 460, 168),
-      pa('We met working summer jobs on the same quay in 2019. The van is called Doris.', 80, 432, 460, 96),
-      rule(80, 576, 480), *stat('2', 'records', 80, 600, 140), *stat('214', 'shows', 240, 600, 140), *stat('1', 'van, just', 400, 600, 160),
-      im('1481886756534-97af88ccb438', 640, 96, 480, 600, 'A band rehearsing in a small studio'),
-    ]),
-    sec('Hear it first', 432, [
-      eb('The list', 160, 96, 880, None, 'center'), hd('Hear it first.', 160, 144, 880, 72, '3-x-large', 'center'),
-      pa('New songs, early tickets and the odd photograph of Doris broken down. About once a month.', 320, 240, 560, 48, 17, 'center'),
-      bt('Join the list', 500, 312, 200, 'mailto:hello@halyard.example'),
-    ], background=C(6)),
+      eb('The record', 80, 144, 440), hd('Ten songs, one winter, no click track.', 80, 192, 480, 168),
+      pa('We recorded it live in a room, the four of us facing each other. What you hear is what happened. It comes with a lyric sheet and a photograph of Doris.', 80, 384, 460, 120),
+      bt('Buy the vinyl · £24', 80, 528, 232, '/music/'),
+      im('1603048588665-791ca8aea617', 640, 96, 480, 480, 'A black vinyl record turning on a turntable', 240),
+    ], background=C(10)),
    ], slug='home', front=True, menu=False),
    page('Tour', [
     sec('Tour', 1128, [
@@ -182,44 +181,42 @@ SITES['wine'] = {
   'chrome': {'header_part': 'header-a', 'footer_part': 'footer-c'},
   'pages': [
    page('Home', [
-    sec('Hero', 720, [
-      eb('Wine bar & bottle shop · Margate', 80, 72, 440),
-      hd('Wine with nothing added and nothing to prove.', 80, 120, 540, 288, '__disp-s'),
-      pa('A hundred and forty bottles from people who farm their own grapes, twelve of them open by the glass. Drink in at the long table or take one home.', 80, 432, 460, 96, 18),
-      bt('See the list', 80, 552, 176, '/the-list/'), bt('Find us', 272, 552, 136, '/visit/', True),
-      im('1596641069082-b1d5ac2b6fc1', 640, 48, 480, 576, 'Wooden chairs and tables in front of shelves of wine'),
+    sec('Hero', 648, [
+      eb('Wine bar & bottle shop · Margate', 160, 120, 880, None, 'center'),
+      hd('Wine with nothing added and nothing to prove.', 160, 168, 880, 240, '__disp-s', 'center'),
+      pa('A hundred and forty bottles from people who farm their own grapes, twelve of them open by the glass.', 320, 432, 560, 72, 18, 'center'),
+      bt('See the list', 424, 528, 168, '/the-list/'), bt('Find us', 608, 528, 168, '/visit/', True),
+    ]),
+    sec('The room', 576, [
+      im('1596641069082-b1d5ac2b6fc1', 80, 0, 1040, 504, 'Wooden chairs and tables in front of shelves of wine'),
     ]),
     sec('By the glass', 792, [
-      eb('Open this week', 80, 96, 440), hd('By the glass', 80, 144, 640, 72),
-      pa('<a href="/the-list/">The whole list →</a>', 760, 168, 360, 24, 15, 'right', fw=600, m={'hidden': True}),
-      ledger(80, 264, 1040, glass, price=1),
-      pa('125ml. Every bottle on the shelf can be opened for £8 corkage.', 80, 672, 640, 24, 14),
-    ]),
-    sec('Drink in or take away', 720, [
-      im('1558670460-cad0c19b1840', 80, 96, 480, 528, 'White wine being poured at a table of friends'),
-      eb('How it works', 640, 120, 440), hd('Drink in, or take it home.', 640, 168, 480, 120),
-      pa('Everything on the shelf has a price on the neck. Take it home at that price, or add £8 and we will open it here with bread, anchovies and whatever cheese came in.', 640, 312, 460, 120),
-      rule(640, 456, 480), *stat('140', 'bottles', 640, 480, 140), *stat('12', 'by the glass', 800, 480, 140), *stat('£8', 'corkage', 960, 480, 160),
+      eb('Open this week', 200, 96, 800, None, 'center'), hd('By the glass', 200, 144, 800, 72, '3-x-large', 'center'),
+      ledger(200, 264, 800, glass, price=1),
+      pa('125ml. <a href="/the-list/">The whole list →</a>', 200, 672, 800, 24, 14, 'center'),
     ], background=C(6)),
+    sec('How it works', 504, [
+      rule(80, 96, 320), hd('Drink in.', 80, 120, 320, 48, 'x-large'),
+      pa('Sit at the long table. Every bottle on the shelf can be opened for £8 corkage, with bread, anchovies and whatever cheese came in.', 80, 192, 320, 168, 16),
+      rule(440, 96, 320), hd('Take it home.', 440, 120, 320, 48, 'x-large'),
+      pa('Everything has its price on the neck. Tell us what is for dinner and how much you want to spend, and we will find it.', 440, 192, 320, 168, 16),
+      rule(800, 96, 320), hd('Ask us.', 800, 120, 320, 48, 'x-large'),
+      pa('We have tasted all of it and will open nearly anything for a taste. Nobody here will make you say “minerality”.', 800, 192, 320, 168, 16),
+    ]),
     sec('Why', 576, [
       hd('“Good wine is grapes, time and somebody paying attention.”', 160, 192, 880, 144, '2-x-large', 'center'),
       pa('Ines Maron, who chooses the bottles', 160, 360, 880, 24, 14, 'center'),
     ], image=U('1537640538966-79f369143f8f', 2000), background=C(1), tint=70),
     sec('This month', 648, [
-      eb('At the long table', 80, 96, 440), hd('This month', 80, 144, 640, 72),
-      ledger(80, 264, 1040, [
-        {'k': 'Thu 5', 't': 'Meet the grower: Domaine des Quatre Vents', 'd': 'Six wines and the person who made them', 'role': '£28'},
-        {'k': 'Sun 15', 't': 'Orange wine, start to finish', 'd': 'A tasting for people who are not sure yet', 'role': '£22'},
-        {'k': 'Thu 19', 't': 'Oysters and Muscadet', 'd': 'Whitstable natives, shucked at the bar', 'role': 'Walk in'},
-        {'k': 'Sat 28', 't': 'Bottle swap', 'd': 'Bring one you love, leave with one you have never heard of', 'role': 'Free'},
-      ], k=1, role=1),
+      eb('At the long table', 200, 96, 800, None, 'center'), hd('This month', 200, 144, 800, 72, '3-x-large', 'center'),
+      tile(80, 264, 'Thursday 5 · £28', 'Meet the grower', 'Domaine des Quatre Vents: six wines and the person who made them.', '/visit/', 'Ask about a seat →', C(6), 288),
+      tile(440, 264, 'Sunday 15 · £22', 'Orange wine, start to finish', 'A tasting for people who are not sure about it yet.', '/visit/', 'Ask about a seat →', C(6), 288),
+      tile(800, 264, 'Thursday 19 · walk in', 'Oysters and Muscadet', 'Whitstable natives, shucked at the bar until they run out.', '/visit/', 'Find us →', C(6), 288),
     ]),
-    sec('Find us', 648, [
-      eb('Find us', 80, 120, 440), hd('Northdown Road, by the sea.', 80, 168, 480, 120),
-      pa('Wednesday and Thursday, 4 to 10<br>Friday and Saturday, 12 to 11<br>Sunday, 12 to 6', 80, 312, 440, 96),
-      pa('No bookings under six. Dogs welcome, children until seven.', 80, 432, 440, 48, 15),
-      bt('Plan a visit', 80, 504, 168, '/visit/', True),
-      {'type': 'embed', 'x': 640, 'y': 96, 'w': 480, 'h': 456, 'url': 'https://www.google.com/maps?q=Northdown+Road,+Cliftonville,+Margate&output=embed', 'radius': 16},
+    sec('Find us', 864, [
+      eb('Find us', 200, 96, 800, None, 'center'), hd('Northdown Road, by the sea.', 200, 144, 800, 72, '3-x-large', 'center'),
+      pa('Wednesday and Thursday, 4 to 10 · Friday and Saturday, 12 to 11 · Sunday, 12 to 6', 200, 240, 800, 48, 16, 'center'),
+      {'type': 'embed', 'x': 80, 'y': 336, 'w': 1040, 'h': 432, 'url': 'https://www.google.com/maps?q=Northdown+Road,+Cliftonville,+Margate&output=embed', 'radius': 16},
     ], background=C(8)),
    ], slug='home', front=True, menu=False),
    page('The list', [
@@ -290,33 +287,35 @@ SITES['podcast'] = {
   'pages': [
    page('Home', [
     sec('Hero', 720, [
-      eb('A podcast · every other Thursday', 80, 72, 440),
-      hd('The Long Border', 80, 120, 540, 216, '__disp-s'),
-      pa('Two gardeners visit people who grow things, in glasshouses, on allotments and up against north-facing walls, and ask them how it is going.', 80, 360, 460, 96, 18),
-      bt('Latest episode', 80, 504, 192, '/?name=episode-48'), bt('All episodes', 288, 504, 176, '/episodes/', True),
-      im('1758562954971-7808c31fa98f', 640, 48, 480, 576, 'A microphone on a wooden table beside an armchair and candles'),
+      eb('A podcast · every other Thursday', 80, 120, 440),
+      hd('The Long Border', 80, 168, 500, 216, '__disp-s'),
+      pa('Two gardeners visit people who grow things, in glasshouses, on allotments and up against north-facing walls, and ask them how it is going.', 80, 408, 460, 120, 17),
+      bt('All episodes', 80, 552, 176, '/episodes/', True),
+      {'type': 'box', 'x': 640, 'y': 72, 'w': 480, 'h': 552, 'boxBg': C(6), 'radius': 24, 'kids': [
+        im('1675449215007-def921b7c0ca', 24, 24, 432, 240, 'A brick and glass Victorian greenhouse', 12),
+        eb('Latest · episode 48 · 52 min', 24, 288, 432),
+        hd('The greenhouse that paid for itself', 24, 324, 432, 72, 'large', tf={'fs': 26, 'lh': 1.15}),
+        pa('Margaret Ashby reglazed a derelict glasshouse one pane at a time. Forty years of tomatoes later, she shows us round.', 24, 408, 432, 72, 14),
+        bt('Listen now', 24, 480, 160, '/?name=episode-48'),
+      ]},
     ]),
-    sec('Latest episode', 648, [
-      im('1675449215007-def921b7c0ca', 80, 96, 520, 456, 'A brick and glass Victorian greenhouse'),
-      eb('Episode 48 · 52 min', 680, 120, 440), hd('The greenhouse that paid for itself', 680, 168, 440, 168),
-      pa('Margaret Ashby reglazed a derelict Victorian glasshouse one pane at a time. Forty years of tomatoes later, she shows us round in November, when it is the only warm place for miles.', 680, 360, 420, 120),
-      bt('Listen now', 680, 504, 160, '/?name=episode-48'),
-    ], background=C(6)),
-    {'take': 'Latest posts', 'name': 'Recent episodes', 'heading': 'Recent episodes', 'posts': {'look': 'ledger', 'count': 5, 'show': {'date': True, 'excerpt': False}}},
+    {'take': 'Latest posts', 'name': 'Recent episodes', 'heading': 'Recent episodes', 'posts': {'look': 'cards', 'count': 3, 'show': {'date': True, 'excerpt': True}}},
     sec('Listen', 360, [
       eb('Wherever you listen', 160, 72, 880, None, 'center'), hd('Free, every other Thursday.', 160, 120, 880, 72, '3-x-large', 'center'),
       bt('Apple Podcasts', 208, 240, 184, '#', True), bt('Spotify', 408, 240, 184, '#', True), bt('Pocket Casts', 608, 240, 184, '#', True), bt('RSS feed', 808, 240, 184, '/feed/', True),
     ], background=C(8)),
-    sec('Your hosts', 792, [
-      eb('Your hosts', 80, 96, 440), hd('Two gardeners, one microphone.', 80, 144, 720, 72),
-      im('1724556295070-5f8bff2c7f3f', 80, 264, 224, 312, 'Ruth Calder in her garden'),
-      hd('Ruth Calder', 336, 288, 248, 48, 'large', tf={'fs': 26, 'lh': 1.15}),
-      pa('Thirty years a head gardener, now tending a long border of her own in Shropshire. Asks the awkward questions.', 336, 360, 248, 168, 15),
-      im('1759497860802-9cba5782b455', 624, 264, 224, 312, 'Tomasz Nowak on his allotment'),
-      hd('Tomasz Nowak', 880, 288, 240, 48, 'large', tf={'fs': 26, 'lh': 1.15}),
-      pa('Grows vegetables on a no-dig allotment in Leeds and writes about soil. Brings the biscuits.', 880, 360, 240, 168, 15),
-      rule(80, 624, 1040), *stat('48', 'episodes', 80, 648, 200), *stat('31', 'gardens visited', 360, 648, 200), *stat('0', 'adverts', 640, 648, 200), *stat('2019', 'since', 920, 648, 200),
+    sec('Your hosts', 720, [
+      eb('Your hosts', 160, 96, 880, None, 'center'), hd('Two gardeners, one microphone.', 160, 144, 880, 72, '3-x-large', 'center'),
+      im('1724556295070-5f8bff2c7f3f', 240, 264, 216, 216, 'Ruth Calder in her garden', 108),
+      hd('Ruth Calder', 168, 504, 360, 48, 'large', 'center', tf={'fs': 26, 'lh': 1.15}),
+      pa('Thirty years a head gardener, now tending a long border of her own in Shropshire. Asks the awkward questions.', 168, 552, 360, 96, 15, 'center'),
+      im('1759497860802-9cba5782b455', 744, 264, 216, 216, 'Tomasz Nowak on his allotment', 108),
+      hd('Tomasz Nowak', 672, 504, 360, 48, 'large', 'center', tf={'fs': 26, 'lh': 1.15}),
+      pa('Grows vegetables on a no-dig allotment in Leeds and writes about soil. Brings the biscuits.', 672, 552, 360, 96, 15, 'center'),
     ]),
+    sec('In numbers', 288, [
+      *stat('48', 'episodes', 80, 96, 200), *stat('31', 'gardens visited', 360, 96, 200), *stat('0', 'adverts', 640, 96, 200), *stat('2019', 'since', 920, 96, 200),
+    ], background=C(6)),
     sec('The letter', 432, [
       eb('Between episodes', 160, 96, 880, None, 'center'), hd('A letter from the potting shed.', 160, 144, 880, 72, '3-x-large', 'center'),
       pa('What we are sowing this fortnight, who is on next, and one thing a listener taught us.', 320, 240, 560, 48, 17, 'center'),

@@ -13,82 +13,265 @@
    "sections": [
     {
      "name": "Hero",
-     "minH": 720,
+     "minH": 792,
      "els": [
       {
        "type": "para",
-       "x": 80,
-       "y": 72,
-       "w": 440,
+       "x": 160,
+       "y": 216,
+       "w": 880,
        "h": 24,
-       "text": "New album · out 6 March",
+       "text": "Halyard · new album · out 6 March",
        "tf": {
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
         "tt": "uppercase"
-       }
+       },
+       "color": "theme-1",
+       "align": "center"
       },
       {
        "type": "heading",
        "x": 80,
-       "y": 120,
-       "w": 560,
+       "y": 264,
+       "w": 1040,
        "h": 216,
        "text": "Slack Water",
-       "fs": "__disp-s"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 360,
-       "w": 460,
-       "h": 96,
-       "text": "Ten songs about leaving a harbour town and coming back to it, written in a net loft over one long winter. The second record from Halyard.",
+       "fs": "__max",
+       "align": "center",
+       "color": "theme-1",
        "tf": {
-        "fs": 18
+        "fs": 132,
+        "lh": 1
        }
       },
       {
-       "type": "button",
-       "x": 80,
+       "type": "para",
+       "x": 320,
        "y": 504,
+       "w": 560,
+       "h": 72,
+       "text": "Ten songs about leaving a harbour town and coming back to it, written in a net loft over one long winter.",
+       "tf": {
+        "fs": 19
+       },
+       "align": "center",
+       "color": "theme-1"
+      },
+      {
+       "type": "button",
+       "x": 392,
+       "y": 624,
        "w": 200,
        "h": 48,
        "text": "Hear the record",
-       "href": "/music/"
+       "href": "/music/",
+       "btnBg": "theme-7",
+       "btnText": "theme-2"
       },
       {
        "type": "button",
-       "x": 296,
-       "y": 504,
-       "w": 160,
+       "x": 608,
+       "y": 624,
+       "w": 200,
        "h": 48,
        "text": "Tour dates",
        "href": "/tour/",
-       "ghost": true
+       "btnBg": "theme-1",
+       "btnText": "theme-2"
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1632054553195-bfd7034fee25?w=2000&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-2)",
+     "tint": 52
+    },
+    {
+     "name": "Three ways in",
+     "minH": 504,
+     "els": [
+      {
+       "type": "box",
+       "x": 80,
+       "y": 96,
+       "w": 320,
+       "h": 312,
+       "boxBg": "var(--wp--preset--color--theme-7)",
+       "radius": 20,
+       "kids": [
+        {
+         "type": "para",
+         "x": 28,
+         "y": 28,
+         "w": 264,
+         "h": 24,
+         "text": "Listen",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 28,
+         "y": 64,
+         "w": 264,
+         "h": 72,
+         "text": "Ten songs, forty-two minutes",
+         "fs": "large",
+         "tf": {
+          "fs": 26,
+          "lh": 1.15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 148,
+         "w": 264,
+         "h": 92,
+         "text": "Recorded live in six days. On heavy black vinyl, or wherever you listen.",
+         "tf": {
+          "fs": 15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 256,
+         "w": 264,
+         "h": 24,
+         "text": "<a href=\"/music/\">The record →</a>",
+         "tf": {
+          "fs": 15,
+          "fw": 600
+         }
+        }
+       ]
       },
       {
-       "type": "image",
-       "x": 640,
-       "y": 48,
-       "w": 480,
-       "h": 576,
-       "src": "https://images.unsplash.com/photo-1608319917470-9d9179430f8d?w=1600&q=80&fm=jpg&fit=max",
-       "alt": "A singer mid-song under purple stage light",
-       "radius": 16
+       "type": "box",
+       "x": 440,
+       "y": 96,
+       "w": 320,
+       "h": 312,
+       "boxBg": "var(--wp--preset--color--theme-8)",
+       "radius": 20,
+       "kids": [
+        {
+         "type": "para",
+         "x": 28,
+         "y": 28,
+         "w": 264,
+         "h": 24,
+         "text": "See us",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 28,
+         "y": 64,
+         "w": 264,
+         "h": 72,
+         "text": "Ten nights in March",
+         "fs": "large",
+         "tf": {
+          "fs": 26,
+          "lh": 1.15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 148,
+         "w": 264,
+         "h": 92,
+         "text": "Falmouth to Glasgow and back, with our friends Greyhen. Three are nearly gone.",
+         "tf": {
+          "fs": 15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 256,
+         "w": 264,
+         "h": 24,
+         "text": "<a href=\"/tour/\">Tour dates →</a>",
+         "tf": {
+          "fs": 15,
+          "fw": 600
+         }
+        }
+       ]
       },
       {
-       "type": "para",
-       "x": 640,
-       "y": 624,
-       "w": 480,
-       "h": 24,
-       "text": "Morwenna, The Poly, Falmouth",
-       "tf": {
-        "fs": 13
-       },
-       "align": "right"
+       "type": "box",
+       "x": 800,
+       "y": 96,
+       "w": 320,
+       "h": 312,
+       "boxBg": "var(--wp--preset--color--theme-9)",
+       "radius": 20,
+       "kids": [
+        {
+         "type": "para",
+         "x": 28,
+         "y": 28,
+         "w": 264,
+         "h": 24,
+         "text": "Stay close",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 28,
+         "y": 64,
+         "w": 264,
+         "h": 72,
+         "text": "A letter, once a month",
+         "fs": "large",
+         "tf": {
+          "fs": 26,
+          "lh": 1.15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 148,
+         "w": 264,
+         "h": 92,
+         "text": "New songs, early tickets and the odd photograph of the van broken down.",
+         "tf": {
+          "fs": 15
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 256,
+         "w": 264,
+         "h": 24,
+         "text": "<a href=\"mailto:hello@halyard.example\">Join the list →</a>",
+         "tf": {
+          "fs": 15,
+          "fw": 600
+         }
+        }
+       ]
       }
      ]
     },
@@ -230,6 +413,65 @@
        "href": "/tour/",
        "ghost": true
       }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    },
+    {
+     "name": "The band",
+     "minH": 936,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 96,
+       "w": 1040,
+       "h": 480,
+       "src": "https://images.unsplash.com/photo-1481886756534-97af88ccb438?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "A band rehearsing in a small studio",
+       "radius": 16
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 624,
+       "w": 400,
+       "h": 144,
+       "text": "Four people and a van.",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "para",
+       "x": 520,
+       "y": 624,
+       "w": 280,
+       "h": 144,
+       "text": "Morwenna Pascoe sings and plays guitar. Jago Trethewey plays the other guitar, louder.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 624,
+       "w": 280,
+       "h": 144,
+       "text": "Kit Hallam plays bass and drives. Dev Sandhu plays drums and never stops talking.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 520,
+       "y": 792,
+       "w": 600,
+       "h": 48,
+       "text": "We met working summer jobs on the same quay in 2019. The van is called Doris.",
+       "tf": {
+        "fs": 16
+       }
+      }
      ]
     },
     {
@@ -237,19 +479,9 @@
      "minH": 720,
      "els": [
       {
-       "type": "image",
-       "x": 80,
-       "y": 96,
-       "w": 480,
-       "h": 480,
-       "src": "https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=1600&q=80&fm=jpg&fit=max",
-       "alt": "A black vinyl record turning on a turntable",
-       "radius": 16
-      },
-      {
        "type": "para",
-       "x": 640,
-       "y": 120,
+       "x": 80,
+       "y": 144,
        "w": 440,
        "h": 24,
        "text": "The record",
@@ -262,8 +494,8 @@
       },
       {
        "type": "heading",
-       "x": 640,
-       "y": 168,
+       "x": 80,
+       "y": 192,
        "w": 480,
        "h": 168,
        "text": "Ten songs, one winter, no click track.",
@@ -271,241 +503,36 @@
       },
       {
        "type": "para",
-       "x": 640,
-       "y": 360,
+       "x": 80,
+       "y": 384,
        "w": 460,
        "h": 120,
-       "text": "We recorded it live in a room, the four of us facing each other, in six days. What you hear is what happened. It comes on heavy black vinyl with a lyric sheet, or wherever you listen.",
+       "text": "We recorded it live in a room, the four of us facing each other. What you hear is what happened. It comes with a lyric sheet and a photograph of Doris.",
        "tf": {
         "fs": 17
        }
       },
       {
        "type": "button",
-       "x": 640,
-       "y": 504,
+       "x": 80,
+       "y": 528,
        "w": 232,
        "h": 48,
        "text": "Buy the vinyl · £24",
        "href": "/music/"
-      }
-     ],
-     "background": "var(--wp--preset--color--theme-7)"
-    },
-    {
-     "name": "Live",
-     "minH": 576,
-     "els": [
-      {
-       "type": "heading",
-       "x": 160,
-       "y": 192,
-       "w": 880,
-       "h": 144,
-       "text": "“The best night out in a harbour town since the fleet came in.”",
-       "fs": "2-x-large",
-       "align": "center",
-       "color": "theme-1"
-      },
-      {
-       "type": "para",
-       "x": 160,
-       "y": 360,
-       "w": 880,
-       "h": 24,
-       "text": "Tidelines magazine, on the Falmouth launch",
-       "tf": {
-        "fs": 14
-       },
-       "align": "center",
-       "color": "theme-1"
-      }
-     ],
-     "image": "https://images.unsplash.com/photo-1632054553195-bfd7034fee25?w=2000&q=80&fm=jpg&fit=max",
-     "background": "var(--wp--preset--color--theme-2)",
-     "tint": 62
-    },
-    {
-     "name": "The band",
-     "minH": 792,
-     "els": [
-      {
-       "type": "para",
-       "x": 80,
-       "y": 96,
-       "w": 440,
-       "h": 24,
-       "text": "Who we are",
-       "tf": {
-        "fs": 12,
-        "fw": 600,
-        "ls2": 0.2,
-        "tt": "uppercase"
-       }
-      },
-      {
-       "type": "heading",
-       "x": 80,
-       "y": 144,
-       "w": 480,
-       "h": 72,
-       "text": "Four people and a van.",
-       "fs": "3-x-large"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 240,
-       "w": 460,
-       "h": 168,
-       "text": "Morwenna Pascoe sings and plays guitar. Jago Trethewey plays the other guitar, louder. Kit Hallam plays bass and drives. Dev Sandhu plays drums and never stops talking.",
-       "tf": {
-        "fs": 17
-       }
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 432,
-       "w": 460,
-       "h": 96,
-       "text": "We met working summer jobs on the same quay in 2019. The van is called Doris.",
-       "tf": {
-        "fs": 17
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 576,
-       "w": 480,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
-      },
-      {
-       "type": "heading",
-       "x": 80,
-       "y": 600,
-       "w": 140,
-       "h": 48,
-       "text": "2",
-       "fs": "x-large"
-      },
-      {
-       "type": "para",
-       "x": 80,
-       "y": 648,
-       "w": 140,
-       "h": 24,
-       "text": "records",
-       "tf": {
-        "fs": 13
-       }
-      },
-      {
-       "type": "heading",
-       "x": 240,
-       "y": 600,
-       "w": 140,
-       "h": 48,
-       "text": "214",
-       "fs": "x-large"
-      },
-      {
-       "type": "para",
-       "x": 240,
-       "y": 648,
-       "w": 140,
-       "h": 24,
-       "text": "shows",
-       "tf": {
-        "fs": 13
-       }
-      },
-      {
-       "type": "heading",
-       "x": 400,
-       "y": 600,
-       "w": 160,
-       "h": 48,
-       "text": "1",
-       "fs": "x-large"
-      },
-      {
-       "type": "para",
-       "x": 400,
-       "y": 648,
-       "w": 160,
-       "h": 24,
-       "text": "van, just",
-       "tf": {
-        "fs": 13
-       }
       },
       {
        "type": "image",
        "x": 640,
        "y": 96,
        "w": 480,
-       "h": 600,
-       "src": "https://images.unsplash.com/photo-1481886756534-97af88ccb438?w=1600&q=80&fm=jpg&fit=max",
-       "alt": "A band rehearsing in a small studio",
-       "radius": 16
-      }
-     ]
-    },
-    {
-     "name": "Hear it first",
-     "minH": 432,
-     "els": [
-      {
-       "type": "para",
-       "x": 160,
-       "y": 96,
-       "w": 880,
-       "h": 24,
-       "text": "The list",
-       "tf": {
-        "fs": 12,
-        "fw": 600,
-        "ls2": 0.2,
-        "tt": "uppercase"
-       },
-       "align": "center"
-      },
-      {
-       "type": "heading",
-       "x": 160,
-       "y": 144,
-       "w": 880,
-       "h": 72,
-       "text": "Hear it first.",
-       "fs": "3-x-large",
-       "align": "center"
-      },
-      {
-       "type": "para",
-       "x": 320,
-       "y": 240,
-       "w": 560,
-       "h": 48,
-       "text": "New songs, early tickets and the odd photograph of Doris broken down. About once a month.",
-       "tf": {
-        "fs": 17
-       },
-       "align": "center"
-      },
-      {
-       "type": "button",
-       "x": 500,
-       "y": 312,
-       "w": 200,
-       "h": 48,
-       "text": "Join the list",
-       "href": "mailto:hello@halyard.example"
+       "h": 480,
+       "src": "https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "A black vinyl record turning on a turntable",
+       "radius": 240
       }
      ],
-     "background": "var(--wp--preset--color--theme-6)"
+     "background": "var(--wp--preset--color--theme-10)"
     }
    ],
    "slug": "home",
@@ -1000,20 +1027,16 @@
  "footer": "<!-- wp:group {\"tagName\":\"footer\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|70\",\"bottom\":\"var:preset|spacing|60\"},\"margin\":{\"top\":\"0\",\"bottom\":\"0\"}},\"background\":{\"gradient\":\"var:preset|gradient|gradient-8\"}},\"layout\":{\"type\":\"constrained\"}} -->\n<footer class=\"wp-block-group\" style=\"margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--60)\"><!-- wp:columns {\"align\":\"wide\"} -->\n<div class=\"wp-block-columns alignwide\"><!-- wp:column {\"width\":\"40%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:40%\"><!-- wp:site-title {\"level\":0,\"fontSize\":\"x-large\"} /-->\n\n<!-- wp:site-tagline {\"fontSize\":\"small\"} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Booking</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">Kit drives and answers the email:<br><a href=\"mailto:hello@halyard.example\">hello@halyard.example</a></p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Next</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">6 March · Falmouth<br>8 March · Bristol<br>12 March · Manchester</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n</div>\n<!-- /wp:columns -->\n\n<!-- wp:paragraph {\"align\":\"wide\",\"fontSize\":\"x-small\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|60\"}}}} -->\n<p class=\"alignwide has-x-small-font-size\" style=\"margin-top:var(--wp--preset--spacing--60)\">© 2026 Halyard · Made in Falmouth, played everywhere the van will go</p>\n<!-- /wp:paragraph --></footer>\n<!-- /wp:group -->\n",
  "credits": [
   {
-   "name": "Claudia Raya",
-   "link": "https://unsplash.com/@claudiaraya"
-  },
-  {
-   "name": "Andrea Cipriani",
-   "link": "https://unsplash.com/@a_ndrecip"
-  },
-  {
    "name": "Abstral Official",
    "link": "https://unsplash.com/@abstralofficial"
   },
   {
    "name": "Hans Vivek",
    "link": "https://unsplash.com/@oneshotespresso"
+  },
+  {
+   "name": "Andrea Cipriani",
+   "link": "https://unsplash.com/@a_ndrecip"
   },
   {
    "name": "Adrian Korte",

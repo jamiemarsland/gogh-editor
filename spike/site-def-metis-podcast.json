@@ -18,7 +18,7 @@
       {
        "type": "para",
        "x": 80,
-       "y": 72,
+       "y": 120,
        "w": 440,
        "h": 24,
        "text": "A podcast · every other Thursday",
@@ -32,8 +32,8 @@
       {
        "type": "heading",
        "x": 80,
-       "y": 120,
-       "w": 540,
+       "y": 168,
+       "w": 500,
        "h": 216,
        "text": "The Long Border",
        "fs": "__disp-s"
@@ -41,27 +41,18 @@
       {
        "type": "para",
        "x": 80,
-       "y": 360,
+       "y": 408,
        "w": 460,
-       "h": 96,
+       "h": 120,
        "text": "Two gardeners visit people who grow things, in glasshouses, on allotments and up against north-facing walls, and ask them how it is going.",
        "tf": {
-        "fs": 18
+        "fs": 17
        }
       },
       {
        "type": "button",
        "x": 80,
-       "y": 504,
-       "w": 192,
-       "h": 48,
-       "text": "Latest episode",
-       "href": "/?name=episode-48"
-      },
-      {
-       "type": "button",
-       "x": 288,
-       "y": 504,
+       "y": 552,
        "w": 176,
        "h": 48,
        "text": "All episodes",
@@ -69,87 +60,85 @@
        "ghost": true
       },
       {
-       "type": "image",
+       "type": "box",
        "x": 640,
-       "y": 48,
+       "y": 72,
        "w": 480,
-       "h": 576,
-       "src": "https://images.unsplash.com/photo-1758562954971-7808c31fa98f?w=1600&q=80&fm=jpg&fit=max",
-       "alt": "A microphone on a wooden table beside an armchair and candles",
-       "radius": 16
+       "h": 552,
+       "boxBg": "var(--wp--preset--color--theme-6)",
+       "radius": 24,
+       "kids": [
+        {
+         "type": "image",
+         "x": 24,
+         "y": 24,
+         "w": 432,
+         "h": 240,
+         "src": "https://images.unsplash.com/photo-1675449215007-def921b7c0ca?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "A brick and glass Victorian greenhouse",
+         "radius": 12
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 288,
+         "w": 432,
+         "h": 24,
+         "text": "Latest · episode 48 · 52 min",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 324,
+         "w": 432,
+         "h": 72,
+         "text": "The greenhouse that paid for itself",
+         "fs": "large",
+         "tf": {
+          "fs": 26,
+          "lh": 1.15
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 408,
+         "w": 432,
+         "h": 72,
+         "text": "Margaret Ashby reglazed a derelict glasshouse one pane at a time. Forty years of tomatoes later, she shows us round.",
+         "tf": {
+          "fs": 14
+         }
+        },
+        {
+         "type": "button",
+         "x": 24,
+         "y": 480,
+         "w": 160,
+         "h": 48,
+         "text": "Listen now",
+         "href": "/?name=episode-48"
+        }
+       ]
       }
      ]
-    },
-    {
-     "name": "Latest episode",
-     "minH": 648,
-     "els": [
-      {
-       "type": "image",
-       "x": 80,
-       "y": 96,
-       "w": 520,
-       "h": 456,
-       "src": "https://images.unsplash.com/photo-1675449215007-def921b7c0ca?w=1600&q=80&fm=jpg&fit=max",
-       "alt": "A brick and glass Victorian greenhouse",
-       "radius": 16
-      },
-      {
-       "type": "para",
-       "x": 680,
-       "y": 120,
-       "w": 440,
-       "h": 24,
-       "text": "Episode 48 · 52 min",
-       "tf": {
-        "fs": 12,
-        "fw": 600,
-        "ls2": 0.2,
-        "tt": "uppercase"
-       }
-      },
-      {
-       "type": "heading",
-       "x": 680,
-       "y": 168,
-       "w": 440,
-       "h": 168,
-       "text": "The greenhouse that paid for itself",
-       "fs": "3-x-large"
-      },
-      {
-       "type": "para",
-       "x": 680,
-       "y": 360,
-       "w": 420,
-       "h": 120,
-       "text": "Margaret Ashby reglazed a derelict Victorian glasshouse one pane at a time. Forty years of tomatoes later, she shows us round in November, when it is the only warm place for miles.",
-       "tf": {
-        "fs": 17
-       }
-      },
-      {
-       "type": "button",
-       "x": 680,
-       "y": 504,
-       "w": 160,
-       "h": 48,
-       "text": "Listen now",
-       "href": "/?name=episode-48"
-      }
-     ],
-     "background": "var(--wp--preset--color--theme-6)"
     },
     {
      "take": "Latest posts",
      "name": "Recent episodes",
      "heading": "Recent episodes",
      "posts": {
-      "look": "ledger",
-      "count": 5,
+      "look": "cards",
+      "count": 3,
       "show": {
        "date": true,
-       "excerpt": false
+       "excerpt": true
       }
      }
     },
@@ -227,13 +216,13 @@
     },
     {
      "name": "Your hosts",
-     "minH": 792,
+     "minH": 720,
      "els": [
       {
        "type": "para",
-       "x": 80,
+       "x": 160,
        "y": 96,
-       "w": 440,
+       "w": 880,
        "h": 24,
        "text": "Your hosts",
        "tf": {
@@ -241,35 +230,38 @@
         "fw": 600,
         "ls2": 0.2,
         "tt": "uppercase"
-       }
+       },
+       "align": "center"
       },
       {
        "type": "heading",
-       "x": 80,
+       "x": 160,
        "y": 144,
-       "w": 720,
+       "w": 880,
        "h": 72,
        "text": "Two gardeners, one microphone.",
-       "fs": "3-x-large"
+       "fs": "3-x-large",
+       "align": "center"
       },
       {
        "type": "image",
-       "x": 80,
+       "x": 240,
        "y": 264,
-       "w": 224,
-       "h": 312,
+       "w": 216,
+       "h": 216,
        "src": "https://images.unsplash.com/photo-1724556295070-5f8bff2c7f3f?w=1600&q=80&fm=jpg&fit=max",
        "alt": "Ruth Calder in her garden",
-       "radius": 16
+       "radius": 108
       },
       {
        "type": "heading",
-       "x": 336,
-       "y": 288,
-       "w": 248,
+       "x": 168,
+       "y": 504,
+       "w": 360,
        "h": 48,
        "text": "Ruth Calder",
        "fs": "large",
+       "align": "center",
        "tf": {
         "fs": 26,
         "lh": 1.15
@@ -277,33 +269,35 @@
       },
       {
        "type": "para",
-       "x": 336,
-       "y": 360,
-       "w": 248,
-       "h": 168,
+       "x": 168,
+       "y": 552,
+       "w": 360,
+       "h": 96,
        "text": "Thirty years a head gardener, now tending a long border of her own in Shropshire. Asks the awkward questions.",
        "tf": {
         "fs": 15
-       }
+       },
+       "align": "center"
       },
       {
        "type": "image",
-       "x": 624,
+       "x": 744,
        "y": 264,
-       "w": 224,
-       "h": 312,
+       "w": 216,
+       "h": 216,
        "src": "https://images.unsplash.com/photo-1759497860802-9cba5782b455?w=1600&q=80&fm=jpg&fit=max",
        "alt": "Tomasz Nowak on his allotment",
-       "radius": 16
+       "radius": 108
       },
       {
        "type": "heading",
-       "x": 880,
-       "y": 288,
-       "w": 240,
+       "x": 672,
+       "y": 504,
+       "w": 360,
        "h": 48,
        "text": "Tomasz Nowak",
        "fs": "large",
+       "align": "center",
        "tf": {
         "fs": 26,
         "lh": 1.15
@@ -311,27 +305,26 @@
       },
       {
        "type": "para",
-       "x": 880,
-       "y": 360,
-       "w": 240,
-       "h": 168,
+       "x": 672,
+       "y": 552,
+       "w": 360,
+       "h": 96,
        "text": "Grows vegetables on a no-dig allotment in Leeds and writes about soil. Brings the biscuits.",
        "tf": {
         "fs": 15
-       }
-      },
-      {
-       "type": "box",
-       "x": 80,
-       "y": 624,
-       "w": 1040,
-       "h": 24,
-       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
-      },
+       },
+       "align": "center"
+      }
+     ]
+    },
+    {
+     "name": "In numbers",
+     "minH": 288,
+     "els": [
       {
        "type": "heading",
        "x": 80,
-       "y": 648,
+       "y": 96,
        "w": 200,
        "h": 48,
        "text": "48",
@@ -340,7 +333,7 @@
       {
        "type": "para",
        "x": 80,
-       "y": 696,
+       "y": 144,
        "w": 200,
        "h": 24,
        "text": "episodes",
@@ -351,7 +344,7 @@
       {
        "type": "heading",
        "x": 360,
-       "y": 648,
+       "y": 96,
        "w": 200,
        "h": 48,
        "text": "31",
@@ -360,7 +353,7 @@
       {
        "type": "para",
        "x": 360,
-       "y": 696,
+       "y": 144,
        "w": 200,
        "h": 24,
        "text": "gardens visited",
@@ -371,7 +364,7 @@
       {
        "type": "heading",
        "x": 640,
-       "y": 648,
+       "y": 96,
        "w": 200,
        "h": 48,
        "text": "0",
@@ -380,7 +373,7 @@
       {
        "type": "para",
        "x": 640,
-       "y": 696,
+       "y": 144,
        "w": 200,
        "h": 24,
        "text": "adverts",
@@ -391,7 +384,7 @@
       {
        "type": "heading",
        "x": 920,
-       "y": 648,
+       "y": 96,
        "w": 200,
        "h": 48,
        "text": "2019",
@@ -400,7 +393,7 @@
       {
        "type": "para",
        "x": 920,
-       "y": 696,
+       "y": 144,
        "w": 200,
        "h": 24,
        "text": "since",
@@ -408,7 +401,8 @@
         "fs": 13
        }
       }
-     ]
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
     },
     {
      "name": "The letter",
@@ -651,10 +645,6 @@
  "blog_look": "ledger",
  "footer": "<!-- wp:group {\"tagName\":\"footer\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|70\",\"bottom\":\"var:preset|spacing|60\"},\"margin\":{\"top\":\"0\",\"bottom\":\"0\"}},\"background\":{\"gradient\":\"var:preset|gradient|gradient-8\"}},\"layout\":{\"type\":\"constrained\"}} -->\n<footer class=\"wp-block-group\" style=\"margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--60)\"><!-- wp:columns {\"align\":\"wide\"} -->\n<div class=\"wp-block-columns alignwide\"><!-- wp:column {\"width\":\"40%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:40%\"><!-- wp:site-title {\"level\":0,\"fontSize\":\"x-large\"} /-->\n\n<!-- wp:site-tagline {\"fontSize\":\"small\"} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Listen</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">Every other Thursday<br>Free, with no adverts<br><a href=\"/feed/\">RSS feed</a></p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Write</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">Tell us about a garden:<br><a href=\"mailto:hello@thelongborder.example\">hello@thelongborder.example</a></p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n</div>\n<!-- /wp:columns -->\n\n<!-- wp:paragraph {\"align\":\"wide\",\"fontSize\":\"x-small\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|60\"}}}} -->\n<p class=\"alignwide has-x-small-font-size\" style=\"margin-top:var(--wp--preset--spacing--60)\">© 2026 The Long Border · Recorded in other people’s gardens</p>\n<!-- /wp:paragraph --></footer>\n<!-- /wp:group -->\n",
  "credits": [
-  {
-   "name": "Sofie Woldrich",
-   "link": "https://unsplash.com/@sofie_elisabeth"
-  },
   {
    "name": "Jason Hawke",
    "link": "https://unsplash.com/@jfhawke"
