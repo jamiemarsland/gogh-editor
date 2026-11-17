@@ -42,7 +42,8 @@
        "align": "center",
        "color": "theme-1",
        "tf": {
-        "fs": 132,
+        "fs2": 11,
+        "fsMin": 44,
         "lh": 1
        }
       },

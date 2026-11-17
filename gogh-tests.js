@@ -6265,6 +6265,13 @@
       });
       // and the page as it stands: every section on the fixture, as published
       walk(wpb.parse(G.buildV3()), 'the test page');
+      // the form is drawn by PHP; the block editor must still know it by name
+      // (a block only PHP registers opens as 'unsupported'), and hand it back unchanged
+      expect(wpb.getBlockType('gogh/form'), 'gogh/form is not registered for the block editor: it would open as an unsupported block');
+      var fsrc = '<!-- wp:gogh/form {"heading":"Write to us"} /-->';
+      var fb = wpb.parse(fsrc)[0];
+      expect(fb && fb.name === 'gogh/form' && fb.isValid !== false, 'the form block did not parse as a valid gogh/form');
+      expect(wpb.serialize([fb]) === fsrc, 'the block editor would rewrite the form block: ' + wpb.serialize([fb]));
       expect(tried > 20, 'expected the whole shelf of starters, tried ' + tried);
       expect(!bad.length, bad.length + ' invalid block(s): ' + bad.slice(0, 5).join(' || ') + (bad.length > 5 ? ' (+' + (bad.length - 5) + ')' : ''));
       var un = Object.keys(unchecked);

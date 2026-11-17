@@ -1,0 +1,1068 @@
+{
+ "name": "Nell Ashdown",
+ "tagline": "Prints, pictures and workshops, from a shed in Hebden Bridge.",
+ "variation": "Aeaea",
+ "chrome": {
+  "header_part": "header-a",
+  "footer_part": "footer-c"
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Wall",
+     "minH": 1008,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 84,
+       "w": 520,
+       "h": 24,
+       "text": "Printmaker · illustrator · teacher",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 120,
+       "w": 520,
+       "h": 288,
+       "text": "Nell Ashdown makes pictures by hand.",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 432,
+       "w": 480,
+       "h": 72,
+       "text": "Linocuts, drawings for books and magazines, and Saturday workshops, all from a shed in Hebden Bridge.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "image",
+       "x": 640,
+       "y": 72,
+       "w": 480,
+       "h": 432,
+       "src": "https://images.unsplash.com/photo-1730134426941-1def6b725da3?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Hands carving a block with a cutting tool",
+       "radius": 24
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 528,
+       "w": 248,
+       "h": 384,
+       "boxBg": "var(--wp--preset--color--theme-7)",
+       "radius": 24,
+       "kids": [
+        {
+         "type": "para",
+         "x": 24,
+         "y": 24,
+         "w": 200,
+         "h": 24,
+         "text": "In the shop",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 60,
+         "w": 200,
+         "h": 252,
+         "text": "New prints from £35, posted flat.",
+         "fs": "large",
+         "tf": {
+          "fs": 26,
+          "lh": 1.15
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 336,
+         "w": 200,
+         "h": 24,
+         "text": "<a href=\"/prints/\">See the prints →</a>",
+         "tf": {
+          "fs": 15,
+          "fw": 600
+         }
+        }
+       ]
+      },
+      {
+       "type": "image",
+       "x": 352,
+       "y": 528,
+       "w": 376,
+       "h": 384,
+       "src": "https://images.unsplash.com/photo-1784807742828-33e7526ca2ea?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Black ink, a roller and a tube on a wooden table",
+       "radius": 24
+      },
+      {
+       "type": "box",
+       "x": 752,
+       "y": 528,
+       "w": 368,
+       "h": 180,
+       "boxBg": "var(--wp--preset--color--theme-8)",
+       "radius": 24,
+       "kids": [
+        {
+         "type": "para",
+         "x": 24,
+         "y": 24,
+         "w": 320,
+         "h": 24,
+         "text": "Next workshop · Sat 12 Dec",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 60,
+         "w": 320,
+         "h": 48,
+         "text": "Lino for beginners",
+         "fs": "large",
+         "tf": {
+          "fs": 24,
+          "lh": 1.15
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 132,
+         "w": 320,
+         "h": 24,
+         "text": "<a href=\"/workshops/\">Three places left →</a>",
+         "tf": {
+          "fs": 15,
+          "fw": 600
+         }
+        }
+       ]
+      },
+      {
+       "type": "image",
+       "x": 752,
+       "y": 732,
+       "w": 368,
+       "h": 180,
+       "src": "https://images.unsplash.com/photo-1777831244837-d123cce81e11?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Colourful artwork and books laid out on a table",
+       "radius": 24
+      }
+     ]
+    },
+    {
+     "name": "Three trades",
+     "minH": 720,
+     "els": [
+      {
+       "type": "box",
+       "x": 80,
+       "y": 72,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 120,
+       "text": "Prints",
+       "fs": "__max",
+       "tf": {
+        "fs2": 8.667,
+        "fsMin": 40,
+        "lh": 1
+       }
+      },
+      {
+       "type": "para",
+       "x": 760,
+       "y": 108,
+       "w": 360,
+       "h": 72,
+       "text": "Linocuts in small editions, cut and printed by me on a press older than my grandmother.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 760,
+       "y": 192,
+       "w": 360,
+       "h": 24,
+       "text": "<a href=\"/prints/\">Visit the shop →</a>",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 288,
+       "w": 640,
+       "h": 120,
+       "text": "Pictures",
+       "fs": "__max",
+       "tf": {
+        "fs2": 8.667,
+        "fsMin": 40,
+        "lh": 1
+       }
+      },
+      {
+       "type": "para",
+       "x": 760,
+       "y": 300,
+       "w": 360,
+       "h": 72,
+       "text": "Illustration for books, magazines and the odd beer label. Drawn in pencil first, always.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 760,
+       "y": 384,
+       "w": 360,
+       "h": 24,
+       "text": "<a href=\"mailto:hello@nellashdown.example\">Ask about a commission →</a>",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 456,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 480,
+       "w": 640,
+       "h": 120,
+       "text": "Workshops",
+       "fs": "__max",
+       "tf": {
+        "fs2": 8.667,
+        "fsMin": 40,
+        "lh": 1
+       }
+      },
+      {
+       "type": "para",
+       "x": 760,
+       "y": 492,
+       "w": 360,
+       "h": 72,
+       "text": "A Saturday, eight people, one long table. You go home with something you printed.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 760,
+       "y": 576,
+       "w": 360,
+       "h": 24,
+       "text": "<a href=\"/workshops/\">See the dates →</a>",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    },
+    {
+     "name": "New in the shop",
+     "minH": 792,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "New in the shop",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 640,
+       "h": 72,
+       "text": "Fresh off the press",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 432,
+       "cards": {
+        "items": [
+         {
+          "t": "Heron, low tide",
+          "d": "Two-colour linocut, 30 × 40cm, edition of 40",
+          "price": "£85",
+          "img": "https://images.unsplash.com/photo-1777751006387-558bdf78a02e?w=1200&q=80&fm=jpg&fit=max",
+          "alt": "A colourful print lying on an old printing press"
+         },
+         {
+          "t": "Kitchen alphabet",
+          "d": "Wood type on cream stock, A3, edition of 60",
+          "price": "£45",
+          "img": "https://images.unsplash.com/photo-1792978081649-c2291ec95b50?w=1200&q=80&fm=jpg&fit=max",
+          "alt": "Wooden letterpress type blocks laid out flat"
+         },
+         {
+          "t": "Small stamps, set of six",
+          "d": "Hand-cut rubber stamps in a card box, with an ink pad",
+          "price": "£35",
+          "img": "https://images.unsplash.com/photo-1790949242560-44106f36b0f1?w=1200&q=80&fm=jpg&fit=max",
+          "alt": "Rubber stamps, ink and paper on a green cutting mat"
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "panel",
+        "pic": "square",
+        "act": "none",
+        "align": "left",
+        "round": 1,
+        "titles": 1,
+        "extras": {
+         "price": 1,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 20,
+           "fw": 700
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 13,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "panel",
+         "gap": 12,
+         "minH": 432,
+         "bg": "var(--wp--preset--color--theme-1)",
+         "radius": 16,
+         "pad": 24
+        }
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-12)"
+    },
+    {
+     "name": "About",
+     "minH": 432,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 108,
+       "w": 216,
+       "h": 216,
+       "src": "https://images.unsplash.com/photo-1730134427007-31d9db377e52?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Nell cutting paper with scissors",
+       "radius": 108
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 96,
+       "w": 760,
+       "h": 168,
+       "text": "I trained as an illustrator, fell for lino in 2016 and never quite came back.",
+       "fs": "2-x-large"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 288,
+       "w": 600,
+       "h": 48,
+       "text": "Now I do both, and teach the bit in between: how to draw something simple enough to cut.",
+       "tf": {
+        "fs": 17
+       }
+      }
+     ]
+    },
+    {
+     "name": "Workshops",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "In the shed",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 640,
+       "h": 72,
+       "text": "Coming up",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 240,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "Sat 12 Dec",
+          "t": "Lino for beginners",
+          "d": "Cut and print a two-colour card. Everything provided, including lunch",
+          "role": "3 places"
+         },
+         {
+          "k": "Sun 13 Dec",
+          "t": "Print your own wrapping paper",
+          "d": "Stamps, rollers and a very long table. Children welcome with an adult",
+          "role": "Full"
+         },
+         {
+          "k": "Sat 16 Jan",
+          "t": "Lino for beginners",
+          "d": "The same day again, for everyone who missed December",
+          "role": "8 places"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "k": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 528,
+       "w": 184,
+       "h": 48,
+       "text": "All workshops",
+       "href": "/workshops/",
+       "ghost": true
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-8)"
+    },
+    {
+     "name": "The letter",
+     "minH": 432,
+     "els": [
+      {
+       "type": "para",
+       "x": 160,
+       "y": 96,
+       "w": 880,
+       "h": 24,
+       "text": "Once a month",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "align": "center"
+      },
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 144,
+       "w": 880,
+       "h": 72,
+       "text": "New prints go to the list first.",
+       "fs": "3-x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 240,
+       "w": 560,
+       "h": 48,
+       "text": "One email a month: what is on the press, workshop dates before they are public, and a drawing.",
+       "tf": {
+        "fs": 17
+       },
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 500,
+       "y": 312,
+       "w": 200,
+       "h": 48,
+       "text": "Join the list",
+       "href": "mailto:hello@nellashdown.example"
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-7)"
+    }
+   ],
+   "slug": "home",
+   "front": true,
+   "menu": false
+  },
+  {
+   "title": "Prints",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Prints",
+     "minH": 432,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 72,
+       "w": 440,
+       "h": 24,
+       "text": "The shop",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 120,
+       "w": 720,
+       "h": 144,
+       "text": "Prints",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 288,
+       "w": 560,
+       "h": 72,
+       "text": "Every print is cut, inked and pulled by hand, then signed and numbered in pencil. Posted flat within the week.",
+       "tf": {
+        "fs": 18
+       }
+      }
+     ]
+    },
+    {
+     "name": "For sale",
+     "minH": 1224,
+     "els": [
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 72,
+       "w": 1040,
+       "h": 432,
+       "cards": {
+        "items": [
+         {
+          "t": "Heron, low tide",
+          "d": "Two-colour linocut, 30 × 40cm, edition of 40",
+          "price": "£85",
+          "img": "https://images.unsplash.com/photo-1777751006387-558bdf78a02e?w=1200&q=80&fm=jpg&fit=max",
+          "alt": "A colourful print lying on an old printing press"
+         },
+         {
+          "t": "Kitchen alphabet",
+          "d": "Wood type on cream stock, A3, edition of 60",
+          "price": "£45",
+          "img": "https://images.unsplash.com/photo-1792978081649-c2291ec95b50?w=1200&q=80&fm=jpg&fit=max",
+          "alt": "Wooden letterpress type blocks laid out flat"
+         },
+         {
+          "t": "Small stamps, set of six",
+          "d": "Hand-cut rubber stamps in a card box, with an ink pad",
+          "price": "£35",
+          "img": "https://images.unsplash.com/photo-1790949242560-44106f36b0f1?w=1200&q=80&fm=jpg&fit=max",
+          "alt": "Rubber stamps, ink and paper on a green cutting mat"
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "panel",
+        "pic": "square",
+        "act": "none",
+        "align": "left",
+        "round": 1,
+        "titles": 1,
+        "extras": {
+         "price": 1,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 20,
+           "fw": 700
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 13,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "panel",
+         "gap": 12,
+         "minH": 432,
+         "bg": "var(--wp--preset--color--theme-6)",
+         "radius": 16,
+         "pad": 24
+        }
+       }
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 576,
+       "w": 1040,
+       "h": 432,
+       "cards": {
+        "items": [
+         {
+          "t": "Allotment in March",
+          "d": "Three-colour reduction linocut, 40 × 50cm, edition of 25",
+          "price": "£140",
+          "img": "https://images.unsplash.com/photo-1777831244837-d123cce81e11?w=1200&q=80&fm=jpg&fit=max",
+          "alt": "Colourful artwork and books laid out on a table"
+         },
+         {
+          "t": "Ink & roller",
+          "d": "Single-colour linocut, A4, open edition",
+          "price": "£38",
+          "img": "https://images.unsplash.com/photo-1784807742828-33e7526ca2ea?w=1200&q=80&fm=jpg&fit=max",
+          "alt": "Black ink, a roller and a tube on a wooden table"
+         },
+         {
+          "t": "A block of your own",
+          "d": "A cut block and one proof, for people who want to print it themselves",
+          "price": "£60",
+          "img": "https://images.unsplash.com/photo-1730134426941-1def6b725da3?w=1200&q=80&fm=jpg&fit=max",
+          "alt": "Hands carving a block with a cutting tool"
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "panel",
+        "pic": "square",
+        "act": "none",
+        "align": "left",
+        "round": 1,
+        "titles": 1,
+        "extras": {
+         "price": 1,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 20,
+           "fw": 700
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 13,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "panel",
+         "gap": 12,
+         "minH": 432,
+         "bg": "var(--wp--preset--color--theme-6)",
+         "radius": 16,
+         "pad": 24
+        }
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 1104,
+       "w": 720,
+       "h": 48,
+       "text": "To buy one, <a href=\"mailto:hello@nellashdown.example\">write to me</a> with its name. I will send a payment link and post it flat.",
+       "tf": {
+        "fs": 16
+       }
+      }
+     ]
+    }
+   ],
+   "slug": "prints"
+  },
+  {
+   "title": "Workshops",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Workshops",
+     "minH": 936,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 72,
+       "w": 440,
+       "h": 24,
+       "text": "In the shed",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 120,
+       "w": 720,
+       "h": 144,
+       "text": "Workshops",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 288,
+       "w": 560,
+       "h": 72,
+       "text": "Saturdays, ten till four, eight people. £85 with materials and lunch. You need no drawing at all.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 408,
+       "w": 1040,
+       "h": 312,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "Sat 12 Dec",
+          "t": "Lino for beginners",
+          "d": "Cut and print a two-colour card. Everything provided, including lunch",
+          "role": "3 places"
+         },
+         {
+          "k": "Sun 13 Dec",
+          "t": "Print your own wrapping paper",
+          "d": "Stamps, rollers and a very long table. Children welcome with an adult",
+          "role": "Full"
+         },
+         {
+          "k": "Sat 16 Jan",
+          "t": "Lino for beginners",
+          "d": "The same day again, for everyone who missed December",
+          "role": "8 places"
+         },
+         {
+          "k": "Sat 30 Jan",
+          "t": "Reduction printing",
+          "d": "One block, four colours, no way back. For people who have cut lino before",
+          "role": "6 places"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "k": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 744,
+       "w": 200,
+       "h": 48,
+       "text": "Ask for a place",
+       "href": "mailto:hello@nellashdown.example"
+      }
+     ]
+    },
+    {
+     "name": "Groups",
+     "minH": 432,
+     "els": [
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 120,
+       "w": 880,
+       "h": 72,
+       "text": "Eight of you? Have the shed to yourselves.",
+       "fs": "3-x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 216,
+       "w": 560,
+       "h": 48,
+       "text": "Birthdays, hen dos and teams who need a day without screens. Any Sunday, from £560.",
+       "tf": {
+        "fs": 17
+       },
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 500,
+       "y": 288,
+       "w": 200,
+       "h": 48,
+       "text": "Ask about a date",
+       "href": "mailto:hello@nellashdown.example"
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-9)"
+    }
+   ],
+   "slug": "workshops"
+  }
+ ],
+ "footer": "<!-- wp:group {\"tagName\":\"footer\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|70\",\"bottom\":\"var:preset|spacing|60\"},\"margin\":{\"top\":\"0\",\"bottom\":\"0\"}},\"background\":{\"gradient\":\"var:preset|gradient|gradient-8\"}},\"layout\":{\"type\":\"constrained\"}} -->\n<footer class=\"wp-block-group\" style=\"margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--60)\"><!-- wp:columns {\"align\":\"wide\"} -->\n<div class=\"wp-block-columns alignwide\"><!-- wp:column {\"width\":\"40%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:40%\"><!-- wp:site-title {\"level\":0,\"fontSize\":\"x-large\"} /-->\n\n<!-- wp:site-tagline {\"fontSize\":\"small\"} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Find me</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">The shed behind 14 Market Street<br>Hebden Bridge HX7<br>Open Saturdays, 10–4</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Write</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\"><a href=\"mailto:hello@nellashdown.example\">hello@nellashdown.example</a><br>Commissions open from January</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n</div>\n<!-- /wp:columns -->\n\n<!-- wp:paragraph {\"align\":\"wide\",\"fontSize\":\"x-small\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|60\"}}}} -->\n<p class=\"alignwide has-x-small-font-size\" style=\"margin-top:var(--wp--preset--spacing--60)\">© 2026 Nell Ashdown · Everything on this site was cut by hand, except the site</p>\n<!-- /wp:paragraph --></footer>\n<!-- /wp:group -->\n",
+ "credits": [
+  {
+   "name": "Paulina Herpel",
+   "link": "https://unsplash.com/@paulinaherpel"
+  },
+  {
+   "name": "Camille La Brequa",
+   "link": "https://unsplash.com/@camillelabrequa"
+  },
+  {
+   "name": "Renata Moraes",
+   "link": "https://unsplash.com/@moraesrenata"
+  },
+  {
+   "name": "Ernesto Samaniego",
+   "link": "https://unsplash.com/@ernesto_sams"
+  },
+  {
+   "name": "Egor Myznik",
+   "link": "https://unsplash.com/@vonshnauzer"
+  },
+  {
+   "name": "Sélina Farzaei",
+   "link": "https://unsplash.com/@boinkers"
+  }
+ ]
+}

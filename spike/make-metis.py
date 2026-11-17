@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Three blueprints on the Mētis theme (WordPress/metis), one per style:
-Halyard (a band, Aeolia), Maron (a wine bar, Ismarus), The Long Border (a podcast, Ogygia).
+"""Six blueprints on the Mētis theme (WordPress/metis), one per style:
+Halyard (a band, Aeolia), Maron (a wine bar, Ismarus), The Long Border (a podcast, Ogygia),
+Adaeze Cole (a consultant, Ithaca), Nell Ashdown (a printmaker, Aeaea), Undertow (a club night, Cimmeria).
+Each home page is a different SHAPE: a poster, a wine list, cards, a document with margin labels,
+a bento wall, a type-only flyer.
 Writes spike/site-def-metis-<id>.json and blueprint-metis-<id>.json into the gogh worktree given as argv[1]."""
 import json, base64, sys, os
 WT = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser('~/gogh/release-789')
 METIS_REF = '915e5e126c94c71024be9f95afb45a6aefd60554'
 
-def U(i, w=1600): return f'https://images.unsplash.com/photo-{i}?w={w}&q=80&fm=jpg&fit=max'
+def U(i, w=1600, mono=False): return f'https://images.unsplash.com/photo-{i}?w={w}&q=80&fm=jpg&fit=max' + ('&sat=-100' if mono else '')
 def C(n): return f'var(--wp--preset--color--theme-{n})'
 INK = 'var(--wp--preset--color--contrast, #111)'
 def soft(p): return f'color-mix(in srgb, {INK} {p}%, transparent)'
@@ -45,11 +48,11 @@ def ledger(x, y, w, items, k=0, price=0, role=0):
         'layout': 'ledger', 'look': 'open', 'pic': 'none', 'act': 'none', 'titles': 1,
         'extras': {'k': k, 'price': price, 'role': role, 'n': 0}, 'items': items, 'type': typ,
         'box': {'look': 'open', 'pad': 18, 'gap': 4, 'ruleCol': soft(20)}}}
-def cards(x, y, w, h, items, layout='g3', role=0, bg=None):
+def cards(x, y, w, h, items, layout='g3', role=0, bg=None, price=0):
     return {'type': 'cards', 'x': x, 'y': y, 'w': w, 'h': h, 'cards': {
         'items': items, 'feat': -1, 'layout': layout, 'look': 'panel', 'pic': 'square', 'act': 'none', 'align': 'left', 'round': 1, 'titles': 1,
-        'extras': {'price': 0, 'role': role, 'k': 0, 'n': 0},
-        'type': {'t': {'tf': {'fs': 20, 'fw': 700}, 'body': 1}, 'd': {'tf': {'fs': 15}}, 'role': {'tf': {'fs': 13, 'col': soft(66)}}},
+        'extras': {'price': price, 'role': role, 'k': 0, 'n': 0},
+        'type': {'t': {'tf': {'fs': 20, 'fw': 700}, 'body': 1}, 'd': {'tf': {'fs': 15}}, 'price': {'tf': {'fs': 15, 'fw': 600}}, 'role': {'tf': {'fs': 13, 'col': soft(66)}}},
         'box': {'look': 'panel', 'gap': 12, 'minH': h, 'bg': bg or C(6), 'radius': 16, 'pad': 24}}}
 def stat(n, label, x, y, w=220):
     return [hd(n, x, y, w, 48, 'x-large'), pa(label, x, y + 48, w, 24, 13)]
@@ -103,7 +106,7 @@ SITES['band'] = {
    page('Home', [
     sec('Hero', 792, [
       eb('Halyard · new album · out 6 March', 160, 216, 880, 'theme-1', 'center'),
-      hd('Slack Water', 80, 264, 1040, 216, '__max', 'center', color='theme-1', tf={'fs': 132, 'lh': 1}),
+      hd('Slack Water', 80, 264, 1040, 216, '__max', 'center', color='theme-1', tf={'fs2': 11, 'fsMin': 44, 'lh': 1}),
       pa('Ten songs about leaving a harbour town and coming back to it, written in a net loft over one long winter.', 320, 504, 560, 72, 19, 'center', color='theme-1'),
       {**bt('Hear the record', 392, 624, 200, '/music/'), 'btnBg': 'theme-7', 'btnText': 'theme-2'},
       {**bt('Tour dates', 608, 624, 200, '/tour/'), 'btnBg': 'theme-1', 'btnText': 'theme-2'},
@@ -340,6 +343,305 @@ SITES['podcast'] = {
   'posts': eps, 'blog_look': 'ledger',
   'footer': footer([('Listen', 'Every other Thursday<br>Free, with no adverts<br><a href="/feed/">RSS feed</a>'), ('Write', 'Tell us about a garden:<br><a href="mailto:hello@thelongborder.example">hello@thelongborder.example</a>')], '© 2026 The Long Border · Recorded in other people’s gardens'),
  }}
+
+# ---------------------------------------------------------------- Adaeze Cole (Ithaca): a document with labels in the margin
+LX, CX, CW = 80, 360, 760   # the label column, the content column and its width
+def lab(t, y): return eb(t, LX, y, 240)
+def numrow(n, title, text, y):
+    return [rule(CX, y, CW), hd(n, CX, y + 24, 96, 48, 'x-large'), hd(title, CX + 120, y + 24, 640, 48, 'x-large'), pa(text, CX + 120, y + 84, 600, 72, 16)]
+work = [
+ {'k': '2026', 't': 'Tideline', 'd': 'Scheduling software, 34 people. Rebuilt planning so releases stopped slipping', 'role': 'Six months'},
+ {'k': '2026', 't': 'Marrow & Rye', 'd': 'Meal kits, 22 people. One weekly meeting replaced eleven', 'role': 'Ten weeks'},
+ {'k': '2025', 't': 'Fieldnote', 'd': 'Research tools, 41 people. Hired and settled a first head of operations', 'role': 'Four months'},
+ {'k': '2025', 't': 'Common Thread', 'd': 'Repair cafés, 12 staff and 300 volunteers. A rota that survives holidays', 'role': 'Eight weeks'},
+ {'k': '2024', 't': 'Lumen Bikes', 'd': 'E-bike maker, 28 people. Support moved from the founder’s phone to a team', 'role': 'Five months'},
+]
+SITES['consultant'] = {
+ 'title': 'Adaeze Cole — a consultant on Mētis', 'desc': 'An operations consultant on the new Mētis theme in its Ithaca style, laid out like a document: a label in the margin, the words beside it. What she does in three numbered lines, the numbers, recent work as a ruled list.',
+ 'def': {
+  'name': 'Adaeze Cole', 'tagline': 'Operations for companies that grew faster than their habits.', 'variation': 'Ithaca',
+  'chrome': {'header_part': 'header-a', 'footer_part': 'footer-c'},
+  'pages': [
+   page('Home', [
+    sec('Opening', 720, [
+      lab('Adaeze Cole<br>Operations · Bristol', 120),
+      hd('I help thirty-person companies stop running like ten-person ones.', CX, 96, CW, 336, '__disp-s'),
+      pa('The habits that got you here were built for a room where everyone could hear everyone. I spend a few months inside the company and leave it with ones that fit.', CX, 456, 600, 96, 18),
+      bt('Book a first call', CX, 576, 200, '/start/'), bt('See recent work', CX + 216, 576, 200, '/work/', True),
+    ]),
+    sec('What I do', 720, [
+      lab('What I do', 96),
+      *numrow('01', 'Listen for two weeks.', 'I sit in the meetings, read the tickets and talk to everyone, including the people who have stopped saying it out loud.', 72),
+      *numrow('02', 'Change three things.', 'Never thirty. Usually how work gets planned, who decides, and one meeting that has to go.', 264),
+      *numrow('03', 'Stay until it holds.', 'New habits fail in week five. I am still there in week twelve, and then I am not needed.', 456),
+    ], background=C(6)),
+    sec('In numbers', 288, [
+      lab('In numbers', 108),
+      *stat('41', 'companies since 2017', CX, 96, 220), *stat('11 weeks', 'the usual stay', CX + 260, 96, 220), *stat('3', 'changes, never thirty', CX + 520, 96, 220),
+    ], background=C(8)),
+    sec('Said afterwards', 504, [
+      lab('Said afterwards', 108),
+      hd('“We thought we needed a reorganisation. We needed one calendar and someone to tell us so.”', CX, 96, CW, 216, '2-x-large'),
+      pa('Jonah Reyes, founder, Tideline', CX, 336, 600, 24, 15),
+      pa('<a href="/work/">What happened at Tideline →</a>', CX, 384, 600, 24, 15, fw=600),
+    ]),
+    sec('Recent work', 576, [
+      lab('Recent work', 108),
+      ledger(CX, 72, CW, work[:4], k=1, role=1),
+      bt('All the work', CX, 432, 176, '/work/', True),
+    ], background=C(6)),
+    sec('About', 648, [
+      lab('About', 108),
+      im('1573496359142-b8d87734a5a2', CX, 96, 300, 400, 'Adaeze Cole'),
+      hd('Ten years running operations, eight helping other people do it.', CX + 340, 96, 420, 168, 'x-large'),
+      pa('I ran operations at two software companies as they went from a dozen people to two hundred, and made most of the mistakes I now get paid to spot.', CX + 340, 288, 420, 120, 16),
+      pa('I work alone, with one company at a time, mostly in the south-west and always partly in the room.', CX + 340, 408, 420, 72, 16),
+    ]),
+    sec('Next', 504, [
+      lab('Next', 132),
+      hd('The first call is free, and you leave with a list.', CX, 120, CW, 144, '3-x-large'),
+      pa('Forty minutes. You tell me what hurts, I tell you the three things I would look at first, and whether I am the right person to look.', CX, 288, 600, 72, 17),
+      {**bt('Book a first call', CX, 372, 200, '/start/'), 'btnBg': 'theme-2', 'btnText': 'theme-1'},
+    ], background=C(10)),
+   ], slug='home', front=True, menu=False),
+   page('Work', [
+    sec('Work', 864, [
+      lab('Work', 108),
+      hd('Recent work', CX, 72, CW, 144, '__disp-s'),
+      pa('One company at a time since 2017. These are the ones happy to be named.', CX, 240, 600, 48, 18),
+      ledger(CX, 336, CW, work, k=1, role=1),
+    ]),
+    sec('Tideline', 648, [
+      lab('In detail<br>Tideline, 2026', 108),
+      hd('Releases had slipped for five quarters running.', CX, 96, CW, 120, '2-x-large'),
+      pa('Thirty-four people, one roadmap and four places where work was promised. Nobody was late on purpose; nobody could see the whole of it.', CX, 240, 360, 168, 16),
+      pa('We moved planning into one calendar, gave each team a say in what it could carry, and ended the Monday meeting. The next three releases shipped on the day.', CX + 400, 240, 360, 168, 16),
+      *stat('5 → 0', 'late releases', CX, 456, 220), *stat('11 → 1', 'weekly meetings', CX + 260, 456, 220), *stat('6 months', 'start to finish', CX + 520, 456, 220),
+    ], background=C(6)),
+    sec('The room', 648, [
+      lab('How it looks', 108),
+      im('1623652554515-91c833e3080e', CX, 96, 370, 400, 'A hand placing yellow sticky notes on a wall'),
+      im('1532622785990-d2c36a76f5a6', CX + 390, 96, 370, 400, 'Two people drawing on a whiteboard'),
+      pa('Mostly it looks like this: a wall, some pens and the people who do the work.', CX, 520, 600, 48, 15),
+    ]),
+   ], slug='work'),
+   page('Start', [
+    sec('Start', 720, [
+      lab('Start', 108),
+      hd('How it starts', CX, 72, CW, 144, '__disp-s'),
+      pa('I take on four companies a year. The next opening is in February.', CX, 240, 600, 48, 18),
+      ledger(CX, 336, CW, [
+        {'k': 'One', 't': 'A call', 'd': 'Forty minutes, free. You leave with the three things I would look at first', 'role': 'This week'},
+        {'k': 'Two', 't': 'A week inside', 'd': 'I meet everyone and write up what I see, in plain words', 'role': 'Fixed fee'},
+        {'k': 'Three', 't': 'The work', 'd': 'Two or three days a week, for as long as it takes to hold', 'role': '8 to 24 weeks'},
+      ], k=1, role=1),
+      bt('Write to me', CX, 624, 176, 'mailto:hello@adaezecole.example'),
+    ]),
+    sec('Fit', 432, [
+      lab('Not for everyone', 108),
+      hd('I am probably wrong for you if…', CX, 96, CW, 72, 'x-large'),
+      pa('…you are under fifteen people (you need a good office manager), over a hundred and fifty (you need a firm), or looking for someone to deliver bad news you have already decided on.', CX, 192, 600, 120, 17),
+    ], background=C(11)),
+   ], slug='start'),
+  ],
+  'footer': footer([('Write', '<a href="mailto:hello@adaezecole.example">hello@adaezecole.example</a><br>Bristol, and wherever you are'), ('Next opening', 'February<br>Four companies a year')], '© 2026 Adaeze Cole · Operations'),
+ }}
+
+# ---------------------------------------------------------------- Nell Ashdown (Aeaea): a bento wall, then three big words
+def ctile(x, y, w, h, kicker, title, link, href, bg, fs=26):
+    return {'type': 'box', 'x': x, 'y': y, 'w': w, 'h': h, 'boxBg': bg, 'radius': 24, 'kids': [
+        eb(kicker, 24, 24, w - 48), hd(title, 24, 60, w - 48, h - 132, 'large', tf={'fs': fs, 'lh': 1.15}),
+        pa('<a href="' + href + '">' + link + '</a>', 24, h - 48, w - 48, 24, 15, fw=600)]}
+def bigword(word, text, link, href, y):
+    return [rule(80, y, 1040), hd(word, 80, y + 24, 640, 120, '__max', tf={'fs2': 8.667, 'fsMin': 40, 'lh': 1}),
+            pa(text, 760, y + 36, 360, 72, 16), pa('<a href="' + href + '">' + link + '</a>', 760, y + 120, 360, 24, 15, fw=600)]
+prints = [
+ {'t': 'Heron, low tide', 'd': 'Two-colour linocut, 30 × 40cm, edition of 40', 'price': '£85', 'img': U('1777751006387-558bdf78a02e', 1200), 'alt': 'A colourful print lying on an old printing press'},
+ {'t': 'Kitchen alphabet', 'd': 'Wood type on cream stock, A3, edition of 60', 'price': '£45', 'img': U('1792978081649-c2291ec95b50', 1200), 'alt': 'Wooden letterpress type blocks laid out flat'},
+ {'t': 'Small stamps, set of six', 'd': 'Hand-cut rubber stamps in a card box, with an ink pad', 'price': '£35', 'img': U('1790949242560-44106f36b0f1', 1200), 'alt': 'Rubber stamps, ink and paper on a green cutting mat'},
+]
+classes = [
+ {'k': 'Sat 12 Dec', 't': 'Lino for beginners', 'd': 'Cut and print a two-colour card. Everything provided, including lunch', 'role': '3 places'},
+ {'k': 'Sun 13 Dec', 't': 'Print your own wrapping paper', 'd': 'Stamps, rollers and a very long table. Children welcome with an adult', 'role': 'Full'},
+ {'k': 'Sat 16 Jan', 't': 'Lino for beginners', 'd': 'The same day again, for everyone who missed December', 'role': '8 places'},
+ {'k': 'Sat 30 Jan', 't': 'Reduction printing', 'd': 'One block, four colours, no way back. For people who have cut lino before', 'role': '6 places'},
+]
+SITES['maker'] = {
+ 'title': 'Nell Ashdown — a printmaker on Mētis', 'desc': 'A printmaker, illustrator and teacher on the new Mētis theme in its warm Aeaea style: a wall of pictures and coloured tiles up top, her three trades as three big words, prints for sale as cards and the next workshops as a ruled list.',
+ 'def': {
+  'name': 'Nell Ashdown', 'tagline': 'Prints, pictures and workshops, from a shed in Hebden Bridge.', 'variation': 'Aeaea',
+  'chrome': {'header_part': 'header-a', 'footer_part': 'footer-c'},
+  'pages': [
+   page('Home', [
+    sec('Wall', 1008, [
+      eb('Printmaker · illustrator · teacher', 80, 84, 520),
+      hd('Nell Ashdown makes pictures by hand.', 80, 120, 520, 288, '__disp-s'),
+      pa('Linocuts, drawings for books and magazines, and Saturday workshops, all from a shed in Hebden Bridge.', 80, 432, 480, 72, 17),
+      im('1730134426941-1def6b725da3', 640, 72, 480, 432, 'Hands carving a block with a cutting tool', 24),
+      ctile(80, 528, 248, 384, 'In the shop', 'New prints from £35, posted flat.', 'See the prints →', '/prints/', C(7)),
+      im('1784807742828-33e7526ca2ea', 352, 528, 376, 384, 'Black ink, a roller and a tube on a wooden table', 24),
+      ctile(752, 528, 368, 180, 'Next workshop · Sat 12 Dec', 'Lino for beginners', 'Three places left →', '/workshops/', C(8), 24),
+      im('1777831244837-d123cce81e11', 752, 732, 368, 180, 'Colourful artwork and books laid out on a table', 24),
+    ]),
+    sec('Three trades', 720, [
+      *bigword('Prints', 'Linocuts in small editions, cut and printed by me on a press older than my grandmother.', 'Visit the shop →', '/prints/', 72),
+      *bigword('Pictures', 'Illustration for books, magazines and the odd beer label. Drawn in pencil first, always.', 'Ask about a commission →', 'mailto:hello@nellashdown.example', 264),
+      *bigword('Workshops', 'A Saturday, eight people, one long table. You go home with something you printed.', 'See the dates →', '/workshops/', 456),
+    ], background=C(6)),
+    sec('New in the shop', 792, [
+      eb('New in the shop', 80, 96, 440), hd('Fresh off the press', 80, 144, 640, 72),
+      cards(80, 264, 1040, 432, prints, price=1, bg=C(1)),
+    ], background=C(12)),
+    sec('About', 432, [
+      im('1730134427007-31d9db377e52', 80, 108, 216, 216, 'Nell cutting paper with scissors', 108),
+      hd('I trained as an illustrator, fell for lino in 2016 and never quite came back.', 360, 96, 760, 168, '2-x-large'),
+      pa('Now I do both, and teach the bit in between: how to draw something simple enough to cut.', 360, 288, 600, 48, 17),
+    ]),
+    sec('Workshops', 648, [
+      eb('In the shed', 80, 96, 440), hd('Coming up', 80, 144, 640, 72),
+      ledger(80, 264, 1040, classes[:3], k=1, role=1),
+      bt('All workshops', 80, 528, 184, '/workshops/', True),
+    ], background=C(8)),
+    sec('The letter', 432, [
+      eb('Once a month', 160, 96, 880, None, 'center'), hd('New prints go to the list first.', 160, 144, 880, 72, '3-x-large', 'center'),
+      pa('One email a month: what is on the press, workshop dates before they are public, and a drawing.', 320, 240, 560, 48, 17, 'center'),
+      bt('Join the list', 500, 312, 200, 'mailto:hello@nellashdown.example'),
+    ], background=C(7)),
+   ], slug='home', front=True, menu=False),
+   page('Prints', [
+    sec('Prints', 432, [
+      eb('The shop', 80, 72, 440), hd('Prints', 80, 120, 720, 144, '__disp-s'),
+      pa('Every print is cut, inked and pulled by hand, then signed and numbered in pencil. Posted flat within the week.', 80, 288, 560, 72, 18),
+    ]),
+    sec('For sale', 1224, [
+      cards(80, 72, 1040, 432, prints, price=1, bg=C(6)),
+      cards(80, 576, 1040, 432, [
+        {'t': 'Allotment in March', 'd': 'Three-colour reduction linocut, 40 × 50cm, edition of 25', 'price': '£140', 'img': U('1777831244837-d123cce81e11', 1200), 'alt': 'Colourful artwork and books laid out on a table'},
+        {'t': 'Ink & roller', 'd': 'Single-colour linocut, A4, open edition', 'price': '£38', 'img': U('1784807742828-33e7526ca2ea', 1200), 'alt': 'Black ink, a roller and a tube on a wooden table'},
+        {'t': 'A block of your own', 'd': 'A cut block and one proof, for people who want to print it themselves', 'price': '£60', 'img': U('1730134426941-1def6b725da3', 1200), 'alt': 'Hands carving a block with a cutting tool'},
+      ], price=1, bg=C(6)),
+      pa('To buy one, <a href="mailto:hello@nellashdown.example">write to me</a> with its name. I will send a payment link and post it flat.', 80, 1104, 720, 48, 16),
+    ]),
+   ], slug='prints'),
+   page('Workshops', [
+    sec('Workshops', 936, [
+      eb('In the shed', 80, 72, 440), hd('Workshops', 80, 120, 720, 144, '__disp-s'),
+      pa('Saturdays, ten till four, eight people. £85 with materials and lunch. You need no drawing at all.', 80, 288, 560, 72, 18),
+      ledger(80, 408, 1040, classes, k=1, role=1),
+      bt('Ask for a place', 80, 744, 200, 'mailto:hello@nellashdown.example'),
+    ]),
+    sec('Groups', 432, [
+      hd('Eight of you? Have the shed to yourselves.', 160, 120, 880, 72, '3-x-large', 'center'),
+      pa('Birthdays, hen dos and teams who need a day without screens. Any Sunday, from £560.', 320, 216, 560, 48, 17, 'center'),
+      bt('Ask about a date', 500, 288, 200, 'mailto:hello@nellashdown.example'),
+    ], background=C(9)),
+   ], slug='workshops'),
+  ],
+  'footer': footer([('Find me', 'The shed behind 14 Market Street<br>Hebden Bridge HX7<br>Open Saturdays, 10–4'), ('Write', '<a href="mailto:hello@nellashdown.example">hello@nellashdown.example</a><br>Commissions open from January')], '© 2026 Nell Ashdown · Everything on this site was cut by hand, except the site'),
+ }}
+
+# ---------------------------------------------------------------- Undertow (Cimmeria): a flyer, all type
+def info(label, value, x, y, w=236):
+    # a tile, so label and value stay together when the row stacks on a phone. (A box whose ground is only
+    # a hairline is read as a light ground by the contrast sentinel, which then turns its words dark.)
+    return [{'type': 'box', 'x': x, 'y': y, 'w': w, 'h': 96, 'boxBg': C(9), 'radius': 0, 'kids': [
+        eb(label, 20, 20, w - 40), hd(value, 20, 44, w - 40, 36, 'large', tf={'fs': 20, 'lh': 1.2})]}]
+def datetile(x, y, month, day, who, note):
+    return {'type': 'box', 'x': x, 'y': y, 'w': 248, 'h': 312, 'boxBg': C(9), 'radius': 0, 'kids': [
+        eb(month, 24, 24, 200), hd(day, 24, 48, 200, 120, 'large', tf={'fs': 104, 'lh': 1}),
+        hd(who, 24, 192, 200, 48, 'large', tf={'fs': 20, 'lh': 1.2}), pa(note, 24, 252, 200, 24, 13)]}
+room1 = [
+ {'k': '23:00', 't': 'Saoirse K', 'd': 'Resident. Opens slow, dub and broken beat'},
+ {'k': '01:00', 't': 'Mala Fide', 'd': 'Guest, from Bristol. Three hours'},
+ {'k': '04:00', 't': 'Ottoline', 'd': 'Resident. Closes'},
+]
+room2 = [
+ {'k': '23:30', 't': 'Tenderfoot', 'd': 'Ambient and low, for sitting down'},
+ {'k': '01:30', 't': 'Big Ears Sound', 'd': 'Reggae sevens, all vinyl'},
+ {'k': '03:30', 't': 'Open decks', 'd': 'Bring two records. Ask at the bar'},
+]
+SITES['club'] = {
+ 'title': 'Undertow — a club night on Mētis', 'desc': 'A monthly club night in a Leeds basement on the new Mētis theme in its black-and-white Cimmeria style: a flyer made of type, the night as a two-room timetable, the next dates as big numbers and the house rules.',
+ 'def': {
+  'name': 'Undertow', 'tagline': 'First Friday of the month. A basement in Leeds.', 'variation': 'Cimmeria',
+  'chrome': {'header_part': 'header-a', 'footer_part': 'footer-c'},
+  'pages': [
+   page('Home', [
+    sec('Flyer', 792, [
+      eb('First Friday of every month · Leeds', 80, 96, 640),
+      hd('Undertow', 80, 144, 1040, 216, '__max', tf={'fs2': 13.5, 'fsMin': 40, 'lh': 0.9, 'tt': 'uppercase', 'ls2': -0.04}),
+      pa('Bass music in a low room with a proper system. Two rooms, three hundred people, no phones on the floor.', 80, 384, 520, 72, 19),
+      bt('Get tickets', 80, 480, 184, '/dates/'), bt('What to expect', 280, 480, 200, '/info/', True),
+      *info('Next', 'Fri 4 December', 80, 600), *info('Doors', '11pm till 5', 348, 600), *info('Where', 'Hope Vaults, LS2', 616, 600), *info('In', '£8 before midnight', 884, 600),
+    ]),
+    sec('Inside', 384, [
+      im('1578736641330-3155e606cd40', 80, 0, 248, 336, 'People dancing in a dark room', 2, src=U('1578736641330-3155e606cd40', 900, True)),
+      im('1470225620780-dba8ba36b745', 344, 0, 248, 336, 'The silhouette of a DJ at the decks', 2, src=U('1470225620780-dba8ba36b745', 900, True)),
+      im('1545128485-c400e7702796', 608, 0, 248, 336, 'A crowd in a small club', 2, src=U('1545128485-c400e7702796', 900, True)),
+      im('1571266028243-d220c6a7edbf', 872, 0, 248, 336, 'A DJ mixer lit up in the dark', 2, src=U('1571266028243-d220c6a7edbf', 900, True)),
+    ]),
+    sec('The night', 648, [
+      eb('Friday 4 December', 80, 96, 440), hd('Who is on, and when', 80, 144, 720, 72),
+      hd('Room one', 80, 264, 500, 48, 'large', tf={'fs': 22}), ledger(80, 312, 500, room1, k=1),
+      hd('Room two', 620, 264, 500, 48, 'large', tf={'fs': 22}), ledger(620, 312, 500, room2, k=1),
+    ], background=C(6)),
+    sec('Dates', 648, [
+      eb('In the diary', 80, 96, 440), hd('Next four', 80, 144, 640, 72),
+      datetile(80, 264, 'December', '04', 'Mala Fide', 'Bristol · 3 hours'),
+      datetile(344, 264, 'January', '08', 'Residents only', 'All night, £5 in'),
+      datetile(608, 264, 'February', '05', 'Kessler Twins', 'Berlin · live set'),
+      datetile(872, 264, 'March', '05', 'Fifth birthday', 'Guests to be named'),
+    ]),
+    sec('House rules', 576, [
+      eb('House rules', 160, 96, 880, None, 'center'),
+      hd('No phones on the floor.', 160, 144, 880, 72, '2-x-large', 'center'),
+      hd('Look after each other.', 160, 228, 880, 72, '2-x-large', 'center'),
+      hd('No guest list, no dress code.', 160, 312, 880, 72, '2-x-large', 'center'),
+      pa('If someone is making your night worse, tell anyone in a white T-shirt. We will deal with it, and you will not be asked to explain twice.', 320, 420, 560, 72, 16, 'center'),
+    ], background=C(6)),
+    sec('See you there', 576, [
+      hd('See you at the front.', 160, 192, 880, 96, '3-x-large', 'center'),
+      pa('Friday 4 December · Hope Vaults, Leeds · 11pm till 5', 160, 300, 880, 24, 16, 'center'),
+      bt('Get tickets', 508, 360, 184, '/dates/'),
+    ], image=U('1483821838526-8d9756a6e1ed', 2000, True), background=C(1), tint=62),
+   ], slug='home', front=True, menu=False),
+   page('Dates', [
+    sec('Dates', 864, [
+      eb('First Fridays', 80, 72, 440), hd('Dates', 80, 120, 720, 144, '__max', tf={'fs2': 10, 'fsMin': 44, 'lh': 0.95, 'tt': 'uppercase', 'ls2': -0.03}),
+      pa('Tickets are £8 before midnight and £12 after, on the door or by email. Three hundred in and that is the room full.', 80, 288, 560, 72, 18),
+      ledger(80, 408, 1040, [
+        {'k': 'Fri 4 Dec', 't': 'Mala Fide', 'd': 'Bristol. Three hours in room one, with Saoirse K and Ottoline', 'role': 'Tickets'},
+        {'k': 'Fri 8 Jan', 't': 'Residents only', 'd': 'All night long, both rooms. £5 in, all night', 'role': 'On the door'},
+        {'k': 'Fri 5 Feb', 't': 'Kessler Twins', 'd': 'Berlin. A live set, their first in the north', 'role': 'Tickets'},
+        {'k': 'Fri 5 Mar', 't': 'Fifth birthday', 'd': 'Guests to be named. It will sell out', 'role': 'Soon'},
+      ], k=1, role=1),
+      bt('Email for tickets', 80, 744, 216, 'mailto:door@undertow.example'),
+    ]),
+    sec('Before', 576, [
+      eb('Played here', 80, 96, 440), hd('Five years of guests', 80, 144, 640, 72),
+      pa('Mala Fide · Kessler Twins · Ottoline · Big Ears Sound · Halfmoon · DJ Persimmon · Low Tide Collective · Saoirse K · Tenderfoot · The Night Bus · Odd Sock · Brine · Aunt Maud · Little Engine · Wren &amp; Co.', 80, 264, 1040, 168, 22),
+    ], background=C(6)),
+   ], slug='dates'),
+   page('Info', [
+    sec('Info', 720, [
+      eb('Before you come', 80, 96, 440), hd('Info', 80, 144, 480, 144, '__max', tf={'fs2': 10, 'fsMin': 44, 'lh': 0.95, 'tt': 'uppercase', 'ls2': -0.03}),
+      pa('Hope Vaults is under the railway arches on Hope Street, Leeds LS2. Look for the white door with no sign. Ten minutes from the station, night buses outside.', 80, 312, 440, 120, 18),
+      pa('Over-18s. Bring ID.<br>Cloakroom £2. Earplugs free at the bar.<br>Step-free by the side door: ask anyone on the door.', 80, 456, 440, 96),
+      {'type': 'embed', 'x': 640, 'y': 96, 'w': 480, 'h': 528, 'url': 'https://www.google.com/maps?q=Leeds+railway+station&output=embed', 'radius': 0},
+    ]),
+    sec('Asked a lot', 576, [
+      eb('Asked a lot', 80, 96, 440), hd('Before you ask', 80, 144, 640, 72),
+      ledger(80, 264, 1040, [
+        {'t': 'Can I come alone?', 'd': 'A third of the room does. Say so at the door and we will point you at the friendly end of the bar'},
+        {'t': 'Why no phones?', 'd': 'Because it is better. Stickers go over the cameras at the door. Text outside, or in room two'},
+        {'t': 'Can I play?', 'd': 'Open decks in room two from half past three. Bring two records, ask at the bar'},
+      ]),
+    ], background=C(6)),
+   ], slug='info'),
+  ],
+  'footer': footer([('Next', 'Friday 4 December<br>11pm till 5<br>£8 before midnight'), ('Door', 'Hope Vaults, Hope Street<br>Leeds LS2<br><a href="mailto:door@undertow.example">door@undertow.example</a>')], '© 2026 Undertow · Over-18s · Look after each other'),
+ }}
+
 
 CREDITS = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'metis-credits.json'))) if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'metis-credits.json')) else {}
 def used(o, acc):

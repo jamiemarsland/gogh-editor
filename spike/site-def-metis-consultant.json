@@ -1,0 +1,1047 @@
+{
+ "name": "Adaeze Cole",
+ "tagline": "Operations for companies that grew faster than their habits.",
+ "variation": "Ithaca",
+ "chrome": {
+  "header_part": "header-a",
+  "footer_part": "footer-c"
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Opening",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 120,
+       "w": 240,
+       "h": 24,
+       "text": "Adaeze Cole<br>Operations · Bristol",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 96,
+       "w": 760,
+       "h": 336,
+       "text": "I help thirty-person companies stop running like ten-person ones.",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 456,
+       "w": 600,
+       "h": 96,
+       "text": "The habits that got you here were built for a room where everyone could hear everyone. I spend a few months inside the company and leave it with ones that fit.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "button",
+       "x": 360,
+       "y": 576,
+       "w": 200,
+       "h": 48,
+       "text": "Book a first call",
+       "href": "/start/"
+      },
+      {
+       "type": "button",
+       "x": 576,
+       "y": 576,
+       "w": 200,
+       "h": 48,
+       "text": "See recent work",
+       "href": "/work/",
+       "ghost": true
+      }
+     ]
+    },
+    {
+     "name": "What I do",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 240,
+       "h": 24,
+       "text": "What I do",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "box",
+       "x": 360,
+       "y": 72,
+       "w": 760,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 96,
+       "w": 96,
+       "h": 48,
+       "text": "01",
+       "fs": "x-large"
+      },
+      {
+       "type": "heading",
+       "x": 480,
+       "y": 96,
+       "w": 640,
+       "h": 48,
+       "text": "Listen for two weeks.",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 480,
+       "y": 156,
+       "w": 600,
+       "h": 72,
+       "text": "I sit in the meetings, read the tickets and talk to everyone, including the people who have stopped saying it out loud.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "box",
+       "x": 360,
+       "y": 264,
+       "w": 760,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 288,
+       "w": 96,
+       "h": 48,
+       "text": "02",
+       "fs": "x-large"
+      },
+      {
+       "type": "heading",
+       "x": 480,
+       "y": 288,
+       "w": 640,
+       "h": 48,
+       "text": "Change three things.",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 480,
+       "y": 348,
+       "w": 600,
+       "h": 72,
+       "text": "Never thirty. Usually how work gets planned, who decides, and one meeting that has to go.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "box",
+       "x": 360,
+       "y": 456,
+       "w": 760,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) top / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 480,
+       "w": 96,
+       "h": 48,
+       "text": "03",
+       "fs": "x-large"
+      },
+      {
+       "type": "heading",
+       "x": 480,
+       "y": 480,
+       "w": 640,
+       "h": 48,
+       "text": "Stay until it holds.",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 480,
+       "y": 540,
+       "w": 600,
+       "h": 72,
+       "text": "New habits fail in week five. I am still there in week twelve, and then I am not needed.",
+       "tf": {
+        "fs": 16
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    },
+    {
+     "name": "In numbers",
+     "minH": 288,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 108,
+       "w": 240,
+       "h": 24,
+       "text": "In numbers",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 96,
+       "w": 220,
+       "h": 48,
+       "text": "41",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 144,
+       "w": 220,
+       "h": 24,
+       "text": "companies since 2017",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 620,
+       "y": 96,
+       "w": 220,
+       "h": 48,
+       "text": "11 weeks",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 144,
+       "w": 220,
+       "h": 24,
+       "text": "the usual stay",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 880,
+       "y": 96,
+       "w": 220,
+       "h": 48,
+       "text": "3",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 880,
+       "y": 144,
+       "w": 220,
+       "h": 24,
+       "text": "changes, never thirty",
+       "tf": {
+        "fs": 13
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-8)"
+    },
+    {
+     "name": "Said afterwards",
+     "minH": 504,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 108,
+       "w": 240,
+       "h": 24,
+       "text": "Said afterwards",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 96,
+       "w": 760,
+       "h": 216,
+       "text": "“We thought we needed a reorganisation. We needed one calendar and someone to tell us so.”",
+       "fs": "2-x-large"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 336,
+       "w": 600,
+       "h": 24,
+       "text": "Jonah Reyes, founder, Tideline",
+       "tf": {
+        "fs": 15
+       }
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 384,
+       "w": 600,
+       "h": 24,
+       "text": "<a href=\"/work/\">What happened at Tideline →</a>",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      }
+     ]
+    },
+    {
+     "name": "Recent work",
+     "minH": 576,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 108,
+       "w": 240,
+       "h": 24,
+       "text": "Recent work",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "cards",
+       "x": 360,
+       "y": 72,
+       "w": 760,
+       "h": 312,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "2026",
+          "t": "Tideline",
+          "d": "Scheduling software, 34 people. Rebuilt planning so releases stopped slipping",
+          "role": "Six months"
+         },
+         {
+          "k": "2026",
+          "t": "Marrow & Rye",
+          "d": "Meal kits, 22 people. One weekly meeting replaced eleven",
+          "role": "Ten weeks"
+         },
+         {
+          "k": "2025",
+          "t": "Fieldnote",
+          "d": "Research tools, 41 people. Hired and settled a first head of operations",
+          "role": "Four months"
+         },
+         {
+          "k": "2025",
+          "t": "Common Thread",
+          "d": "Repair cafés, 12 staff and 300 volunteers. A rota that survives holidays",
+          "role": "Eight weeks"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "k": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      },
+      {
+       "type": "button",
+       "x": 360,
+       "y": 432,
+       "w": 176,
+       "h": 48,
+       "text": "All the work",
+       "href": "/work/",
+       "ghost": true
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    },
+    {
+     "name": "About",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 108,
+       "w": 240,
+       "h": 24,
+       "text": "About",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "image",
+       "x": 360,
+       "y": 96,
+       "w": 300,
+       "h": 400,
+       "src": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Adaeze Cole",
+       "radius": 16
+      },
+      {
+       "type": "heading",
+       "x": 700,
+       "y": 96,
+       "w": 420,
+       "h": 168,
+       "text": "Ten years running operations, eight helping other people do it.",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 700,
+       "y": 288,
+       "w": 420,
+       "h": 120,
+       "text": "I ran operations at two software companies as they went from a dozen people to two hundred, and made most of the mistakes I now get paid to spot.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 700,
+       "y": 408,
+       "w": 420,
+       "h": 72,
+       "text": "I work alone, with one company at a time, mostly in the south-west and always partly in the room.",
+       "tf": {
+        "fs": 16
+       }
+      }
+     ]
+    },
+    {
+     "name": "Next",
+     "minH": 504,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 132,
+       "w": 240,
+       "h": 24,
+       "text": "Next",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 120,
+       "w": 760,
+       "h": 144,
+       "text": "The first call is free, and you leave with a list.",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 288,
+       "w": 600,
+       "h": 72,
+       "text": "Forty minutes. You tell me what hurts, I tell you the three things I would look at first, and whether I am the right person to look.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "button",
+       "x": 360,
+       "y": 372,
+       "w": 200,
+       "h": 48,
+       "text": "Book a first call",
+       "href": "/start/",
+       "btnBg": "theme-2",
+       "btnText": "theme-1"
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-10)"
+    }
+   ],
+   "slug": "home",
+   "front": true,
+   "menu": false
+  },
+  {
+   "title": "Work",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Work",
+     "minH": 864,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 108,
+       "w": 240,
+       "h": 24,
+       "text": "Work",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 72,
+       "w": 760,
+       "h": 144,
+       "text": "Recent work",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 240,
+       "w": 600,
+       "h": 48,
+       "text": "One company at a time since 2017. These are the ones happy to be named.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "cards",
+       "x": 360,
+       "y": 336,
+       "w": 760,
+       "h": 384,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "2026",
+          "t": "Tideline",
+          "d": "Scheduling software, 34 people. Rebuilt planning so releases stopped slipping",
+          "role": "Six months"
+         },
+         {
+          "k": "2026",
+          "t": "Marrow & Rye",
+          "d": "Meal kits, 22 people. One weekly meeting replaced eleven",
+          "role": "Ten weeks"
+         },
+         {
+          "k": "2025",
+          "t": "Fieldnote",
+          "d": "Research tools, 41 people. Hired and settled a first head of operations",
+          "role": "Four months"
+         },
+         {
+          "k": "2025",
+          "t": "Common Thread",
+          "d": "Repair cafés, 12 staff and 300 volunteers. A rota that survives holidays",
+          "role": "Eight weeks"
+         },
+         {
+          "k": "2024",
+          "t": "Lumen Bikes",
+          "d": "E-bike maker, 28 people. Support moved from the founder’s phone to a team",
+          "role": "Five months"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "k": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "Tideline",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 108,
+       "w": 240,
+       "h": 24,
+       "text": "In detail<br>Tideline, 2026",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 96,
+       "w": 760,
+       "h": 120,
+       "text": "Releases had slipped for five quarters running.",
+       "fs": "2-x-large"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 240,
+       "w": 360,
+       "h": 168,
+       "text": "Thirty-four people, one roadmap and four places where work was promised. Nobody was late on purpose; nobody could see the whole of it.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 760,
+       "y": 240,
+       "w": 360,
+       "h": 168,
+       "text": "We moved planning into one calendar, gave each team a say in what it could carry, and ended the Monday meeting. The next three releases shipped on the day.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 456,
+       "w": 220,
+       "h": 48,
+       "text": "5 → 0",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 504,
+       "w": 220,
+       "h": 24,
+       "text": "late releases",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 620,
+       "y": 456,
+       "w": 220,
+       "h": 48,
+       "text": "11 → 1",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 504,
+       "w": 220,
+       "h": 24,
+       "text": "weekly meetings",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 880,
+       "y": 456,
+       "w": 220,
+       "h": 48,
+       "text": "6 months",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 880,
+       "y": 504,
+       "w": 220,
+       "h": 24,
+       "text": "start to finish",
+       "tf": {
+        "fs": 13
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    },
+    {
+     "name": "The room",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 108,
+       "w": 240,
+       "h": 24,
+       "text": "How it looks",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "image",
+       "x": 360,
+       "y": 96,
+       "w": 370,
+       "h": 400,
+       "src": "https://images.unsplash.com/photo-1623652554515-91c833e3080e?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "A hand placing yellow sticky notes on a wall",
+       "radius": 16
+      },
+      {
+       "type": "image",
+       "x": 750,
+       "y": 96,
+       "w": 370,
+       "h": 400,
+       "src": "https://images.unsplash.com/photo-1532622785990-d2c36a76f5a6?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Two people drawing on a whiteboard",
+       "radius": 16
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 520,
+       "w": 600,
+       "h": 48,
+       "text": "Mostly it looks like this: a wall, some pens and the people who do the work.",
+       "tf": {
+        "fs": 15
+       }
+      }
+     ]
+    }
+   ],
+   "slug": "work"
+  },
+  {
+   "title": "Start",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Start",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 108,
+       "w": 240,
+       "h": 24,
+       "text": "Start",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 72,
+       "w": 760,
+       "h": 144,
+       "text": "How it starts",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 240,
+       "w": 600,
+       "h": 48,
+       "text": "I take on four companies a year. The next opening is in February.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "cards",
+       "x": 360,
+       "y": 336,
+       "w": 760,
+       "h": 240,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "One",
+          "t": "A call",
+          "d": "Forty minutes, free. You leave with the three things I would look at first",
+          "role": "This week"
+         },
+         {
+          "k": "Two",
+          "t": "A week inside",
+          "d": "I meet everyone and write up what I see, in plain words",
+          "role": "Fixed fee"
+         },
+         {
+          "k": "Three",
+          "t": "The work",
+          "d": "Two or three days a week, for as long as it takes to hold",
+          "role": "8 to 24 weeks"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "k": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      },
+      {
+       "type": "button",
+       "x": 360,
+       "y": 624,
+       "w": 176,
+       "h": 48,
+       "text": "Write to me",
+       "href": "mailto:hello@adaezecole.example"
+      }
+     ]
+    },
+    {
+     "name": "Fit",
+     "minH": 432,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 108,
+       "w": 240,
+       "h": 24,
+       "text": "Not for everyone",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 96,
+       "w": 760,
+       "h": 72,
+       "text": "I am probably wrong for you if…",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 192,
+       "w": 600,
+       "h": 120,
+       "text": "…you are under fifteen people (you need a good office manager), over a hundred and fifty (you need a firm), or looking for someone to deliver bad news you have already decided on.",
+       "tf": {
+        "fs": 17
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-11)"
+    }
+   ],
+   "slug": "start"
+  }
+ ],
+ "footer": "<!-- wp:group {\"tagName\":\"footer\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|70\",\"bottom\":\"var:preset|spacing|60\"},\"margin\":{\"top\":\"0\",\"bottom\":\"0\"}},\"background\":{\"gradient\":\"var:preset|gradient|gradient-8\"}},\"layout\":{\"type\":\"constrained\"}} -->\n<footer class=\"wp-block-group\" style=\"margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--60)\"><!-- wp:columns {\"align\":\"wide\"} -->\n<div class=\"wp-block-columns alignwide\"><!-- wp:column {\"width\":\"40%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:40%\"><!-- wp:site-title {\"level\":0,\"fontSize\":\"x-large\"} /-->\n\n<!-- wp:site-tagline {\"fontSize\":\"small\"} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Write</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\"><a href=\"mailto:hello@adaezecole.example\">hello@adaezecole.example</a><br>Bristol, and wherever you are</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Next opening</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">February<br>Four companies a year</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n</div>\n<!-- /wp:columns -->\n\n<!-- wp:paragraph {\"align\":\"wide\",\"fontSize\":\"x-small\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|60\"}}}} -->\n<p class=\"alignwide has-x-small-font-size\" style=\"margin-top:var(--wp--preset--spacing--60)\">© 2026 Adaeze Cole · Operations</p>\n<!-- /wp:paragraph --></footer>\n<!-- /wp:group -->\n",
+ "credits": [
+  {
+   "name": "Christina @ wocintechchat.com",
+   "link": "https://unsplash.com/@wocintechchat"
+  },
+  {
+   "name": "FORTYTWO",
+   "link": "https://unsplash.com/@byfortytwo"
+  },
+  {
+   "name": "Kaleidico",
+   "link": "https://unsplash.com/@kaleidico"
+  }
+ ]
+}

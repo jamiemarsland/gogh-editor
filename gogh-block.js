@@ -160,4 +160,35 @@
       },
     ],
   });
+  // gogh/form — the contact form. PHP draws it (render_callback), so there is
+  // nothing to save; but a block PHP alone registers is "unsupported" to the
+  // block editor. Registered here it opens as a named block with a quiet
+  // stand-in for the form, and saves back exactly as it was.
+  blocks.registerBlockType('gogh/form', {
+    apiVersion: 3,
+    title: 'Form (gogh)',
+    description: 'A contact form. Its messages arrive under Messages in the dashboard. Style it on the live page with gogh.',
+    icon: 'email',
+    category: 'widgets',
+    supports: { html: false, customClassName: false, reusable: false },
+    attributes: {
+      heading: { type: 'string', default: '' },
+      button: { type: 'string', default: '' },
+    },
+    edit: function (props) {
+      var a = props.attributes;
+      var line = function (label, tall) {
+        return el('div', { style: { margin: '0 0 12px' } },
+          el('div', { style: { fontSize: '12px', opacity: 0.7, margin: '0 0 4px' } }, label),
+          el('div', { style: { height: tall ? '72px' : '36px', border: '1px solid currentColor', borderRadius: '6px', opacity: 0.35 } }));
+      };
+      return el('div', blockEditor.useBlockProps({ style: { padding: '24px', border: '1.5px dashed #7ea8ff', borderRadius: '14px', background: 'rgba(126, 168, 255, 0.06)', maxWidth: '520px' } }),
+        a.heading ? el('p', { style: { fontWeight: 700, margin: '0 0 12px' } }, a.heading) : null,
+        line('Name'), line('Email'), line('Message', true),
+        el('div', { style: { display: 'inline-block', padding: '8px 18px', borderRadius: '999px', background: 'currentColor' } },
+          el('span', { style: { filter: 'invert(1)', fontWeight: 600, fontSize: '13px' } }, a.button || 'Send')),
+        el('p', { style: { margin: '12px 0 0', fontSize: '12px', opacity: 0.7 } }, 'gogh form: a stand-in. The real form shows on the live page.'));
+    },
+    save: function () { return null; },
+  });
 })(window.wp.blocks, window.wp.element, window.wp.blockEditor);

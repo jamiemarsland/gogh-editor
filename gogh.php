@@ -7174,7 +7174,20 @@ function gogh_light_images( $html ) {
 					if ( ! $phone ) {
 						continue;
 					}
-					$extra .= '@media (max-width: 700px) { ' . $sel . ' { ' . str_replace( $src, $phone, $r[2] ) . ' } }';
+					// ONLY the declaration that carries the picture. The section's own rule
+					// also lays out its desktop grid: copied whole into this later rule it
+					// beat the phone layout, and a hero with a photo kept its desktop
+					// columns on a phone (words one to a line, in a 26px column)
+					$decls = array();
+					foreach ( explode( ';', $r[2] ) as $decl ) {
+						if ( false !== strpos( $decl, $src ) ) {
+							$decls[] = trim( str_replace( $src, $phone, $decl ) );
+						}
+					}
+					if ( ! $decls ) {
+						continue;
+					}
+					$extra .= '@media (max-width: 700px) { ' . $sel . ' { ' . implode( '; ', $decls ) . '; } }';
 				}
 			}
 			return $extra ? '<style class="gogh-style">' . $css . $extra . '</style>' : $m[0];

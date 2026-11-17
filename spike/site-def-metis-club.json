@@ -1,0 +1,1212 @@
+{
+ "name": "Undertow",
+ "tagline": "First Friday of the month. A basement in Leeds.",
+ "variation": "Cimmeria",
+ "chrome": {
+  "header_part": "header-a",
+  "footer_part": "footer-c"
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Flyer",
+     "minH": 792,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "First Friday of every month · Leeds",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 1040,
+       "h": 216,
+       "text": "Undertow",
+       "fs": "__max",
+       "tf": {
+        "fs2": 13.5,
+        "fsMin": 40,
+        "lh": 0.9,
+        "tt": "uppercase",
+        "ls2": -0.04
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 384,
+       "w": 520,
+       "h": 72,
+       "text": "Bass music in a low room with a proper system. Two rooms, three hundred people, no phones on the floor.",
+       "tf": {
+        "fs": 19
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 480,
+       "w": 184,
+       "h": 48,
+       "text": "Get tickets",
+       "href": "/dates/"
+      },
+      {
+       "type": "button",
+       "x": 280,
+       "y": 480,
+       "w": 200,
+       "h": 48,
+       "text": "What to expect",
+       "href": "/info/",
+       "ghost": true
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 600,
+       "w": 236,
+       "h": 96,
+       "boxBg": "var(--wp--preset--color--theme-9)",
+       "radius": 0,
+       "kids": [
+        {
+         "type": "para",
+         "x": 20,
+         "y": 20,
+         "w": 196,
+         "h": 24,
+         "text": "Next",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 20,
+         "y": 44,
+         "w": 196,
+         "h": 36,
+         "text": "Fri 4 December",
+         "fs": "large",
+         "tf": {
+          "fs": 20,
+          "lh": 1.2
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 348,
+       "y": 600,
+       "w": 236,
+       "h": 96,
+       "boxBg": "var(--wp--preset--color--theme-9)",
+       "radius": 0,
+       "kids": [
+        {
+         "type": "para",
+         "x": 20,
+         "y": 20,
+         "w": 196,
+         "h": 24,
+         "text": "Doors",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 20,
+         "y": 44,
+         "w": 196,
+         "h": 36,
+         "text": "11pm till 5",
+         "fs": "large",
+         "tf": {
+          "fs": 20,
+          "lh": 1.2
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 616,
+       "y": 600,
+       "w": 236,
+       "h": 96,
+       "boxBg": "var(--wp--preset--color--theme-9)",
+       "radius": 0,
+       "kids": [
+        {
+         "type": "para",
+         "x": 20,
+         "y": 20,
+         "w": 196,
+         "h": 24,
+         "text": "Where",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 20,
+         "y": 44,
+         "w": 196,
+         "h": 36,
+         "text": "Hope Vaults, LS2",
+         "fs": "large",
+         "tf": {
+          "fs": 20,
+          "lh": 1.2
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 884,
+       "y": 600,
+       "w": 236,
+       "h": 96,
+       "boxBg": "var(--wp--preset--color--theme-9)",
+       "radius": 0,
+       "kids": [
+        {
+         "type": "para",
+         "x": 20,
+         "y": 20,
+         "w": 196,
+         "h": 24,
+         "text": "In",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 20,
+         "y": 44,
+         "w": 196,
+         "h": 36,
+         "text": "£8 before midnight",
+         "fs": "large",
+         "tf": {
+          "fs": 20,
+          "lh": 1.2
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Inside",
+     "minH": 384,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 0,
+       "w": 248,
+       "h": 336,
+       "src": "https://images.unsplash.com/photo-1578736641330-3155e606cd40?w=900&q=80&fm=jpg&fit=max&sat=-100",
+       "alt": "People dancing in a dark room",
+       "radius": 2
+      },
+      {
+       "type": "image",
+       "x": 344,
+       "y": 0,
+       "w": 248,
+       "h": 336,
+       "src": "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=900&q=80&fm=jpg&fit=max&sat=-100",
+       "alt": "The silhouette of a DJ at the decks",
+       "radius": 2
+      },
+      {
+       "type": "image",
+       "x": 608,
+       "y": 0,
+       "w": 248,
+       "h": 336,
+       "src": "https://images.unsplash.com/photo-1545128485-c400e7702796?w=900&q=80&fm=jpg&fit=max&sat=-100",
+       "alt": "A crowd in a small club",
+       "radius": 2
+      },
+      {
+       "type": "image",
+       "x": 872,
+       "y": 0,
+       "w": 248,
+       "h": 336,
+       "src": "https://images.unsplash.com/photo-1571266028243-d220c6a7edbf?w=900&q=80&fm=jpg&fit=max&sat=-100",
+       "alt": "A DJ mixer lit up in the dark",
+       "radius": 2
+      }
+     ]
+    },
+    {
+     "name": "The night",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "Friday 4 December",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 720,
+       "h": 72,
+       "text": "Who is on, and when",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 264,
+       "w": 500,
+       "h": 48,
+       "text": "Room one",
+       "fs": "large",
+       "tf": {
+        "fs": 22
+       }
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 312,
+       "w": 500,
+       "h": 240,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "23:00",
+          "t": "Saoirse K",
+          "d": "Resident. Opens slow, dub and broken beat"
+         },
+         {
+          "k": "01:00",
+          "t": "Mala Fide",
+          "d": "Guest, from Bristol. Three hours"
+         },
+         {
+          "k": "04:00",
+          "t": "Ottoline",
+          "d": "Resident. Closes"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "k": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      },
+      {
+       "type": "heading",
+       "x": 620,
+       "y": 264,
+       "w": 500,
+       "h": 48,
+       "text": "Room two",
+       "fs": "large",
+       "tf": {
+        "fs": 22
+       }
+      },
+      {
+       "type": "cards",
+       "x": 620,
+       "y": 312,
+       "w": 500,
+       "h": 240,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "23:30",
+          "t": "Tenderfoot",
+          "d": "Ambient and low, for sitting down"
+         },
+         {
+          "k": "01:30",
+          "t": "Big Ears Sound",
+          "d": "Reggae sevens, all vinyl"
+         },
+         {
+          "k": "03:30",
+          "t": "Open decks",
+          "d": "Bring two records. Ask at the bar"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "k": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    },
+    {
+     "name": "Dates",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "In the diary",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 640,
+       "h": 72,
+       "text": "Next four",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 264,
+       "w": 248,
+       "h": 312,
+       "boxBg": "var(--wp--preset--color--theme-9)",
+       "radius": 0,
+       "kids": [
+        {
+         "type": "para",
+         "x": 24,
+         "y": 24,
+         "w": 200,
+         "h": 24,
+         "text": "December",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 48,
+         "w": 200,
+         "h": 120,
+         "text": "04",
+         "fs": "large",
+         "tf": {
+          "fs": 104,
+          "lh": 1
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 192,
+         "w": 200,
+         "h": 48,
+         "text": "Mala Fide",
+         "fs": "large",
+         "tf": {
+          "fs": 20,
+          "lh": 1.2
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 252,
+         "w": 200,
+         "h": 24,
+         "text": "Bristol · 3 hours",
+         "tf": {
+          "fs": 13
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 344,
+       "y": 264,
+       "w": 248,
+       "h": 312,
+       "boxBg": "var(--wp--preset--color--theme-9)",
+       "radius": 0,
+       "kids": [
+        {
+         "type": "para",
+         "x": 24,
+         "y": 24,
+         "w": 200,
+         "h": 24,
+         "text": "January",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 48,
+         "w": 200,
+         "h": 120,
+         "text": "08",
+         "fs": "large",
+         "tf": {
+          "fs": 104,
+          "lh": 1
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 192,
+         "w": 200,
+         "h": 48,
+         "text": "Residents only",
+         "fs": "large",
+         "tf": {
+          "fs": 20,
+          "lh": 1.2
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 252,
+         "w": 200,
+         "h": 24,
+         "text": "All night, £5 in",
+         "tf": {
+          "fs": 13
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 608,
+       "y": 264,
+       "w": 248,
+       "h": 312,
+       "boxBg": "var(--wp--preset--color--theme-9)",
+       "radius": 0,
+       "kids": [
+        {
+         "type": "para",
+         "x": 24,
+         "y": 24,
+         "w": 200,
+         "h": 24,
+         "text": "February",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 48,
+         "w": 200,
+         "h": 120,
+         "text": "05",
+         "fs": "large",
+         "tf": {
+          "fs": 104,
+          "lh": 1
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 192,
+         "w": 200,
+         "h": 48,
+         "text": "Kessler Twins",
+         "fs": "large",
+         "tf": {
+          "fs": 20,
+          "lh": 1.2
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 252,
+         "w": 200,
+         "h": 24,
+         "text": "Berlin · live set",
+         "tf": {
+          "fs": 13
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 872,
+       "y": 264,
+       "w": 248,
+       "h": 312,
+       "boxBg": "var(--wp--preset--color--theme-9)",
+       "radius": 0,
+       "kids": [
+        {
+         "type": "para",
+         "x": 24,
+         "y": 24,
+         "w": 200,
+         "h": 24,
+         "text": "March",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 48,
+         "w": 200,
+         "h": 120,
+         "text": "05",
+         "fs": "large",
+         "tf": {
+          "fs": 104,
+          "lh": 1
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 192,
+         "w": 200,
+         "h": 48,
+         "text": "Fifth birthday",
+         "fs": "large",
+         "tf": {
+          "fs": 20,
+          "lh": 1.2
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 252,
+         "w": 200,
+         "h": 24,
+         "text": "Guests to be named",
+         "tf": {
+          "fs": 13
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "House rules",
+     "minH": 576,
+     "els": [
+      {
+       "type": "para",
+       "x": 160,
+       "y": 96,
+       "w": 880,
+       "h": 24,
+       "text": "House rules",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "align": "center"
+      },
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 144,
+       "w": 880,
+       "h": 72,
+       "text": "No phones on the floor.",
+       "fs": "2-x-large",
+       "align": "center"
+      },
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 228,
+       "w": 880,
+       "h": 72,
+       "text": "Look after each other.",
+       "fs": "2-x-large",
+       "align": "center"
+      },
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 312,
+       "w": 880,
+       "h": 72,
+       "text": "No guest list, no dress code.",
+       "fs": "2-x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 420,
+       "w": 560,
+       "h": 72,
+       "text": "If someone is making your night worse, tell anyone in a white T-shirt. We will deal with it, and you will not be asked to explain twice.",
+       "tf": {
+        "fs": 16
+       },
+       "align": "center"
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    },
+    {
+     "name": "See you there",
+     "minH": 576,
+     "els": [
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 192,
+       "w": 880,
+       "h": 96,
+       "text": "See you at the front.",
+       "fs": "3-x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 160,
+       "y": 300,
+       "w": 880,
+       "h": 24,
+       "text": "Friday 4 December · Hope Vaults, Leeds · 11pm till 5",
+       "tf": {
+        "fs": 16
+       },
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 508,
+       "y": 360,
+       "w": 184,
+       "h": 48,
+       "text": "Get tickets",
+       "href": "/dates/"
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1483821838526-8d9756a6e1ed?w=2000&q=80&fm=jpg&fit=max&sat=-100",
+     "background": "var(--wp--preset--color--theme-1)",
+     "tint": 62
+    }
+   ],
+   "slug": "home",
+   "front": true,
+   "menu": false
+  },
+  {
+   "title": "Dates",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Dates",
+     "minH": 864,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 72,
+       "w": 440,
+       "h": 24,
+       "text": "First Fridays",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 120,
+       "w": 720,
+       "h": 144,
+       "text": "Dates",
+       "fs": "__max",
+       "tf": {
+        "fs2": 10,
+        "fsMin": 44,
+        "lh": 0.95,
+        "tt": "uppercase",
+        "ls2": -0.03
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 288,
+       "w": 560,
+       "h": 72,
+       "text": "Tickets are £8 before midnight and £12 after, on the door or by email. Three hundred in and that is the room full.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 408,
+       "w": 1040,
+       "h": 312,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "Fri 4 Dec",
+          "t": "Mala Fide",
+          "d": "Bristol. Three hours in room one, with Saoirse K and Ottoline",
+          "role": "Tickets"
+         },
+         {
+          "k": "Fri 8 Jan",
+          "t": "Residents only",
+          "d": "All night long, both rooms. £5 in, all night",
+          "role": "On the door"
+         },
+         {
+          "k": "Fri 5 Feb",
+          "t": "Kessler Twins",
+          "d": "Berlin. A live set, their first in the north",
+          "role": "Tickets"
+         },
+         {
+          "k": "Fri 5 Mar",
+          "t": "Fifth birthday",
+          "d": "Guests to be named. It will sell out",
+          "role": "Soon"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "k": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         },
+         "role": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 744,
+       "w": 216,
+       "h": 48,
+       "text": "Email for tickets",
+       "href": "mailto:door@undertow.example"
+      }
+     ]
+    },
+    {
+     "name": "Before",
+     "minH": 576,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "Played here",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 640,
+       "h": 72,
+       "text": "Five years of guests",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 168,
+       "text": "Mala Fide · Kessler Twins · Ottoline · Big Ears Sound · Halfmoon · DJ Persimmon · Low Tide Collective · Saoirse K · Tenderfoot · The Night Bus · Odd Sock · Brine · Aunt Maud · Little Engine · Wren &amp; Co.",
+       "tf": {
+        "fs": 22
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    }
+   ],
+   "slug": "dates"
+  },
+  {
+   "title": "Info",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Info",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "Before you come",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 480,
+       "h": 144,
+       "text": "Info",
+       "fs": "__max",
+       "tf": {
+        "fs2": 10,
+        "fsMin": 44,
+        "lh": 0.95,
+        "tt": "uppercase",
+        "ls2": -0.03
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 312,
+       "w": 440,
+       "h": 120,
+       "text": "Hope Vaults is under the railway arches on Hope Street, Leeds LS2. Look for the white door with no sign. Ten minutes from the station, night buses outside.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 456,
+       "w": 440,
+       "h": 96,
+       "text": "Over-18s. Bring ID.<br>Cloakroom £2. Earplugs free at the bar.<br>Step-free by the side door: ask anyone on the door.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "embed",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 528,
+       "url": "https://www.google.com/maps?q=Leeds+railway+station&output=embed",
+       "radius": 0
+      }
+     ]
+    },
+    {
+     "name": "Asked a lot",
+     "minH": 576,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "Asked a lot",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 640,
+       "h": 72,
+       "text": "Before you ask",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 240,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 0,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Can I come alone?",
+          "d": "A third of the room does. Say so at the door and we will point you at the friendly end of the bar"
+         },
+         {
+          "t": "Why no phones?",
+          "d": "Because it is better. Stickers go over the cameras at the door. Text outside, or in room two"
+         },
+         {
+          "t": "Can I play?",
+          "d": "Open decks in room two from half past three. Bring two records, ask at the bar"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    }
+   ],
+   "slug": "info"
+  }
+ ],
+ "footer": "<!-- wp:group {\"tagName\":\"footer\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|70\",\"bottom\":\"var:preset|spacing|60\"},\"margin\":{\"top\":\"0\",\"bottom\":\"0\"}},\"background\":{\"gradient\":\"var:preset|gradient|gradient-8\"}},\"layout\":{\"type\":\"constrained\"}} -->\n<footer class=\"wp-block-group\" style=\"margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--60)\"><!-- wp:columns {\"align\":\"wide\"} -->\n<div class=\"wp-block-columns alignwide\"><!-- wp:column {\"width\":\"40%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:40%\"><!-- wp:site-title {\"level\":0,\"fontSize\":\"x-large\"} /-->\n\n<!-- wp:site-tagline {\"fontSize\":\"small\"} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Next</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">Friday 4 December<br>11pm till 5<br>£8 before midnight</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Door</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">Hope Vaults, Hope Street<br>Leeds LS2<br><a href=\"mailto:door@undertow.example\">door@undertow.example</a></p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n</div>\n<!-- /wp:columns -->\n\n<!-- wp:paragraph {\"align\":\"wide\",\"fontSize\":\"x-small\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|60\"}}}} -->\n<p class=\"alignwide has-x-small-font-size\" style=\"margin-top:var(--wp--preset--spacing--60)\">© 2026 Undertow · Over-18s · Look after each other</p>\n<!-- /wp:paragraph --></footer>\n<!-- /wp:group -->\n",
+ "credits": [
+  {
+   "name": "A J.",
+   "link": "https://unsplash.com/@antoinejulien"
+  },
+  {
+   "name": "Marcela Laskoski",
+   "link": "https://unsplash.com/@marcelalaskoski"
+  },
+  {
+   "name": "Pim Myten",
+   "link": "https://unsplash.com/@pimmyten"
+  },
+  {
+   "name": "Kofi Nuamah Barden",
+   "link": "https://unsplash.com/@mrbroker"
+  },
+  {
+   "name": "Greyson Joralemon",
+   "link": "https://unsplash.com/@greysonjoralemon"
+  }
+ ]
+}
