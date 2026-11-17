@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.795**
+- Plugin version: **0.99.796**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.795`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.796`). Quote the plugin header version.
 
 ## Design constants
 
@@ -74,7 +74,7 @@ Element types that survive a publish: `heading`, `para`, `button`, `image`, `vid
 
 ## WordPress surface
 
-Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
+Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`, `heading`, `button`.
 
 | Hook | Kind | Priority |
 |---|---|---|
