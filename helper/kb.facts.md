@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.797**
+- Plugin version: **0.99.798**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.797`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.798`). Quote the plugin header version.
 
 ## Design constants
 
@@ -296,10 +296,10 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Close"
 - "Close help"
 - "Copies the styles as site definition JSON"
+- "Copy"
 - "Copy as definition"
-- "Copy machine version"
 - "Copy style — then click other text to paint it"
-- "Copy summary to share"
+- "Copy this list as a note"
 - "Create"
 - "Custom colour"
 - "Custom text colour"
@@ -445,7 +445,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Right"
 - "Roll another take of this design"
 - "Save"
-- "Save description"
 - "Save style"
 - "Save to the blueprint"
 - "See all pictures"
@@ -646,5 +645,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`401` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`402` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

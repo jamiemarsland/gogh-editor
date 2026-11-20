@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.797",
+    "plugin_version": "0.99.798",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.797-chrome"
+    "asset_version": "0.99.798-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -514,10 +514,10 @@
     "Close",
     "Close help",
     "Copies the styles as site definition JSON",
+    "Copy",
     "Copy as definition",
-    "Copy machine version",
     "Copy style — then click other text to paint it",
-    "Copy summary to share",
+    "Copy this list as a note",
     "Create",
     "Custom colour",
     "Custom text colour",
@@ -663,7 +663,6 @@
     "Right",
     "Roll another take of this design",
     "Save",
-    "Save description",
     "Save style",
     "Save to the blueprint",
     "See all pictures",
@@ -1644,5 +1643,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 401
+  "test_count": 402
 }
