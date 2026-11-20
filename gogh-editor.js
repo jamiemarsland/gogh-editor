@@ -24913,6 +24913,7 @@
     tplEls: tplEls,
     elDefaults: function () { return DEFAULTS; },
     openAnswerReady: openAnswerReadyPanel,
+    draftDescription: draftDescription,
     askRead: askRead,
     refitText: refitText,
     computeFitFs: computeFitFs,
@@ -25922,6 +25923,25 @@
     });
   }
 
+  // a search description from a page's paragraphs: the first one that is a
+  // real sentence (labels and one-word lines are skipped), then whole
+  // sentences while they fit in 155 characters
+  function draftDescription(paras) {
+    var real = (paras || []).map(function (t) { return String(t || '').replace(/\s+/g, ' ').trim(); })
+      .filter(function (t) { return t.length >= 40 && /[a-z]/.test(t) && t.split(' ').length >= 6; });
+    var txt = real[0] || (paras || []).join(' ').replace(/\s+/g, ' ').trim();
+    if (txt.length <= 155) return txt;
+    var out = '';
+    (txt.match(/[^.!?]+[.!?]+(\s|$)/g) || []).some(function (sen) {
+      if ((out + sen).trim().length > 155) return true;
+      out += sen; return false;
+    });
+    out = out.trim();
+    if (out.length >= 40) return out;
+    var cut = txt.slice(0, 155);
+    return cut.slice(0, cut.lastIndexOf(' ')) + '…';
+  }
+
   function openAnswerReadyPanel() {
     var old = document.querySelector('.gogh-arwrap');
     if (old) old.remove();
@@ -25932,39 +25952,44 @@
     var noun = cfg.postType === 'post' ? 'post' : 'page';
     var wrap = document.createElement('div');
     wrap.className = 'gogh-arwrap';
+    // James: "we're putting way too much cognitive load on folks: they need
+    // to be able to scan this really easily and then dive deeper when
+    // needed". So: ONE status, the search preview with its one job, and
+    // everything that needs nothing from anyone folded shut behind a count.
     wrap.innerHTML = '<div class="gogh-arback"></div>' +
       '<div class="gogh-arpanel" role="dialog" aria-label="How Google and AI read this page">' +
-      '<h3>How Google and AI read this page</h3>' +
-      '<p class="gogh-ar-sub">Google and AI assistants read your page as a set of facts. These are yours, straight from the live page.</p>' +
+      '<div class="gogh-ar-head"><h3>Google and AI</h3>' +
+      (snippable ? '<span class="gogh-ar-status"><span class="gogh-ar-statusdot"></span><span class="gogh-ar-statustext"></span></span>' : '') +
+      '</div>' +
       (snippable ?
-        '<div class="gogh-ar-status"><span class="gogh-ar-statusdot"></span><span class="gogh-ar-statustext"></span></div>' +
-        '<div class="gogh-ar-cap">How it looks in search</div>' +
         '<div class="gogh-arsnippet">' +
         '<div class="gogh-arsnip-url">' + esc((cfg.permalink || location.href).replace(/^https?:\/\//, '').replace(/\?.*$/, '')) + '</div>' +
         '<div class="gogh-arsnip-title"></div>' +
-        '<div class="gogh-arsnip-desc" contenteditable="true" spellcheck="true"></div>' +
-        '</div>' +
-        '<p class="gogh-ar-why gogh-arsnip-hint">Gogh drafted the description from the ' + noun + '’s own words — edit it right here. It saves as the ' + noun + '’s description, which search results and AI answers lean on.</p>' +
-        '<div class="gogh-ar-actions gogh-arsnip-actions" hidden><button type="button" class="gogh-arsnip-save">Save description</button></div>'
+        '<div class="gogh-arsnip-desc" contenteditable="true" spellcheck="true" role="textbox" aria-label="The description shown in search results"></div>' +
+        '<div class="gogh-arsnip-foot"><span class="gogh-arsnip-hint"></span>' +
+        '<span class="gogh-arsnip-actions" hidden><button type="button" class="gogh-arsnip-save">Save</button></span></div>' +
+        '</div>'
         : '') +
+      '<details class="gogh-ar-fold gogh-ar-fold-handled"><summary><span class="gogh-ar-foldtick">✓</span>Already handled<span class="gogh-ar-count">4</span></summary>' +
+      '<div class="gogh-ar-foldbody">' +
       '<div class="gogh-ar-rows"><div class="gogh-ar-row">Reading the published page…</div></div>' +
       // true of EVERY gogh page by construction — no per-page computation,
       // and every line here is checked by the suite, not aspiration
-      '<div class="gogh-ar-cap">And built into every gogh page</div>' +
       '<div class="gogh-ar-always">' +
-      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Real structure</b> — proper headings and paragraphs, not builder div-soup, so machines and screen readers read the page like a document</div></div>' +
-      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Reading order kept</b> — drag things anywhere; the page still reads top-to-bottom for screen readers and AIs</div></div>' +
-      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Phone-ready</b> — every section reflows for small screens automatically, and Google indexes mobile first</div></div>' +
-      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Light pages, no lock-in</b> — your layout is pure CSS, not page-builder scripts, and your site keeps its look even with gogh switched off</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Real structure</b> — proper headings and paragraphs, so machines and screen readers read the page like a document</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Reading order kept</b> — drag things anywhere; the page still reads top to bottom</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Phone-ready</b> — every section reflows for small screens, and Google indexes phones first</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Light pages, no lock-in</b> — the layout is plain CSS, and the site keeps its look with gogh switched off</div></div>' +
       '</div>' +
-      '<div class="gogh-ar-cap">The machine layer — exactly what crawlers read</div>' +
-      '<p class="gogh-ar-why">This is your page in the standard format (schema.org) that Google, ChatGPT ' +
-      'and other AIs read facts in. Sites usually need an SEO plugin and a form-filling session to get this. ' +
-      'Gogh wrote it from your design — it updates itself every time you publish.</p>' +
+      '<div class="gogh-ar-foldactions"><button type="button" class="gogh-ar-share">Copy this list as a note</button></div>' +
+      '</div></details>' +
+      '<details class="gogh-ar-fold gogh-ar-fold-machine"><summary>What crawlers read</summary>' +
+      '<div class="gogh-ar-foldbody">' +
+      '<p class="gogh-ar-why">Your page in the standard format (schema.org) that Google, ChatGPT and other AIs read facts in. gogh writes it from your design every time you publish.</p>' +
       '<div class="gogh-armachine"><pre>…</pre></div>' +
-      '<div class="gogh-ar-actions"><button type="button" class="gogh-ar-share">Copy summary to share</button>' +
-      '<button type="button" class="gogh-ar-copy">Copy machine version</button>' +
-      '<button type="button" class="gogh-ar-done">Done</button></div></div>';
+      '<div class="gogh-ar-foldactions"><button type="button" class="gogh-ar-copy">Copy</button></div>' +
+      '</div></details>' +
+      '<div class="gogh-ar-actions"><button type="button" class="gogh-ar-done">Done</button></div></div>';
     document.body.appendChild(wrap);
     railBox.classList.add('is-away'); // the rail steps aside for its own door
     // the light, EXPLAINED, beside the action that changes it — same
@@ -25974,10 +25999,11 @@
       var published = cfg.postStatus === 'publish';
       var hasDesc = !!String(cfg.excerpt || '').trim();
       var s = !published
-        ? ['#b9bcc4', 'Not published yet — publish once and the machine layer appears.']
+        ? ['#b9bcc4', 'Not published yet', 'wait']
         : (!hasDesc
-          ? ['#f2a413', 'One step left — keep or edit the description below, and this turns green.']
-          : ['#2e9e6b', 'Complete — schema, description and structure are all in place.']);
+          ? ['#f2a413', '1 thing to do', 'todo']
+          : ['#2e9e6b', 'Ready for Google and AI', 'done']);
+      wrap.querySelector('.gogh-ar-status').setAttribute('data-state', s[2]);
       wrap.querySelector('.gogh-ar-statusdot').style.background = s[0];
       wrap.querySelector('.gogh-ar-statustext').textContent = s[1];
     };
@@ -25985,25 +26011,25 @@
     // the snippet: polishing how the page LOOKS in results, never a
     // labelled meta-description form — saved as the native excerpt
     if (snippable) (function () {
+      var isHome = cfg.postType === 'page' && +cfg.postId === +cfg.frontId;
       wrap.querySelector('.gogh-arsnip-title').textContent =
-        String(cfg.postTitle || document.title || 'Untitled').slice(0, 70);
+        String((isHome && cfg.siteName) || cfg.postTitle || document.title || 'Untitled').slice(0, 70);
       var draft = function () {
-        var txt = '';
+        // the first real sentence on the page, not every label run together
+        // ("Skerry House · Isle of Harris Five rooms, one long table…")
+        var paras = [];
         try { // pages: the section model's own words, in reading order
           realSections().forEach(function (s) {
             (s.els || []).forEach(function (e) {
-              if (e.type === 'para' && e.text) txt += ' ' + String(e.text).replace(/<[^>]*>/g, ' ');
+              if (e.type === 'para' && e.text) paras.push(String(e.text).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim());
             });
           });
-        } catch (err) { txt = ''; }
-        txt = txt.replace(/\s+/g, ' ').trim();
-        if (!txt) { // post view: the rendered words are the model
+        } catch (err) { paras = []; }
+        if (!paras.length) { // post view: the rendered words are the model
           var ec = document.querySelector('.entry-content');
-          txt = (ec ? ec.textContent : '').replace(/\s+/g, ' ').trim();
+          (ec ? ec.querySelectorAll('p') : []).forEach(function (pp) { paras.push(pp.textContent.replace(/\s+/g, ' ').trim()); });
         }
-        if (txt.length <= 155) return txt;
-        var cut = txt.slice(0, 155);
-        return cut.slice(0, cut.lastIndexOf(' ')) + '…';
+        return draftDescription(paras);
       };
       var descEl = wrap.querySelector('.gogh-arsnip-desc');
       var saved = String(cfg.excerpt || '').trim();
@@ -26012,18 +26038,31 @@
       // clothes — grey, italic, dashed — and straightens into confident
       // ink the moment it's touched ("i want them to feel good about
       // doing it")
-      if (!saved && descEl.textContent.trim()) {
+      var hintEl = wrap.querySelector('.gogh-arsnip-hint');
+      var actions = wrap.querySelector('.gogh-arsnip-actions');
+      var saveBtn = wrap.querySelector('.gogh-arsnip-save');
+      var isDraft = !saved && !!descEl.textContent.trim();
+      // one short line beside the one action: keeping the guess is the
+      // common case, so it is one tap ("Keep this"); typing makes it "Save"
+      var say = function (state) {
+        hintEl.textContent = state === 'draft' ? 'Our guess. Edit it, or keep it.'
+          : state === 'edit' ? 'Shown in search results and AI answers.'
+          : state === 'empty' ? 'One line about this page.'
+          : 'Yours. Click the words to change them.';
+        saveBtn.textContent = state === 'draft' ? 'Keep this' : 'Save';
+        actions.hidden = !(state === 'draft' || state === 'edit');
+      };
+      if (isDraft) {
+        // gogh's guess wears DRAFT clothes and straightens into confident
+        // ink the moment it's touched
         descEl.classList.add('gogh-arsnip-draft');
-        var hintEl = wrap.querySelector('.gogh-arsnip-hint');
-        if (hintEl) hintEl.textContent = 'That grey line is gogh\u2019s rough guess. Tap it and say it your way \u2014 one honest line about this page \u2014 and search results and AI answers will quote you, word for word.';
         var lift = function () { descEl.classList.remove('gogh-arsnip-draft'); };
         descEl.addEventListener('pointerdown', lift, { once: true });
         descEl.addEventListener('focus', lift, { once: true });
         descEl.addEventListener('input', lift, { once: true });
       }
-      var actions = wrap.querySelector('.gogh-arsnip-actions');
-      descEl.addEventListener('input', function () { actions.hidden = false; });
-      if (!saved && descEl.textContent.trim()) actions.hidden = false; // the draft is offered, one click keeps it
+      say(isDraft ? 'draft' : (saved ? 'saved' : 'empty'));
+      descEl.addEventListener('input', function () { say('edit'); });
       wrap.querySelector('.gogh-arsnip-save').addEventListener('click', function () {
         var text = descEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 300);
         fetch(cfg.restUrl, {
@@ -26034,7 +26073,8 @@
         }).then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
           cfg.excerpt = text;
-          actions.hidden = true;
+          descEl.classList.remove('gogh-arsnip-draft');
+          say('saved');
           toast('Saved \u2014 search results and AI answers now quote your words ✓');
           renderStatus();
           updateSEOTabs();
@@ -26055,9 +26095,8 @@
         if (!m) {
           rows.innerHTML = '<div class="gogh-ar-row">Publish once and the machine layer appears — it is computed when the page saves.</div>';
           // no layer yet: no empty black box, no dead copy button
-          wrap.querySelector('.gogh-armachine').hidden = true;
-          var cpy0 = wrap.querySelector('.gogh-ar-copy');
-          if (cpy0) cpy0.hidden = true;
+          wrap.querySelector('.gogh-ar-fold-machine').hidden = true;
+          wrap.querySelector('.gogh-ar-share').hidden = true;
           return;
         }
         var g = JSON.parse(m[1]);
@@ -26066,8 +26105,8 @@
         var copyBtn = wrap.querySelector('.gogh-ar-copy');
         copyBtn.addEventListener('click', function () {
           var p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(pretty) : Promise.reject();
-          p.then(function () { copyBtn.textContent = 'Copied ✓ — paste into validator.schema.org'; },
-            function () { copyBtn.textContent = 'Copy failed — select the dark box instead'; });
+          p.then(function () { copyBtn.textContent = 'Copied ✓ (validator.schema.org checks it)'; },
+            function () { copyBtn.textContent = 'Copy failed: select the dark box instead'; });
         });
         // the boss-shaped receipt: a plain-English summary for Slack or an
         // email — the page's answer-readiness travels between HUMANS too
@@ -26092,7 +26131,7 @@
           lines.push('Standard schema.org format, written automatically every time we publish — no plugin, no forms, no extra work.');
           var msg = lines.join('\n');
           var p2 = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(msg) : Promise.reject();
-          p2.then(function () { shareBtn.textContent = 'Copied ✓ — paste into Slack or an email'; },
+          p2.then(function () { shareBtn.textContent = 'Copied ✓ (paste it into an email or a chat)'; },
             function () { shareBtn.textContent = 'Copy failed'; });
         });
         var out = [];
@@ -26117,6 +26156,7 @@
           }
         });
         rows.innerHTML = out.join('') || '<div class="gogh-ar-row">Nothing emitted yet.</div>';
+        wrap.querySelector('.gogh-ar-count').textContent = String(out.length + 4);
       })
       .catch(function () {
         if (!wrap.parentNode) return;

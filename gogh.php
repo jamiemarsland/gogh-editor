@@ -7934,6 +7934,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postsUrl'   => (int) get_option( 'page_for_posts' ) ? esc_url_raw( get_permalink( (int) get_option( 'page_for_posts' ) ) ) : ( 'posts' === get_option( 'show_on_front' ) ? esc_url_raw( home_url( '/' ) ) : '' ),
 		'postStatus' => $post->post_status,
 		'postTitle'  => get_the_title( $post ),
+		// the search preview names the home page by the site, as WordPress's own title does
+		'siteName'   => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 		// the page switcher marks Home and can list every page
 		'frontId'    => 'page' === get_option( 'show_on_front' ) ? (int) get_option( 'page_on_front' ) : 0,
 		'canPages'   => current_user_can( 'edit_pages' ),

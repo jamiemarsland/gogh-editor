@@ -8726,6 +8726,10 @@
         var pre = p.querySelector('.gogh-armachine pre');
         expect(pre && pre.textContent.indexOf('"@graph"') !== -1, 'machine layer not shown verbatim');
         expect(p.querySelector('.gogh-ar-share'), 'share-summary button missing');
+        // the facts wait folded behind a count that includes this page's own rows
+        var fold = p.querySelector('.gogh-ar-fold-handled');
+        expect(fold && !fold.open, 'the handled list should arrive folded shut');
+        expect(+p.querySelector('.gogh-ar-count').textContent >= 6, 'the count should include the brand and page rows: ' + p.querySelector('.gogh-ar-count').textContent);
         p.querySelector('.gogh-ar-done').click();
         expect(!document.querySelector('.gogh-arpanel'), 'panel did not close');
         return 'live fetch → brand + page rows + verbatim machine layer → closes';
@@ -10539,7 +10543,7 @@
       G.closeSide(true);
       ar.click();
       var wrap = q('.gogh-arwrap');
-      expect(wrap && /How Google and AI read this page/.test(wrap.textContent), 'the SEO tab did not open the receipts');
+      expect(wrap && /Google and AI/.test(wrap.textContent) && wrap.querySelector('.gogh-arpanel'), 'the SEO tab did not open the receipts');
       wrap.remove();
       return 'three scopes, three doors';
     });
@@ -10565,6 +10569,16 @@
       return 'a pack card in the Page drawer, clickable, deduped';
     });
 
+    test('SEO panel: the guess is the first real sentence, not labels run together', function () {
+      var d = G.draftDescription(['Skerry House · Isle of Harris', 'Five rooms, one long table and four miles of empty beach. Open March to October.', 'It was a croft, then a byre, then empty for thirty years.']);
+      expect(d === 'Five rooms, one long table and four miles of empty beach. Open March to October.', 'got: ' + d);
+      var long = G.draftDescription(['The habits that got you here were built for a room where everyone could hear everyone. I spend a few months inside the company and leave it with ones that fit. Then I go home and you carry on without me, which is the point.']);
+      expect(long.length <= 155 && /\.$/.test(long), 'a long paragraph should stop at a sentence end within 155: ' + long);
+      expect(G.draftDescription(['Short label']) === 'Short label', 'with nothing better, the words there are');
+      expect(G.draftDescription([]) === '', 'nothing in, nothing out');
+      return 'label skipped, whole sentences kept';
+    });
+
     test('SEO panel: pages get the search-preview card too', function () {
       // the write room's card, on the canvas — status line + editable
       // description drafted from the page's own words. Look, never touch:
@@ -10581,6 +10595,16 @@
       expect(desc.textContent.trim().length > 0, 'the description drafted nothing from a page full of words');
       expect(card.querySelector('.gogh-arsnip-title').textContent.trim().length > 0, 'the title is empty');
       expect(wrap.querySelector('.gogh-arsnip-save'), 'no way to keep the description');
+      // scannable (James: "way too much cognitive load"): one status, the
+      // preview, two closed folds and ONE button at the foot
+      var panel = wrap.querySelector('.gogh-arpanel');
+      var folds = panel.querySelectorAll('details.gogh-ar-fold');
+      expect(folds.length === 2, 'expected two folds, got ' + folds.length);
+      folds.forEach(function (f) { expect(!f.open, 'a fold arrived open: ' + f.querySelector('summary').textContent); });
+      expect(panel.querySelectorAll(':scope > .gogh-ar-actions button').length === 1, 'the foot should hold Done alone');
+      expect(!panel.querySelector('.gogh-ar-sub') && !panel.querySelector('.gogh-ar-cap'), 'the explaining paragraph and the small-caps captions should be gone');
+      expect(desc.textContent.trim().length <= 156, 'the guess is longer than a search description: ' + desc.textContent.trim().length);
+      expect(wrap.querySelector('.gogh-arsnip-hint').textContent.length < 50, 'the hint should be one short line');
       wrap.remove();
       return 'card present, drafted “' + desc.textContent.trim().slice(0, 40) + '…”';
     });

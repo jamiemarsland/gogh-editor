@@ -3849,7 +3849,26 @@ html.gogh-textediting .gogh-convertbtn {
 }
 @keyframes gogh-ar-slidein { from { transform: translateX(-26px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .gogh-arpanel { animation: none; } }
-.gogh-arpanel h3 { margin: 0 0 4px; font-size: 18px; }
+.gogh-arpanel h3 { margin: 0; font-size: 18px; }
+/* one line to scan: the name of the thing and where it stands */
+.gogh-ar-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
+/* everything that needs nothing from anyone, folded shut behind a count */
+.gogh-ar-fold { border-top: 1px solid #eceef2; }
+.gogh-ar-fold[hidden] { display: none; }
+.gogh-arsnippet + .gogh-ar-fold { margin-top: 18px; }
+.gogh-ar-fold > summary { display: flex; align-items: center; gap: 9px; padding: 13px 0; cursor: pointer; font-weight: 600; font-size: 14px; list-style: none; user-select: none; }
+.gogh-ar-fold > summary::-webkit-details-marker { display: none; }
+.gogh-ar-fold > summary::after { content: ""; margin-left: auto; width: 7px; height: 7px; border-right: 1.6px solid #8a93a6; border-bottom: 1.6px solid #8a93a6; transform: rotate(45deg) translateY(-2px); transition: transform 0.15s ease; }
+.gogh-ar-fold[open] > summary::after { transform: rotate(225deg) translateY(-2px); }
+.gogh-ar-fold > summary:focus-visible { outline: 2px solid #4a63d8; outline-offset: 2px; border-radius: 6px; }
+.gogh-ar-foldtick { color: #2e9e6b; font-weight: 800; }
+.gogh-ar-count { font-weight: 500; color: #8a93a6; }
+.gogh-ar-foldbody { padding: 0 0 12px; }
+.gogh-ar-foldbody .gogh-ar-row:first-child { border-top: 0; }
+.gogh-ar-foldactions { margin: 10px 0 2px; }
+.gogh-ar-foldactions button { font: 600 12.5px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; border-radius: 999px; padding: 7px 14px; cursor: pointer; border: 1px solid #d7dae2; background: #fff; color: #1c1e24; }
+.gogh-ar-foldactions button:hover { filter: brightness(0.96); }
+.gogh-ar-foldactions button[hidden] { display: none; }
 .gogh-ar-sub { color: #6b6f78; margin: 0 0 14px; }
 .gogh-ar-row { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid #eceef2; }
 .gogh-ar-row .tick { color: #2e9e6b; font-weight: 700; flex: none; }
@@ -3882,12 +3901,17 @@ html.gogh-textediting .gogh-convertbtn {
 @keyframes gogh-desc-hello { from { background: rgba(74, 99, 216, 0.12); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .gogh-arsnip-desc.gogh-arsnip-draft { animation: none; } }
 
-.gogh-arsnip-hint { margin-top: 8px; }
-.gogh-arsnip-actions { margin: 6px 0 2px; }
+/* one short line beside the one action */
+.gogh-arsnip-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; min-height: 34px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+.gogh-arsnip-hint { color: #6b6f78; font-size: 13px; }
 .gogh-arsnip-actions[hidden] { display: none; }
+.gogh-arsnip-save { font: 600 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; border-radius: 999px; padding: 8px 16px; cursor: pointer; border: 1px solid #1c1e24; background: #1c1e24; color: #fff; white-space: nowrap; }
+.gogh-arsnip-save:hover { filter: brightness(1.15); }
 
 /* the receipt light, explained in the panel — beside its action */
-.gogh-ar-status { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-radius: 10px; background: #f6f7f9; font-size: 13px; font-weight: 600; color: #3c3f46; margin-bottom: 14px; }
+.gogh-ar-status { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px; background: #f6f7f9; font-size: 12.5px; font-weight: 600; color: #3c3f46; white-space: nowrap; }
+.gogh-ar-status[data-state="todo"] { background: #fdf3dc; color: #7a4d00; }
+.gogh-ar-status[data-state="done"] { background: #e3f4ec; color: #17603f; }
 .gogh-ar-statusdot { width: 9px; height: 9px; flex: none; border-radius: 50%; background: #b9bcc4; }
 
 /* the rail tab's earned tick: status in receipt language, never decor */
