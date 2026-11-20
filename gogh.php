@@ -893,7 +893,11 @@ function gogh_blog_style_css() {
 		// the wider looks take the page's heading out to the grid's edge
 		'body:is(.gogh-blog-cards, .gogh-blog-cover) main > h1 { max-width: min(1200px, 94vw); }' .
 		'body.gogh-blog-list main > h1 { max-width: min(920px, 92vw); }' .
-		'.gogh-blog-ledger li.wp-block-post .wp-block-post-date { font-size: 0.78em; opacity: 0.72; font-variant-numeric: tabular-nums; white-space: nowrap; }';
+		'.gogh-blog-ledger li.wp-block-post .wp-block-post-date { font-size: 0.78em; opacity: 0.72; font-variant-numeric: tabular-nums; white-space: nowrap; }' .
+		// on a phone the row wraps: picture and title, then the date, then the
+		// excerpt on a line of its own. In one row the date and excerpt took
+		// the width and the title stood one letter to a line
+		'@media (max-width: 700px) { .gogh-blog-ledger li.wp-block-post { flex-wrap: wrap; align-items: flex-start; row-gap: 6px; } .gogh-blog-ledger li.wp-block-post .wp-block-post-title { flex: 1 1 55%; min-width: 0; } .gogh-blog-ledger li.wp-block-post .wp-block-post-excerpt { flex: 1 1 100%; margin: 0; } }';
 }
 
 function gogh_motion_styles() {
@@ -3194,6 +3198,35 @@ function gogh_merge_style_settings( $cur, $part ) {
 }
 // the live footer, for the active theme: its saved copy is replaced, or one
 // is saved over the theme's file
+// a template or a template part of the active theme, saved the way the Site
+// Editor saves one: updated when the site already has its own copy, made new
+// otherwise. A part's area is read from its slug (header-*, footer-*).
+function gogh_write_block_template( $type, $slug, $content, $title = '' ) {
+	$type    = 'wp_template' === $type ? 'wp_template' : 'wp_template_part';
+	$slug    = sanitize_title( $slug );
+	$content = wp_slash( $content );
+	$have    = get_block_template( get_stylesheet() . '//' . $slug, $type );
+	if ( $have && ! empty( $have->wp_id ) ) {
+		wp_update_post( array( 'ID' => $have->wp_id, 'post_content' => $content ) );
+		return (int) $have->wp_id;
+	}
+	$id = wp_insert_post( array(
+		'post_type'    => $type,
+		'post_status'  => 'publish',
+		'post_title'   => $title ? $title : $slug,
+		'post_name'    => $slug,
+		'post_content' => $content,
+	) );
+	if ( ! $id || is_wp_error( $id ) ) {
+		return 0;
+	}
+	wp_set_post_terms( $id, array( get_stylesheet() ), 'wp_theme' );
+	if ( 'wp_template_part' === $type ) {
+		$area = 0 === strpos( $slug, 'header' ) ? 'header' : ( 0 === strpos( $slug, 'footer' ) ? 'footer' : 'uncategorized' );
+		wp_set_post_terms( $id, array( $area ), 'wp_template_part_area' );
+	}
+	return (int) $id;
+}
 function gogh_write_footer_part( $content, $slug = 'footer' ) {
 	$slug    = $slug ? sanitize_title( $slug ) : 'footer';
 	$content = wp_slash( $content ); // the post functions unslash: a label's \u0026 came out as u0026
@@ -3586,6 +3619,24 @@ function gogh_site_def_boot( $def ) {
 		'palette'   => ( isset( $def['palette'] ) && is_array( $def['palette'] ) ) ? $def['palette'] : null,
 		'styles'    => ( isset( $def['styles'] ) && is_array( $def['styles'] ) ) ? $def['styles'] : null,
 	);
+	// a design may bring its own template parts and page templates as block
+	// markup. A theme's page template can be most of its look (Mētis opens
+	// every page with a gradient masthead and a search pill): a definition
+	// that wants another top says so here, and its pages name the template.
+	//   parts:     { "header-a": "<!-- wp:pattern … /-->" }            (area from the slug)
+	//   templates: { "page-plain": { "title": "…", "content": "…" } }
+	foreach ( array( 'parts' => 'wp_template_part', 'templates' => 'wp_template' ) as $dk => $ptype ) {
+		if ( empty( $def[ $dk ] ) || ! is_array( $def[ $dk ] ) ) {
+			continue;
+		}
+		foreach ( array_slice( $def[ $dk ], 0, 8, true ) as $tslug => $tv ) {
+			$tcontent = is_array( $tv ) ? ( isset( $tv['content'] ) ? $tv['content'] : '' ) : $tv;
+			if ( ! is_string( $tslug ) || ! preg_match( '/^[a-z0-9-]{1,60}$/', $tslug ) || ! is_string( $tcontent ) || false === strpos( $tcontent, '<!-- wp:' ) ) {
+				continue;
+			}
+			gogh_write_block_template( $ptype, $tslug, wp_kses_post( substr( $tcontent, 0, 65536 ) ), is_array( $tv ) && ! empty( $tv['title'] ) ? sanitize_text_field( $tv['title'] ) : '' );
+		}
+	}
 	try {
 		gogh_starter_apply_chrome( $m, $made );
 	} catch ( \Throwable $e ) {}

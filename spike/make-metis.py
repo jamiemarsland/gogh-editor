@@ -643,6 +643,188 @@ SITES['club'] = {
  }}
 
 
+# ================================================================ two that drop the Mētis furniture
+# Every site above opens with the theme's gradient masthead, search pill and MENU button, and that is
+# what the eye sees first. These two bring a page template of their own (the definition's `templates`
+# door): the header part, the page, the footer part, and nothing else.
+PLAIN = ('<!-- wp:template-part {"slug":"header-a","tagName":"header"} /-->\n'
+         '<!-- wp:group {"tagName":"main","style":{"spacing":{"blockGap":"0","margin":{"top":"0","bottom":"0"}}},"layout":{"type":"default"}} -->\n'
+         '<main class="wp-block-group" style="margin-top:0;margin-bottom:0"><!-- wp:post-content {"layout":{"type":"default"}} /--></main>\n'
+         '<!-- /wp:group -->\n'
+         '<!-- wp:template-part {"slug":"footer-c","tagName":"footer"} /-->')
+PLAIN_T = {'page-plain': {'title': 'Page, plain', 'content': PLAIN}}
+def ppage(title, sections, **k): return page(title, sections, template='page-plain', **k)
+def line_footer(text):
+    return ('<!-- wp:group {"tagName":"footer","style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60"},"margin":{"top":"0","bottom":"0"}}},"layout":{"type":"constrained"}} -->\n'
+            '<footer class="wp-block-group" style="margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)"><!-- wp:site-title {"level":0,"textAlign":"center","fontSize":"large"} /-->\n\n'
+            '<!-- wp:paragraph {"align":"center","fontSize":"small"} -->\n<p class="has-text-align-center has-small-font-size">' + text + '</p>\n<!-- /wp:paragraph --></footer>\n<!-- /wp:group -->\n')
+
+# ---------------------------------------------------------------- Skerry House (Ithaca): photo-first, one line a screen
+def screen(name, photo, kicker, line, link=None, href=None, minH=864, right=False, tint=40, big=False):
+    x, al = (360, 'right') if right else (80, None)
+    # a page's first screen (big) hides its label on phones: the floating menu sits there
+    els = [{**eb(kicker, x, minH - 300, 760, 'theme-1', al), **({'m': {'hidden': True}} if big else {})},
+           hd(line, x, minH - 264, 760, 144, '__max' if big else '3-x-large', al, color='theme-1', **({'tf': {'fs2': 7.5, 'fsMin': 40, 'lh': 1.02}} if big else {}))]
+    if link: els.append({**bt(link, 920 if right else 80, minH - 108, 200, href), 'btnBg': 'theme-1', 'btnText': 'theme-2'})
+    return sec(name, minH, els, image=U(photo, 2200), background=C(2), tint=tint)
+def words(name, line, text=None, minH=432, bg=None, extra=()):
+    els = [hd(line, 160, 120, 880, 144, '2-x-large', 'center')]
+    if text: els.append(pa(text, 320, 288, 560, 72, 17, 'center'))
+    els += list(extra)
+    return sec(name, minH, els, **({'background': bg} if bg else {}))
+rooms = [
+ {'t': 'Machair', 'd': 'The big one. A bath under the window and the whole bay in it', 'price': '£260'},
+ {'t': 'Tràigh', 'd': 'Ground floor, its own door on to the dunes. Dogs welcome', 'price': '£230'},
+ {'t': 'Sgeir', 'd': 'Under the eaves, the first to see the weather coming', 'price': '£210'},
+ {'t': 'Cladach', 'd': 'Two single beds and the best chair in the house', 'price': '£200'},
+ {'t': 'Lòn', 'd': 'The small one, at the back, facing the hill. Quietest of all', 'price': '£190'},
+]
+SITES['hotel'] = {
+ 'title': 'Skerry House — photo-first, on Mētis', 'desc': 'Five rooms above a beach on the Isle of Harris, on the Mētis theme with its usual top taken away: the menu floats over a full-screen photograph, and every screen after it is one picture and one line.',
+ 'def': {
+  'name': 'Skerry House', 'tagline': 'Five rooms above the sea, Isle of Harris.', 'variation': 'Ithaca',
+  'chrome': {'header_part': 'header-a', 'footer_part': 'footer-c', 'header': 'gogh-header-overlay'},
+  'templates': PLAIN_T,
+  'pages': [
+   ppage('Home', [
+    sec('Hero', 792, [
+      {**eb('Skerry House · Isle of Harris', 80, 444, 760, 'theme-1'), 'm': {'hidden': True}},
+      hd('Rooms above the sea.', 80, 480, 1040, 120, '__max', color='theme-1', tf={'fs2': 7.5, 'fsMin': 44, 'lh': 1}),
+      pa('Five rooms, one long table and four miles of empty beach. Open March to October.', 80, 612, 520, 48, 18, color='theme-1'),
+      {**bt('See the rooms', 80, 684, 184, '/rooms/'), 'btnBg': 'theme-1', 'btnText': 'theme-2'},
+    ], image=U('1741190422695-c6500bec181a', 2400), background=C(2), tint=44),
+    words('Welcome', 'A stone house at the end of a single-track road, with the Atlantic for a front garden.', 'It was a croft, then a byre, then empty for thirty years. Now it is ours, and for a few nights it can be yours.'),
+    screen('Rooms', '1779870458288-95fd59cd2c5b', 'The rooms', 'Every bed faces the water.', 'See the rooms', '/rooms/'),
+    screen('Table', '1633321094192-388268512e0f', 'The table', 'Supper is whatever the boat brought.', right=True),
+    screen('Outside', '1748178524250-b583fcd9309f', 'Outside', 'Nothing to do, done properly.', 'Getting here', '/getting-here/'),
+    words('Stay', 'From £190 a night, with breakfast and supper.', 'Two nights at least, because one is not enough to stop checking the time.', 504,
+          extra=[bt('Ask about dates', 500, 384, 200, 'mailto:stay@skerryhouse.example')]),
+   ], slug='home', front=True, menu=False),
+   ppage('Rooms', [
+    screen('Rooms', '1760204741315-abfc98ce3bf5', 'The rooms', 'Five rooms, all facing west.', minH=792, big=True),
+    sec('The five', 720, [
+      eb('All with breakfast and supper', 200, 96, 800, None, 'center'), hd('The five', 200, 144, 800, 72, '3-x-large', 'center'),
+      ledger(200, 264, 800, rooms, price=1),
+    ]),
+    screen('Window', '1759299983523-d883f6ecf097', 'In every room', 'A chair by the window, and time to sit in it.', right=True),
+    words('Book', 'Tell us the dates and who is coming.', 'We answer every letter ourselves, usually by the next morning.', 504,
+          extra=[bt('Ask about dates', 500, 384, 200, 'mailto:stay@skerryhouse.example')]),
+   ], slug='rooms'),
+   ppage('Getting here', [
+    screen('Getting here', '1570545897000-bf55117f41fa', 'Getting here', 'It takes a while. That is the point.', minH=792, big=True),
+    sec('The way', 720, [
+      eb('From the mainland', 80, 96, 440), hd('The way', 80, 144, 480, 72, '3-x-large'),
+      ledger(80, 264, 500, [
+        {'k': '1', 't': 'Ferry from Uig', 'd': 'An hour and forty minutes to Tarbert, twice a day'},
+        {'k': '2', 't': 'South on the A859', 'd': 'Forty minutes. The road narrows, then narrows again'},
+        {'k': '3', 't': 'The house with the thatch', 'd': 'Last on the left before the road gives up'},
+      ], k=1),
+      pa('No car? Tell us your ferry and Iain will be at the pier with the Land Rover.', 80, 528, 500, 72, 16),
+      {'type': 'embed', 'x': 640, 'y': 96, 'w': 480, 'h': 528, 'url': 'https://www.google.com/maps?q=Scarista,+Isle+of+Harris&output=embed', 'radius': 16},
+    ]),
+    screen('Weather', '1649335250130-76ea16562eb1', 'A word on the weather', 'There is a lot of it. Bring a coat.'),
+   ], slug='getting-here'),
+  ],
+  'footer': line_footer('Scarista, Isle of Harris HS3 · Open March to October · <a href="mailto:stay@skerryhouse.example">stay@skerryhouse.example</a>'),
+ }}
+
+# ---------------------------------------------------------------- Offcut (Aeaea): a magazine in Mētis's own magazine furniture
+def art(title, slug, date, img, excerpt, body):
+    return {'title': title, 'slug': slug, 'date': date, 'cats': ['Issue 9'], 'image': U(img), 'excerpt': excerpt,
+            'content': ''.join(f'<!-- wp:paragraph --><p>{p}</p><!-- /wp:paragraph -->' for p in body)}
+arts = [
+ art('The last chairmaker in the valley', 'the-last-chairmaker', '2026-11-10', '1788296817269-8df0458ab799', 'Forty years, one pattern, about nine thousand chairs. Owen Pryce on why he never changed it.',
+     ['Owen Pryce has made the same chair since 1986: ash legs, an elm seat, eleven spindles. He reckons he has made about nine thousand of them, and he can tell you where a surprising number went.',
+      'We spent two days in his workshop above the river, where the lathe is older than he is and the radio has been on the same station since he moved in. He talked about green wood, about the apprentices who stayed and the ones who did not, and about why a chair should be slightly too upright.',
+      'He is seventy-one. Nobody is waiting to take over. He is surprisingly cheerful about that.']),
+ art('How to read a board', 'how-to-read-a-board', '2026-10-28', '1659930087003-2d64e33181f7', 'Grain, figure, tension: what a plank is telling you before you cut it.',
+     ['A board is a record of a tree’s life, written sideways. Before a single cut, a good maker has looked at the end grain, sighted down the edge and knocked on it like a door.',
+      'This is a short field guide to doing the same: which way the grain runs out, where the board will move when it dries, and how to tell reaction wood before it pinches your saw.']),
+ art('A week at the green-wood school', 'green-wood-school', '2026-10-14', '1759523146335-0069847ceb16', 'Twelve strangers, one felled ash and a shed in Herefordshire.',
+     ['On Monday there was a tree. By Friday there were twelve stools, eleven spoons and one very good ladle. Our writer went for the week and came back with blisters and opinions.',
+      'Working wood green, straight from the log, is fast, quiet and forgiving. It is also the way almost everything was made until about two hundred years ago.']),
+ art('Where the timber comes from', 'where-the-timber-comes-from', '2026-09-30', '1634672652995-ee7525bce595', 'Following one oak from a Shropshire hedge to a kitchen table.',
+     ['The oak came down in a storm in 2021. It spent a year in the round, two years in stick, and three weeks in a kiln. We followed it the whole way, and met everyone who touched it.',
+      'There are fewer small sawmills every year. The ones that are left are worth knowing about.']),
+ art('In praise of the hand plane', 'in-praise-of-the-hand-plane', '2026-09-16', '1793628012204-e62036a0462f', 'It is slower than a machine. It is also the best ten minutes of the day.',
+     ['A machine planer will flatten a board in seconds and leave it looking sanded. A hand plane takes ten minutes and leaves it looking like glass.',
+      'This is a love letter, with some practical notes on sharpening at the end, because the first is no use without the second.']),
+ art('The joint that holds everything', 'the-joint-that-holds-everything', '2026-09-02', '1789654499278-0ad599c8c241', 'A short history of the dovetail, and why drawers still need it.',
+     ['The Egyptians cut dovetails. So does the machine that made your kitchen drawers, though it would rather you did not look too closely.',
+      'A joint that resists being pulled apart in exactly the direction a drawer is pulled: four thousand years on, nobody has had a better idea.']),
+]
+SITES['magazine'] = {
+ 'title': 'Offcut — a magazine, on Mētis', 'desc': 'A quarterly about wood on the Mētis theme, dressed in the theme’s own magazine furniture: a dark bar with the menu in it, a wordmark the width of the page, the cover story, the issue as a list of real posts, and the theme’s big dark footer.',
+ 'def': {
+  'name': 'Offcut', 'tagline': 'A quarterly about wood and the people who work it.', 'variation': 'Aeaea',
+  'chrome': {'header_part': 'header-a', 'footer_part': 'footer-c'},
+  'parts': {'header-a': '<!-- wp:pattern {"slug":"metis/header-b"} /-->', 'footer-c': '<!-- wp:pattern {"slug":"metis/footer-d"} /-->'},
+  'templates': PLAIN_T,
+  'pages': [
+   ppage('Home', [
+    sec('Masthead', 360, [
+      hd('Offcut', 80, 0, 1040, 264, '__max', tf={'fs2': 23, 'fsMin': 88, 'lh': 0.9, 'ls2': -0.03}),
+      rule(80, 276, 1040),
+      eb('Issue No. 9 · Winter 2026', 80, 300, 480),
+      eb('A quarterly about wood and the people who work it', 600, 300, 520, None, 'right'),
+    ]),
+    sec('Cover story', 864, [
+      im('1788296817269-8df0458ab799', 80, 0, 1040, 504, 'Woodworking tools on a bench in a sunlit workshop', 6),
+      eb('Cover story', 80, 564, 200),
+      hd('The last chairmaker in the valley', 300, 552, 480, 216, '2-x-large'),
+      pa('Forty years, one pattern, about nine thousand chairs. Owen Pryce on why he never changed it, and who it is all for now.', 820, 564, 300, 144, 16),
+      pa('<a href="/?name=the-last-chairmaker">Read the story →</a>', 820, 732, 300, 24, 15, fw=600),
+    ]),
+    {'take': 'Latest posts', 'name': 'In this issue', 'heading': 'In this issue', 'posts': {'look': 'ledger', 'count': 5, 'show': {'date': True, 'excerpt': True}}},
+    sec('About', 648, [
+      eb('About the magazine', 80, 96, 440),
+      hd('Printed four times a year, on paper that smells right. Each issue follows the wood from the tree to the thing it became.', 80, 144, 520, 336, 'x-large'),
+      pa('<a href="/about/">More about Offcut →</a>', 80, 504, 400, 24, 15, fw=600),
+      eb('In this issue', 640, 96, 440),
+      ledger(640, 132, 480, [
+        {'t': 'Hattie Pryce-Owen', 'role': 'Words'}, {'t': 'Sander Hallaste', 'role': 'Photographs'},
+        {'t': 'Ffion Maddox', 'role': 'Drawings'}, {'t': 'Tom Ackerley', 'role': 'Editor'}], role=1),
+    ], background=C(6)),
+    sec('Subscribe', 432, [
+      hd('Four issues a year, £38, posted.', 160, 120, 880, 72, '3-x-large', 'center'),
+      pa('No adverts and no app. It arrives in a card envelope and it keeps.', 320, 216, 560, 48, 17, 'center'),
+      {**bt('Subscribe', 500, 288, 200, '/subscribe/'), 'btnBg': 'theme-2', 'btnText': 'theme-1'},
+    ], background=C(7)),
+   ], slug='home', front=True, menu=False),
+   {'title': 'Stories', 'slug': 'stories', 'blog': True},
+   ppage('About', [
+    sec('About', 792, [
+      eb('About', 80, 72, 440),
+      hd('A magazine about wood, made by people who would rather be in the workshop.', 80, 120, 1040, 216, '__disp-s'),
+      im('1759523131742-af817477bcd9', 80, 384, 500, 336, 'Carving tools and shavings on a workbench', 6),
+      pa('Offcut began in 2024 as a newsletter for a furniture class in Ludlow. It is now printed four times a year and read in forty countries, mostly by people with sawdust in their cuffs.', 640, 384, 440, 144, 17),
+      pa('Each issue takes one kind of timber and follows it: where it grew, who felled it, who dried it, and what became of it. We pay every contributor, and we print on paper from a mill we have visited.', 640, 552, 440, 168, 17),
+    ]),
+    sec('Masthead', 576, [
+      eb('Who makes it', 80, 96, 440), hd('The masthead', 80, 144, 640, 72, '3-x-large'),
+      ledger(80, 264, 1040, [
+        {'t': 'Tom Ackerley', 'd': 'Edits it, and answers the email', 'role': 'Editor'},
+        {'t': 'Ffion Maddox', 'd': 'Draws the covers and every diagram', 'role': 'Art'},
+        {'t': 'Hattie Pryce-Owen', 'd': 'Writes the long one in each issue', 'role': 'Features'}], role=1),
+    ], background=C(6)),
+   ], slug='about'),
+   ppage('Subscribe', [
+    sec('Subscribe', 792, [
+      eb('Subscribe', 80, 72, 440),
+      hd('Four issues a year, posted.', 80, 120, 1040, 144, '__disp-s'),
+      ledger(80, 336, 1040, [
+        {'t': 'A year, UK', 'd': 'Four issues, posted in a card envelope', 'price': '£38'},
+        {'t': 'A year, everywhere else', 'd': 'Four issues, posted slowly but surely', 'price': '£52'},
+        {'t': 'A single issue', 'd': 'Issue 9, Winter 2026: ash', 'price': '£11'},
+        {'t': 'A gift', 'd': 'A year for someone else, with a card saying who it is from', 'price': '£38'}], price=1),
+      bt('Write to subscribe', 80, 672, 216, 'mailto:post@offcut.example'),
+    ]),
+   ], slug='subscribe'),
+  ],
+  'posts': arts, 'blog_look': 'ledger',
+ }}
+
+
 CREDITS = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'metis-credits.json'))) if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'metis-credits.json')) else {}
 def used(o, acc):
     if isinstance(o, dict):
