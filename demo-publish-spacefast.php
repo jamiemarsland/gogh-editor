@@ -606,18 +606,19 @@ add_action( 'wp_footer', function () {
 	$cfg = array( 'rest' => esc_url_raw( rest_url( 'gogh-sf/v1/' ) ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'name' => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
 	?>
 <style>
-.gogh-sf-btn{position:fixed;left:20px;bottom:20px;z-index:999990;display:inline-flex;align-items:center;gap:10px;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;background:#6d28d9;color:#fff;border:2px solid #fff;border-radius:999px;padding:14px 20px 14px 16px;cursor:pointer;box-shadow:0 10px 30px -8px rgba(40,10,90,.65)}
-.gogh-sf-btn:hover{background:#5b21b6}
-.gogh-sf-btn:focus-visible{outline:3px solid #c4b5fd;outline-offset:3px}
+/* gogh's own yellow (its Save button), bottom right */
+.gogh-sf-btn{position:fixed;right:20px;bottom:20px;z-index:999990;display:inline-flex;align-items:center;gap:10px;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;background:#e8b04b;color:#141519;border:2px solid #fff;border-radius:999px;padding:14px 20px 14px 16px;cursor:pointer;box-shadow:0 10px 30px -8px rgba(20,21,25,.6)}
+.gogh-sf-btn:hover{background:#f0bd5e}
+.gogh-sf-btn:focus-visible{outline:3px solid #141519;outline-offset:3px}
 .gogh-sf-btn svg{width:18px;height:18px;flex:none}
-.gogh-sf-btn::after{content:"";position:absolute;inset:-2px;border-radius:999px;border:2px solid #6d28d9;opacity:0;animation:gogh-sf-ring 2.2s ease-out 1.2s 3;pointer-events:none}
+.gogh-sf-btn::after{content:"";position:absolute;inset:-2px;border-radius:999px;border:2px solid #e8b04b;opacity:0;animation:gogh-sf-ring 2.2s ease-out 1.2s 3;pointer-events:none}
 @keyframes gogh-sf-ring{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(1.28,1.7)}}
-.gogh-sf-tip{position:fixed;left:20px;bottom:82px;z-index:999990;max-width:260px;background:#fff;color:#1c1e24;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;border-radius:12px;padding:12px 34px 12px 14px;box-shadow:0 14px 40px -12px rgba(0,0,0,.5)}
-.gogh-sf-tip::after{content:"";position:absolute;left:28px;bottom:-7px;width:14px;height:14px;background:#fff;transform:rotate(45deg)}
+.gogh-sf-tip{position:fixed;right:20px;bottom:82px;z-index:999990;max-width:260px;background:#fff;color:#1c1e24;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;border-radius:12px;padding:12px 34px 12px 14px;box-shadow:0 14px 40px -12px rgba(0,0,0,.5)}
+.gogh-sf-tip::after{content:"";position:absolute;right:28px;bottom:-7px;width:14px;height:14px;background:#fff;transform:rotate(45deg)}
 .gogh-sf-tip b{font-weight:700}
 .gogh-sf-tip button{position:absolute;right:6px;top:6px;width:24px;height:24px;border:0;background:transparent;color:#6b6f78;font-size:16px;line-height:1;cursor:pointer;border-radius:6px}
 @media (prefers-reduced-motion:reduce){.gogh-sf-btn::after{animation:none}}
-@media (max-width:600px){.gogh-sf-btn{left:12px;bottom:12px;font-size:14px;padding:12px 16px 12px 14px}.gogh-sf-tip{left:12px;bottom:70px}}
+@media (max-width:600px){.gogh-sf-btn{right:12px;bottom:12px;font-size:14px;padding:12px 16px 12px 14px}.gogh-sf-tip{right:12px;bottom:70px}}
 .gogh-sf-wrap{position:fixed;inset:0;z-index:1000002;background:rgba(15,17,22,.45);display:flex;align-items:center;justify-content:center;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#1c1e24}
 .gogh-sf-card{background:#fff;border-radius:16px;padding:26px 28px;width:min(440px,92vw);box-shadow:0 30px 80px -30px rgba(0,0,0,.6)}
 .gogh-sf-card h3{margin:0 0 6px;font:600 20px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#1c1e24}
