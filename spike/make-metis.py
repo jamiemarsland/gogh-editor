@@ -864,6 +864,13 @@ for sid, s in SITES.items():
       {'step': 'runPHP', 'code': code},
       {'step': 'setSiteOptions', 'options': {'blogname': d['name'], 'blogdescription': d['tagline']}},
      ]}
+    if sid == 'hotel':
+        # Skerry House carries the 'Put this site on the web' button: a static copy to Spacefast
+        bp['steps'][2:2] = [
+         {'step': 'mkdir', 'path': '/wordpress/wp-content/mu-plugins'},
+         {'step': 'writeFile', 'path': '/wordpress/wp-content/mu-plugins/gogh-publish-spacefast.php',
+          'data': {'resource': 'url', 'url': 'https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/demo-publish-spacefast.php'}},
+        ]
     json.dump(bp, open(f'{WT}/blueprint-metis-{sid}.json', 'w'), indent=1, ensure_ascii=False)
     n = sum(len(p.get('sections', [])) for p in d['pages'])
     print(sid, len(d['pages']), 'pages', n, 'sections', len(json.dumps(d)), 'bytes', len(seen), 'credits')
