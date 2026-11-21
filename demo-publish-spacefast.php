@@ -606,8 +606,18 @@ add_action( 'wp_footer', function () {
 	$cfg = array( 'rest' => esc_url_raw( rest_url( 'gogh-sf/v1/' ) ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'name' => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
 	?>
 <style>
-.gogh-sf-btn{position:fixed;left:18px;bottom:18px;z-index:999990;font:600 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;background:#1c1e24;color:#fff;border:0;border-radius:999px;padding:11px 16px;cursor:pointer;box-shadow:0 6px 20px -8px rgba(0,0,0,.5)}
-.gogh-sf-btn:hover{background:#2c2f38}
+.gogh-sf-btn{position:fixed;left:20px;bottom:20px;z-index:999990;display:inline-flex;align-items:center;gap:10px;font:700 15px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;background:#6d28d9;color:#fff;border:2px solid #fff;border-radius:999px;padding:14px 20px 14px 16px;cursor:pointer;box-shadow:0 10px 30px -8px rgba(40,10,90,.65)}
+.gogh-sf-btn:hover{background:#5b21b6}
+.gogh-sf-btn:focus-visible{outline:3px solid #c4b5fd;outline-offset:3px}
+.gogh-sf-btn svg{width:18px;height:18px;flex:none}
+.gogh-sf-btn::after{content:"";position:absolute;inset:-2px;border-radius:999px;border:2px solid #6d28d9;opacity:0;animation:gogh-sf-ring 2.2s ease-out 1.2s 3;pointer-events:none}
+@keyframes gogh-sf-ring{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(1.28,1.7)}}
+.gogh-sf-tip{position:fixed;left:20px;bottom:82px;z-index:999990;max-width:260px;background:#fff;color:#1c1e24;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;border-radius:12px;padding:12px 34px 12px 14px;box-shadow:0 14px 40px -12px rgba(0,0,0,.5)}
+.gogh-sf-tip::after{content:"";position:absolute;left:28px;bottom:-7px;width:14px;height:14px;background:#fff;transform:rotate(45deg)}
+.gogh-sf-tip b{font-weight:700}
+.gogh-sf-tip button{position:absolute;right:6px;top:6px;width:24px;height:24px;border:0;background:transparent;color:#6b6f78;font-size:16px;line-height:1;cursor:pointer;border-radius:6px}
+@media (prefers-reduced-motion:reduce){.gogh-sf-btn::after{animation:none}}
+@media (max-width:600px){.gogh-sf-btn{left:12px;bottom:12px;font-size:14px;padding:12px 16px 12px 14px}.gogh-sf-tip{left:12px;bottom:70px}}
 .gogh-sf-wrap{position:fixed;inset:0;z-index:1000002;background:rgba(15,17,22,.45);display:flex;align-items:center;justify-content:center;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#1c1e24}
 .gogh-sf-card{background:#fff;border-radius:16px;padding:26px 28px;width:min(440px,92vw);box-shadow:0 30px 80px -30px rgba(0,0,0,.6)}
 .gogh-sf-card h3{margin:0 0 6px;font:600 20px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#1c1e24}
@@ -619,12 +629,39 @@ add_action( 'wp_footer', function () {
 .gogh-sf-acts a,.gogh-sf-acts button{font:600 13px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;border-radius:999px;padding:9px 16px;cursor:pointer;border:1px solid #d7dae2;background:#fff;color:#1c1e24;text-decoration:none}
 .gogh-sf-acts .is-main{background:#1c1e24;color:#fff;border-color:#1c1e24}
 .gogh-sf-small{font-size:13px;color:#6b6f78;margin:10px 0 0}
+.gogh-sf-card .gogh-sf-warn{background:#fdf3dc;color:#5c3b00;border-radius:10px;padding:10px 12px;margin:0 0 4px}
+.gogh-sf-warn[hidden]{display:none}
 </style>
-<button type="button" class="gogh-sf-btn">Put this site on the web</button>
+<button type="button" class="gogh-sf-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg>Put this site on the web</button>
 <script>
 (function () {
   var C = <?php echo wp_json_encode( $cfg ); ?>;
   var btn = document.querySelector('.gogh-sf-btn');
+  // a first-time pointer at the button: gone for good once closed or once the button is pressed
+  var seen = false;
+  try { seen = localStorage.getItem('gogh-sf-tip') === '1'; } catch (e) {}
+  var tip = null;
+  var dropTip = function () { if (tip) { tip.remove(); tip = null; } try { localStorage.setItem('gogh-sf-tip', '1'); } catch (e) {} };
+  if (!seen) {
+    tip = document.createElement('div');
+    tip.className = 'gogh-sf-tip';
+    tip.innerHTML = '<b>New:</b> put a copy of this site on the web, free, in about half a minute.<button type="button" aria-label="Close">×</button>';
+    document.body.appendChild(tip);
+    tip.querySelector('button').addEventListener('click', dropTip);
+  }
+  // gogh's editor, when this page is open in it: has it changes nobody has published?
+  function unpublished() { try { return !!(window.__gogh && window.__gogh.isDirty && window.__gogh.isDirty()); } catch (e) { return false; } }
+  function publishFirst() {
+    return new Promise(function (resolve, reject) {
+      try { window.__gogh.publish(); } catch (e) { reject(new Error('gogh could not publish your changes.')); return; }
+      var n = 0;
+      var t = setInterval(function () {
+        n++;
+        if (!unpublished()) { clearInterval(t); setTimeout(resolve, 600); }
+        else if (n > 80) { clearInterval(t); reject(new Error('Your changes did not finish publishing. Press Publish at the top, then try again.')); }
+      }, 500);
+    });
+  }
   function api(path, method) {
     return fetch(C.rest + path, { method: method || 'GET', credentials: 'same-origin', headers: { 'X-WP-Nonce': C.nonce } })
       .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j && j.message ? j.message : 'HTTP ' + r.status); return j; }); });
@@ -632,22 +669,31 @@ add_action( 'wp_footer', function () {
   function el(html) { var d = document.createElement('div'); d.innerHTML = html; return d.firstChild; }
   function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
   btn.addEventListener('click', function () {
+    dropTip();
+    var dirty = unpublished();
     var wrap = el('<div class="gogh-sf-wrap" role="dialog" aria-label="Put this site on the web"><div class="gogh-sf-card">' +
       '<h3>Put ' + esc(C.name) + ' on the web</h3>' +
       '<p>A copy of this site, as visitors see it, goes to Spacefast. You get a private link to it straight away.</p>' +
+      (dirty ? '<p class="gogh-sf-warn"><b>You have changes that are not published yet.</b> The copy shows the published site, so they would be left out.</p>' : '') +
       '<p class="gogh-sf-small">It is a snapshot: pages and pictures. Forms, search and shops stay behind.</p>' +
       '<div class="gogh-sf-run" hidden><div class="gogh-sf-bar"><i></i></div><div class="gogh-sf-step" aria-live="polite"></div></div>' +
-      '<div class="gogh-sf-acts"><button type="button" class="gogh-sf-no">Not now</button><button type="button" class="is-main gogh-sf-go">Publish</button></div>' +
+      '<div class="gogh-sf-acts"><button type="button" class="gogh-sf-no">Not now</button>' +
+      (dirty ? '<button type="button" class="gogh-sf-go" data-skip="1">Copy without them</button><button type="button" class="is-main gogh-sf-go">Publish them and copy</button>' : '<button type="button" class="is-main gogh-sf-go">Put it on the web</button>') + '</div>' +
       '</div></div>');
     document.body.appendChild(wrap);
     var close = function () { wrap.remove(); };
     wrap.querySelector('.gogh-sf-no').addEventListener('click', close);
     wrap.addEventListener('click', function (e) { if (e.target === wrap) close(); });
-    wrap.querySelector('.gogh-sf-go').addEventListener('click', function () {
+    wrap.querySelectorAll('.gogh-sf-go').forEach(function (go) { go.addEventListener('click', function () {
       var run = wrap.querySelector('.gogh-sf-run'), bar = run.querySelector('i'), step = run.querySelector('.gogh-sf-step');
+      var warn = wrap.querySelector('.gogh-sf-warn'); if (warn) warn.hidden = true;
       wrap.querySelector('.gogh-sf-acts').hidden = true; run.hidden = false;
-      step.textContent = 'Listing the pages…';
-      api('start', 'POST').then(function (s) {
+      var first = Promise.resolve();
+      if (dirty && !go.getAttribute('data-skip')) { step.textContent = 'Publishing your changes…'; bar.style.width = '4%'; first = publishFirst(); }
+      first.then(function () {
+        step.textContent = 'Listing the pages…';
+        return api('start', 'POST');
+      }).then(function (s) {
         var i = 0, missed = [];
         var next = function () {
           if (i >= s.pages) return Promise.resolve();
@@ -688,7 +734,7 @@ add_action( 'wp_footer', function () {
           '<div class="gogh-sf-acts"><button type="button" class="is-main gogh-sf-no">Close</button></div>';
         card.querySelector('.gogh-sf-no').addEventListener('click', close);
       });
-    });
+    }); });
   });
 })();
 </script>
