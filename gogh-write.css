@@ -4,7 +4,6 @@
 body.gogh-writing header.wp-block-template-part,
 body.gogh-writing footer.wp-block-template-part,
 body.gogh-writing footer,
-body.gogh-writing #wpadminbar,
 body.gogh-writing .gogh-convertbtn,
 body.gogh-writing .gogh-side,
 body.gogh-writing .gogh-side-tab,
@@ -19,9 +18,7 @@ body.gogh-writing .wp-block-group:has(.wp-block-post-navigation-link):not(:has(.
 body.gogh-writing .wp-block-group:has(.wp-block-query):not(:has(.gogh-w-body)) {
   display: none !important;
 }
-html body.gogh-writing {
-  margin-top: 0 !important;
-}
+/* the admin bar stays (v0.99.700): one place to publish in every room */
 body.gogh-writing main {
   padding-top: clamp(48px, 12vh, 140px);
   /* room below the last line: the page can always scroll the caret up
@@ -1052,4 +1049,41 @@ body.gogh-writing .gogh-w-body p:last-of-type::after {
   font-size: 13px;
   font-weight: 800;
   line-height: 1;
+}
+
+/* ---------- the top bar in the writing room (v0.99.700) ----------
+   The same bar as the canvas: the site's name (Dashboard, Your profile,
+   Log out), View post, and the status with Publish in the corner. The
+   chip keeps the writer's own things */
+body.gogh-writing #wpadminbar #wp-admin-bar-wp-logo,
+body.gogh-writing #wpadminbar #wp-admin-bar-search,
+body.gogh-writing #wpadminbar #wp-admin-bar-my-account,
+body.gogh-writing #wpadminbar #wp-admin-bar-gogh-help,
+body.gogh-writing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-site-name-default { display: none !important; }
+body.gogh-writing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-gogh-account { background: #2c3338; padding: 6px 0; }
+body.gogh-writing #wpadminbar { transition: opacity .35s ease; }
+body.gogh-writing.gogh-w-typing #wpadminbar { opacity: .18; }
+body.gogh-writing.gogh-w-typing #wpadminbar:hover { opacity: 1; }
+body.gogh-w-hasbar .gogh-w-mast,
+body.gogh-w-hasbar .gogh-w-chip .gogh-w-publish,
+body.gogh-w-hasbar .gogh-w-chip .gogh-w-draft,
+body.gogh-w-hasbar .gogh-w-chip .gogh-w-back { display: none !important; }
+#wpadminbar #wp-admin-bar-gogh-publish { display: flex; align-items: center; height: 32px; float: left; }
+#wpadminbar .gogh-w-barchip { display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 0 0 14px; margin: 0 24px 0 6px; border-left: 1px solid rgba(255, 255, 255, 0.14);
+  font: 600 12.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #9aa1ab; }
+#wpadminbar #wp-admin-bar-gogh-publish.is-draft .gogh-w-barchip { color: #dcdfe4; }
+#wpadminbar .gogh-w-bardot { width: 7px; height: 7px; border-radius: 50%; background: #57d38c; flex: none; }
+#wpadminbar #wp-admin-bar-gogh-publish.is-draft .gogh-w-bardot { background: #eab038; }
+#wpadminbar .gogh-w-bartxt { white-space: nowrap; }
+#wpadminbar .gogh-w-barpub { all: unset; box-sizing: border-box; cursor: pointer; display: inline-grid; place-items: center; height: 24px; padding: 0 18px; border-radius: 6px;
+  background: var(--gogh-publish, #3858e9); color: #fff; font: 700 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+#wpadminbar .gogh-w-barpub:hover { background: color-mix(in srgb, var(--gogh-publish, #3858e9) 86%, #000); }
+#wpadminbar .gogh-w-barpub:disabled { opacity: .7; cursor: default; }
+#wpadminbar .gogh-w-barpub:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+@media screen and (max-width: 782px) {
+  #wpadminbar #wp-admin-bar-gogh-publish, #wpadminbar .gogh-w-barchip { height: 46px; }
+  #wpadminbar .gogh-w-bartxt { display: none; }
+  #wpadminbar .gogh-w-barpub { height: 32px; font-size: 14px; }
+  #wpadminbar .gogh-w-barchip { margin-right: 12px; }
+  #wpadminbar #wp-admin-bar-gogh-edit { display: flex !important; align-items: center; height: 46px; }
 }

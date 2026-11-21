@@ -1,0 +1,681 @@
+{
+ "name": "The Long Border",
+ "tagline": "A podcast about gardens and the people who make them.",
+ "variation": "Ogygia",
+ "chrome": {
+  "header_part": "header-a",
+  "footer_part": "footer-c"
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "Hero",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 120,
+       "w": 440,
+       "h": 24,
+       "text": "A podcast · every other Thursday",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 168,
+       "w": 500,
+       "h": 216,
+       "text": "The Long Border",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 408,
+       "w": 460,
+       "h": 120,
+       "text": "Two gardeners visit people who grow things, in glasshouses, on allotments and up against north-facing walls, and ask them how it is going.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 552,
+       "w": 176,
+       "h": 48,
+       "text": "All episodes",
+       "href": "/episodes/",
+       "ghost": true
+      },
+      {
+       "type": "box",
+       "x": 640,
+       "y": 72,
+       "w": 480,
+       "h": 552,
+       "boxBg": "var(--wp--preset--color--theme-6)",
+       "radius": 24,
+       "kids": [
+        {
+         "type": "image",
+         "x": 24,
+         "y": 24,
+         "w": 432,
+         "h": 240,
+         "src": "https://images.unsplash.com/photo-1675449215007-def921b7c0ca?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "A brick and glass Victorian greenhouse",
+         "radius": 12
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 288,
+         "w": 432,
+         "h": 24,
+         "text": "Latest · episode 48 · 52 min",
+         "tf": {
+          "fs": 12,
+          "fw": 600,
+          "ls2": 0.2,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 24,
+         "y": 324,
+         "w": 432,
+         "h": 72,
+         "text": "The greenhouse that paid for itself",
+         "fs": "large",
+         "tf": {
+          "fs": 26,
+          "lh": 1.15
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 408,
+         "w": 432,
+         "h": 72,
+         "text": "Margaret Ashby reglazed a derelict glasshouse one pane at a time. Forty years of tomatoes later, she shows us round.",
+         "tf": {
+          "fs": 14
+         }
+        },
+        {
+         "type": "button",
+         "x": 24,
+         "y": 480,
+         "w": 160,
+         "h": 48,
+         "text": "Listen now",
+         "href": "/?name=episode-48"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "take": "Latest posts",
+     "name": "Recent episodes",
+     "heading": "Recent episodes",
+     "posts": {
+      "look": "cards",
+      "count": 3,
+      "show": {
+       "date": true,
+       "excerpt": true
+      }
+     }
+    },
+    {
+     "name": "Listen",
+     "minH": 360,
+     "els": [
+      {
+       "type": "para",
+       "x": 160,
+       "y": 72,
+       "w": 880,
+       "h": 24,
+       "text": "Wherever you listen",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "align": "center"
+      },
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 120,
+       "w": 880,
+       "h": 72,
+       "text": "Free, every other Thursday.",
+       "fs": "3-x-large",
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 208,
+       "y": 240,
+       "w": 184,
+       "h": 48,
+       "text": "Apple Podcasts",
+       "href": "#",
+       "ghost": true
+      },
+      {
+       "type": "button",
+       "x": 408,
+       "y": 240,
+       "w": 184,
+       "h": 48,
+       "text": "Spotify",
+       "href": "#",
+       "ghost": true
+      },
+      {
+       "type": "button",
+       "x": 608,
+       "y": 240,
+       "w": 184,
+       "h": 48,
+       "text": "Pocket Casts",
+       "href": "#",
+       "ghost": true
+      },
+      {
+       "type": "button",
+       "x": 808,
+       "y": 240,
+       "w": 184,
+       "h": 48,
+       "text": "RSS feed",
+       "href": "/feed/",
+       "ghost": true
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-8)"
+    },
+    {
+     "name": "Your hosts",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 160,
+       "y": 96,
+       "w": 880,
+       "h": 24,
+       "text": "Your hosts",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "align": "center"
+      },
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 144,
+       "w": 880,
+       "h": 72,
+       "text": "Two gardeners, one microphone.",
+       "fs": "3-x-large",
+       "align": "center"
+      },
+      {
+       "type": "image",
+       "x": 240,
+       "y": 264,
+       "w": 216,
+       "h": 216,
+       "src": "https://images.unsplash.com/photo-1724556295070-5f8bff2c7f3f?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Ruth Calder in her garden",
+       "radius": 108
+      },
+      {
+       "type": "heading",
+       "x": 168,
+       "y": 504,
+       "w": 360,
+       "h": 48,
+       "text": "Ruth Calder",
+       "fs": "large",
+       "align": "center",
+       "tf": {
+        "fs": 26,
+        "lh": 1.15
+       }
+      },
+      {
+       "type": "para",
+       "x": 168,
+       "y": 552,
+       "w": 360,
+       "h": 96,
+       "text": "Thirty years a head gardener, now tending a long border of her own in Shropshire. Asks the awkward questions.",
+       "tf": {
+        "fs": 15
+       },
+       "align": "center"
+      },
+      {
+       "type": "image",
+       "x": 744,
+       "y": 264,
+       "w": 216,
+       "h": 216,
+       "src": "https://images.unsplash.com/photo-1759497860802-9cba5782b455?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Tomasz Nowak on his allotment",
+       "radius": 108
+      },
+      {
+       "type": "heading",
+       "x": 672,
+       "y": 504,
+       "w": 360,
+       "h": 48,
+       "text": "Tomasz Nowak",
+       "fs": "large",
+       "align": "center",
+       "tf": {
+        "fs": 26,
+        "lh": 1.15
+       }
+      },
+      {
+       "type": "para",
+       "x": 672,
+       "y": 552,
+       "w": 360,
+       "h": 96,
+       "text": "Grows vegetables on a no-dig allotment in Leeds and writes about soil. Brings the biscuits.",
+       "tf": {
+        "fs": 15
+       },
+       "align": "center"
+      }
+     ]
+    },
+    {
+     "name": "In numbers",
+     "minH": 288,
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 200,
+       "h": 48,
+       "text": "48",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 144,
+       "w": 200,
+       "h": 24,
+       "text": "episodes",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 96,
+       "w": 200,
+       "h": 48,
+       "text": "31",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 360,
+       "y": 144,
+       "w": 200,
+       "h": 24,
+       "text": "gardens visited",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 640,
+       "y": 96,
+       "w": 200,
+       "h": 48,
+       "text": "0",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 144,
+       "w": 200,
+       "h": 24,
+       "text": "adverts",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 920,
+       "y": 96,
+       "w": 200,
+       "h": 48,
+       "text": "2019",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 144,
+       "w": 200,
+       "h": 24,
+       "text": "since",
+       "tf": {
+        "fs": 13
+       }
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    },
+    {
+     "name": "The letter",
+     "minH": 432,
+     "els": [
+      {
+       "type": "para",
+       "x": 160,
+       "y": 96,
+       "w": 880,
+       "h": 24,
+       "text": "Between episodes",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "align": "center"
+      },
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 144,
+       "w": 880,
+       "h": 72,
+       "text": "A letter from the potting shed.",
+       "fs": "3-x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 240,
+       "w": 560,
+       "h": 48,
+       "text": "What we are sowing this fortnight, who is on next, and one thing a listener taught us.",
+       "tf": {
+        "fs": 17
+       },
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 500,
+       "y": 312,
+       "w": 200,
+       "h": 48,
+       "text": "Get the letter",
+       "href": "mailto:hello@thelongborder.example"
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-11)"
+    }
+   ],
+   "slug": "home",
+   "front": true,
+   "menu": false
+  },
+  {
+   "title": "Episodes",
+   "slug": "episodes",
+   "blog": true
+  },
+  {
+   "title": "About",
+   "template": "page-no-title",
+   "sections": [
+    {
+     "name": "About",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "About the show",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 480,
+       "h": 216,
+       "text": "We go and look.",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 384,
+       "w": 460,
+       "h": 96,
+       "text": "The Long Border started in 2019 as two friends arguing about dahlias in a car. It is still mostly that, but now we record it, and we arrive somewhere.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 480,
+       "w": 460,
+       "h": 96,
+       "text": "Every episode is one garden and the person who made it. No studio, no adverts, no top tips. Listeners pay for the petrol.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "image",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 528,
+       "src": "https://images.unsplash.com/photo-1623136299195-570a06bdae6b?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "A greenhouse full of green plants",
+       "radius": 16
+      }
+     ]
+    },
+    {
+     "name": "Come on the show",
+     "minH": 432,
+     "els": [
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 120,
+       "w": 880,
+       "h": 72,
+       "text": "Know a garden we should see?",
+       "fs": "3-x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 216,
+       "w": 560,
+       "h": 48,
+       "text": "It does not have to be grand. Our favourite episode was recorded in a back yard in Hull.",
+       "tf": {
+        "fs": 17
+       },
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 500,
+       "y": 288,
+       "w": 200,
+       "h": 48,
+       "text": "Tell us about it",
+       "href": "mailto:hello@thelongborder.example"
+      }
+     ],
+     "background": "var(--wp--preset--color--theme-6)"
+    }
+   ],
+   "slug": "about"
+  }
+ ],
+ "posts": [
+  {
+   "title": "48. The greenhouse that paid for itself",
+   "slug": "episode-48",
+   "date": "2026-11-12",
+   "cats": [
+    "Episodes"
+   ],
+   "image": "https://images.unsplash.com/photo-1675449215007-def921b7c0ca?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "52 min · A Victorian glasshouse, forty years of tomatoes and one very patient restoration.",
+   "content": "<!-- wp:paragraph --><p>Margaret Ashby bought a derelict Victorian glasshouse with the house attached to it, and spent four winters reglazing it one pane at a time. We walk through it with her in November, when it is the only warm place for miles.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>She tells us what she grows under glass and what she has given up on, why she heats only one bay, and how selling tomato plants at the gate each May paid for every pane.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><strong>In this episode:</strong> reglazing with reclaimed glass · the one bay worth heating · tomatoes that earn their keep · what to sow under cover in November.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "47. No-dig, ten years on",
+   "slug": "episode-47",
+   "date": "2026-10-29",
+   "cats": [
+    "Episodes"
+   ],
+   "image": "https://images.unsplash.com/photo-1590682680695-43b964a3ae17?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "41 min · What a decade without a spade did to one allotment’s soil, and to its owner’s back.",
+   "content": "<!-- wp:paragraph --><p>Tomasz gave up digging his allotment ten years ago. Ruth, who has always been sceptical, comes to look at the soil and brings a spade just in case.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>We talk about where the compost comes from, what the slugs think of it, and which crops never took to it.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><strong>In this episode:</strong> a year’s compost in numbers · carrots, the exception · weeds after ten years · Ruth changes her mind about one thing.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "46. A border for a dry summer",
+   "slug": "episode-46",
+   "date": "2026-10-15",
+   "cats": [
+    "Episodes"
+   ],
+   "image": "https://images.unsplash.com/photo-1750832615155-60aba40dd5ed?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "47 min · Planting for the weather we have now: gravel, grasses and nothing watered after June.",
+   "content": "<!-- wp:paragraph --><p>After three dry summers, Ruth dug out the long border the show is named after and started again. She explains what went, what stayed and what she planted into six inches of gravel.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><strong>In this episode:</strong> plants that never needed the hose · planting small · the first year looks terrible · what the bees made of it.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "45. The seed swap",
+   "slug": "episode-45",
+   "date": "2026-10-01",
+   "cats": [
+    "Episodes"
+   ],
+   "image": "https://images.unsplash.com/photo-1611843467160-25afb8df1074?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "38 min · A village hall, two hundred envelopes and a bean nobody can name.",
+   "content": "<!-- wp:paragraph --><p>Every autumn a village hall in Herefordshire fills with trestle tables and brown envelopes. We spend a morning there, asking people what they brought and why they keep growing it.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><strong>In this episode:</strong> saving seed without fuss · the bean with no name · what to swap if you have nothing yet.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "44. Leave it standing",
+   "slug": "episode-44",
+   "date": "2026-09-17",
+   "cats": [
+    "Episodes"
+   ],
+   "image": "https://images.unsplash.com/photo-1782116987482-df05274c10f1?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "44 min · A walk round a garden that is not cut back until March.",
+   "content": "<!-- wp:paragraph --><p>Head gardener Colm Rafferty stopped cutting his borders back in autumn fifteen years ago. On the first cold morning of autumn he shows us why: seed heads, spiders’ webs and a great many goldfinches.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><strong>In this episode:</strong> what stands up and what collapses · the March cut-back · leaving it for the birds.</p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "43. An allotment at eighty",
+   "slug": "episode-43",
+   "date": "2026-09-03",
+   "cats": [
+    "Episodes"
+   ],
+   "image": "https://images.unsplash.com/photo-1775568109786-18598bf7b294?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "49 min · Sixty years on the same plot, and what Doreen would tell a beginner.",
+   "content": "<!-- wp:paragraph --><p>Doreen Whitlock took on plot 14 in 1966 and still walks down to it most mornings. She shows us round, feeds us raspberries from the freezer and tells Tomasz he is planting his leeks wrong.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p><strong>In this episode:</strong> sixty years of one notebook · raised beds, late in life · the three things worth growing if you only grow three.</p><!-- /wp:paragraph -->"
+  }
+ ],
+ "blog_look": "ledger",
+ "footer": "<!-- wp:group {\"tagName\":\"footer\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|70\",\"bottom\":\"var:preset|spacing|60\"},\"margin\":{\"top\":\"0\",\"bottom\":\"0\"}},\"background\":{\"gradient\":\"var:preset|gradient|gradient-8\"}},\"layout\":{\"type\":\"constrained\"}} -->\n<footer class=\"wp-block-group\" style=\"margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--60)\"><!-- wp:columns {\"align\":\"wide\"} -->\n<div class=\"wp-block-columns alignwide\"><!-- wp:column {\"width\":\"40%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:40%\"><!-- wp:site-title {\"level\":0,\"fontSize\":\"x-large\"} /-->\n\n<!-- wp:site-tagline {\"fontSize\":\"small\"} /--></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Listen</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">Every other Thursday<br>Free, with no adverts<br><a href=\"/feed/\">RSS feed</a></p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n<!-- wp:column -->\n<div class=\"wp-block-column\"><!-- wp:heading {\"level\":4,\"fontSize\":\"small\"} -->\n<h4 class=\"wp-block-heading has-small-font-size\">Write</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph {\"fontSize\":\"small\"} -->\n<p class=\"has-small-font-size\">Tell us about a garden:<br><a href=\"mailto:hello@thelongborder.example\">hello@thelongborder.example</a></p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n</div>\n<!-- /wp:columns -->\n\n<!-- wp:paragraph {\"align\":\"wide\",\"fontSize\":\"x-small\",\"style\":{\"spacing\":{\"margin\":{\"top\":\"var:preset|spacing|60\"}}}} -->\n<p class=\"alignwide has-x-small-font-size\" style=\"margin-top:var(--wp--preset--spacing--60)\">© 2026 The Long Border · Recorded in other people’s gardens</p>\n<!-- /wp:paragraph --></footer>\n<!-- /wp:group -->\n",
+ "credits": [
+  {
+   "name": "Jason Hawke",
+   "link": "https://unsplash.com/@jfhawke"
+  },
+  {
+   "name": "Jane Thomson",
+   "link": "https://unsplash.com/@janethomson"
+  },
+  {
+   "name": "Lara John",
+   "link": "https://unsplash.com/@lara_j"
+  },
+  {
+   "name": "Katrien Van crombrugghe",
+   "link": "https://unsplash.com/@plants_and_music"
+  },
+  {
+   "name": "GreenForce Staffing",
+   "link": "https://unsplash.com/@greenforce_staffing"
+  },
+  {
+   "name": "Tanya Barrow",
+   "link": "https://unsplash.com/@tanyabarrow"
+  },
+  {
+   "name": "Sandie Clarke",
+   "link": "https://unsplash.com/@honeypoppet"
+  },
+  {
+   "name": "Ries Bosch",
+   "link": "https://unsplash.com/@ries_bosch"
+  }
+ ]
+}

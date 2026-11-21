@@ -1,0 +1,740 @@
+{
+ "name": "Skerry House",
+ "tagline": "Five rooms above the sea, Isle of Harris.",
+ "variation": "Ithaca",
+ "chrome": {
+  "header_part": "header-a",
+  "footer_part": "footer-c",
+  "header": "gogh-header-overlay"
+ },
+ "templates": {
+  "page-plain": {
+   "title": "Page, plain",
+   "content": "<!-- wp:template-part {\"slug\":\"header-a\",\"tagName\":\"header\"} /-->\n<!-- wp:group {\"tagName\":\"main\",\"style\":{\"spacing\":{\"blockGap\":\"0\",\"margin\":{\"top\":\"0\",\"bottom\":\"0\"}}},\"layout\":{\"type\":\"default\"}} -->\n<main class=\"wp-block-group\" style=\"margin-top:0;margin-bottom:0\"><!-- wp:post-content {\"layout\":{\"type\":\"default\"}} /--></main>\n<!-- /wp:group -->\n<!-- wp:template-part {\"slug\":\"footer-c\",\"tagName\":\"footer\"} /-->"
+  }
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "template": "page-plain",
+   "sections": [
+    {
+     "name": "Hero",
+     "minH": 792,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 444,
+       "w": 760,
+       "h": 24,
+       "text": "Skerry House · Isle of Harris",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-1",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 480,
+       "w": 1040,
+       "h": 120,
+       "text": "Rooms above the sea.",
+       "fs": "__max",
+       "color": "theme-1",
+       "tf": {
+        "fs2": 7.5,
+        "fsMin": 44,
+        "lh": 1
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 612,
+       "w": 520,
+       "h": 48,
+       "text": "Five rooms, one long table and four miles of empty beach. Open March to October.",
+       "tf": {
+        "fs": 18
+       },
+       "color": "theme-1"
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 684,
+       "w": 184,
+       "h": 48,
+       "text": "See the rooms",
+       "href": "/rooms/",
+       "btnBg": "theme-1",
+       "btnText": "theme-2"
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1741190422695-c6500bec181a?w=2400&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-2)",
+     "tint": 44
+    },
+    {
+     "name": "Welcome",
+     "minH": 432,
+     "els": [
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 120,
+       "w": 880,
+       "h": 144,
+       "text": "A stone house at the end of a single-track road, with the Atlantic for a front garden.",
+       "fs": "2-x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 288,
+       "w": 560,
+       "h": 72,
+       "text": "It was a croft, then a byre, then empty for thirty years. Now it is ours, and for a few nights it can be yours.",
+       "tf": {
+        "fs": 17
+       },
+       "align": "center"
+      }
+     ]
+    },
+    {
+     "name": "Rooms",
+     "minH": 864,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 564,
+       "w": 760,
+       "h": 24,
+       "text": "The rooms",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-1"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 600,
+       "w": 760,
+       "h": 144,
+       "text": "Every bed faces the water.",
+       "fs": "3-x-large",
+       "color": "theme-1"
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 756,
+       "w": 200,
+       "h": 48,
+       "text": "See the rooms",
+       "href": "/rooms/",
+       "btnBg": "theme-1",
+       "btnText": "theme-2"
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1779870458288-95fd59cd2c5b?w=2200&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-2)",
+     "tint": 40
+    },
+    {
+     "name": "Table",
+     "minH": 864,
+     "els": [
+      {
+       "type": "para",
+       "x": 360,
+       "y": 564,
+       "w": 760,
+       "h": 24,
+       "text": "The table",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-1",
+       "align": "right"
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 600,
+       "w": 760,
+       "h": 144,
+       "text": "Supper is whatever the boat brought.",
+       "fs": "3-x-large",
+       "align": "right",
+       "color": "theme-1"
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1633321094192-388268512e0f?w=2200&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-2)",
+     "tint": 40
+    },
+    {
+     "name": "Outside",
+     "minH": 864,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 564,
+       "w": 760,
+       "h": 24,
+       "text": "Outside",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-1"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 600,
+       "w": 760,
+       "h": 144,
+       "text": "Nothing to do, done properly.",
+       "fs": "3-x-large",
+       "color": "theme-1"
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 756,
+       "w": 200,
+       "h": 48,
+       "text": "Getting here",
+       "href": "/getting-here/",
+       "btnBg": "theme-1",
+       "btnText": "theme-2"
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1748178524250-b583fcd9309f?w=2200&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-2)",
+     "tint": 40
+    },
+    {
+     "name": "Stay",
+     "minH": 504,
+     "els": [
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 120,
+       "w": 880,
+       "h": 144,
+       "text": "From £190 a night, with breakfast and supper.",
+       "fs": "2-x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 288,
+       "w": 560,
+       "h": 72,
+       "text": "Two nights at least, because one is not enough to stop checking the time.",
+       "tf": {
+        "fs": 17
+       },
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 500,
+       "y": 384,
+       "w": 200,
+       "h": 48,
+       "text": "Ask about dates",
+       "href": "mailto:stay@skerryhouse.example"
+      }
+     ]
+    }
+   ],
+   "slug": "home",
+   "front": true,
+   "menu": false
+  },
+  {
+   "title": "Rooms",
+   "template": "page-plain",
+   "sections": [
+    {
+     "name": "Rooms",
+     "minH": 792,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 492,
+       "w": 760,
+       "h": 24,
+       "text": "The rooms",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-1",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 528,
+       "w": 760,
+       "h": 144,
+       "text": "Five rooms, all facing west.",
+       "fs": "__max",
+       "color": "theme-1",
+       "tf": {
+        "fs2": 7.5,
+        "fsMin": 40,
+        "lh": 1.02
+       }
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1760204741315-abfc98ce3bf5?w=2200&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-2)",
+     "tint": 40
+    },
+    {
+     "name": "The five",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 200,
+       "y": 96,
+       "w": 800,
+       "h": 24,
+       "text": "All with breakfast and supper",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "align": "center"
+      },
+      {
+       "type": "heading",
+       "x": 200,
+       "y": 144,
+       "w": 800,
+       "h": 72,
+       "text": "The five",
+       "fs": "3-x-large",
+       "align": "center"
+      },
+      {
+       "type": "cards",
+       "x": 200,
+       "y": 264,
+       "w": 800,
+       "h": 384,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 0,
+         "price": 1,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "t": "Machair",
+          "d": "The big one. A bath under the window and the whole bay in it",
+          "price": "£260"
+         },
+         {
+          "t": "Tràigh",
+          "d": "Ground floor, its own door on to the dunes. Dogs welcome",
+          "price": "£230"
+         },
+         {
+          "t": "Sgeir",
+          "d": "Under the eaves, the first to see the weather coming",
+          "price": "£210"
+         },
+         {
+          "t": "Cladach",
+          "d": "Two single beds and the best chair in the house",
+          "price": "£200"
+         },
+         {
+          "t": "Lòn",
+          "d": "The small one, at the back, facing the hill. Quietest of all",
+          "price": "£190"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "price": {
+          "tf": {
+           "fs": 17
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "Window",
+     "minH": 864,
+     "els": [
+      {
+       "type": "para",
+       "x": 360,
+       "y": 564,
+       "w": 760,
+       "h": 24,
+       "text": "In every room",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-1",
+       "align": "right"
+      },
+      {
+       "type": "heading",
+       "x": 360,
+       "y": 600,
+       "w": 760,
+       "h": 144,
+       "text": "A chair by the window, and time to sit in it.",
+       "fs": "3-x-large",
+       "align": "right",
+       "color": "theme-1"
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1759299983523-d883f6ecf097?w=2200&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-2)",
+     "tint": 40
+    },
+    {
+     "name": "Book",
+     "minH": 504,
+     "els": [
+      {
+       "type": "heading",
+       "x": 160,
+       "y": 120,
+       "w": 880,
+       "h": 144,
+       "text": "Tell us the dates and who is coming.",
+       "fs": "2-x-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 320,
+       "y": 288,
+       "w": 560,
+       "h": 72,
+       "text": "We answer every letter ourselves, usually by the next morning.",
+       "tf": {
+        "fs": 17
+       },
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 500,
+       "y": 384,
+       "w": 200,
+       "h": 48,
+       "text": "Ask about dates",
+       "href": "mailto:stay@skerryhouse.example"
+      }
+     ]
+    }
+   ],
+   "slug": "rooms"
+  },
+  {
+   "title": "Getting here",
+   "template": "page-plain",
+   "sections": [
+    {
+     "name": "Getting here",
+     "minH": 792,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 492,
+       "w": 760,
+       "h": 24,
+       "text": "Getting here",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-1",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 528,
+       "w": 760,
+       "h": 144,
+       "text": "It takes a while. That is the point.",
+       "fs": "__max",
+       "color": "theme-1",
+       "tf": {
+        "fs2": 7.5,
+        "fsMin": 40,
+        "lh": 1.02
+       }
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1570545897000-bf55117f41fa?w=2200&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-2)",
+     "tint": 40
+    },
+    {
+     "name": "The way",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 440,
+       "h": 24,
+       "text": "From the mainland",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 480,
+       "h": 72,
+       "text": "The way",
+       "fs": "3-x-large"
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 264,
+       "w": 500,
+       "h": 240,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 0,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "1",
+          "t": "Ferry from Uig",
+          "d": "An hour and forty minutes to Tarbert, twice a day"
+         },
+         {
+          "k": "2",
+          "t": "South on the A859",
+          "d": "Forty minutes. The road narrows, then narrows again"
+         },
+         {
+          "k": "3",
+          "t": "The house with the thatch",
+          "d": "Last on the left before the road gives up"
+         }
+        ],
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 17,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 66%, transparent)"
+          }
+         },
+         "k": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 20%, transparent)"
+        }
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 528,
+       "w": 500,
+       "h": 72,
+       "text": "No car? Tell us your ferry and Iain will be at the pier with the Land Rover.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "embed",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 528,
+       "url": "https://www.google.com/maps?q=Scarista,+Isle+of+Harris&output=embed",
+       "radius": 16
+      }
+     ]
+    },
+    {
+     "name": "Weather",
+     "minH": 864,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 564,
+       "w": 760,
+       "h": 24,
+       "text": "A word on the weather",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-1"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 600,
+       "w": 760,
+       "h": 144,
+       "text": "There is a lot of it. Bring a coat.",
+       "fs": "3-x-large",
+       "color": "theme-1"
+      }
+     ],
+     "image": "https://images.unsplash.com/photo-1649335250130-76ea16562eb1?w=2200&q=80&fm=jpg&fit=max",
+     "background": "var(--wp--preset--color--theme-2)",
+     "tint": 40
+    }
+   ],
+   "slug": "getting-here"
+  }
+ ],
+ "footer": "<!-- wp:group {\"tagName\":\"footer\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|60\",\"bottom\":\"var:preset|spacing|60\"},\"margin\":{\"top\":\"0\",\"bottom\":\"0\"}}},\"layout\":{\"type\":\"constrained\"}} -->\n<footer class=\"wp-block-group\" style=\"margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)\"><!-- wp:site-title {\"level\":0,\"textAlign\":\"center\",\"fontSize\":\"large\"} /-->\n\n<!-- wp:paragraph {\"align\":\"center\",\"fontSize\":\"small\"} -->\n<p class=\"has-text-align-center has-small-font-size\">Scarista, Isle of Harris HS3 · Open March to October · <a href=\"mailto:stay@skerryhouse.example\">stay@skerryhouse.example</a></p>\n<!-- /wp:paragraph --></footer>\n<!-- /wp:group -->\n",
+ "credits": [
+  {
+   "name": "martin bennie",
+   "link": "https://unsplash.com/@martinbennie"
+  },
+  {
+   "name": "Sang Ho",
+   "link": "https://unsplash.com/@hovansang18"
+  },
+  {
+   "name": "Anima Visual",
+   "link": "https://unsplash.com/@animavisual"
+  },
+  {
+   "name": "Andrew Hall",
+   "link": "https://unsplash.com/@andrew_hall"
+  },
+  {
+   "name": "Ruben Aster",
+   "link": "https://unsplash.com/@ruben_aster"
+  },
+  {
+   "name": "Johnny Ho",
+   "link": "https://unsplash.com/@johnnyho_ho"
+  },
+  {
+   "name": "Paolo Chiabrando",
+   "link": "https://unsplash.com/@chiabra"
+  },
+  {
+   "name": "Nils Leonhardt",
+   "link": "https://unsplash.com/@ambasteir"
+  }
+ ]
+}
