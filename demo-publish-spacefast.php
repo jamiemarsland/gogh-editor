@@ -441,13 +441,12 @@ function gogh_sf_owner_js() {
   var m = location.hash.match(/gogh-owner=([A-Za-z0-9_-]+)/);
   if (m) {
     var got = unpack(m[1]);
-    if (got && got.k) { try { localStorage.setItem(K, JSON.stringify(got)); sessionStorage.removeItem(K + '-hide'); } catch (e) {} }
+    if (got && got.k) { try { localStorage.setItem(K, JSON.stringify(got)); localStorage.removeItem(K + '-min'); } catch (e) {} }
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
   }
   var own = null;
   try { own = JSON.parse(localStorage.getItem(K) || 'null'); } catch (e) {}
   if (!own || !own.k) return;
-  try { if (sessionStorage.getItem(K + '-hide') === '1') return; } catch (e) {}
   function draw() {
     var when = own.e ? new Date(own.e) : null, late = when && !isNaN(when) && when < new Date();
     var css = document.createElement('style');
@@ -455,7 +454,11 @@ function gogh_sf_owner_js() {
       '.gogh-own-say{flex:1 1 260px;min-width:0}.gogh-own-say b{font-weight:700}.gogh-own-say span{opacity:.72}' +
       '.gogh-own a,.gogh-own button{font:700 14px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;border-radius:999px;padding:11px 18px;cursor:pointer;text-decoration:none;border:1.5px solid #fff;background:transparent;color:#fff}' +
       '.gogh-own .gogh-own-main{background:#e8b04b;border-color:#e8b04b;color:#141519}.gogh-own .gogh-own-x{border:0;padding:8px 10px;font-size:18px;opacity:.7}' +
-      '.gogh-own button[disabled]{opacity:.6;cursor:default}body{padding-bottom:72px}';
+      '.gogh-own button[disabled]{opacity:.6;cursor:default}html.gogh-own-open body{padding-bottom:72px}' +
+      // hidden is never gone: the bar folds to a small pill in the corner, and the pill opens it again
+      '.gogh-own-pill{position:fixed;right:14px;bottom:14px;z-index:2147483000;display:none;align-items:center;gap:8px;font:700 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;border-radius:999px;padding:10px 14px;cursor:pointer;border:1.5px solid rgba(255,255,255,.85);background:#141519;color:#fff;box-shadow:0 8px 24px -10px rgba(0,0,0,.7)}' +
+      '.gogh-own-pill i{width:8px;height:8px;border-radius:50%;background:#e8b04b}' +
+      'html.gogh-own-min .gogh-own{display:none}html.gogh-own-min .gogh-own-pill{display:inline-flex}';
     document.head.appendChild(css);
     var bar = document.createElement('div');
     bar.className = 'gogh-own';
@@ -467,7 +470,20 @@ function gogh_sf_owner_js() {
       (own.c ? '<a class="gogh-own-keep" href="' + String(own.c).replace(/"/g, '&quot;') + '" target="_blank" rel="noopener">Keep it</a>' : '') +
       '<button type="button" class="gogh-own-x" aria-label="Hide this bar">×</button>';
     document.body.appendChild(bar);
-    bar.querySelector('.gogh-own-x').addEventListener('click', function () { bar.remove(); css.remove(); try { sessionStorage.setItem(K + '-hide', '1'); } catch (e) {} });
+    var pill = document.createElement('button');
+    pill.type = 'button'; pill.className = 'gogh-own-pill';
+    pill.setAttribute('aria-label', 'Your site: show the edit bar');
+    pill.innerHTML = '<i></i>Edit your site';
+    document.body.appendChild(pill);
+    var root = document.documentElement;
+    function fold(min, keep) {
+      root.classList.toggle('gogh-own-min', min); root.classList.toggle('gogh-own-open', !min);
+      if (keep) { try { if (min) localStorage.setItem(K + '-min', '1'); else localStorage.removeItem(K + '-min'); } catch (e) {} }
+    }
+    var wasMin = false; try { wasMin = localStorage.getItem(K + '-min') === '1'; } catch (e) {}
+    fold(wasMin, false);
+    bar.querySelector('.gogh-own-x').addEventListener('click', function () { fold(true, true); pill.focus(); });
+    pill.addEventListener('click', function () { fold(false, true); edit.focus(); });
     var edit = bar.querySelector('.gogh-own-edit');
     edit.addEventListener('click', function () {
       // the new tab is opened NOW, inside the click, or a browser blocks it; it is pointed at Playground once the source is read
