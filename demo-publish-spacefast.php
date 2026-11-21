@@ -216,11 +216,23 @@ add_action( 'rest_api_init', function () {
 			return array( 'ok' => true, 'out' => $pg['out'], 'bytes' => strlen( $html ) );
 		},
 	) );
-	// 3. gather the files the pages name, and hand everything to Spacefast
-	register_rest_route( 'gogh-sf/v1', '/publish', array(
+	// 3. gather the files the pages name and pack them into parts
+	register_rest_route( 'gogh-sf/v1', '/prepare', array(
 		'methods'             => 'POST',
 		'permission_callback' => $can,
 		'callback'            => 'gogh_sf_publish',
+	) );
+	// 4. one part per request, then the receipt
+	register_rest_route( 'gogh-sf/v1', '/send', array(
+		'methods'             => 'POST',
+		'permission_callback' => $can,
+		'args'                => array( 'n' => array( 'type' => 'integer', 'required' => true ) ),
+		'callback'            => 'gogh_sf_send',
+	) );
+	register_rest_route( 'gogh-sf/v1', '/finish', array(
+		'methods'             => 'POST',
+		'permission_callback' => $can,
+		'callback'            => 'gogh_sf_finish',
 	) );
 } );
 
@@ -279,6 +291,14 @@ function gogh_sf_publish() {
 	// (a theme prints every face it ships; the copy carries the ones in use)
 	$all  = implode( "\n", $pages );
 	$bare = preg_replace( '#@font-face\s*\{[^}]*\}#i', '', $all );
+	// WordPress prints a helper class for every font a theme offers
+	// (.has-x-font-family), which names every family whether a page wears it
+	// or not: those rules do not count, the classes actually on the page do
+	$bare = preg_replace( '#\.has-[a-z0-9-]+-font-family\s*\{[^}]*\}#i', '', $bare );
+	$worn = array();
+	if ( preg_match_all( '#class=["\'][^"\']*\bhas-([a-z0-9-]+)-font-family\b#i', $all, $wm ) ) {
+		$worn = array_flip( $wm[1] );
+	}
 	$used = array();
 	if ( preg_match_all( '#font-family\s*:\s*([^;}]+)#i', $bare, $fm ) ) {
 		foreach ( $fm[1] as $decl ) {
@@ -289,7 +309,7 @@ function gogh_sf_publish() {
 	}
 	if ( preg_match_all( '#--wp--preset--font-family--([a-z0-9-]+)\s*:\s*([^;}]+)#i', $all, $vm ) ) {
 		foreach ( $vm[1] as $k => $slug ) {
-			if ( false !== strpos( $bare, 'var(--wp--preset--font-family--' . $slug ) ) {
+			if ( isset( $worn[ $slug ] ) || preg_match( '#var\(--wp--preset--font-family--' . preg_quote( $slug, '#' ) . '[,)\s]#', $bare ) ) {
 				foreach ( explode( ',', $vm[2][ $k ] ) as $name ) {
 					$used[ strtolower( trim( $name, " \t\n\r\"'" ) ) ] = true;
 				}
@@ -300,6 +320,12 @@ function gogh_sf_publish() {
 	if ( preg_match_all( '#@font-face\s*\{[^}]*\}#i', $all, $ff ) ) {
 		foreach ( array_unique( $ff[0] ) as $face ) {
 			if ( ! preg_match( '#font-family\s*:\s*["\']?([^;"\']+)#i', $face, $n ) || empty( $used[ strtolower( trim( $n[1] ) ) ] ) ) {
+				continue;
+			}
+			// a face cut for another alphabet (Cyrillic, Greek, Vietnamese) is most
+			// of a font's weight and none of what these pages are written in:
+			// only the Latin cuts travel, and faces that are not cut up at all
+			if ( preg_match( '#unicode-range\s*:\s*([^;}]+)#i', $face, $ur ) && ! preg_match( '#U\+0{1,4}-|U\+0000|U\+0100#i', $ur[1] ) ) {
 				continue;
 			}
 			$ok   = true;
@@ -424,7 +450,8 @@ function gogh_sf_publish() {
 	// Playground's way out carries about a megabyte at a time, so the copy
 	// goes in parts: the files first, the pages last (a visitor never meets a
 	// page whose files have not arrived). A file too big for one part stays behind.
-	$part_max = 700 * KB_IN_BYTES;
+	// (measured 2026-11-21: 0.99 MB arrives, 1.43 MB is refused on the way out)
+	$part_max = 940 * KB_IN_BYTES;
 	$parts    = array( array() );
 	$size     = 0;
 	$order    = array_merge( array_diff( array_keys( $files ), array_keys( $pages ) ), array_keys( $pages ) );
@@ -441,12 +468,44 @@ function gogh_sf_publish() {
 		$parts[ count( $parts ) - 1 ][] = $path;
 		$size += $len;
 	}
-	$send = function ( $paths, $payload, $key ) use ( $files, $types ) {
+	// each part waits on disk for a request of its own: Playground ends any
+	// request at 25 seconds, and seven parts in one request ran right up to it
+	// (the first release of this failed there with "Failed to fetch")
+	foreach ( $parts as $pi => $paths ) {
+		$bundle = array();
+		foreach ( $paths as $path ) {
+			$ext             = strtolower( pathinfo( $path, PATHINFO_EXTENSION ) );
+			$bundle[ $path ] = array( isset( $types[ $ext ] ) ? $types[ $ext ] : 'text/plain', $files[ $path ] );
+		}
+		file_put_contents( $dir . '/.part-' . $pi . '.json', wp_json_encode( $bundle ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+	}
+	$had = get_option( 'gogh_sf_receipt' );
+	$had = ( is_array( $had ) && ! empty( $had['spaceId'] ) && ! empty( $had['key'] ) ) ? $had : null;
+	update_option( 'gogh_sf_progress', array( 'rec' => $had, 'again' => (bool) $had, 'parts' => count( $parts ), 'files' => count( $order ), 'left' => array_values( array_unique( $left ) ) ), false );
+	$sizes = array();
+	foreach ( $order as $path ) {
+		$sizes[ $path ] = strlen( $files[ $path ] );
+	}
+	arsort( $sizes );
+	return array( 'parts' => count( $parts ), 'files' => count( $order ), 'bytes' => $bytes, 'biggest' => array_slice( $sizes, 0, 12, true ) );
+}
+
+// one part, sent to Spacefast: the first makes the copy (or finds last
+// time's), and every one after rides on the key the first was given
+function gogh_sf_send( $req ) {
+	$dir  = gogh_sf_dir();
+	$pi   = (int) $req->get_param( 'n' );
+	$prog = get_option( 'gogh_sf_progress' );
+	$raw  = is_file( $dir . '/.part-' . $pi . '.json' ) ? (string) file_get_contents( $dir . '/.part-' . $pi . '.json' ) : ''; // phpcs:ignore
+	$bundle = json_decode( $raw, true );
+	if ( ! is_array( $prog ) || ! is_array( $bundle ) ) {
+		return new WP_Error( 'gogh_sf_part', 'That part of the copy is not ready.', array( 'status' => 400 ) );
+	}
+	$send = function ( $payload, $key ) use ( $bundle ) {
 		$b    = 'gogh' . wp_generate_password( 24, false );
 		$body = "--$b\r\nContent-Disposition: form-data; name=\"payload\"\r\nContent-Type: application/json\r\n\r\n" . wp_json_encode( $payload ) . "\r\n";
-		foreach ( $paths as $path ) {
-			$ext   = strtolower( pathinfo( $path, PATHINFO_EXTENSION ) );
-			$body .= "--$b\r\nContent-Disposition: form-data; name=\"" . str_replace( '"', '', $path ) . '"; filename="' . str_replace( '"', '', $path ) . "\"\r\nContent-Type: " . ( isset( $types[ $ext ] ) ? $types[ $ext ] : 'text/plain' ) . "\r\n\r\n" . $files[ $path ] . "\r\n";
+		foreach ( $bundle as $path => $f ) {
+			$body .= "--$b\r\nContent-Disposition: form-data; name=\"" . str_replace( '"', '', $path ) . '"; filename="' . str_replace( '"', '', $path ) . "\"\r\nContent-Type: " . $f[0] . "\r\n\r\n" . $f[1] . "\r\n";
 		}
 		$body   .= "--$b--\r\n";
 		// 'Expect' empty: for a big body WordPress asks the server to say 'go
@@ -457,10 +516,9 @@ function gogh_sf_publish() {
 			// Playground's way out drops Authorization unless it is asked to carry it
 			$headers['X-Cors-Proxy-Allowed-Request-Headers'] = 'Authorization';
 		}
-		return wp_remote_post( 'https://api.spacefast.com/v1/publish', array( 'headers' => $headers, 'body' => $body, 'timeout' => 120 ) );
+		return wp_remote_post( 'https://api.spacefast.com/v1/publish', array( 'headers' => $headers, 'body' => $body, 'timeout' => 20 ) );
 	};
-	$title = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-	$read  = function ( $resp ) {
+	$read = function ( $resp ) {
 		if ( is_wp_error( $resp ) ) {
 			return new WP_Error( 'gogh_sf_send', 'Spacefast could not be reached: ' . $resp->get_error_message(), array( 'status' => 502 ) );
 		}
@@ -468,70 +526,75 @@ function gogh_sf_publish() {
 		$json = json_decode( wp_remote_retrieve_body( $resp ), true );
 		$data = isset( $json['data'] ) && is_array( $json['data'] ) ? $json['data'] : array();
 		if ( $code >= 400 || empty( $data['space']['id'] ) ) {
-			$why = isset( $json['error']['message'] ) ? $json['error']['message'] : ( isset( $json['message'] ) ? $json['message'] : 'HTTP ' . $code . ' ' . substr( wp_strip_all_tags( (string) wp_remote_retrieve_body( $resp ) ), 0, 180 ) );
+			$why = isset( $json['detail'] ) ? $json['detail'] : ( isset( $json['error']['message'] ) ? $json['error']['message'] : ( isset( $json['message'] ) ? $json['message'] : 'HTTP ' . $code . ' ' . substr( wp_strip_all_tags( (string) wp_remote_retrieve_body( $resp ) ), 0, 180 ) ) );
 			return new WP_Error( 'gogh_sf_refused', 'Spacefast did not take the site: ' . sanitize_text_field( $why ), array( 'status' => 502 ) );
 		}
 		return $data;
 	};
-	// the same site published again goes to the same place, while its key lasts
-	$had  = get_option( 'gogh_sf_receipt' );
-	$had  = ( is_array( $had ) && ! empty( $had['spaceId'] ) && ! empty( $had['key'] ) ) ? $had : null;
-	$data = null;
-	$rec  = $had;
-	foreach ( $parts as $pi => $paths ) {
-		$got = null;
-		if ( $rec ) {
-			$got = $read( $send( $paths, array( 'publishMode' => 'additive', 'spaceId' => $rec['spaceId'] ), $rec['key'] ) );
-			if ( is_wp_error( $got ) && 0 === $pi && $had ) {
-				// the old copy is gone or its key has run out: start a new one
-				$rec = null;
-				$had = null;
-				$got = null;
-			}
-		}
-		if ( null === $got ) {
-			$got = $read( $send( $paths, array( 'publishMode' => 'additive', 'space' => array( 'title' => $title ) ), '' ) );
-		}
-		if ( is_wp_error( $got ) ) {
-			return new WP_Error( $got->get_error_code(), $got->get_error_message() . ' (part ' . ( $pi + 1 ) . ' of ' . count( $parts ) . ')', array( 'status' => 502 ) );
-		}
-		$data = $got;
-		if ( ! $rec ) {
-			$claim = isset( $data['claim'] ) && is_array( $data['claim'] ) ? $data['claim'] : array();
-			$open  = '';
-			foreach ( array( isset( $claim['url'] ) ? $claim['url'] : '', isset( $data['access']['url'] ) ? $data['access']['url'] : '' ) as $u ) {
-				if ( $u && false !== strpos( $u, '/__/' ) ) {
-					$open = $u;
-				}
-			}
-			$rec = array(
-				'spaceId' => $data['space']['id'],
-				'key'     => isset( $claim['key'] ) ? $claim['key'] : ( isset( $claim['token'] ) ? $claim['token'] : '' ),
-				'open'    => $open ? $open : ( isset( $data['space']['liveUrl'] ) ? $data['space']['liveUrl'] : '' ),
-				'claim'   => isset( $claim['claimUrl'] ) ? $claim['claimUrl'] : ( ( isset( $claim['url'] ) && false !== strpos( $claim['url'], '/claim' ) ) ? $claim['url'] : '' ),
-				'expires' => isset( $claim['expiresAt'] ) ? $claim['expiresAt'] : '',
-				'host'    => isset( $data['space']['defaultHostname'] ) ? $data['space']['defaultHostname'] : '',
-			);
-			if ( '' === $rec['key'] ) {
-				return new WP_Error( 'gogh_sf_key', 'Spacefast took the first part but gave no key to send the rest.', array( 'status' => 502 ) );
-			}
+	$rec = is_array( $prog['rec'] ) ? $prog['rec'] : null;
+	$got = null;
+	if ( $rec ) {
+		$got = $read( $send( array( 'publishMode' => 'additive', 'spaceId' => $rec['spaceId'] ), $rec['key'] ) );
+		if ( is_wp_error( $got ) && 0 === $pi && ! empty( $prog['again'] ) ) {
+			// last time's copy is gone or its key has run out: start a new one
+			$rec           = null;
+			$prog['again'] = false;
+			$got           = null;
 		}
 	}
-	if ( isset( $data['claim']['expiresAt'] ) ) {
-		$rec['expires'] = $data['claim']['expiresAt'];
+	if ( null === $got ) {
+		$got = $read( $send( array( 'publishMode' => 'additive', 'space' => array( 'title' => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ) ), '' ) );
 	}
+	if ( is_wp_error( $got ) ) {
+		return new WP_Error( $got->get_error_code(), $got->get_error_message() . ' (part ' . ( $pi + 1 ) . ' of ' . (int) $prog['parts'] . ')', array( 'status' => 502 ) );
+	}
+	$claim = isset( $got['claim'] ) && is_array( $got['claim'] ) ? $got['claim'] : array();
+	if ( ! $rec ) {
+		$open = '';
+		foreach ( array( isset( $claim['url'] ) ? $claim['url'] : '', isset( $got['access']['url'] ) ? $got['access']['url'] : '' ) as $u ) {
+			if ( $u && false !== strpos( $u, '/__/' ) ) {
+				$open = $u;
+			}
+		}
+		$rec = array(
+			'spaceId' => $got['space']['id'],
+			'key'     => isset( $claim['key'] ) ? $claim['key'] : ( isset( $claim['token'] ) ? $claim['token'] : '' ),
+			'open'    => $open ? $open : ( isset( $got['space']['liveUrl'] ) ? $got['space']['liveUrl'] : '' ),
+			'claim'   => isset( $claim['claimUrl'] ) ? $claim['claimUrl'] : ( ( isset( $claim['url'] ) && false !== strpos( $claim['url'], '/claim' ) ) ? $claim['url'] : '' ),
+			'expires' => isset( $claim['expiresAt'] ) ? $claim['expiresAt'] : '',
+			'host'    => isset( $got['space']['defaultHostname'] ) ? $got['space']['defaultHostname'] : '',
+		);
+		if ( '' === $rec['key'] ) {
+			return new WP_Error( 'gogh_sf_key', 'Spacefast took the first part but gave no key to send the rest.', array( 'status' => 502 ) );
+		}
+	}
+	if ( ! empty( $claim['expiresAt'] ) ) {
+		$rec['expires'] = $claim['expiresAt'];
+	}
+	$prog['rec'] = $rec;
+	update_option( 'gogh_sf_progress', $prog, false );
+	return array( 'ok' => true, 'part' => $pi + 1, 'of' => (int) $prog['parts'] );
+}
+
+// every part has gone: keep the receipt, clear the workshop, hand over the links
+function gogh_sf_finish() {
+	$prog = get_option( 'gogh_sf_progress' );
+	if ( ! is_array( $prog ) || empty( $prog['rec']['spaceId'] ) ) {
+		return new WP_Error( 'gogh_sf_finish', 'Nothing was sent.', array( 'status' => 400 ) );
+	}
+	$rec = $prog['rec'];
 	update_option( 'gogh_sf_receipt', $rec, false );
-	gogh_sf_rmdir( $dir );
+	delete_option( 'gogh_sf_progress' );
+	gogh_sf_rmdir( gogh_sf_dir() );
 	return array(
 		'open'    => esc_url_raw( $rec['open'] ),
 		'claim'   => esc_url_raw( $rec['claim'] ),
 		'expires' => $rec['expires'],
 		'host'    => $rec['host'],
-		'files'   => count( $order ),
-		'bytes'   => $bytes,
-		'parts'   => count( $parts ),
-		'left'    => array_values( array_unique( $left ) ),
-		'again'   => (bool) $had,
+		'files'   => (int) $prog['files'],
+		'parts'   => (int) $prog['parts'],
+		'left'    => isset( $prog['left'] ) ? $prog['left'] : array(),
+		'again'   => ! empty( $prog['again'] ),
 	);
 }
 
@@ -589,14 +652,23 @@ add_action( 'wp_footer', function () {
         var next = function () {
           if (i >= s.pages) return Promise.resolve();
           step.textContent = 'Drawing ' + (s.names[i] === '/' ? 'the home page' : s.names[i]) + '…';
-          bar.style.width = Math.round((i / (s.pages + 1)) * 100) + '%';
+          bar.style.width = Math.round((i / s.pages) * 36) + '%';
           return api('page?n=' + i).then(function (r) { if (!r || !r.ok) missed.push(s.names[i]); }, function () { missed.push(s.names[i]); })
             .then(function () { i++; return next(); });
         };
         return next().then(function () {
-          step.textContent = 'Sending it to Spacefast…';
-          bar.style.width = '92%';
-          return api('publish', 'POST').then(function (r) { r.missed = missed; return r; });
+          step.textContent = 'Packing it up…';
+          bar.style.width = '40%';
+          return api('prepare', 'POST');
+        }).then(function (plan) {
+          var k = 0;
+          var sendNext = function () {
+            if (k >= plan.parts) return Promise.resolve();
+            step.textContent = 'Sending it to Spacefast… ' + (k + 1) + ' of ' + plan.parts;
+            bar.style.width = Math.round(40 + ((k + 0.5) / plan.parts) * 58) + '%';
+            return api('send?n=' + k, 'POST').then(function () { k++; return sendNext(); });
+          };
+          return sendNext().then(function () { return api('finish', 'POST'); }).then(function (r) { r.missed = missed; return r; });
         });
       }).then(function (r) {
         var when = r.expires ? new Date(r.expires) : null;
