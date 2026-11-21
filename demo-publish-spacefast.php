@@ -810,11 +810,19 @@ function gogh_sf_send( $req ) {
 	$got = null;
 	if ( $rec ) {
 		$got = $read( $send( array( 'publishMode' => 'additive', 'spaceId' => $rec['spaceId'] ), $rec['key'] ) );
-		if ( is_wp_error( $got ) && 0 === $pi && ! empty( $prog['again'] ) && false === strpos( $got->get_error_message(), 'Too many' ) ) {
-			// last time's copy is gone or its key has run out. Only the changed
-			// files were packed, so the whole site has to be packed again for a new copy
-			delete_option( 'gogh_sf_receipt' );
-			return new WP_Error( 'gogh_sf_fresh', 'The old copy is gone: starting a new one.', array( 'status' => 409 ) );
+		if ( is_wp_error( $got ) && 0 === $pi && ! empty( $prog['again'] ) && 'gogh_sf_refused' === $got->get_error_code() && false === strpos( $got->get_error_message(), 'Too many' ) ) {
+			$until = ! empty( $rec['expires'] ) ? strtotime( $rec['expires'] ) : 0;
+			if ( $until && $until < time() ) {
+				// last time's copy has run out of time, and the card already said so
+				// ("Put this site on the web"). Only the changed files were packed,
+				// so the whole site has to be packed again for a new copy
+				delete_option( 'gogh_sf_receipt' );
+				return new WP_Error( 'gogh_sf_fresh', 'The old copy is gone: starting a new one.', array( 'status' => 409 ) );
+			}
+			// the copy should still be there and Spacefast will not take the change
+			// (claimed into an account, most likely). The address is the owner's:
+			// it is never swapped for a new one without asking. The record stays.
+			return new WP_Error( 'gogh_sf_no_update', $got->get_error_message(), array( 'status' => 409, 'host' => isset( $rec['host'] ) ? $rec['host'] : '' ) );
 		}
 	}
 	if ( null === $got ) {
@@ -932,6 +940,7 @@ add_action( 'wp_footer', function () {
 (function () {
   var C = <?php echo wp_json_encode( $cfg ); ?>;
   var btn = document.querySelector('.gogh-sf-btn');
+  var newAddress = false; // the owner chose, in words, to leave the old address behind
   function label() { btn.querySelector('.gogh-sf-label').textContent = C.host ? 'Update your site on the web' : 'Put this site on the web'; }
   label();
   // a first-time pointer at the button: gone for good once closed or once the button is pressed
@@ -1020,7 +1029,7 @@ add_action( 'wp_footer', function () {
             throw e;
           });
         };
-        return next().then(function () { return pack(false); }).then(function () { return api('finish', 'POST'); }).then(function (r) { r.missed = missed; return r; });
+        return next().then(function () { var f = newAddress; newAddress = false; return pack(f); }).then(function () { return api('finish', 'POST'); }).then(function (r) { r.missed = missed; return r; });
       }).then(function (r) {
         var when = r.expires ? new Date(r.expires) : null;
         var card = wrap.querySelector('.gogh-sf-card');
@@ -1039,6 +1048,26 @@ add_action( 'wp_footer', function () {
         card.querySelector('.gogh-sf-see').addEventListener('click', function () { setTimeout(close, 400); });
       }).catch(function (e) {
         var card = wrap.querySelector('.gogh-sf-card');
+        if (e && e.code === 'gogh_sf_no_update') {
+          // never a new address without asking: say what happened, and let the owner choose
+          var host = C.host || 'its address';
+          card.innerHTML = '<button type="button" class="gogh-sf-x" aria-label="Close">×</button>' +
+            '<h3>' + esc(C.name) + ' could not be updated</h3>' +
+            '<p>Spacefast did not accept the change to <b class="gogh-sf-host">' + esc(host) + '</b>. The site there is as it was, and your changes are safe here.</p>' +
+            '<p class="gogh-sf-small">This can happen once a site has been kept in a Spacefast account. What Spacefast said: ' + esc(String(e.message || '').replace(/^Spacefast did not take the site:\s*/, '')) + '</p>' +
+            '<div class="gogh-sf-acts"><button type="button" class="gogh-sf-new">Put a copy at a new address</button><button type="button" class="is-main gogh-sf-retry">Try again</button></div>';
+          card.querySelector('.gogh-sf-x').addEventListener('click', close);
+          var again = function (fresh) {
+            close();
+            if (fresh) { newAddress = true; C.host = ''; label(); }
+            btn.click();
+            var gos = document.querySelectorAll('.gogh-sf-card .gogh-sf-go');
+            if (gos.length === 1) gos[0].click(); // unpublished changes: the owner picks, as before
+          };
+          card.querySelector('.gogh-sf-retry').addEventListener('click', function () { again(false); });
+          card.querySelector('.gogh-sf-new').addEventListener('click', function () { again(true); });
+          return;
+        }
         card.innerHTML = '<h3>That did not work</h3><p>' + esc(e && e.message ? e.message : 'Something went wrong.') + '</p>' +
           '<div class="gogh-sf-acts"><button type="button" class="is-main gogh-sf-no">Close</button></div>';
         card.querySelector('.gogh-sf-no').addEventListener('click', close);
