@@ -870,7 +870,12 @@ add_action( 'wp_footer', function () {
 	if ( ! current_user_can( 'manage_options' ) || is_admin() ) {
 		return;
 	}
-	$cfg = array( 'rest' => esc_url_raw( rest_url( 'gogh-sf/v1/' ) ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'name' => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
+	$cfg = array( 'rest' => esc_url_raw( rest_url( 'gogh-sf/v1/' ) ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'name' => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), 'host' => '' );
+	// a copy that is still live: the button and the card say "update", and name its address
+	$had_copy = get_option( 'gogh_sf_receipt' );
+	if ( is_array( $had_copy ) && ! empty( $had_copy['host'] ) && ( empty( $had_copy['expires'] ) || strtotime( $had_copy['expires'] ) > time() ) ) {
+		$cfg['host'] = (string) $had_copy['host'];
+	}
 	?>
 <style>
 /* gogh's own yellow (its Save button), bottom right */
@@ -903,12 +908,15 @@ add_action( 'wp_footer', function () {
 .gogh-sf-acts .gogh-sf-see{font-size:15px;padding:12px 22px}
 .gogh-sf-card .gogh-sf-warn{background:#fdf3dc;color:#5c3b00;border-radius:10px;padding:10px 12px;margin:0 0 4px}
 .gogh-sf-warn[hidden]{display:none}
+.gogh-sf-host{font-weight:600;color:#1c1e24;overflow-wrap:anywhere}
 </style>
-<button type="button" class="gogh-sf-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg>Put this site on the web</button>
+<button type="button" class="gogh-sf-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg><span class="gogh-sf-label">Put this site on the web</span></button>
 <script>
 (function () {
   var C = <?php echo wp_json_encode( $cfg ); ?>;
   var btn = document.querySelector('.gogh-sf-btn');
+  function label() { btn.querySelector('.gogh-sf-label').textContent = C.host ? 'Update your site on the web' : 'Put this site on the web'; }
+  label();
   // a first-time pointer at the button: gone for good once closed or once the button is pressed
   var seen = false;
   try { seen = localStorage.getItem('gogh-sf-tip') === '1'; } catch (e) {}
@@ -943,14 +951,17 @@ add_action( 'wp_footer', function () {
   btn.addEventListener('click', function () {
     dropTip();
     var dirty = unpublished();
-    var wrap = el('<div class="gogh-sf-wrap" role="dialog" aria-label="Put this site on the web"><div class="gogh-sf-card">' +
-      '<h3>Put ' + esc(C.name) + ' on the web</h3>' +
-      '<p>A copy of this site, as visitors see it, goes to Spacefast. You get a private link to it straight away.</p>' +
-      (dirty ? '<p class="gogh-sf-warn"><b>You have changes that are not published yet.</b> The copy shows the published site, so they would be left out.</p>' : '') +
+    var wrap = el('<div class="gogh-sf-wrap" role="dialog" aria-label="' + (C.host ? 'Update your site on the web' : 'Put this site on the web') + '"><div class="gogh-sf-card">' +
+      (C.host
+        ? '<h3>Update ' + esc(C.name) + ' on the web</h3>' +
+          '<p>Your site is already on the web at <b class="gogh-sf-host">' + esc(C.host) + '</b>. This sends your changes there. The address stays the same.</p>'
+        : '<h3>Put ' + esc(C.name) + ' on the web</h3>' +
+          '<p>A copy of this site, as visitors see it, goes to Spacefast. You get a private link to it straight away.</p>') +
+      (dirty ? '<p class="gogh-sf-warn"><b>You have changes that are not published yet.</b> The site on the web shows what is published, so they would be left out.</p>' : '') +
       '<p class="gogh-sf-small">It is a snapshot: pages and pictures. Forms, search and shops stay behind.</p>' +
       '<div class="gogh-sf-run" hidden><div class="gogh-sf-bar"><i></i></div><div class="gogh-sf-step" aria-live="polite"></div></div>' +
       '<div class="gogh-sf-acts"><button type="button" class="gogh-sf-no">Not now</button>' +
-      (dirty ? '<button type="button" class="gogh-sf-go" data-skip="1">Copy without them</button><button type="button" class="is-main gogh-sf-go">Publish them and copy</button>' : '<button type="button" class="is-main gogh-sf-go">Put it on the web</button>') + '</div>' +
+      (dirty ? '<button type="button" class="gogh-sf-go" data-skip="1">' + (C.host ? 'Update without them' : 'Copy without them') + '</button><button type="button" class="is-main gogh-sf-go">' + (C.host ? 'Publish them and update' : 'Publish them and copy') + '</button>' : '<button type="button" class="is-main gogh-sf-go">' + (C.host ? 'Update my site' : 'Put it on the web') + '</button>') + '</div>' +
       '</div></div>');
     document.body.appendChild(wrap);
     var close = function () { wrap.remove(); };
@@ -996,6 +1007,7 @@ add_action( 'wp_footer', function () {
       }).then(function (r) {
         var when = r.expires ? new Date(r.expires) : null;
         var card = wrap.querySelector('.gogh-sf-card');
+        if (r.host) { C.host = r.host; label(); }
         // one thing to do: see it. Keeping it and editing it are offered ON the
         // site, in a bar only this browser sees (the marker in the link sets it up)
         var mark = '';
