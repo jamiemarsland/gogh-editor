@@ -1,0 +1,449 @@
+{
+ "name": "Second Helpings",
+ "tagline": "Recipes for weeknights and slow Sundays",
+ "palette": {
+  "base": "#FBF6EE",
+  "contrast": "#2A2420",
+  "accents": [
+   "#B8482B",
+   "#5F7550",
+   "#2A2420",
+   "#2A2420",
+   "#776B5F",
+   "#F2E6D6"
+  ]
+ },
+ "fonts": {
+  "heading": "Young Serif",
+  "body": "Figtree"
+ },
+ "chrome": {
+  "header": "gogh-header-classic",
+  "footer": "gogh-footer-simple",
+  "sticky": false
+ },
+ "blog_look": "cards",
+ "pages": [
+  {
+   "title": "Home",
+   "slug": "home",
+   "front": true,
+   "sections": [
+    {
+     "name": "Welcome",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 96,
+       "y": 120,
+       "w": 456,
+       "h": 24,
+       "text": "Recipes by Ines Garrow",
+       "tf": {
+        "fs": 15,
+        "col": "#B8482B"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 96,
+       "y": 168,
+       "w": 480,
+       "h": 216,
+       "text": "Good food on a Tuesday night.",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 96,
+       "y": 408,
+       "w": 456,
+       "h": 96,
+       "text": "Weeknight suppers, weekend baking and the odd slow Sunday. Every recipe here is cooked in a small kitchen at least three times before it goes up.",
+       "tf": {
+        "fs": 19
+       }
+      },
+      {
+       "type": "button",
+       "x": 96,
+       "y": 528,
+       "w": 216,
+       "h": 48,
+       "text": "Find a recipe",
+       "href": "/recipes/",
+       "btnBg": "accent-1"
+      },
+      {
+       "type": "image",
+       "x": 624,
+       "y": 72,
+       "w": 504,
+       "h": 504,
+       "src": "https://images.unsplash.com/photo-1636647511603-f46efb36c327?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "A cook stirring a red pot on the stove with a wooden spoon",
+       "radius": 16
+      }
+     ]
+    },
+    {
+     "take": "Latest posts",
+     "name": "Quick suppers",
+     "heading": "Quick suppers",
+     "posts": {
+      "look": "cards",
+      "count": 3,
+      "cat": "Quick suppers",
+      "aspect": "landscape",
+      "show": {
+       "date": false,
+       "excerpt": true
+      }
+     }
+    },
+    {
+     "take": "Latest posts",
+     "name": "Baking",
+     "heading": "Baking",
+     "posts": {
+      "look": "cards",
+      "count": 3,
+      "cat": "Baking",
+      "aspect": "landscape",
+      "show": {
+       "date": false,
+       "excerpt": true
+      }
+     }
+    },
+    {
+     "name": "Hello",
+     "minH": 576,
+     "background": "#F2E6D6",
+     "els": [
+      {
+       "type": "image",
+       "x": 72,
+       "y": 72,
+       "w": 480,
+       "h": 432,
+       "src": "https://images.unsplash.com/photo-1559474520-4ac948183977?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Hands chopping fresh herbs on a wooden board",
+       "radius": 16
+      },
+      {
+       "type": "para",
+       "x": 648,
+       "y": 120,
+       "w": 456,
+       "h": 24,
+       "text": "Hello",
+       "tf": {
+        "fs": 15,
+        "col": "#B8482B"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 648,
+       "y": 168,
+       "w": 456,
+       "h": 120,
+       "text": "I’m Ines. I cook in a very small kitchen in Leeds.",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 648,
+       "y": 312,
+       "w": 456,
+       "h": 96,
+       "text": "No fancy kit, nothing you have to order online. If a recipe here needs a special pan, I will tell you what to use instead.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "button",
+       "x": 648,
+       "y": 432,
+       "w": 216,
+       "h": 48,
+       "text": "More about me",
+       "href": "/about/",
+       "ghost": true
+      }
+     ]
+    },
+    {
+     "name": "The Sunday recipe",
+     "minH": 432,
+     "els": [
+      {
+       "type": "heading",
+       "x": 200,
+       "y": 96,
+       "w": 800,
+       "h": 72,
+       "text": "A new recipe every Sunday",
+       "fs": "xx-large",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 300,
+       "y": 192,
+       "w": 600,
+       "h": 48,
+       "text": "Follow along in any feed reader, or write to me with what you cooked.",
+       "tf": {
+        "fs": 19
+       },
+       "align": "center"
+      },
+      {
+       "type": "button",
+       "x": 372,
+       "y": 288,
+       "w": 216,
+       "h": 48,
+       "text": "Follow by RSS",
+       "href": "/feed/",
+       "btnBg": "accent-1"
+      },
+      {
+       "type": "button",
+       "x": 612,
+       "y": 288,
+       "w": 216,
+       "h": 48,
+       "text": "Write to me",
+       "href": "/contact/",
+       "ghost": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Recipes",
+   "slug": "recipes",
+   "blog": true,
+   "sections": []
+  },
+  {
+   "title": "About",
+   "slug": "about",
+   "sections": [
+    {
+     "name": "About",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 96,
+       "y": 120,
+       "w": 456,
+       "h": 24,
+       "text": "About",
+       "tf": {
+        "fs": 15,
+        "col": "#B8482B"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 96,
+       "y": 168,
+       "w": 480,
+       "h": 96,
+       "text": "Ines Garrow",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "para",
+       "x": 96,
+       "y": 288,
+       "w": 456,
+       "h": 144,
+       "text": "I learned to cook from my grandmother, who never measured anything, and from a lot of library books, which measured everything. Second Helpings sits somewhere in between.",
+       "tf": {
+        "fs": 19
+       }
+      },
+      {
+       "type": "para",
+       "x": 96,
+       "y": 456,
+       "w": 456,
+       "h": 120,
+       "text": "I test every recipe at least three times, on a normal oven, with supermarket ingredients. If something goes wrong when you make it, I want to hear about it.",
+       "tf": {
+        "fs": 19
+       }
+      },
+      {
+       "type": "image",
+       "x": 624,
+       "y": 96,
+       "w": 504,
+       "h": 528,
+       "src": "https://images.unsplash.com/photo-1447279506476-3faec8071eee?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Hands feeding fresh pasta dough through a pasta machine",
+       "radius": 16
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Contact",
+   "slug": "contact",
+   "sections": [
+    {
+     "take": "Get in touch",
+     "eyebrow": "Write to me",
+     "heading": "Tell me what you cooked",
+     "text": "Questions about a recipe, a swap that worked, or a photo of your plum cake. I read everything and answer most of it."
+    }
+   ]
+  }
+ ],
+ "posts": [
+  {
+   "title": "Lemon chicken and potato bake",
+   "date": "2026-09-27",
+   "slug": "lemon-chicken-and-potato-bake",
+   "cats": [
+    "Quick suppers"
+   ],
+   "image": "https://images.unsplash.com/photo-1680098021573-b9402ee336ec?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "45 minutes · serves 4",
+   "content": "<!-- wp:paragraph --><p>One dish, one oven, and a lemon doing most of the work. The potatoes soak up the juices underneath while the chicken skin crisps on top.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>I make this on Mondays, when nobody wants to think about dinner.</p><!-- /wp:paragraph -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Ingredients</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>8 chicken thighs, skin on</li><!-- /wp:list-item --><!-- wp:list-item --><li>800g small potatoes, halved</li><!-- /wp:list-item --><!-- wp:list-item --><li>2 lemons, one sliced, one juiced</li><!-- /wp:list-item --><!-- wp:list-item --><li>4 cloves garlic, bashed</li><!-- /wp:list-item --><!-- wp:list-item --><li>A few sprigs of thyme</li><!-- /wp:list-item --><!-- wp:list-item --><li>3 tbsp olive oil</li><!-- /wp:list-item --><!-- wp:list-item --><li>Salt and black pepper</li><!-- /wp:list-item --></ul><!-- /wp:list -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Method</h2><!-- /wp:heading -->\n\n<!-- wp:list {\"ordered\":true} --><ol class=\"wp-block-list\"><!-- wp:list-item --><li>Heat the oven to 220°C (200°C fan).</li><!-- /wp:list-item --><!-- wp:list-item --><li>Toss the potatoes, garlic, lemon juice and half the oil in a large dish. Season well.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Sit the chicken on top, skin side up, tuck the lemon slices and thyme around, and drizzle with the rest of the oil.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Roast for 40 minutes, until the skin is golden and the potatoes are soft.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Rest for five minutes and serve with something green.</li><!-- /wp:list-item --></ol><!-- /wp:list -->\n\n<!-- wp:paragraph --><p><em>Swap the thyme for oregano and add olives for the last 10 minutes.</em></p><!-- /wp:paragraph -->"
+  },
+  {
+   "title": "Ginger noodle soup with greens",
+   "date": "2026-09-20",
+   "slug": "ginger-noodle-soup",
+   "cats": [
+    "Quick suppers"
+   ],
+   "image": "https://images.unsplash.com/photo-1631709497146-a239ef373cf1?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "20 minutes · serves 2",
+   "content": "<!-- wp:paragraph --><p>This is what I cook when I have a cold, or when it is raining, or when it is Wednesday. A hot, clear broth, a lot of ginger and whatever greens are in the fridge.</p><!-- /wp:paragraph -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Ingredients</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>1 litre good stock</li><!-- /wp:list-item --><!-- wp:list-item --><li>A thumb of ginger, sliced</li><!-- /wp:list-item --><!-- wp:list-item --><li>2 cloves garlic, sliced</li><!-- /wp:list-item --><!-- wp:list-item --><li>2 tbsp soy sauce</li><!-- /wp:list-item --><!-- wp:list-item --><li>1 tsp sesame oil</li><!-- /wp:list-item --><!-- wp:list-item --><li>2 nests of noodles</li><!-- /wp:list-item --><!-- wp:list-item --><li>2 handfuls of greens: pak choi, spinach or kale</li><!-- /wp:list-item --><!-- wp:list-item --><li>1 red chilli, sliced</li><!-- /wp:list-item --><!-- wp:list-item --><li>2 spring onions</li><!-- /wp:list-item --></ul><!-- /wp:list -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Method</h2><!-- /wp:heading -->\n\n<!-- wp:list {\"ordered\":true} --><ol class=\"wp-block-list\"><!-- wp:list-item --><li>Simmer the stock with the ginger and garlic for 10 minutes.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Add the soy and sesame oil and taste. It should be salty and warm.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Cook the noodles in the broth for 4 minutes, adding the greens for the last minute.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Ladle into bowls and finish with chilli and spring onion.</li><!-- /wp:list-item --></ol><!-- /wp:list -->"
+  },
+  {
+   "title": "Plum and almond cake",
+   "date": "2026-09-13",
+   "slug": "plum-and-almond-cake",
+   "cats": [
+    "Baking"
+   ],
+   "image": "https://images.unsplash.com/photo-1769434128985-451a899adc0f?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "1 hour 10 minutes · makes one 23cm cake",
+   "content": "<!-- wp:paragraph --><p>September is plum month, and this is the cake for it. The plums sink into a soft almond sponge and turn jammy at the edges.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>It keeps for three days, and is better on the second.</p><!-- /wp:paragraph -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Ingredients</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>175g soft butter</li><!-- /wp:list-item --><!-- wp:list-item --><li>175g caster sugar</li><!-- /wp:list-item --><!-- wp:list-item --><li>3 eggs</li><!-- /wp:list-item --><!-- wp:list-item --><li>100g self-raising flour</li><!-- /wp:list-item --><!-- wp:list-item --><li>100g ground almonds</li><!-- /wp:list-item --><!-- wp:list-item --><li>1 tsp vanilla</li><!-- /wp:list-item --><!-- wp:list-item --><li>8 plums, halved and stoned</li><!-- /wp:list-item --><!-- wp:list-item --><li>Icing sugar, to dust</li><!-- /wp:list-item --></ul><!-- /wp:list -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Method</h2><!-- /wp:heading -->\n\n<!-- wp:list {\"ordered\":true} --><ol class=\"wp-block-list\"><!-- wp:list-item --><li>Heat the oven to 180°C (160°C fan) and line a 23cm tin.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Beat the butter and sugar until pale, then beat in the eggs one at a time.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Fold in the flour, almonds and vanilla. Spread into the tin.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Press the plums in, cut side up.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Bake for 50 to 55 minutes, until a skewer comes out clean. Cool, then dust with icing sugar.</li><!-- /wp:list-item --></ol><!-- /wp:list -->"
+  },
+  {
+   "title": "Tomato and butter bean stew",
+   "date": "2026-09-06",
+   "slug": "tomato-and-butter-bean-stew",
+   "cats": [
+    "Quick suppers"
+   ],
+   "image": "https://images.unsplash.com/photo-1715216553304-4960f95dfff2?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "30 minutes · serves 4",
+   "content": "<!-- wp:paragraph --><p>Cupboard food that does not taste like cupboard food. Two tins of beans, one of tomatoes, and enough garlic to make the house smell of it.</p><!-- /wp:paragraph -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Ingredients</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>3 tbsp olive oil</li><!-- /wp:list-item --><!-- wp:list-item --><li>1 onion, chopped</li><!-- /wp:list-item --><!-- wp:list-item --><li>4 cloves garlic, sliced</li><!-- /wp:list-item --><!-- wp:list-item --><li>1 tsp smoked paprika</li><!-- /wp:list-item --><!-- wp:list-item --><li>1 tin chopped tomatoes</li><!-- /wp:list-item --><!-- wp:list-item --><li>2 tins butter beans, drained</li><!-- /wp:list-item --><!-- wp:list-item --><li>A handful of parsley</li><!-- /wp:list-item --><!-- wp:list-item --><li>Thick toast, to serve</li><!-- /wp:list-item --></ul><!-- /wp:list -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Method</h2><!-- /wp:heading -->\n\n<!-- wp:list {\"ordered\":true} --><ol class=\"wp-block-list\"><!-- wp:list-item --><li>Soften the onion in the oil for 8 minutes.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Add the garlic and paprika and cook for 1 minute.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Tip in the tomatoes with half a tin of water and simmer for 10 minutes.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Add the beans and cook for 5 minutes more, until thick. Season.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Scatter with parsley and eat with toast.</li><!-- /wp:list-item --></ol><!-- /wp:list -->"
+  },
+  {
+   "title": "Brown butter banana bread",
+   "date": "2026-08-30",
+   "slug": "brown-butter-banana-bread",
+   "cats": [
+    "Baking"
+   ],
+   "image": "https://images.unsplash.com/photo-1675712843856-ba2cb7d33f3c?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "1 hour 15 minutes · makes one loaf",
+   "content": "<!-- wp:paragraph --><p>Browning the butter takes five extra minutes and makes this taste like a different cake. Use the blackest bananas you can find.</p><!-- /wp:paragraph -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Ingredients</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>115g butter</li><!-- /wp:list-item --><!-- wp:list-item --><li>3 very ripe bananas</li><!-- /wp:list-item --><!-- wp:list-item --><li>150g light brown sugar</li><!-- /wp:list-item --><!-- wp:list-item --><li>2 eggs</li><!-- /wp:list-item --><!-- wp:list-item --><li>1 tsp vanilla</li><!-- /wp:list-item --><!-- wp:list-item --><li>200g plain flour</li><!-- /wp:list-item --><!-- wp:list-item --><li>1 tsp bicarbonate of soda</li><!-- /wp:list-item --><!-- wp:list-item --><li>A pinch of salt</li><!-- /wp:list-item --></ul><!-- /wp:list -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Method</h2><!-- /wp:heading -->\n\n<!-- wp:list {\"ordered\":true} --><ol class=\"wp-block-list\"><!-- wp:list-item --><li>Melt the butter in a pan and let it bubble until it smells nutty and turns golden brown. Cool slightly.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Heat the oven to 175°C (155°C fan) and line a loaf tin.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Mash the bananas, then whisk in the butter, sugar, eggs and vanilla.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Fold in the flour, soda and salt until just combined.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Bake for 55 to 60 minutes. Cool in the tin for 15 minutes before turning out.</li><!-- /wp:list-item --></ol><!-- /wp:list -->"
+  },
+  {
+   "title": "Rosemary focaccia",
+   "date": "2026-08-23",
+   "slug": "rosemary-focaccia",
+   "cats": [
+    "Baking"
+   ],
+   "image": "https://images.unsplash.com/photo-1605466237823-49122fcaf198?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "4 hours, mostly waiting · makes one tray",
+   "content": "<!-- wp:paragraph --><p>The easiest bread there is. No kneading, a lot of olive oil, and dimples you push in with your fingers, which is the best part.</p><!-- /wp:paragraph -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Ingredients</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>500g strong white flour</li><!-- /wp:list-item --><!-- wp:list-item --><li>7g fast-action yeast</li><!-- /wp:list-item --><!-- wp:list-item --><li>10g salt</li><!-- /wp:list-item --><!-- wp:list-item --><li>400ml warm water</li><!-- /wp:list-item --><!-- wp:list-item --><li>6 tbsp olive oil</li><!-- /wp:list-item --><!-- wp:list-item --><li>Rosemary and flaky salt</li><!-- /wp:list-item --></ul><!-- /wp:list -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Method</h2><!-- /wp:heading -->\n\n<!-- wp:list {\"ordered\":true} --><ol class=\"wp-block-list\"><!-- wp:list-item --><li>Stir the flour, yeast, salt and water into a sticky dough. Cover and leave for 2 hours, until doubled.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Pour half the oil into a deep tray, tip in the dough and stretch it to the corners. Leave for another hour.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Heat the oven to 230°C (210°C fan). Dimple the dough all over with oily fingers, then add rosemary, salt and the rest of the oil.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Bake for 22 to 25 minutes, until deep gold. Cool for 10 minutes before cutting.</li><!-- /wp:list-item --></ol><!-- /wp:list -->"
+  },
+  {
+   "title": "Sunday roast chicken",
+   "date": "2026-08-16",
+   "slug": "sunday-roast-chicken",
+   "cats": [
+    "Slow weekends"
+   ],
+   "image": "https://images.unsplash.com/photo-1606728035253-49e8a23146de?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "1 hour 40 minutes · serves 4 to 6",
+   "content": "<!-- wp:paragraph --><p>Everyone should have one roast chicken they can make without a recipe. This is mine: butter under the skin, a lemon inside and a long rest at the end.</p><!-- /wp:paragraph -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Ingredients</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>1 chicken, about 1.8kg</li><!-- /wp:list-item --><!-- wp:list-item --><li>50g soft butter</li><!-- /wp:list-item --><!-- wp:list-item --><li>1 lemon</li><!-- /wp:list-item --><!-- wp:list-item --><li>A head of garlic, halved</li><!-- /wp:list-item --><!-- wp:list-item --><li>Thyme or tarragon</li><!-- /wp:list-item --><!-- wp:list-item --><li>Salt and pepper</li><!-- /wp:list-item --></ul><!-- /wp:list -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Method</h2><!-- /wp:heading -->\n\n<!-- wp:list {\"ordered\":true} --><ol class=\"wp-block-list\"><!-- wp:list-item --><li>Take the chicken out of the fridge an hour before. Heat the oven to 200°C (180°C fan).</li><!-- /wp:list-item --><!-- wp:list-item --><li>Push the butter under the skin of the breast and season well all over.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Put the lemon, garlic and herbs inside the bird.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Roast for 1 hour 20 minutes, until the juices run clear.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Rest for 20 minutes, loosely covered. Make gravy from the tin while you wait.</li><!-- /wp:list-item --></ol><!-- /wp:list -->"
+  },
+  {
+   "title": "Fresh egg pasta by hand",
+   "date": "2026-08-09",
+   "slug": "fresh-egg-pasta",
+   "cats": [
+    "Slow weekends"
+   ],
+   "image": "https://images.unsplash.com/photo-1498579150354-977475b7ea0b?w=1600&q=80&fm=jpg&fit=max",
+   "excerpt": "1 hour · serves 4",
+   "content": "<!-- wp:paragraph --><p>Two ingredients and a rainy afternoon. You do not need a machine, though it helps. You do need a clear table and someone to talk to while you roll.</p><!-- /wp:paragraph -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Ingredients</h2><!-- /wp:heading -->\n\n<!-- wp:list --><ul class=\"wp-block-list\"><!-- wp:list-item --><li>400g 00 flour</li><!-- /wp:list-item --><!-- wp:list-item --><li>4 eggs</li><!-- /wp:list-item --><!-- wp:list-item --><li>Semolina, for dusting</li><!-- /wp:list-item --></ul><!-- /wp:list -->\n\n<!-- wp:heading --><h2 class=\"wp-block-heading\">Method</h2><!-- /wp:heading -->\n\n<!-- wp:list {\"ordered\":true} --><ol class=\"wp-block-list\"><!-- wp:list-item --><li>Make a well in the flour, crack in the eggs and work them together with a fork, then your hands.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Knead for 10 minutes until smooth and springy. Wrap and rest for 30 minutes.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Roll out as thin as you can, in batches, dusting with semolina.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Fold and cut into ribbons. Cook in well-salted boiling water for 2 to 3 minutes.</li><!-- /wp:list-item --></ol><!-- /wp:list -->\n\n<!-- wp:paragraph --><p><em>Toss with butter, lemon and parmesan the first time, so you can taste the pasta.</em></p><!-- /wp:paragraph -->"
+  }
+ ],
+ "credits": [
+  {
+   "name": "Babs Gorniak",
+   "link": "https://unsplash.com/@babs_gorniak"
+  },
+  {
+   "name": "Kirill Tonkikh",
+   "link": "https://unsplash.com/@photophotostock"
+  },
+  {
+   "name": "Mila",
+   "link": "https://unsplash.com/@imoflow_me"
+  },
+  {
+   "name": "Kerri Leung",
+   "link": "https://unsplash.com/@kerrileung1"
+  },
+  {
+   "name": "Wouter Supardi Salari",
+   "link": "https://unsplash.com/@supardisign"
+  },
+  {
+   "name": "Iñigo De la Maza",
+   "link": "https://unsplash.com/@idelamaza"
+  },
+  {
+   "name": "Claudio Schwarz",
+   "link": "https://unsplash.com/@purzlbaum"
+  },
+  {
+   "name": "Jakub Kapusnak",
+   "link": "https://unsplash.com/@foodiesfeed"
+  },
+  {
+   "name": "Douglas Fehr",
+   "link": "https://unsplash.com/@roninfehr"
+  },
+  {
+   "name": "Lena Kudryavtseva",
+   "link": "https://unsplash.com/@lenakuld"
+  },
+  {
+   "name": "Jorge Zapata",
+   "link": "https://unsplash.com/@jorgezapatag"
+  }
+ ]
+}

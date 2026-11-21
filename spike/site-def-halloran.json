@@ -1,0 +1,416 @@
+{
+ "name": "Halloran",
+ "tagline": "Books, set with care.",
+ "palette": {
+  "base": "#FFFFFF",
+  "contrast": "#161616",
+  "accents": [
+   "#161616",
+   "#6F6F6F",
+   "#D9D9D9",
+   "#161616",
+   "#8F8F8F",
+   "#F3F3F3"
+  ]
+ },
+ "chrome": {
+  "header": "gogh-header-minimal",
+  "footer": "gogh-footer-simple",
+  "sticky": false
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "front": true,
+   "sections": [
+    {
+     "name": "Statement",
+     "minH": 576,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 600,
+       "h": 24,
+       "text": "Halloran · Book design · Leeds",
+       "tf": {
+        "fs": 12,
+        "fw": 500,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 192,
+       "w": 840,
+       "h": 144,
+       "text": "Books that are easy to hold and hard to put down.",
+       "fs": "__max"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 384,
+       "w": 520,
+       "h": 72,
+       "text": "A one-person studio, setting and designing books for small presses and stubborn authors since 2014.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 480,
+       "w": 400,
+       "h": 24,
+       "text": "<a href=\"/work/\">Selected work →</a>",
+       "tf": {
+        "fs": 15
+       }
+      }
+     ]
+    },
+    {
+     "name": "Selected work",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 600,
+       "h": 24,
+       "text": "Selected work",
+       "tf": {
+        "fs": 12,
+        "fw": 500,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+       }
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 168,
+       "w": 1040,
+       "h": 384,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "2026",
+          "t": "The Salt Road",
+          "role": "Peninsula Press"
+         },
+         {
+          "k": "2025",
+          "t": "Every Small Hour",
+          "role": "Quarry Books"
+         },
+         {
+          "k": "2025",
+          "t": "A Field Guide to Waiting",
+          "role": "Hallam & Daughter"
+         },
+         {
+          "k": "2024",
+          "t": "Notes from the Lower Town",
+          "role": "Peninsula Press"
+         },
+         {
+          "k": "2023",
+          "t": "The Weight of Paper",
+          "role": "Self-published"
+         }
+        ],
+        "type": {
+         "k": {
+          "tf": {
+           "fs": 14,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+          }
+         },
+         "t": {
+          "tf": {
+           "fs": 16,
+           "fw": 500
+          },
+          "body": 1
+         },
+         "role": {
+          "tf": {
+           "fs": 14,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 16%, transparent)"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "Approach",
+     "minH": 432,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 600,
+       "h": 24,
+       "text": "How I work",
+       "tf": {
+        "fs": 12,
+        "fw": 500,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+       }
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 168,
+       "w": 1040,
+       "h": 144,
+       "cards": {
+        "items": [
+         {
+          "t": "01 — Read it first",
+          "d": "Every book is read before it is set. The design comes from the text, not from a template."
+         },
+         {
+          "t": "02 — One typeface, used well",
+          "d": "Most books need one family and a lot of patience. Ornament is the last resort, not the first."
+         },
+         {
+          "t": "03 — Proofs on paper",
+          "d": "Nothing is signed off on a screen. The final proof is printed, held, and read in a chair."
+         }
+        ],
+        "feat": -1,
+        "layout": "g3",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "linkStyle": "caps",
+        "align": "left",
+        "round": 0,
+        "titles": 1,
+        "extras": {
+         "price": 0,
+         "role": 0,
+         "k": 0,
+         "n": 0
+        },
+        "type": {
+         "t": {
+          "tf": {
+           "fs": 15,
+           "fw": 600
+          },
+          "body": 1
+         },
+         "d": {
+          "tf": {
+           "fs": 15,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "gap": 24,
+         "minH": 144
+        }
+       }
+      }
+     ]
+    },
+    {
+     "name": "Contact line",
+     "minH": 288,
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 840,
+       "h": 72,
+       "text": "Working on a book?",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 192,
+       "w": 700,
+       "h": 24,
+       "text": "<a href=\"mailto:hello@halloran.studio\">hello@halloran.studio</a> · <a href=\"/contact/\">or say a little more</a>",
+       "tf": {
+        "fs": 17
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Work",
+   "sections": [
+    {
+     "name": "Work",
+     "minH": 936,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 600,
+       "h": 24,
+       "text": "Work · 2021 to now",
+       "tf": {
+        "fs": 12,
+        "fw": 500,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 840,
+       "h": 72,
+       "text": "Eight books, one at a time.",
+       "fs": "x-large"
+      },
+      {
+       "type": "cards",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 600,
+       "cards": {
+        "layout": "ledger",
+        "look": "open",
+        "pic": "none",
+        "act": "none",
+        "titles": 1,
+        "extras": {
+         "k": 1,
+         "price": 0,
+         "role": 1,
+         "n": 0
+        },
+        "items": [
+         {
+          "k": "2026",
+          "t": "The Salt Road",
+          "role": "Peninsula Press"
+         },
+         {
+          "k": "2025",
+          "t": "Every Small Hour",
+          "role": "Quarry Books"
+         },
+         {
+          "k": "2025",
+          "t": "A Field Guide to Waiting",
+          "role": "Hallam & Daughter"
+         },
+         {
+          "k": "2024",
+          "t": "Notes from the Lower Town",
+          "role": "Peninsula Press"
+         },
+         {
+          "k": "2023",
+          "t": "The Weight of Paper",
+          "role": "Self-published"
+         },
+         {
+          "k": "2023",
+          "t": "Eleven Winters",
+          "role": "Quarry Books"
+         },
+         {
+          "k": "2022",
+          "t": "Instructions for a Garden",
+          "role": "Hallam & Daughter"
+         },
+         {
+          "k": "2021",
+          "t": "The Long Table",
+          "role": "Peninsula Press"
+         }
+        ],
+        "type": {
+         "k": {
+          "tf": {
+           "fs": 14,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+          }
+         },
+         "t": {
+          "tf": {
+           "fs": 16,
+           "fw": 500
+          },
+          "body": 1
+         },
+         "role": {
+          "tf": {
+           "fs": 14,
+           "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 55%, transparent)"
+          }
+         }
+        },
+        "box": {
+         "look": "open",
+         "pad": 18,
+         "gap": 4,
+         "ruleCol": "color-mix(in srgb, var(--wp--preset--color--contrast, #000) 16%, transparent)"
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Contact",
+   "sections": [
+    {
+     "take": "Get in touch",
+     "eyebrow": "Contact",
+     "heading": "Say a little about the book",
+     "text": "Working title, rough length, and when you would like it printed. I reply within two days."
+    }
+   ]
+  }
+ ]
+}

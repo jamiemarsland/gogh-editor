@@ -19,6 +19,22 @@
   function scopedCss(a) {
     return String(a.cssT || '').replace(/GOGHSCOPE/g, a.scope || '');
   }
+  // gogh publishes the section div with the design's own class (model m.cls,
+  // the editor's userCls rule) and a one-page anchor as its id; save() must
+  // write the same, or the block editor calls those sections invalid
+  function sectionCls(a) {
+    var m = a.model && a.model.m;
+    return String((m && m.cls) || '').split(/\s+/).filter(function (c) {
+      return /^[a-z][a-z0-9-]{0,40}$/i.test(c) && !/^gogh-/i.test(c) && !/^wp-/i.test(c);
+    }).slice(0, 4).join(' ');
+  }
+  function sectionDivProps(a) {
+    var cls = sectionCls(a);
+    var anchor = a.model && typeof a.model.anchor === 'string' ? a.model.anchor : '';
+    var p = { className: 'gogh-section ' + (a.scope || '') + (cls ? ' ' + cls : ''), 'data-gogh-scope': a.scope || '' };
+    if (anchor) p.id = anchor;
+    return p;
+  }
 
   var v2attributes = {
     css: { type: 'string', source: 'text', selector: 'style.gogh-style', default: '' },
@@ -49,6 +65,10 @@
   }
 
   blocks.registerBlockType('gogh/section', {
+    // API 3 (WordPress 6.9 warns about 1): the editor's wrapper comes from
+    // useBlockProps below. save() keeps writing its own classes, so the
+    // saved markup is exactly what it was and older sections still validate.
+    apiVersion: 3,
     title: 'gogh Section',
     description: 'A freeform gogh layout. Edit visually on the front end with gogh, or edit the blocks inside right here.',
     icon: 'art',
@@ -69,32 +89,34 @@
 
     edit: function (props) {
       var a = props.attributes;
-      // freshly inserted section (no model yet): point the user at the live
-      // page, where gogh actually does its editing
-      if (!a.model) {
-        var link = '';
-        try { link = window.wp.data.select('core/editor').getPermalink() || ''; } catch (e) {}
-        var href = link ? link + (link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1' : '';
-        return el('div', {
+      // one useBlockProps call on every render (a hook), shaped for whichever
+      // face the block shows
+      var blockProps = blockEditor.useBlockProps(a.model
+        ? { className: 'wp-block-gogh-section alignfull gogh-wrap' }
+        : {
           className: 'wp-block-gogh-section gogh-wrap',
           style: {
             padding: '56px 24px', textAlign: 'center',
             border: '1.5px dashed #7ea8ff', borderRadius: '14px',
             background: 'rgba(126, 168, 255, 0.06)',
           },
-        },
+        });
+      // freshly inserted section (no model yet): point the user at the live
+      // page, where gogh actually does its editing
+      if (!a.model) {
+        var link = '';
+        try { link = window.wp.data.select('core/editor').getPermalink() || ''; } catch (e) {}
+        var href = link ? link + (link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1' : '';
+        return el('div', blockProps,
           el('p', { style: { fontWeight: 700, fontSize: '15px', margin: '0 0 6px' } }, '🎨 gogh section'),
           el('p', { style: { margin: '0 0 16px', opacity: 0.75 } },
             'Design this section by dragging elements directly on the live page.'),
           href ? el('a', { className: 'components-button is-primary', href: href }, 'Edit with gogh') : null
         );
       }
-      return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
+      return el('div', blockProps,
         el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
-        el('div', {
-          className: 'gogh-section ' + (a.scope || ''),
-          'data-gogh-scope': a.scope || '',
-        }, el(InnerBlocks, { templateLock: false }))
+        el('div', sectionDivProps(a), el(InnerBlocks, { templateLock: false }))
       );
     },
 
@@ -102,14 +124,28 @@
       var a = props.attributes;
       return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
         el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
-        el('div', {
-          className: 'gogh-section ' + (a.scope || ''),
-          'data-gogh-scope': a.scope || '',
-        }, el(InnerBlocks.Content))
+        el('div', sectionDivProps(a), el(InnerBlocks.Content))
       );
     },
 
     deprecated: [
+      {
+        // before the section div carried its class and anchor: markup the
+        // block editor itself saved keeps validating, then takes the new save
+        attributes: {
+          v: { type: 'number', default: 3 },
+          scope: { type: 'string', default: '' },
+          model: { type: 'object' },
+          cssT: { type: 'string', default: '' },
+        },
+        save: function (props) {
+          var a = props.attributes;
+          return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
+            el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
+            el('div', { className: 'gogh-section ' + (a.scope || ''), 'data-gogh-scope': a.scope || '' }, el(InnerBlocks.Content))
+          );
+        },
+      },
       {
         attributes: v2attributes,
         save: v2save,
@@ -123,5 +159,36 @@
         },
       },
     ],
+  });
+  // gogh/form — the contact form. PHP draws it (render_callback), so there is
+  // nothing to save; but a block PHP alone registers is "unsupported" to the
+  // block editor. Registered here it opens as a named block with a quiet
+  // stand-in for the form, and saves back exactly as it was.
+  blocks.registerBlockType('gogh/form', {
+    apiVersion: 3,
+    title: 'Form (gogh)',
+    description: 'A contact form. Its messages arrive under Messages in the dashboard. Style it on the live page with gogh.',
+    icon: 'email',
+    category: 'widgets',
+    supports: { html: false, customClassName: false, reusable: false },
+    attributes: {
+      heading: { type: 'string', default: '' },
+      button: { type: 'string', default: '' },
+    },
+    edit: function (props) {
+      var a = props.attributes;
+      var line = function (label, tall) {
+        return el('div', { style: { margin: '0 0 12px' } },
+          el('div', { style: { fontSize: '12px', opacity: 0.7, margin: '0 0 4px' } }, label),
+          el('div', { style: { height: tall ? '72px' : '36px', border: '1px solid currentColor', borderRadius: '6px', opacity: 0.35 } }));
+      };
+      return el('div', blockEditor.useBlockProps({ style: { padding: '24px', border: '1.5px dashed #7ea8ff', borderRadius: '14px', background: 'rgba(126, 168, 255, 0.06)', maxWidth: '520px' } }),
+        a.heading ? el('p', { style: { fontWeight: 700, margin: '0 0 12px' } }, a.heading) : null,
+        line('Name'), line('Email'), line('Message', true),
+        el('div', { style: { display: 'inline-block', padding: '8px 18px', borderRadius: '999px', background: 'currentColor' } },
+          el('span', { style: { filter: 'invert(1)', fontWeight: 600, fontSize: '13px' } }, a.button || 'Send')),
+        el('p', { style: { margin: '12px 0 0', fontSize: '12px', opacity: 0.7 } }, 'gogh form: a stand-in. The real form shows on the live page.'));
+    },
+    save: function () { return null; },
   });
 })(window.wp.blocks, window.wp.element, window.wp.blockEditor);

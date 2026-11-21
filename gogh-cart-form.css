@@ -1,0 +1,48 @@
+/* gogh — the add to cart form, dressed (see gogh-cart-form.js). Everything
+   is scoped to form.cart.gogh-cf, which the script adds: without it the
+   form is WooCommerce's own. Colours come from the theme's own button
+   (--gogh-cf-on / --gogh-cf-ink) and the text around the form. */
+form.cart.gogh-cf { --gogh-cf-line: color-mix(in srgb, currentColor 22%, transparent); --gogh-cf-h: 48px; }
+form.cart.gogh-cf .gogh-cf-hidden { position: absolute !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; border: 0 !important; padding: 0 !important; margin: -1px !important; }
+
+/* the choices: a label above a row of chips */
+form.cart.gogh-cf table.variations { display: block; width: 100%; margin: 0 0 1.4rem; border: 0; border-collapse: separate; }
+form.cart.gogh-cf table.variations tbody, form.cart.gogh-cf table.variations tr { display: flex; flex-direction: column; gap: 0; border: 0; background: none; }
+form.cart.gogh-cf table.variations tbody { gap: 1.1rem; }
+form.cart.gogh-cf table.variations th, form.cart.gogh-cf table.variations td { display: block; padding: 0; border: 0; background: none; text-align: left; line-height: 1.3; }
+form.cart.gogh-cf table.variations th { margin: 0 0 0.6rem; }
+form.cart.gogh-cf table.variations th label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin: 0; }
+form.cart.gogh-cf .gogh-cf-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+form.cart.gogh-cf .gogh-cf-chip { min-height: 44px; min-width: 64px; padding: 0 1.15rem; margin: 0; border: 1px solid var(--gogh-cf-line); border-radius: var(--gogh-cf-r, 0); background: transparent; color: inherit; font: inherit; font-size: 0.95rem; line-height: 1; cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease; }
+form.cart.gogh-cf .gogh-cf-chip:hover { border-color: currentColor; }
+form.cart.gogh-cf .gogh-cf-chip.is-on { background: var(--gogh-cf-on, currentColor); border-color: var(--gogh-cf-on, currentColor); color: var(--gogh-cf-ink, #fff); }
+form.cart.gogh-cf .gogh-cf-chip.is-off { opacity: 0.4; text-decoration: line-through; cursor: not-allowed; }
+form.cart.gogh-cf .gogh-cf-chip.is-off:hover { border-color: var(--gogh-cf-line); }
+form.cart.gogh-cf .gogh-cf-chip:focus-visible, form.cart.gogh-cf .gogh-cf-step:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+form.cart.gogh-cf .gogh-cf-nudge { animation: gogh-cf-nudge 0.42s ease; }
+@keyframes gogh-cf-nudge { 20% { transform: translateX(-5px); } 45% { transform: translateX(5px); } 70% { transform: translateX(-3px); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { form.cart.gogh-cf .gogh-cf-nudge { animation: none; outline: 2px solid currentColor; outline-offset: 4px; } }
+
+/* a long list stays a dropdown, dressed like the rest */
+form.cart.gogh-cf table.variations select:not(.gogh-cf-hidden) { appearance: none; -webkit-appearance: none; min-width: min(280px, 100%); height: var(--gogh-cf-h); padding: 0 2.6rem 0 1rem; border: 1px solid var(--gogh-cf-line); border-radius: var(--gogh-cf-r, 0); background: transparent no-repeat right 1rem center / 12px 12px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23777' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E"); color: inherit; font: inherit; font-size: 0.95rem; }
+form.cart.gogh-cf .reset_variations:not(.gogh-cf-hidden) { margin-left: 0.8rem; font-size: 0.85rem; }
+
+/* the chosen size's word on stock sits quietly above the buttons */
+form.cart.gogh-cf .single_variation { margin: 0; font-size: 0.92rem; }
+form.cart.gogh-cf .single_variation > div:not(:empty):not(.woocommerce-variation-price) { margin: 0 0 1rem; }
+form.cart.gogh-cf .single_variation > div:empty { display: none; }
+form.cart.gogh-cf.gogh-cf-price-up .woocommerce-variation-price { display: none; }
+
+/* quantity and button: one row, one height */
+form.cart.gogh-cf .woocommerce-variation-add-to-cart, form.cart.gogh-cf:not(.variations_form) { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0.75rem; }
+form.cart.gogh-cf:not(.variations_form) > :not(.quantity):not(.single_add_to_cart_button) { flex-basis: 100%; }
+form.cart.gogh-cf .gogh-cf-qty { display: inline-flex; align-items: stretch; float: none; margin: 0; height: var(--gogh-cf-h); border: 1px solid var(--gogh-cf-line); border-radius: var(--gogh-cf-r, 0); overflow: hidden; }
+form.cart.gogh-cf .gogh-cf-qty input.qty { width: 3.2ch; min-width: 2.6rem; height: auto; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: 1rem; text-align: center; -moz-appearance: textfield; box-shadow: none; }
+form.cart.gogh-cf .gogh-cf-qty input.qty::-webkit-outer-spin-button, form.cart.gogh-cf .gogh-cf-qty input.qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+form.cart.gogh-cf .gogh-cf-step { width: 44px; padding: 0; margin: 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: 1.25rem; line-height: 1; cursor: pointer; }
+form.cart.gogh-cf .gogh-cf-step:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
+form.cart.gogh-cf .single_add_to_cart_button { flex: 1 1 150px; max-width: 380px; min-height: var(--gogh-cf-h); margin: 0; float: none; }
+/* waiting for a choice: it says so, at full strength, and asks when pressed */
+form.cart.gogh-cf.gogh-cf-needs .single_add_to_cart_button { opacity: 1 !important; cursor: pointer; background: transparent !important; color: var(--gogh-cf-on, currentColor) !important; border-color: transparent !important; box-shadow: inset 0 0 0 1.5px var(--gogh-cf-on, currentColor); }
+form.cart.gogh-cf .single_add_to_cart_button.wc-variation-is-unavailable { opacity: 0.55 !important; cursor: not-allowed; }
+@media (max-width: 600px) { form.cart.gogh-cf .single_add_to_cart_button { max-width: none; } }
