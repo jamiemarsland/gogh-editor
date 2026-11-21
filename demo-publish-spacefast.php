@@ -270,7 +270,245 @@ function gogh_sf_fold( $abs ) {
 	return '/' . implode( '/', $parts );
 }
 
-function gogh_sf_publish() {
+// ---------- the round trip: the copy carries its own source ----------
+// A Playground is gone when its tab closes, so the copy keeps what a new one
+// needs to become this site again: every page as gogh saved it, the menu,
+// the header and footer, the styles and gogh's settings. No key and no
+// receipt go in it: after a claim the copy may be made public, source and all.
+function gogh_sf_pack() {
+	global $wpdb;
+	$home  = gogh_sf_home();
+	$types = array( 'page', 'post', 'wp_navigation', 'wp_template_part', 'wp_template', 'wp_global_styles', 'custom_css' );
+	$posts = array();
+	foreach ( get_posts( array( 'post_type' => $types, 'post_status' => array( 'publish', 'draft', 'private' ), 'numberposts' => 400, 'orderby' => 'ID', 'order' => 'ASC' ) ) as $p ) {
+		$meta = array();
+		foreach ( get_post_meta( $p->ID ) as $k => $vals ) {
+			if ( in_array( $k, array( '_edit_lock', '_edit_last', '_wp_old_slug', '_thumbnail_id', '_wp_old_date' ), true ) || 0 === strpos( $k, '_wp_trash' ) || 0 === strpos( $k, '_oembed' ) ) {
+				continue;
+			}
+			$meta[ $k ] = maybe_unserialize( $vals[0] );
+		}
+		$terms = array();
+		foreach ( get_object_taxonomies( $p->post_type ) as $tax ) {
+			$names = wp_get_object_terms( $p->ID, $tax, array( 'fields' => in_array( $tax, array( 'category', 'post_tag' ), true ) ? 'names' : 'slugs' ) );
+			if ( ! is_wp_error( $names ) && $names ) {
+				$terms[ $tax ] = array_values( $names );
+			}
+		}
+		$posts[] = array(
+			'id'      => (int) $p->ID,
+			'type'    => $p->post_type,
+			'name'    => $p->post_name,
+			'title'   => $p->post_title,
+			'status'  => $p->post_status,
+			'date'    => $p->post_date,
+			'order'   => (int) $p->menu_order,
+			'parent'  => (int) $p->post_parent,
+			'excerpt' => $p->post_excerpt,
+			'content' => str_replace( array( $home, str_replace( '/', '\/', $home ) ), array( '{{gogh-home}}', '{{gogh-home-esc}}' ), $p->post_content ),
+			'meta'    => $meta,
+			'terms'   => $terms,
+		);
+	}
+	$options = array();
+	foreach ( $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'gogh\_%'" ) as $name ) { // phpcs:ignore WordPress.DB
+		if ( 0 === strpos( $name, 'gogh_sf_' ) || in_array( $name, array( 'gogh_rewrite_stamp', 'gogh_boot_pinged' ), true ) ) {
+			continue;
+		}
+		$options[ $name ] = get_option( $name );
+	}
+	foreach ( array( 'blogname', 'blogdescription', 'show_on_front', 'permalink_structure' ) as $name ) {
+		$options[ $name ] = get_option( $name );
+	}
+	return array(
+		'v'       => 1,
+		'theme'   => get_stylesheet(),
+		'booted'  => (string) get_option( 'gogh_booted_as', '' ),
+		'front'   => (int) get_option( 'page_on_front' ),
+		'blog'    => (int) get_option( 'page_for_posts' ),
+		'posts'   => $posts,
+		'options' => $options,
+	);
+}
+
+// a fresh WordPress becomes the site in the pack. Called from the blueprint
+// the copy's "Edit it" button writes; $receipt (the owner's, from their own
+// browser) lets the next publish update the same copy.
+function gogh_sf_import( $b64, $receipt_b64 = '' ) {
+	$pack = json_decode( (string) @gzdecode( (string) base64_decode( (string) $b64 ) ), true ); // phpcs:ignore
+	if ( ! is_array( $pack ) || empty( $pack['posts'] ) || ! is_array( $pack['posts'] ) ) {
+		return 'gogh: the source could not be read';
+	}
+	wp_set_current_user( 1 );
+	kses_remove_filters(); // the pages are the owner's own, exactly as they were saved
+	$types = array( 'page', 'post', 'wp_navigation', 'wp_template_part', 'wp_template', 'wp_global_styles', 'custom_css' );
+	foreach ( get_posts( array( 'post_type' => $types, 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids' ) ) as $id ) {
+		wp_delete_post( $id, true );
+	}
+	if ( ! empty( $pack['theme'] ) && get_stylesheet() !== $pack['theme'] && wp_get_theme( $pack['theme'] )->exists() ) {
+		switch_theme( $pack['theme'] );
+	}
+	$home = gogh_sf_home();
+	$ids  = array(); // the id a page had → the id it has now
+	$made = array();
+	foreach ( $pack['posts'] as $p ) {
+		if ( empty( $p['type'] ) || ! in_array( $p['type'], $types, true ) ) {
+			continue;
+		}
+		$content = str_replace( array( '{{gogh-home-esc}}', '{{gogh-home}}' ), array( str_replace( '/', '\/', $home ), $home ), (string) $p['content'] );
+		$id      = wp_insert_post( wp_slash( array(
+			'post_type'      => $p['type'],
+			'post_name'      => (string) $p['name'],
+			'post_title'     => (string) $p['title'],
+			'post_status'    => in_array( $p['status'], array( 'publish', 'draft', 'private' ), true ) ? $p['status'] : 'publish',
+			'post_date'      => (string) $p['date'],
+			'menu_order'     => (int) $p['order'],
+			'post_excerpt'   => (string) $p['excerpt'],
+			'post_content'   => $content,
+			'comment_status' => 'closed',
+		) ), true );
+		if ( is_wp_error( $id ) || ! $id ) {
+			continue;
+		}
+		$ids[ (int) $p['id'] ] = (int) $id;
+		$made[ (int) $id ]     = $p;
+		foreach ( (array) $p['terms'] as $tax => $names ) {
+			if ( taxonomy_exists( $tax ) ) {
+				wp_set_object_terms( $id, array_map( 'strval', (array) $names ), $tax );
+			}
+		}
+		foreach ( (array) $p['meta'] as $k => $v ) {
+			update_post_meta( $id, (string) $k, wp_slash( $v ) );
+		}
+	}
+	// ids changed: a menu block names its menu by id, a menu item its page, a child its parent
+	$remap = function ( $m ) use ( $ids ) {
+		return isset( $ids[ (int) $m[2] ] ) ? $m[1] . $ids[ (int) $m[2] ] : $m[0];
+	};
+	foreach ( $made as $id => $p ) {
+		$now  = get_post( $id );
+		$next = preg_replace_callback( '#("ref":)(\d+)#', $remap, $now->post_content );
+		if ( 'wp_navigation' === $p['type'] ) {
+			$next = preg_replace_callback( '#("id":)(\d+)#', $remap, $next );
+		}
+		$upd = array();
+		if ( $next !== $now->post_content ) {
+			$upd['post_content'] = $next;
+		}
+		if ( ! empty( $p['parent'] ) && isset( $ids[ (int) $p['parent'] ] ) ) {
+			$upd['post_parent'] = $ids[ (int) $p['parent'] ];
+		}
+		if ( $upd ) {
+			wp_update_post( wp_slash( array( 'ID' => $id ) + $upd ) );
+		}
+		if ( 'custom_css' === $p['type'] ) {
+			set_theme_mod( 'custom_css_post_id', $id );
+		}
+	}
+	foreach ( (array) $pack['options'] as $name => $value ) {
+		if ( is_string( $name ) && ( 0 === strpos( $name, 'gogh_' ) || in_array( $name, array( 'blogname', 'blogdescription', 'show_on_front', 'permalink_structure' ), true ) ) && 0 !== strpos( $name, 'gogh_sf_' ) ) {
+			update_option( $name, $value );
+		}
+	}
+	update_option( 'page_on_front', isset( $ids[ (int) $pack['front'] ] ) ? $ids[ (int) $pack['front'] ] : 0 );
+	update_option( 'page_for_posts', isset( $ids[ (int) $pack['blog'] ] ) ? $ids[ (int) $pack['blog'] ] : 0 );
+	if ( ! empty( $pack['booted'] ) ) {
+		update_option( 'gogh_booted_as', sanitize_key( $pack['booted'] ) );
+	}
+	flush_rewrite_rules();
+	$rec = json_decode( (string) base64_decode( (string) $receipt_b64 ), true );
+	if ( is_array( $rec ) && ! empty( $rec['spaceId'] ) && ! empty( $rec['key'] ) ) {
+		update_option( 'gogh_sf_receipt', array(
+			'spaceId' => sanitize_text_field( $rec['spaceId'] ),
+			'key'     => sanitize_text_field( $rec['key'] ),
+			'open'    => esc_url_raw( isset( $rec['open'] ) ? $rec['open'] : '' ),
+			'claim'   => esc_url_raw( isset( $rec['claim'] ) ? $rec['claim'] : '' ),
+			'expires' => sanitize_text_field( isset( $rec['expires'] ) ? $rec['expires'] : '' ),
+			'host'    => sanitize_text_field( isset( $rec['host'] ) ? $rec['host'] : '' ),
+		), false );
+	}
+	return 'gogh: ' . count( $ids ) . ' pieces brought back';
+}
+
+// the script every page of the copy carries. It does nothing for a visitor.
+// For the person who published (their browser was handed a marker in the
+// link, and remembers it) it draws one bar: Edit it, Keep it.
+function gogh_sf_owner_js() {
+	return <<<'JS'
+(function () {
+  var K = 'gogh-owner';
+  function unpack(s) { try { return JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return null; } }
+  var m = location.hash.match(/gogh-owner=([A-Za-z0-9_-]+)/);
+  if (m) {
+    var got = unpack(m[1]);
+    if (got && got.k) { try { localStorage.setItem(K, JSON.stringify(got)); sessionStorage.removeItem(K + '-hide'); } catch (e) {} }
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  }
+  var own = null;
+  try { own = JSON.parse(localStorage.getItem(K) || 'null'); } catch (e) {}
+  if (!own || !own.k) return;
+  try { if (sessionStorage.getItem(K + '-hide') === '1') return; } catch (e) {}
+  function draw() {
+    var when = own.e ? new Date(own.e) : null, late = when && !isNaN(when) && when < new Date();
+    var css = document.createElement('style');
+    css.textContent = '.gogh-own{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 18px;background:#141519;color:#fff;font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;box-shadow:0 -10px 30px -18px rgba(0,0,0,.7)}' +
+      '.gogh-own-say{flex:1 1 260px;min-width:0}.gogh-own-say b{font-weight:700}.gogh-own-say span{opacity:.72}' +
+      '.gogh-own a,.gogh-own button{font:700 14px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;border-radius:999px;padding:11px 18px;cursor:pointer;text-decoration:none;border:1.5px solid #fff;background:transparent;color:#fff}' +
+      '.gogh-own .gogh-own-main{background:#e8b04b;border-color:#e8b04b;color:#141519}.gogh-own .gogh-own-x{border:0;padding:8px 10px;font-size:18px;opacity:.7}' +
+      '.gogh-own button[disabled]{opacity:.6;cursor:default}body{padding-bottom:72px}';
+    document.head.appendChild(css);
+    var bar = document.createElement('div');
+    bar.className = 'gogh-own';
+    bar.setAttribute('role', 'region');
+    bar.setAttribute('aria-label', 'Your site');
+    bar.innerHTML = '<div class="gogh-own-say"><b>This is your site.</b> <span>' +
+      (late ? 'Its time is up: keep it to bring it back.' : (when && !isNaN(when) ? 'It is live until ' + when.toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' }) + '. Only you see this bar.' : 'Only you see this bar.')) +
+      '</span></div><button type="button" class="gogh-own-edit gogh-own-main">Edit it</button>' +
+      (own.c ? '<a class="gogh-own-keep" href="' + String(own.c).replace(/"/g, '&quot;') + '" target="_blank" rel="noopener">Keep it</a>' : '') +
+      '<button type="button" class="gogh-own-x" aria-label="Hide this bar">×</button>';
+    document.body.appendChild(bar);
+    bar.querySelector('.gogh-own-x').addEventListener('click', function () { bar.remove(); css.remove(); try { sessionStorage.setItem(K + '-hide', '1'); } catch (e) {} });
+    var edit = bar.querySelector('.gogh-own-edit');
+    edit.addEventListener('click', function () {
+      // the new tab is opened NOW, inside the click, or a browser blocks it; it is pointed at Playground once the source is read
+      var tab = null;
+      try { tab = window.open('about:blank', '_blank'); } catch (e) {}
+      edit.disabled = true; edit.textContent = 'Opening…';
+      var RAW = 'https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/';
+      var plugin = RAW + 'demo-publish-spacefast.php';
+      Promise.all([
+        fetch('/_gogh/source.txt', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('The site\u2019s source could not be read.'); return r.text(); }),
+        own.b ? fetch(RAW + 'blueprint-' + own.b + '.json').then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }) : Promise.resolve(null)
+      ]).then(function (a) {
+        var src = a[0].replace(/\s+/g, ''), bp = a[1], steps = [];
+        if (!/^[A-Za-z0-9+\/=]+$/.test(src)) throw new Error('The site\u2019s source is not in a shape that can travel.');
+        ((bp && bp.steps) || []).forEach(function (s) { if (s && (s.step === 'installTheme' || s.step === 'installPlugin')) steps.push(s); });
+        // no blueprint to copy the theme's install from: ask WordPress.org for it by name
+        if (!steps.some(function (s) { return s.step === 'installTheme'; }) && own.t && /^[a-z0-9-]+$/.test(own.t)) steps.push({ step: 'installTheme', themeData: { resource: 'wordpress.org/themes', slug: own.t }, options: { activate: true } });
+        if (!steps.some(function (s) { return s.step === 'installPlugin'; })) steps.push({ step: 'installPlugin', pluginData: { resource: 'url', url: RAW + 'gogh-playground.zip' }, options: { activate: true } });
+        steps.push({ step: 'mkdir', path: '/wordpress/wp-content/mu-plugins' });
+        steps.push({ step: 'writeFile', path: '/wordpress/wp-content/mu-plugins/gogh-publish-spacefast.php', data: { resource: 'url', url: plugin } });
+        var rec = btoa(unescape(encodeURIComponent(JSON.stringify({ spaceId: own.s, key: own.k, open: own.o, claim: own.c, expires: own.e, host: own.h }))));
+        steps.push({ step: 'runPHP', code: "<?php require '/wordpress/wp-load.php'; echo gogh_sf_import( '" + src + "', '" + rec + "' );" });
+        var out = { landingPage: '/?gogh-edit=1', preferredVersions: (bp && bp.preferredVersions) || { php: '8.2', wp: 'latest' }, features: { networking: true }, login: true, steps: steps };
+        var url = 'https://playground.wordpress.net/?mode=seamless&storage=temp#' + encodeURIComponent(JSON.stringify(out));
+        if (url.length > 1700000) throw new Error('This site is too big to open for editing from here.');
+        if (tab) { tab.location.href = url; } else { location.href = url; }
+        edit.disabled = false; edit.textContent = 'Edit it';
+      }).catch(function (e) {
+        if (tab) { try { tab.close(); } catch (x) {} }
+        edit.disabled = false; edit.textContent = 'Edit it';
+        alert(e && e.message ? e.message : 'That did not work.');
+      });
+    });
+  }
+  if (document.body) draw(); else document.addEventListener('DOMContentLoaded', draw);
+})();
+JS;
+}
+
+function gogh_sf_publish( $req = null ) {
+	$fresh = $req && $req->get_param( 'fresh' );
 	$dir   = gogh_sf_dir();
 	$files = array(); // path in the copy => its text
 	if ( ! is_dir( $dir ) ) {
@@ -369,6 +607,8 @@ function gogh_sf_publish() {
 			}
 			$html = preg_replace( '#</head>#i', $links . '</head>', $html, 1 );
 		}
+		// the owner's bar (it draws nothing for anyone else)
+		$html = preg_replace( '#</body>#i', '<script src="/_gogh/owner.js" defer></script>' . "\n</body>", $html, 1 );
 		// one size of each of the site's own pictures is enough for a copy
 		$html           = preg_replace_callback( '#<img\b[^>]*>#i', function ( $m ) {
 			return preg_match( '#\ssrc=["\']/wp-content/#i', $m[0] ) ? preg_replace( '#\s(?:srcset|sizes)=(["\'])[^"\']*\1#i', '', $m[0] ) : $m[0];
@@ -376,6 +616,9 @@ function gogh_sf_publish() {
 		$pages[ $path ] = $html;
 	}
 
+	// the way back: the site's source, and the script that offers it to its owner
+	$files['_gogh/source.txt'] = base64_encode( (string) gzencode( (string) wp_json_encode( gogh_sf_pack() ), 9 ) );
+	$files['_gogh/owner.js']   = gogh_sf_owner_js();
 	// the files the pages name, and the files their stylesheets point at
 	$queue = array();
 	foreach ( $pages as $html ) {
@@ -455,6 +698,20 @@ function gogh_sf_publish() {
 	$parts    = array( array() );
 	$size     = 0;
 	$order    = array_merge( array_diff( array_keys( $files ), array_keys( $pages ) ), array_keys( $pages ) );
+	// a copy that already has a file, unchanged, is not sent it again:
+	// Spacefast counts every request to one unclaimed copy and refuses after
+	// a dozen or so an hour, and a republish is usually just the pages
+	$had  = get_option( 'gogh_sf_receipt' );
+	$had  = ( is_array( $had ) && ! empty( $had['spaceId'] ) && ! empty( $had['key'] ) ) ? $had : null;
+	if ( $fresh ) {
+		$had = null;
+		delete_option( 'gogh_sf_receipt' );
+	}
+	$sent = ( $had && ! empty( $had['sent'] ) && is_array( $had['sent'] ) ) ? $had['sent'] : array();
+	$all  = count( $order );
+	$order = array_values( array_filter( $order, function ( $path ) use ( $files, $sent ) {
+		return ! isset( $sent[ $path ] ) || md5( $files[ $path ] ) !== $sent[ $path ];
+	} ) );
 	foreach ( $order as $path ) {
 		$len = strlen( $files[ $path ] ) + 300;
 		if ( $len > $part_max ) {
@@ -479,9 +736,10 @@ function gogh_sf_publish() {
 		}
 		file_put_contents( $dir . '/.part-' . $pi . '.json', wp_json_encode( $bundle ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 	}
-	$had = get_option( 'gogh_sf_receipt' );
-	$had = ( is_array( $had ) && ! empty( $had['spaceId'] ) && ! empty( $had['key'] ) ) ? $had : null;
-	update_option( 'gogh_sf_progress', array( 'rec' => $had, 'again' => (bool) $had, 'parts' => count( $parts ), 'files' => count( $order ), 'left' => array_values( array_unique( $left ) ) ), false );
+	if ( ! $parts[0] ) {
+		$parts = array(); // nothing changed since last time
+	}
+	update_option( 'gogh_sf_progress', array( 'rec' => $had, 'again' => (bool) $had, 'parts' => count( $parts ), 'files' => $all, 'sent' => $sent, 'left' => array_values( array_unique( $left ) ) ), false );
 	$sizes = array();
 	foreach ( $order as $path ) {
 		$sizes[ $path ] = strlen( $files[ $path ] );
@@ -535,11 +793,11 @@ function gogh_sf_send( $req ) {
 	$got = null;
 	if ( $rec ) {
 		$got = $read( $send( array( 'publishMode' => 'additive', 'spaceId' => $rec['spaceId'] ), $rec['key'] ) );
-		if ( is_wp_error( $got ) && 0 === $pi && ! empty( $prog['again'] ) ) {
-			// last time's copy is gone or its key has run out: start a new one
-			$rec           = null;
-			$prog['again'] = false;
-			$got           = null;
+		if ( is_wp_error( $got ) && 0 === $pi && ! empty( $prog['again'] ) && false === strpos( $got->get_error_message(), 'Too many' ) ) {
+			// last time's copy is gone or its key has run out. Only the changed
+			// files were packed, so the whole site has to be packed again for a new copy
+			delete_option( 'gogh_sf_receipt' );
+			return new WP_Error( 'gogh_sf_fresh', 'The old copy is gone: starting a new one.', array( 'status' => 409 ) );
 		}
 	}
 	if ( null === $got ) {
@@ -572,6 +830,12 @@ function gogh_sf_send( $req ) {
 		$rec['expires'] = $claim['expiresAt'];
 	}
 	$prog['rec'] = $rec;
+	if ( empty( $prog['sent'] ) || ! is_array( $prog['sent'] ) ) {
+		$prog['sent'] = array();
+	}
+	foreach ( $bundle as $path => $f ) {
+		$prog['sent'][ $path ] = md5( $f[1] );
+	}
 	update_option( 'gogh_sf_progress', $prog, false );
 	return array( 'ok' => true, 'part' => $pi + 1, 'of' => (int) $prog['parts'] );
 }
@@ -582,7 +846,8 @@ function gogh_sf_finish() {
 	if ( ! is_array( $prog ) || empty( $prog['rec']['spaceId'] ) ) {
 		return new WP_Error( 'gogh_sf_finish', 'Nothing was sent.', array( 'status' => 400 ) );
 	}
-	$rec = $prog['rec'];
+	$rec         = $prog['rec'];
+	$rec['sent'] = isset( $prog['sent'] ) && is_array( $prog['sent'] ) ? $prog['sent'] : array();
 	update_option( 'gogh_sf_receipt', $rec, false );
 	delete_option( 'gogh_sf_progress' );
 	gogh_sf_rmdir( gogh_sf_dir() );
@@ -595,6 +860,8 @@ function gogh_sf_finish() {
 		'parts'   => (int) $prog['parts'],
 		'left'    => isset( $prog['left'] ) ? $prog['left'] : array(),
 		'again'   => ! empty( $prog['again'] ),
+		// for the owner's marker: it rides in the link's fragment, which no server sees
+		'mark'    => array( 'k' => $rec['key'], 's' => $rec['spaceId'], 'o' => esc_url_raw( $rec['open'] ), 'c' => esc_url_raw( $rec['claim'] ), 'e' => $rec['expires'], 'h' => $rec['host'], 'b' => sanitize_key( (string) get_option( 'gogh_booted_as', '' ) ), 't' => get_stylesheet() ),
 	);
 }
 
@@ -630,6 +897,10 @@ add_action( 'wp_footer', function () {
 .gogh-sf-acts a,.gogh-sf-acts button{font:600 13px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;border-radius:999px;padding:9px 16px;cursor:pointer;border:1px solid #d7dae2;background:#fff;color:#1c1e24;text-decoration:none}
 .gogh-sf-acts .is-main{background:#1c1e24;color:#fff;border-color:#1c1e24}
 .gogh-sf-small{font-size:13px;color:#6b6f78;margin:10px 0 0}
+.gogh-sf-card{position:relative}
+.gogh-sf-x{position:absolute;right:12px;top:10px;width:30px;height:30px;border:0;background:transparent;color:#6b6f78;font-size:20px;line-height:1;cursor:pointer;border-radius:8px}
+.gogh-sf-x:hover{background:#f1f2f5}
+.gogh-sf-acts .gogh-sf-see{font-size:15px;padding:12px 22px}
 .gogh-sf-card .gogh-sf-warn{background:#fdf3dc;color:#5c3b00;border-radius:10px;padding:10px 12px;margin:0 0 4px}
 .gogh-sf-warn[hidden]{display:none}
 </style>
@@ -665,7 +936,7 @@ add_action( 'wp_footer', function () {
   }
   function api(path, method) {
     return fetch(C.rest + path, { method: method || 'GET', credentials: 'same-origin', headers: { 'X-WP-Nonce': C.nonce } })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j && j.message ? j.message : 'HTTP ' + r.status); return j; }); });
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j && j.message ? j.message : 'HTTP ' + r.status); e.code = j && j.code; throw e; } return j; }); });
   }
   function el(html) { var d = document.createElement('div'); d.innerHTML = html; return d.firstChild; }
   function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
@@ -703,32 +974,40 @@ add_action( 'wp_footer', function () {
           return api('page?n=' + i).then(function (r) { if (!r || !r.ok) missed.push(s.names[i]); }, function () { missed.push(s.names[i]); })
             .then(function () { i++; return next(); });
         };
-        return next().then(function () {
+        var pack = function (fresh) {
           step.textContent = 'Packing it up…';
           bar.style.width = '40%';
-          return api('prepare', 'POST');
-        }).then(function (plan) {
-          var k = 0;
-          var sendNext = function () {
-            if (k >= plan.parts) return Promise.resolve();
-            step.textContent = 'Sending it to Spacefast… ' + (k + 1) + ' of ' + plan.parts;
-            bar.style.width = Math.round(40 + ((k + 0.5) / plan.parts) * 58) + '%';
-            return api('send?n=' + k, 'POST').then(function () { k++; return sendNext(); });
-          };
-          return sendNext().then(function () { return api('finish', 'POST'); }).then(function (r) { r.missed = missed; return r; });
-        });
+          return api('prepare' + (fresh ? '?fresh=1' : ''), 'POST').then(function (plan) {
+            var k = 0;
+            var sendNext = function () {
+              if (k >= plan.parts) return Promise.resolve();
+              step.textContent = 'Sending it to Spacefast… ' + (k + 1) + ' of ' + plan.parts;
+              bar.style.width = Math.round(40 + ((k + 0.5) / plan.parts) * 58) + '%';
+              return api('send?n=' + k, 'POST').then(function () { k++; return sendNext(); });
+            };
+            return sendNext();
+          }).catch(function (e) {
+            // the copy from last time has gone: pack the whole site and make a new one
+            if (e && e.code === 'gogh_sf_fresh' && !fresh) return pack(true);
+            throw e;
+          });
+        };
+        return next().then(function () { return pack(false); }).then(function () { return api('finish', 'POST'); }).then(function (r) { r.missed = missed; return r; });
       }).then(function (r) {
         var when = r.expires ? new Date(r.expires) : null;
         var card = wrap.querySelector('.gogh-sf-card');
-        card.innerHTML = '<h3>' + esc(C.name) + ' is on the web</h3>' +
-          '<p>' + (r.again ? 'The copy is updated, at the same link.' : 'Your copy is live at a private link.') + ' It stays up' + (when && !isNaN(when) ? ' until ' + esc(when.toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' })) : ' for about a day') + '. Claim it and it is yours to keep.</p>' +
-          '<p class="gogh-sf-small">Changed something? Publish again and the copy updates.</p>' +
+        // one thing to do: see it. Keeping it and editing it are offered ON the
+        // site, in a bar only this browser sees (the marker in the link sets it up)
+        var mark = '';
+        try { mark = '#gogh-owner=' + btoa(unescape(encodeURIComponent(JSON.stringify(r.mark || {})))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); } catch (e) {}
+        card.innerHTML = '<button type="button" class="gogh-sf-x" aria-label="Close">×</button>' +
+          '<h3>' + esc(C.name) + ' is on the web</h3>' +
+          '<p>' + (r.again ? 'Your site is updated, at the same address.' : 'It has an address of its own now.') + '</p>' +
           (r.missed && r.missed.length ? '<p class="gogh-sf-small">Not copied: ' + esc(r.missed.join(', ')) + '</p>' : '') +
           (r.left && r.left.length ? '<p class="gogh-sf-small">Left behind (too big, or not a kind that can travel): ' + esc(r.left.slice(0, 6).join(', ')) + (r.left.length > 6 ? ' and ' + (r.left.length - 6) + ' more' : '') + '</p>' : '') +
-          '<div class="gogh-sf-acts"><button type="button" class="gogh-sf-no">Close</button>' +
-          (r.claim ? '<a href="' + esc(r.claim) + '" target="_blank" rel="noopener">Claim it</a>' : '') +
-          '<a class="is-main" href="' + esc(r.open) + '" target="_blank" rel="noopener">Open the site</a></div>';
-        card.querySelector('.gogh-sf-no').addEventListener('click', close);
+          '<div class="gogh-sf-acts"><a class="is-main gogh-sf-see" href="' + esc(r.open + mark) + '" target="_blank" rel="noopener">See your site</a></div>';
+        card.querySelector('.gogh-sf-x').addEventListener('click', close);
+        card.querySelector('.gogh-sf-see').addEventListener('click', function () { setTimeout(close, 400); });
       }).catch(function (e) {
         var card = wrap.querySelector('.gogh-sf-card');
         card.innerHTML = '<h3>That did not work</h3><p>' + esc(e && e.message ? e.message : 'Something went wrong.') + '</p>' +
