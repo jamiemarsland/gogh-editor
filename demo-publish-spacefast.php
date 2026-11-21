@@ -465,7 +465,7 @@ function gogh_sf_owner_js() {
     bar.setAttribute('role', 'region');
     bar.setAttribute('aria-label', 'Your site');
     bar.innerHTML = '<div class="gogh-own-say"><b>This is your site.</b> <span>' +
-      (late ? 'Its time is up: keep it to bring it back.' : (when && !isNaN(when) ? 'It is live until ' + when.toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' }) + '. Only you see this bar.' : 'Only you see this bar.')) +
+      (late ? 'Its time is up: keep it to bring it back.' : (when && !isNaN(when) ? 'It is live until ' + when.toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' }) + '. Only you see this bar, in this browser.' : 'Only you see this bar, in this browser.')) +
       '</span></div><button type="button" class="gogh-own-edit gogh-own-main">Edit it</button>' +
       (own.c ? '<a class="gogh-own-keep" href="' + String(own.c).replace(/"/g, '&quot;') + '" target="_blank" rel="noopener">Keep it</a>' : '') +
       '<button type="button" class="gogh-own-x" aria-label="Hide this bar">×</button>';
@@ -473,6 +473,7 @@ function gogh_sf_owner_js() {
     var pill = document.createElement('button');
     pill.type = 'button'; pill.className = 'gogh-own-pill';
     pill.setAttribute('aria-label', 'Your site: show the edit bar');
+    pill.title = 'Only you see this, in this browser.';
     pill.innerHTML = '<i></i>Edit your site';
     document.body.appendChild(pill);
     var root = document.documentElement;
